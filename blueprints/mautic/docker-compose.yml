@@ -70,7 +70,7 @@ services:
       - "vps.auth.mode=public"
       - "vps.auto-update=patch"
     networks:
-      dokploy-network:
+      catena-network:
         aliases:
           - mautic
       default: {}
@@ -148,5 +148,5 @@ volumes:
   db-data:
 
 networks:
-  dokploy-network:
+  catena-network:
     external: true

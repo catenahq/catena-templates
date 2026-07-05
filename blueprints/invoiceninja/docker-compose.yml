@@ -105,7 +105,7 @@ services:
       - "vps.auth.groups=staff"
       - "vps.auto-update=patch"
     networks:
-      dokploy-network:
+      catena-network:
         aliases:
           - invoiceninja
       default: {}
@@ -156,5 +156,5 @@ configs:
     file: ./invoiceninja-nginx.conf
 
 networks:
-  dokploy-network:
+  catena-network:
     external: true

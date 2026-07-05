@@ -237,7 +237,7 @@ services:
       - "vps.auth.oidc.scopes=openid email profile groups"
       - "vps.auto-update=patch"
     networks:
-      dokploy-network:
+      catena-network:
         aliases:
           - nextcloud
       default: {}
@@ -415,7 +415,7 @@ services:
       - "vps.auth.mode=public"
       - "vps.auto-update=patch"
     networks:
-      dokploy-network:
+      catena-network:
         aliases:
           # Wire script's auto-detect probe hits http://signaling:8081
           # from inside the Nextcloud container; keep this alias so
@@ -431,7 +431,7 @@ volumes:
   db-data:
 
 networks:
-  dokploy-network:
+  catena-network:
     external: true
   # Shared antivirus network (clamd), created + owned by ops. External
   # so the Nextcloud app/cron services and the mail server share one

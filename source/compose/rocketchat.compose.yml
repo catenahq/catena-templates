@@ -78,7 +78,7 @@ services:
       - "vps.auth.oidc.scopes=openid email profile groups"
       - "vps.auto-update=patch"
     networks:
-      dokploy-network:
+      catena-network:
         aliases:
           - rocketchat
       default: {}
@@ -227,7 +227,7 @@ services:
       - "vps.auth.mode=public"
       - "vps.auto-update=patch"
     networks:
-      dokploy-network:
+      catena-network:
         aliases:
           - jitsi-web
       default: {}
@@ -238,5 +238,5 @@ volumes:
   mongodb-config:
 
 networks:
-  dokploy-network:
+  catena-network:
     external: true

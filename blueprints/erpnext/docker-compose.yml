@@ -114,7 +114,7 @@ services:
       - "vps.auth.mode=public"
       - "vps.auto-update=patch"
     networks:
-      dokploy-network:
+      catena-network:
         aliases:
           - erpnext
       default: {}
@@ -242,5 +242,5 @@ volumes:
   redis-queue-data:
 
 networks:
-  dokploy-network:
+  catena-network:
     external: true
