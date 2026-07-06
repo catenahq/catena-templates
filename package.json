@@ -2,14 +2,14 @@
   "name": "@catenahq/templates",
   "version": "0.1.0",
   "private": false,
-  "description": "Catena Dokploy template catalog: per-template compose files + metadata + render pipeline emitting Dokploy-marketplace-compatible blueprints. Consumed by catenahq/ops (vendored tarball) and Dokploy directly (BASE URL).",
+  "description": "Catena template catalog: per-template compose files + metadata + render pipeline emitting Portainer App Templates (templates.json v3). Consumed by catenahq/ops (vendored tarball) and Portainer directly (App Templates URL).",
   "type": "module",
   "files": [
     "source"
   ],
   "scripts": {
     "render": "uv run build/render.py",
-    "verify": "uv run build/render.py && git diff --exit-code blueprints meta.json",
+    "verify": "uv run build/render.py && git diff --exit-code blueprints templates.json",
     "check:unicode": "node scripts/check-unicode.mjs"
   },
   "repository": {

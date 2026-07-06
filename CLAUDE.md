@@ -5,9 +5,9 @@ layout, consumer model, and BASE URL setup.
 
 ## Edit rules
 
-- `source/` is canonical. `blueprints/` and `meta.json` are generated.
-  Never hand-edit a file under `blueprints/` -- the change will be
-  overwritten on the next `render.py` run, and CI will reject the PR.
+- `source/` is canonical. `blueprints/` and `templates.json` are generated.
+  Never hand-edit a file under `blueprints/` or `templates.json` -- the
+  change is overwritten on the next `render.py` run, and CI rejects the PR.
 - Every change is a deliberate version bump. Tag a `vX.Y.Z` release
   on every merge to main; catenahq/ops pulls via that tag.
 - No emojis or em-dashes in any artifact. Plain hyphens + straight
@@ -15,29 +15,29 @@ layout, consumer model, and BASE URL setup.
 - Bilingual prose (the `en` / `fr` blocks per catalog entry): both
   required, no EN-only or FR-only templates.
 - No secrets, ever. Sentinel placeholders (`__CATENA_OPERATOR_WIRED__`)
-  for env vars that ops/ converge owns. Random per-deploy values use
-  Dokploy's native helpers (`${password:len}`, `${uuid}`).
+  in templates.json for env vars that ops/ converge owns. Portainer App
+  Templates have no per-deploy secret generator, so ALL secrets default
+  to the sentinel and ops/ converge re-injects them.
 
 ## The render contract
 
 `build/render.py` transforms `source/catalog.yml` + `source/sizing-data.yml`
-+ `source/compose/` to `blueprints/` + `meta.json`. `sizing-data.yml`
-is validated for catalog parity (every catalog id must have a
-matching sizing entry with a positive int `peak_ram_mb`; orphan
-sizing entries fail the build too) but is NOT emitted to
-`blueprints/` -- it is consumed downstream by ops/ (bench scheduler
-+ generate-sizing-doc.py), not by Dokploy itself.
++ `source/compose/` to `blueprints/` + `templates.json` (Portainer App
+Templates v3). `sizing-data.yml` is validated for catalog parity (every
+catalog id must have a matching sizing entry with a positive int
+`peak_ram_mb`; orphan sizing entries fail the build too) but is NOT emitted
+to `blueprints/` -- it is consumed downstream by ops/ (bench scheduler +
+generate-sizing-doc.py), not by Portainer itself.
 
-- Jinja constructs in compose files are stripped or replaced:
-  - `{{ vault_* }}` -> sentinel (`__CATENA_OPERATOR_WIRED__`) for keys
-    listed in the catalog's `env_managed_keys`, OR Dokploy native
-    helper (`${password:32}` etc.) for non-managed secrets.
-  - `{{ cloudflare_zone }}` / `{{ keycloak_hostname }}` -> Dokploy
-    `${domain}` placeholder.
-  - `lookup('password', ...)` -> Dokploy `${password:N}` helper.
-- Per-template `meta.json` entries assembled from catalog metadata.
-- Template `template.toml` files emitted from catalog env_defaults +
-  domain_host + extra_domains.
+- The compose file is copied verbatim into `blueprints/<id>/docker-compose.yml`
+  (the Portainer type-3 stackfile). Jinja stays in place; ops/ converge
+  reconciles env + routing post-deploy (catena is operator-managed).
+- `templates.json` holds one Portainer App Template per catalog entry:
+  type 3, title/description/note/categories/logo from catalog metadata,
+  `repository{url, stackfile}` -> `blueprints/<id>/`, and `env`
+  `[{name,label,default}]` from env_defaults. Portainer has NO per-deploy
+  secret generator, so secret + `env_managed_keys` default to the sentinel
+  (`__CATENA_OPERATOR_WIRED__`) that ops/ re-injects.
 
 The render must be idempotent: running `render.py` twice produces
 byte-identical outputs. CI verifies this with `git diff --exit-code`
@@ -68,7 +68,7 @@ Checklist:
    enforces snippet safety (no curl/wget, no rm outside the app's
    data path).
 6. `uv run build/render.py` locally. Commit the regenerated
-   `blueprints/<id>/` and the updated `meta.json`.
+   `blueprints/<id>/` and the updated `templates.json`.
 7. Open a PR. CI must pass `build-and-verify.yml` (idempotent render)
    and `check:unicode`.
 8. After merge, `git tag -a vX.Y.Z -m "..." && git push --tags`.

@@ -1,10 +1,13 @@
 # catenahq/dokploy-templates
 
-Single source of truth for the Catena Dokploy template catalog: the
-compose files + per-template metadata + build pipeline that emits
-Dokploy-marketplace-compatible blueprints. Consumed by catenahq/ops
-(via a vendored tarball, contracts-pattern) and by Dokploy itself
-(via the BASE URL field pointing at this repo's raw GitHub URL).
+Single source of truth for the Catena template catalog: the compose files
++ per-template metadata + build pipeline that emits Portainer App Templates
+(templates.json v3). Consumed by catenahq/ops (via a vendored tarball,
+contracts-pattern) and by Portainer itself (its App Templates URL field
+pointing at this repo's raw templates.json). (Repo still named
+dokploy-templates during the Dokploy->Portainer migration; a rename to
+catena-templates is a separate coordinated step -- the public raw-URL
+contract + ops loader move together.)
 
 ## Layout
 
@@ -18,58 +21,58 @@ source/                  # canonical input, Jinja-templated
   compose/<id>.compose.yml
   assets/<id>/logo.png
 
-blueprints/              # generated; what Dokploy fetches via BASE URL
+blueprints/              # generated; the type-3 stackfiles Portainer clones
   <id>/
-    docker-compose.yml   # rendered: Jinja stripped, vault refs replaced by sentinels
-    template.toml        # var/config metadata in Dokploy's native schema
-    logo.png
+    docker-compose.yml   # the compose Portainer deploys as an App Template stack
+    logo.svg             # placeholder or copied source asset
+    quiesce.yml          # if the entry declares backup-quiesce hooks
 
-meta.json                # generated; top-level index Dokploy reads first
+templates.json           # generated; the Portainer App Templates index (v3)
 
 build/
-  render.py              # source/ -> blueprints/ + meta.json
+  render.py              # source/ -> blueprints/ + templates.json
   serve.py               # local preview server
 
 .github/workflows/
   build-and-verify.yml   # CI: run render.py, fail if outputs drift from source/
 ```
 
-`source/` is human-edited. `blueprints/` and `meta.json` are committed
+`source/` is human-edited. `blueprints/` and `templates.json` are committed
 build artifacts; CI verifies they stay in sync with `source/` on every
 PR.
 
 ## Two consumer paths
 
-### 1. Dokploy marketplace (BASE URL)
+### 1. Portainer App Templates (URL)
 
-In any Dokploy instance, paste the raw URL of this repo's main branch
-into the BASE URL field of the Templates panel:
+In any Portainer instance, point the App Templates URL at this repo's
+raw templates.json:
 
 ```
-https://raw.githubusercontent.com/catenahq/dokploy-templates/main/
+https://raw.githubusercontent.com/catenahq/dokploy-templates/main/templates.json
 ```
 
 Pin a release tag to freeze the catalog:
 
 ```
-https://raw.githubusercontent.com/catenahq/dokploy-templates/tags/v0.1.0/
+https://raw.githubusercontent.com/catenahq/dokploy-templates/tags/v0.1.0/templates.json
 ```
 
-Operator setup doc: catenahq/docs `operator/dokploy-marketplace-setup`.
+Each entry is a type-3 (compose git-repo) stack: Portainer clones this repo
+and deploys `blueprints/<id>/docker-compose.yml`.
 
-### 2. ops/ Ansible API-seeding (vendored)
+### 2. ops/ Ansible reconciliation (vendored)
 
-catenahq/ops consumes a tagged tarball of `source/` and seeds the
-"Templates" Dokploy project on each managed VPS at converge time. The
-seeding pipeline owns `env_managed_keys` drift-healing (operator state
-re-injected on every converge); the marketplace UI path does not.
+catenahq/ops consumes a tagged tarball of `source/` and reconciles each
+managed VPS at converge time (env + routing). The converge owns
+`env_managed_keys` drift-healing (operator state re-injected on every
+converge); the marketplace UI path does not.
 
 ## The env_managed_keys sentinel convention
 
 Operator-controlled env vars (OIDC client id/secret, TURN auth secret,
-discovery URL, ...) cannot be expressed in Dokploy's native template
-variable syntax. The build pipeline replaces them in the published
-blueprints with sentinel placeholders:
+discovery URL, ...) plus every secret (Portainer has no per-deploy
+generator) default in templates.json to the sentinel placeholder:
 
 ```
 OIDC_CLIENT_SECRET=__CATENA_OPERATOR_WIRED__

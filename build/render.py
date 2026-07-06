@@ -4,7 +4,7 @@
 # dependencies = ["pyyaml>=6.0"]
 # ///
 """
-Render source/ -> blueprints/ + meta.json.
+Render source/ -> blueprints/ + templates.json (Portainer App Templates v3).
 
 Inputs:
   source/catalog.yml             - per-template metadata + env_defaults
@@ -12,38 +12,28 @@ Inputs:
   source/assets/<id>/logo.png    - optional, copied verbatim
 
 Outputs (overwritten on each run; idempotent):
-  blueprints/<id>/docker-compose.yml
-  blueprints/<id>/template.toml
-  blueprints/<id>/logo.png        (if source asset present)
-  meta.json                       - flat index Dokploy reads first
+  blueprints/<id>/docker-compose.yml   - the Portainer type-3 stackfile
+  blueprints/<id>/logo.svg|png         - placeholder or source asset
+  blueprints/<id>/quiesce.yml          - if the entry declares quiesce hooks
+  templates.json                       - Portainer App Templates index (v3)
 
-M1 emits Dokploy-marketplace shapes that have NOT yet been verified
-against a running Dokploy instance. M2's bench scenario
-(dokploy_marketplace_deploy.yml) is the regression gate that pins the
-exact template.toml + meta.json schema. Until M2 lands, treat the
-output as plausible but not contract-compliant.
+The transformation (Dokploy->Portainer migration):
 
-The transformation:
+- The compose file is copied verbatim into blueprints/ as the type-3
+  stackfile. Portainer clones this repo and deploys
+  blueprints/<id>/docker-compose.yml; ops/ converge reconciles env +
+  routing post-deploy (catena is operator-managed).
 
-- compose file content is copied verbatim into blueprints/. Jinja
-  expressions (`{{ vault_* }}`, `{{ cloudflare_zone }}`, ...) remain
-  in place; Dokploy's renderer does not run them, but the operator
-  fills the values via the Environment tab before clicking Deploy
-  (sentinels in template.toml drive the form). For env vars that
-  ops/ converge owns (env_managed_keys), template.toml ships them
-  as readonly sentinels so the operator does NOT see them in the UI.
-
-- template.toml is hand-assembled from catalog fields:
-    - [variables]: KEY=value pairs from env_defaults, with
-      lookup('password', ...) translated to Dokploy ${password:N}.
-    - [config.domains]: domain_host + extra_domains.
-    - [config.env]: full key set, sentinels for managed keys.
-
-- meta.json mirrors Dokploy/templates upstream shape: array of
-  {id, name, description, version, links, tags, logo}.
+- templates.json holds one Portainer App Template per catalog entry:
+    - type 3 (compose stack deployed FROM this git repo),
+    - title/description/note/categories/logo from catalog metadata,
+    - repository{url, stackfile} pointing at blueprints/<id>/,
+    - env [{name,label,default}] from env_defaults. Portainer has no
+      per-deploy secret generator, so secret + managed keys default to
+      the sentinel (__CATENA_OPERATOR_WIRED__) that ops/ re-injects.
 
 Idempotency: render must produce byte-identical output across runs.
-CI verifies via `git diff --exit-code blueprints meta.json`.
+CI verifies via `git diff --exit-code blueprints templates.json`.
 """
 
 from __future__ import annotations
@@ -61,7 +51,15 @@ import yaml
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE = ROOT / "source"
 BLUEPRINTS = ROOT / "blueprints"
-META_JSON = ROOT / "meta.json"
+TEMPLATES_JSON = ROOT / "templates.json"
+
+# Portainer App Templates format version + the repo Portainer clones for
+# type-3 (compose git-repo) stacks. Kept as the current repo name during the
+# Dokploy->Portainer migration; a repo rename (catena-templates) is a separate
+# coordinated step (the public raw-URL contract + ops loader move together).
+PORTAINER_TEMPLATES_VERSION = "3"
+REPO_GIT_URL = "https://github.com/catenahq/dokploy-templates"
+RAW_BASE = "https://raw.githubusercontent.com/catenahq/dokploy-templates/main"
 
 # Allowed enum values for the operator-facing bench_pack + bench_fixture
 # fields. The catena-ops test bench reads these from the catalog at
@@ -93,13 +91,19 @@ JINJA_DOMAIN_HOSTS = {
 }
 
 
-def strip_jinja_for_dokploy(value: str) -> str:
-    """Transform a raw env_defaults value (KEY=val side) into a Dokploy variable."""
+def strip_jinja_for_portainer(value: str) -> str:
+    """Transform a raw env_defaults value into a Portainer App Template env
+    default. Portainer has NO per-deploy secret generator (Dokploy's
+    ${password:N}) -- catena is operator-managed, so ops/ converge re-injects
+    every secret post-deploy (env_managed_keys). So both vault refs AND
+    password lookups collapse to the sentinel here; ops/ owns them. Domain
+    jinja we cannot resolve at render time becomes empty (the operator fills
+    the host, or the ops route-writer sets it)."""
     out = value
-    out = LOOKUP_PASSWORD_RE.sub(lambda m: f"${{password:{m.group(1)}}}", out)
+    out = LOOKUP_PASSWORD_RE.sub(SENTINEL_MANAGED, out)
     out = JINJA_VAULT_RE.sub(SENTINEL_MANAGED, out)
-    for needle, replacement in JINJA_DOMAIN_HOSTS.items():
-        out = out.replace(needle, replacement)
+    for needle in JINJA_DOMAIN_HOSTS:
+        out = out.replace(needle, "")
     return out
 
 
@@ -108,60 +112,42 @@ def compose_basename(compose_file_jinja: str) -> str:
     return compose_file_jinja.rstrip().split("/")[-1]
 
 
-def render_template_toml(entry: dict[str, Any]) -> str:
-    lines: list[str] = []
+def render_portainer_template(entry: dict[str, Any], logo_filename: str) -> dict[str, Any]:
+    """One Portainer App Template (templates.json v3) entry: a type-3
+    compose-stack deployed FROM this repo's blueprint (Portainer clones the
+    git repo + uses the stackfile path). env is the operator-facing form."""
+    slug = entry["id"]
+    en = entry.get("en", {}) or {}
+    title = en.get("display_name", entry.get("app_name", slug))
+    description = (en.get("compose_description", "") or "").strip().split("\n")[0]
+    sso = entry.get("sso_mode", "")
+
+    env: list[dict[str, str]] = []
     managed = set(entry.get("env_managed_keys", []) or [])
-
-    lines.append(f'# Generated by catenahq/templates/build/render.py. Do not edit.')
-    lines.append('')
-    lines.append('[variables]')
-
-    rendered_env: list[tuple[str, str]] = []
     for kv in entry.get("env_defaults", []) or []:
         if "=" not in kv:
             continue
         key, raw_value = kv.split("=", 1)
         key = key.strip()
-        if key in managed:
-            value = SENTINEL_MANAGED
-        else:
-            value = strip_jinja_for_dokploy(raw_value)
-        rendered_env.append((key, value))
+        default = SENTINEL_MANAGED if key in managed else strip_jinja_for_portainer(raw_value)
+        env.append({"name": key, "label": key, "default": default})
 
-    for key, value in rendered_env:
-        escaped = value.replace("\\", "\\\\").replace('"', '\\"')
-        lines.append(f'{key} = "{escaped}"')
-
-    lines.append('')
-    lines.append('[config]')
-    lines.append('')
-
-    domain_host = strip_jinja_for_dokploy(entry.get("domain_host", "") or "")
-    domain_service = entry.get("domain_service", "")
-    domain_port = entry.get("domain_port", 0)
-
-    lines.append('[[config.domains]]')
-    lines.append(f'host = "{domain_host}"')
-    lines.append(f'serviceName = "{domain_service}"')
-    lines.append(f'port = {domain_port}')
-    lines.append('')
-
-    for extra in entry.get("extra_domains", []) or []:
-        host = strip_jinja_for_dokploy(extra.get("host", "") or "")
-        lines.append('[[config.domains]]')
-        lines.append(f'host = "{host}"')
-        lines.append(f'serviceName = "{extra.get("service", "")}"')
-        lines.append(f'port = {extra.get("port", 0)}')
-        lines.append('')
-
-    if rendered_env:
-        lines.append('[config.env]')
-        for key, value in rendered_env:
-            escaped = value.replace("\\", "\\\\").replace('"', '\\"')
-            lines.append(f'{key} = "{escaped}"')
-        lines.append('')
-
-    return "\n".join(lines).rstrip() + "\n"
+    tmpl: dict[str, Any] = {
+        "type": 3,
+        "title": title,
+        "description": description,
+        "note": f"<p>{description}</p>",
+        "categories": [sso] if sso else [],
+        "platform": "linux",
+        "logo": f"{RAW_BASE}/blueprints/{slug}/{logo_filename}",
+        "repository": {
+            "url": REPO_GIT_URL,
+            "stackfile": f"blueprints/{slug}/docker-compose.yml",
+        },
+    }
+    if env:
+        tmpl["env"] = env
+    return tmpl
 
 
 # Tailwind-ish palette for deterministic placeholder logos. Indexed by
@@ -209,25 +195,6 @@ def resolve_logo(entry: dict[str, Any], out_dir: Path) -> str:
     label = (entry.get("en") or {}).get("display_name") or entry.get("app_name") or slug
     (out_dir / "logo.svg").write_text(placeholder_logo_svg(slug, label))
     return "logo.svg"
-
-
-def render_meta_entry(entry: dict[str, Any], logo_filename: str) -> dict[str, Any]:
-    slug = entry["id"]
-    en = entry.get("en", {}) or {}
-    description = (en.get("compose_description", "") or "").strip().split("\n")[0]
-    return {
-        "id": slug,
-        "name": en.get("display_name", entry.get("app_name", slug)),
-        "description": description,
-        "version": "latest",
-        "links": {
-            "github": entry.get("upstream_url", ""),
-            "website": entry.get("upstream_url", ""),
-            "docs": f"https://docs.catena.run/apps/{slug}/",
-        },
-        "logo": logo_filename,
-        "tags": [entry.get("sso_mode", "")] if entry.get("sso_mode") else [],
-    }
 
 
 def validate_bench_fields(entries: list[dict[str, Any]]) -> list[str]:
@@ -427,7 +394,7 @@ def render_all() -> int:
         shutil.rmtree(BLUEPRINTS)
     BLUEPRINTS.mkdir(parents=True)
 
-    meta: list[dict[str, Any]] = []
+    templates: list[dict[str, Any]] = []
     for entry in entries:
         slug = entry["id"]
         out_dir = BLUEPRINTS / slug
@@ -438,19 +405,23 @@ def render_all() -> int:
         if not source_compose.exists():
             print(f"error: {slug}: compose file missing: {source_compose}", file=sys.stderr)
             return 1
+        # The blueprint compose IS the Portainer type-3 stackfile (Portainer
+        # clones this repo + deploys blueprints/<id>/docker-compose.yml).
         (out_dir / "docker-compose.yml").write_bytes(source_compose.read_bytes())
-
-        (out_dir / "template.toml").write_text(render_template_toml(entry))
 
         if entry.get("quiesce_pre") and entry.get("quiesce_post"):
             (out_dir / "quiesce.yml").write_text(render_quiesce_yaml(entry))
 
         logo_filename = resolve_logo(entry, out_dir)
-        meta.append(render_meta_entry(entry, logo_filename))
+        templates.append(render_portainer_template(entry, logo_filename))
 
-    META_JSON.write_text(json.dumps(meta, indent=2, sort_keys=True) + "\n")
+    # Portainer App Templates: a single templates.json (v3) at the repo root,
+    # replacing Dokploy's per-blueprint template.toml + meta.json.
+    doc = {"version": PORTAINER_TEMPLATES_VERSION, "templates": templates}
+    TEMPLATES_JSON.write_text(json.dumps(doc, indent=2, sort_keys=True) + "\n")
 
-    print(f"rendered {len(entries)} templates into {BLUEPRINTS.relative_to(ROOT)}/")
+    print(f"rendered {len(entries)} templates into {BLUEPRINTS.relative_to(ROOT)}/"
+          f" + {TEMPLATES_JSON.name}")
     return 0
 
 

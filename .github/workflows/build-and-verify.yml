@@ -19,9 +19,9 @@ jobs:
       - uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
       - name: Render
         run: uv run build/render.py
-      - name: Verify no drift between source/ and blueprints/ + meta.json
+      - name: Verify no drift between source/ and blueprints/ + templates.json
         run: |
-          if ! git diff --exit-code blueprints meta.json; then
+          if ! git diff --exit-code blueprints templates.json; then
             echo ""
             echo "render output drifted from committed artifacts."
             echo "Run 'uv run build/render.py' locally, commit the diff, push."
