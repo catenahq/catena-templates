@@ -188,9 +188,9 @@ def lint_all(strict_shellcheck: bool = True) -> int:
     except yaml.YAMLError as exc:
         print(f"error: catalog YAML invalid: {exc}", file=sys.stderr)
         return 2
-    entries = catalog.get("dokploy_template_catalog", [])
+    entries = catalog.get("catena_template_catalog", [])
     if not isinstance(entries, list):
-        print("error: dokploy_template_catalog must be a list", file=sys.stderr)
+        print("error: catena_template_catalog must be a list", file=sys.stderr)
         return 2
 
     all_errors: list[str] = []

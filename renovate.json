@@ -42,7 +42,7 @@
       "automerge": false
     },
     {
-      "description": "Traefik feature-set + config schema owned by Dokploy installer; minor/major land via Dokploy upgrades, not catalog edits.",
+      "description": "Traefik feature-set + config schema owned by the catena operator role (roles/traefik); minor/major land via operator converge, not catalog edits.",
       "matchManagers": ["docker-compose"],
       "matchFileNames": ["source/compose/**"],
       "matchPackageNames": ["traefik"],

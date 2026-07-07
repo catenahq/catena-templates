@@ -1,16 +1,16 @@
 ---
-# Dokploy "Templates" project catalog. Single source of truth consumed by:
+# Portainer App Template catalog. Single source of truth consumed by:
 #
-#   - roles/infrastructure/tasks/dokploy_templates.yml  -> seeds the
-#     compose entries into Dokploy at install time (the `compose_description`
-#     field is what shows up in Dokploy's description column).
+#   - build/render.py                                   -> emits
+#     templates.json (Portainer App Templates v3); the `compose_description`
+#     field becomes the template description in Portainer's gallery.
 #   - operator-tools/generate-template-docs.py                  -> renders the
 #     per-template client-docs pages + the index page (uses all fields).
 #
 # Each entry:
 #   Shared fields (language-neutral):
-#     id               -- stable key (used as sentinel key + Dokploy appName)
-#     app_name         -- Dokploy compose name (short kebab-case)
+#     id               -- stable key (used as sentinel key + Portainer stack name)
+#     app_name         -- compose/stack name (short kebab-case)
 #     upstream_url     -- upstream project website
 #     sso_mode         -- enum: pre-wired | post-deploy-ui | jackson-curl | auto | none | n/a
 #                        "pre-wired": zero post-deploy step, SSO works out of the box
@@ -24,7 +24,7 @@
 #     domain_service   -- compose service name Traefik routes to
 #     domain_port      -- internal port on that service
 #     compose_file     -- path to the compose file on the controller
-#     env_defaults     -- list of "KEY=value" strings for Dokploy's Environment tab
+#     env_defaults     -- list of "KEY=value" strings for the Portainer template env
 #     pg_replay_depends_on (optional) -- list of basenames whose pg_dump
 #                        sections must replay BEFORE this one. Used by
 #                        roles/backup/tasks/pg_replay.yml to topologically
@@ -114,12 +114,12 @@
 #     display_name        -- human-readable app name
 #     what_it_is          -- one-line pitch
 #     replaces            -- list of commercial apps this replaces (for "what does it do" positioning)
-#     compose_description -- short text shown in Dokploy's description column:
+#     compose_description -- short text shown in Portainer's template description:
 #                           what/replaces/link to full docs. Keep it ~3 lines.
 #     setup_steps         -- Markdown block of numbered steps to get running
 #     extra_notes         -- optional Markdown block (for walk-throughs, tables, etc.)
 
-dokploy_template_catalog:
+catena_template_catalog:
   - id: nextcloud-s3-oidc
     app_name: nextcloud
     bench_pack: postgres
@@ -138,7 +138,7 @@ dokploy_template_catalog:
     # serving the admin -- enabling it before the backup pg_dumpall +
     # restic walk guarantees a consistent file-DB pair. occ runs as
     # www-data; `docker exec` against the `app` service is the
-    # canonical Dokploy compose service name.
+    # canonical compose service name.
     quiesce_pre: 'docker exec -u www-data "$(docker ps -q -f label=com.docker.compose.service=app -f label=com.docker.compose.project~=nextcloud | head -1)" php occ maintenance:mode --on'
     quiesce_post: 'docker exec -u www-data "$(docker ps -q -f label=com.docker.compose.service=app -f label=com.docker.compose.project~=nextcloud | head -1)" php occ maintenance:mode --off'
     quiesce_timeout_seconds: 30
@@ -146,7 +146,8 @@ dokploy_template_catalog:
     # signaling+janus+nats; only its HTTP/WSS port (8081) is publicly
     # reachable. Ride the same wildcard CNAME at the Cloudflare layer
     # (signaling.<zone>) and let Traefik route to the talk-hpb
-    # service via the Dokploy domain mapping.
+    # service from the extra_domains entry below (the catena converge
+    # writes the route).
     extra_domains:
       - host: "signaling.{{ cloudflare_zone }}"
         service: talk-hpb
@@ -174,7 +175,7 @@ dokploy_template_catalog:
     # EP3: every operator-controlled OIDC env var is in
     # env_managed_keys so a converge auto-heals the discovery URL,
     # client ID, and client secret if a client edited them in the
-    # Dokploy UI. Hostname/admin/db secrets are NOT managed (we want
+    # Portainer UI. Hostname/admin/db secrets are NOT managed (we want
     # client edits to survive). DO NOT add lookup('password', ...)
     # values to env_managed_keys -- Jinja re-evaluates on every
     # converge and minted-fresh-each-time would rotate secrets and
@@ -186,7 +187,7 @@ dokploy_template_catalog:
       - OIDC_ISSUER_URL
       - OIDC_REDIRECT_URL
       # Talk + HPB (aio-talk) keys. Re-injected on every converge so
-      # a client who edited the value in Dokploy UI cannot drift
+      # a client who edited the value in the Portainer UI cannot drift
       # these out of sync with the shared coturn secret + signaling
       # endpoint hostname. Match the `talk-hpb` service in
       # nextcloud-s3.compose.yml.
@@ -200,8 +201,8 @@ dokploy_template_catalog:
       - "NEXTCLOUD_ADMIN_USER=admin"
       - "NEXTCLOUD_ADMIN_PASSWORD={{ lookup('password', '/dev/null length=24 chars=ascii_letters,digits') }}"
       - "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
-      # Catena-managed config knobs surfaced in the Dokploy Environment
-      # tab (Sprint 2.3). The zz-catena.sh entrypoint hook re-renders
+      # Catena-managed config knobs surfaced in the Portainer template
+      # env (Sprint 2.3). The zz-catena.sh entrypoint hook re-renders
       # /var/www/html/config/zz-catena.config.php on every container
       # start, so a value change here + redeploy is enough; no occ
       # call needed. Versions retention default `auto, 7` saves
@@ -213,7 +214,7 @@ dokploy_template_catalog:
       - "NEXTCLOUD_TRASH_RETENTION=auto, 30"
       # S3 primary-storage coords. Defaults target the canonical
       # catena hot-tier (OVH BHS); operator overrides region/host
-      # in the Dokploy UI for non-default deployments. Bucket name +
+      # in the Portainer UI for non-default deployments. Bucket name +
       # IAM creds are always per-client and stay blank in the
       # template so the operator must fill them before Deploy.
       - "S3_BUCKET="
@@ -385,8 +386,8 @@ dokploy_template_catalog:
 
   # Both office editors target office.<base>. Only ONE is deployed
   # per client at install time (operator picks per format-fidelity
-  # preference). Both seeded so the choice is a single click in
-  # Dokploy. The companion OliveTin buttons (Wire Nextcloud Collabora
+  # preference). Both shipped as App Templates so the choice is a
+  # single deploy in Portainer. The companion OliveTin buttons (Wire Nextcloud Collabora
   # / Wire Nextcloud OnlyOffice) install + configure the matching
   # Nextcloud-side app and remove the OTHER editor's app cleanly,
   # so switching is reversible without leftover state.
@@ -517,7 +518,7 @@ dokploy_template_catalog:
     quiesce_post: "docker exec \"$(docker ps -q -f label=com.docker.compose.service=rocketchat-mongo -f label=com.docker.compose.project~=rocketchat | head -1)\" mongosh --quiet --eval 'db.fsyncUnlock()'"
     quiesce_timeout_seconds: 60
     # Bundled Jitsi env -- re-injected on every converge so a client
-    # who edited the value in Dokploy UI cannot drift these out of
+    # who edited the value in the Portainer UI cannot drift these out of
     # sync with the shared coturn secret in the vault. Matches the
     # `# === JITSI BEGIN ===` block in rocketchat.compose.yml.
     env_managed_keys:
@@ -1302,7 +1303,7 @@ dokploy_template_catalog:
 
         https://docs.catena.run/apps/erpnext/
       setup_steps: |
-        1. Click **Deploy**. First boot takes 5-10 min -- the site must be created, MariaDB initialized, Python apps installed. Watch the `create-site` container logs in Dokploy if you want to follow along.
+        1. Click **Deploy**. First boot takes 5-10 min -- the site must be created, MariaDB initialized, Python apps installed. Watch the `create-site` container logs in Portainer if you want to follow along.
         2. Visit your ERPNext domain. Sign in as `Administrator` / `ERPNEXT_ADMIN_PASSWORD` from the Environment tab.
         3. Complete the setup wizard: company name, fiscal year, base currency, chart of accounts template.
         4. *(Optional)* Enable Keycloak SSO: **Integrations** -> **Social Login Keys** -> **New** -> **Provider: OpenID Connect**. Fill:
@@ -1323,7 +1324,7 @@ dokploy_template_catalog:
 
         https://docs.catena.run/apps/erpnext/
       setup_steps: |
-        1. Cliquez **Deploy**. Le premier démarrage dure 5-10 min -- le site est créé, MariaDB initialisé, les apps Python installées. Consultez les logs du conteneur `create-site` dans Dokploy si vous voulez suivre.
+        1. Cliquez **Deploy**. Le premier démarrage dure 5-10 min -- le site est créé, MariaDB initialisé, les apps Python installées. Consultez les logs du conteneur `create-site` dans Portainer si vous voulez suivre.
         2. Visitez votre domaine ERPNext. Connectez-vous avec `Administrator` / `ERPNEXT_ADMIN_PASSWORD` de l'onglet Environment.
         3. Complétez l'assistant : nom de société, exercice fiscal, devise, plan comptable.
         4. *(Optionnel)* Activez Keycloak SSO : **Integrations** -> **Social Login Keys** -> **New** -> **Provider: OpenID Connect**. Remplissez :
@@ -1558,7 +1559,7 @@ dokploy_template_catalog:
            - **Database**: pre-filled (host `db`, name `mautic`, user `mautic`, password from the `DB_PASSWORD` env var).
            - **Admin user**: create your initial admin account.
            - **Email settings**: paste your managed-relay SMTP creds (host, port `587`, username, password, from-address). Skip if you'll do this later under **Settings** -> **Configuration** -> **Email Settings**.
-        3. Verify the cron + worker containers are running in Dokploy (Mautic needs `mautic_cron` for scheduled campaigns + `mautic_worker` for the email queue).
+        3. Verify the cron + worker containers are running in Portainer (Mautic needs `mautic_cron` for scheduled campaigns + `mautic_worker` for the email queue).
         4. Build your first segment: **Segments** -> **New** -> filter by contact attribute.
         5. Build your first email campaign: **Campaigns** -> **New** -> drag the **Send email** action onto a segment trigger.
       extra_notes: |
@@ -1592,7 +1593,7 @@ dokploy_template_catalog:
            - **Base de données** : pré-remplie (hôte `db`, nom `mautic`, utilisateur `mautic`, mot de passe depuis la variable `DB_PASSWORD`).
            - **Utilisateur admin** : créez votre compte admin initial.
            - **Paramètres courriel** : collez les identifiants SMTP de votre relais géré (hôte, port `587`, nom d'utilisateur, mot de passe, adresse expéditeur). Sautez cette étape si vous préférez la configurer plus tard sous **Settings** -> **Configuration** -> **Email Settings**.
-        3. Vérifiez que les conteneurs cron + worker tournent dans Dokploy (Mautic a besoin de `mautic_cron` pour les campagnes planifiées + `mautic_worker` pour la file d'envoi).
+        3. Vérifiez que les conteneurs cron + worker tournent dans Portainer (Mautic a besoin de `mautic_cron` pour les campagnes planifiées + `mautic_worker` pour la file d'envoi).
         4. Créez votre premier segment : **Segments** -> **New** -> filtrez par attribut de contact.
         5. Créez votre première campagne : **Campaigns** -> **New** -> glissez l'action **Send email** sur un déclencheur de segment.
       extra_notes: |
@@ -1736,10 +1737,10 @@ dokploy_template_catalog:
     env_defaults:
       - "INVOICENINJA_HOSTNAME=invoice.{{ cloudflare_zone }}"
       # APP_KEY must be set to base64:<44-char-base64-string> AFTER
-      # first deploy. See setup_steps -- the Dokploy ${password:N}
-      # helper cannot produce a valid Laravel APP_KEY, so this stays
-      # empty until the operator runs `php artisan key:generate --show`
-      # and pastes the output.
+      # first deploy. See setup_steps -- Portainer App Templates have
+      # no per-deploy secret generator and APP_KEY needs a valid base64
+      # form, so this stays empty until the operator runs
+      # `php artisan key:generate --show` and pastes the output.
       - "INVOICENINJA_APP_KEY="
       - "INVOICENINJA_ADMIN_EMAIL=admin@{{ cloudflare_zone }}"
       - "INVOICENINJA_ADMIN_PASSWORD={{ lookup('password', '/dev/null length=24 chars=ascii_letters,digits') }}"
@@ -1770,7 +1771,7 @@ dokploy_template_catalog:
            docker exec $(docker ps --filter name=invoiceninja-app --format '{{.Names}}' | head -1) \
              runuser -u www-data -- php artisan key:generate --show --no-interaction
            ```
-           Copy the `base64:...` output. In Dokploy: **Environment** -> set `INVOICENINJA_APP_KEY` to the copied value. Click **Redeploy**.
+           Copy the `base64:...` output. In Portainer: edit the **Environment variables** -> set `INVOICENINJA_APP_KEY` to the copied value, then click **Update the stack** to redeploy.
         3. Visit your Invoice Ninja domain. Sign in as `INVOICENINJA_ADMIN_EMAIL` / `INVOICENINJA_ADMIN_PASSWORD` from the Environment tab.
         4. Configure your **company profile** (Settings -> Company Details): logo, address, tax IDs (GST/QST for Canada), default currency.
         5. Wire **Stripe**: Settings -> Online Payments -> Add Gateway -> Stripe. Paste your Stripe publishable + secret keys. The client portal will accept card payments after this.
@@ -1813,7 +1814,7 @@ dokploy_template_catalog:
            docker exec $(docker ps --filter name=invoiceninja-app --format '{{.Names}}' | head -1) \
              runuser -u www-data -- php artisan key:generate --show --no-interaction
            ```
-           Copiez la sortie `base64:...`. Dans Dokploy : **Environment** -> réglez `INVOICENINJA_APP_KEY` à la valeur copiée. Cliquez **Redeploy**.
+           Copiez la sortie `base64:...`. Dans Portainer : modifiez les **variables d'environnement** -> réglez `INVOICENINJA_APP_KEY` à la valeur copiée, puis cliquez **Update the stack** pour redéployer.
         3. Visitez votre domaine Invoice Ninja. Connectez-vous avec `INVOICENINJA_ADMIN_EMAIL` / `INVOICENINJA_ADMIN_PASSWORD` de l'onglet Environment.
         4. Configurez votre **profil d'entreprise** (Settings -> Company Details) : logo, adresse, identifiants fiscaux (TPS/TVQ au Canada), devise par défaut.
         5. Connectez **Stripe** : Settings -> Online Payments -> Add Gateway -> Stripe. Collez vos clés publishable + secret. Le portail client accepte les paiements par carte après cela.
@@ -1866,7 +1867,8 @@ dokploy_template_catalog:
     compose_file: "compose/mailserver.compose.yml"
     # MTA-STS policy host -- the only HTTP route this template adds
     # beyond webmail. Served by the mta-sts nginx service in the compose;
-    # Dokploy adds the Traefik router from this extra_domains entry. The
+    # the catena converge adds the Traefik route from this extra_domains
+    # entry. The
     # matching _mta-sts / _smtp._tls TXT records are created by ops
     # (roles/infrastructure mailserver_dns.yml).
     extra_domains:

@@ -1,13 +1,10 @@
-# catenahq/dokploy-templates
+# catenahq/catena-templates
 
 Single source of truth for the Catena template catalog: the compose files
 + per-template metadata + build pipeline that emits Portainer App Templates
 (templates.json v3). Consumed by catenahq/ops (via a vendored tarball,
 contracts-pattern) and by Portainer itself (its App Templates URL field
-pointing at this repo's raw templates.json). (Repo still named
-dokploy-templates during the Dokploy->Portainer migration; a rename to
-catena-templates is a separate coordinated step -- the public raw-URL
-contract + ops loader move together.)
+pointing at this repo's raw templates.json).
 
 ## Layout
 
@@ -49,13 +46,13 @@ In any Portainer instance, point the App Templates URL at this repo's
 raw templates.json:
 
 ```
-https://raw.githubusercontent.com/catenahq/dokploy-templates/main/templates.json
+https://raw.githubusercontent.com/catenahq/catena-templates/main/templates.json
 ```
 
 Pin a release tag to freeze the catalog:
 
 ```
-https://raw.githubusercontent.com/catenahq/dokploy-templates/tags/v0.1.0/templates.json
+https://raw.githubusercontent.com/catenahq/catena-templates/tags/v0.1.0/templates.json
 ```
 
 Each entry is a type-3 (compose git-repo) stack: Portainer clones this repo
@@ -114,7 +111,7 @@ Patch: env-default change, prose tweak. Minor: new template, new
 env_managed_key. Major: catalog schema change (breaks the ops/ loader).
 
 Tag a release: `git tag -a vX.Y.Z -m "..." && git push --tags`.
-catenahq/ops's `Bump @catenahq/dokploy-templates to latest` workflow opens
+catenahq/ops's `Bump @catenahq/catena-templates to latest` workflow opens
 a vendored-tarball-bump PR on its next daily run.
 
 ## What does NOT live here
@@ -130,8 +127,8 @@ a vendored-tarball-bump PR on its next daily run.
 ## Repo split status
 
 Seventh repo in the catenahq split, lifted out of catenahq/ops on
-2026-05-16. Predecessor location:
-`ops/automation/ansible/roles/infrastructure/vars/dokploy_template_catalog.yml`
+2026-05-16. Predecessor location: the in-tree catalog under
+`ops/automation/ansible/roles/infrastructure/vars/`
 + `ops/internal_docs/operator/client-app-templates/`. Lift driven by
-the need to expose the catalog through Dokploy's BASE URL field and
-to ship the CVE-watcher template (catenahq/ops `BACKLOG_TECHNICAL.md` R2).
+the need to expose the catalog through the App Templates BASE URL field
+and to ship the CVE-watcher template (catenahq/ops `BACKLOG_TECHNICAL.md` R2).

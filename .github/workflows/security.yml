@@ -25,7 +25,7 @@ permissions:
 
 jobs:
   scanctl:
-    # dokploy-templates is public; the self-hosted runner group excludes public
+    # catena-templates is public; the self-hosted runner group excludes public
     # repos, so this runs on a GitHub-hosted runner and sets up go + uv itself.
     runs-on: ubuntu-latest
     steps:

@@ -26,11 +26,12 @@
 #   redis-data  -- /data (Redis AOF/RDB persistence)
 #
 # APP_KEY: Laravel boots with Application Error 500 if APP_KEY is empty
-# or not formatted as base64:<44-char-base64-string>. The Dokploy
-# ${password:N} helper produces alphanumeric chars (not base64), so we
-# cannot pre-generate APP_KEY in env_defaults. Operator generates it
-# once post-deploy via `docker exec` + `php artisan key:generate --show`,
-# pastes the base64:... output into the Environment tab, and redeploys.
+# or not formatted as base64:<44-char-base64-string>. Portainer App
+# Templates have no per-deploy secret generator, and APP_KEY needs a
+# valid base64 form, so we cannot pre-generate it in env_defaults.
+# Operator generates it once post-deploy via `docker exec` +
+# `php artisan key:generate --show`, pastes the base64:... output into
+# the Portainer stack env, and updates the stack.
 # See setup_steps in catalog.yml.
 
 services:

@@ -17,7 +17,7 @@ Outputs (overwritten on each run; idempotent):
   blueprints/<id>/quiesce.yml          - if the entry declares quiesce hooks
   templates.json                       - Portainer App Templates index (v3)
 
-The transformation (Dokploy->Portainer migration):
+The transformation (source catalog -> Portainer App Templates):
 
 - The compose file is copied verbatim into blueprints/ as the type-3
   stackfile. Portainer clones this repo and deploys
@@ -54,12 +54,12 @@ BLUEPRINTS = ROOT / "blueprints"
 TEMPLATES_JSON = ROOT / "templates.json"
 
 # Portainer App Templates format version + the repo Portainer clones for
-# type-3 (compose git-repo) stacks. Kept as the current repo name during the
-# Dokploy->Portainer migration; a repo rename (catena-templates) is a separate
-# coordinated step (the public raw-URL contract + ops loader move together).
+# type-3 (compose git-repo) stacks. This is the public raw-URL contract:
+# templates.json embeds these URLs and Portainer fetches them over plain
+# HTTP, so they must track the real repo name (catenahq/catena-templates).
 PORTAINER_TEMPLATES_VERSION = "3"
-REPO_GIT_URL = "https://github.com/catenahq/dokploy-templates"
-RAW_BASE = "https://raw.githubusercontent.com/catenahq/dokploy-templates/main"
+REPO_GIT_URL = "https://github.com/catenahq/catena-templates"
+RAW_BASE = "https://raw.githubusercontent.com/catenahq/catena-templates/main"
 
 # Allowed enum values for the operator-facing bench_pack + bench_fixture
 # fields. The catena-ops test bench reads these from the catalog at
@@ -70,12 +70,13 @@ BENCH_PACK_VALUES = frozenset({"postgres", "mariadb", "mongo", "nodb", "embedded
 BENCH_FIXTURE_VALUES = frozenset({"required", "skip"})
 
 # Sentinel placeholder for env vars that catenahq/ops re-injects on every
-# converge (env_managed_keys). Operator never sees these in the Dokploy
+# converge (env_managed_keys). Operator never sees these in the Portainer
 # UI; ops/ overwrites them post-deploy.
 SENTINEL_MANAGED = "__CATENA_OPERATOR_WIRED__"
 
 # Pattern matching Ansible `lookup('password', '/dev/null length=N chars=...')`.
-# Translates to Dokploy's ${password:N} helper.
+# Collapses to the operator-wired sentinel (Portainer App Templates have no
+# per-deploy secret generator; ops/ converge injects the real value).
 LOOKUP_PASSWORD_RE = re.compile(
     r"\{\{\s*lookup\(\s*['\"]password['\"]\s*,\s*['\"]/dev/null\s+length=(\d+)[^'\"]*['\"]\s*\)\s*\}\}"
 )
@@ -83,9 +84,10 @@ LOOKUP_PASSWORD_RE = re.compile(
 # Jinja vault refs collapse to the sentinel; ops/ converge resolves them.
 JINJA_VAULT_RE = re.compile(r"\{\{\s*vault_[a-zA-Z0-9_]+\s*\}\}")
 
-# Generic Jinja that we cannot resolve in render time: hostnames, defaults,
-# concatenations. Translate the well-known cases to Dokploy ${domain}; leave
-# anything we do not recognize as a TODO marker so M2 surfaces gaps.
+# Generic Jinja that we cannot resolve at render time: hostnames, defaults,
+# concatenations. The known cases collapse to empty so the operator (or the
+# ops route-writer) fills the host post-deploy; anything unrecognized is left
+# as-is so a downstream gap is visible.
 JINJA_DOMAIN_HOSTS = {
     "{{ cloudflare_zone }}": "${domain}",
 }
@@ -93,8 +95,8 @@ JINJA_DOMAIN_HOSTS = {
 
 def strip_jinja_for_portainer(value: str) -> str:
     """Transform a raw env_defaults value into a Portainer App Template env
-    default. Portainer has NO per-deploy secret generator (Dokploy's
-    ${password:N}) -- catena is operator-managed, so ops/ converge re-injects
+    default. Portainer App Templates have NO per-deploy secret generator
+    -- catena is operator-managed, so ops/ converge re-injects
     every secret post-deploy (env_managed_keys). So both vault refs AND
     password lookups collapse to the sentinel here; ops/ owns them. Domain
     jinja we cannot resolve at render time becomes empty (the operator fills
@@ -152,7 +154,7 @@ def render_portainer_template(entry: dict[str, Any], logo_filename: str) -> dict
 
 # Tailwind-ish palette for deterministic placeholder logos. Indexed by
 # hash(slug) % len. Each entry: (background, foreground). Picked to be
-# legible on Dokploy's light + dark catalog backgrounds.
+# legible on Portainer's light + dark catalog backgrounds.
 _LOGO_PALETTE: tuple[tuple[str, str], ...] = (
     ("#0f766e", "#ffffff"),  # teal
     ("#1d4ed8", "#ffffff"),  # blue
@@ -363,7 +365,7 @@ def render_all() -> int:
 
     catalog_path = SOURCE / "catalog.yml"
     catalog = yaml.safe_load(catalog_path.read_text())
-    entries = catalog["dokploy_template_catalog"]
+    entries = catalog["catena_template_catalog"]
 
     sizing_path = SOURCE / "sizing-data.yml"
     sizing = yaml.safe_load(sizing_path.read_text())
@@ -416,7 +418,7 @@ def render_all() -> int:
         templates.append(render_portainer_template(entry, logo_filename))
 
     # Portainer App Templates: a single templates.json (v3) at the repo root,
-    # replacing Dokploy's per-blueprint template.toml + meta.json.
+    # replacing the previous per-blueprint template.toml + meta.json.
     doc = {"version": PORTAINER_TEMPLATES_VERSION, "templates": templates}
     TEMPLATES_JSON.write_text(json.dumps(doc, indent=2, sort_keys=True) + "\n")
 

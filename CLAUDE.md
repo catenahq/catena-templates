@@ -1,7 +1,7 @@
-# catenahq/templates -- Dokploy template catalog
+# catenahq/templates -- Portainer App Template catalog
 
-This repo holds the Catena Dokploy template catalog. See README.md for
-layout, consumer model, and BASE URL setup.
+This repo holds the Catena Portainer App Template catalog. See README.md
+for layout, consumer model, and BASE URL setup.
 
 ## Edit rules
 

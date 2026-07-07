@@ -221,7 +221,7 @@ services:
     labels:
       # Routed via Traefik on meet.<base>; HTTP only on the container
       # side, TLS terminates at cloudflared/Traefik upstream like every
-      # other dokploy app. vps.auth.mode=public so room URLs work for
+      # other catena app. vps.auth.mode=public so room URLs work for
       # anonymous participants (Jitsi rooms are by-link, not
       # Keycloak-gated for v1).
       - "vps.auth.mode=public"

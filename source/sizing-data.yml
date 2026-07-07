@@ -29,7 +29,7 @@
 #     numbers in this file from `docker stats --no-stream` samples.
 #
 # Schema per entry:
-#   id              -- catalog id from dokploy_template_catalog.yml.
+#   id              -- catalog id from source/catalog.yml.
 #                      Must match exactly; the generator skips unknown ids.
 #   idle_ram_mb     -- RSS (private memory) of all the template's
 #                      containers, summed, ~30 min after first boot, no load.
