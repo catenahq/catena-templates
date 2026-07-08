@@ -57,6 +57,16 @@
           "name": "S3_HOST"
         },
         {
+          "default": "443",
+          "label": "S3_PORT",
+          "name": "S3_PORT"
+        },
+        {
+          "default": "true",
+          "label": "S3_SSL",
+          "name": "S3_SSL"
+        },
+        {
           "default": "",
           "label": "S3_ACCESS_KEY",
           "name": "S3_ACCESS_KEY"

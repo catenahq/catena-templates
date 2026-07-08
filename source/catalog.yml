@@ -220,6 +220,11 @@ catena_template_catalog:
       - "S3_BUCKET="
       - "S3_REGION=bhs"
       - "S3_HOST=s3.bhs.io.cloud.ovh.net"
+      # Transport defaults target a real S3 provider (TLS on 443). A
+      # self-hosted MinIO on plain HTTP overrides these in the Portainer
+      # Environment tab; the bench injects S3_SSL=false + S3_PORT=9000.
+      - "S3_PORT=443"
+      - "S3_SSL=true"
       - "S3_ACCESS_KEY="
       - "S3_SECRET_KEY="
       # OIDC env vars consumed by the post-deploy "Wire Nextcloud

@@ -193,8 +193,14 @@ services:
       OBJECTSTORE_S3_BUCKET: ${S3_BUCKET}
       OBJECTSTORE_S3_REGION: ${S3_REGION}
       OBJECTSTORE_S3_HOST: ${S3_HOST}
-      OBJECTSTORE_S3_PORT: "443"
-      OBJECTSTORE_S3_SSL: "true"
+      # Endpoint transport. Prod S3 (OVH/eazybackup/AWS) is TLS on 443,
+      # the defaults here. A self-hosted S3 (MinIO) on a client's own
+      # network -- and the test bench's MinIO VM -- may serve plain HTTP
+      # on a non-443 port, so both are overridable from the env. The
+      # bench injects S3_SSL=false + S3_PORT=9000; a real deploy leaves
+      # them unset and gets TLS/443.
+      OBJECTSTORE_S3_PORT: ${S3_PORT:-443}
+      OBJECTSTORE_S3_SSL: ${S3_SSL:-true}
       OBJECTSTORE_S3_USEPATH_STYLE: "true"
       OBJECTSTORE_S3_AUTOCREATE: "false"
       OBJECTSTORE_S3_KEY: ${S3_ACCESS_KEY}
@@ -305,8 +311,14 @@ services:
       OBJECTSTORE_S3_BUCKET: ${S3_BUCKET}
       OBJECTSTORE_S3_REGION: ${S3_REGION}
       OBJECTSTORE_S3_HOST: ${S3_HOST}
-      OBJECTSTORE_S3_PORT: "443"
-      OBJECTSTORE_S3_SSL: "true"
+      # Endpoint transport. Prod S3 (OVH/eazybackup/AWS) is TLS on 443,
+      # the defaults here. A self-hosted S3 (MinIO) on a client's own
+      # network -- and the test bench's MinIO VM -- may serve plain HTTP
+      # on a non-443 port, so both are overridable from the env. The
+      # bench injects S3_SSL=false + S3_PORT=9000; a real deploy leaves
+      # them unset and gets TLS/443.
+      OBJECTSTORE_S3_PORT: ${S3_PORT:-443}
+      OBJECTSTORE_S3_SSL: ${S3_SSL:-true}
       OBJECTSTORE_S3_USEPATH_STYLE: "true"
       OBJECTSTORE_S3_KEY: ${S3_ACCESS_KEY}
       OBJECTSTORE_S3_SECRET: ${S3_SECRET_KEY}
