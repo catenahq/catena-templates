@@ -102,6 +102,9 @@ services:
       timeout: 5s
       retries: 5
     labels:
+      - "vps.route.host=${DOMAIN_HOST}"
+      - "vps.route.port=80"
+      - "vps.route.service=nginx"
       - "vps.auth.mode=public"
       - "vps.auth.groups=staff"
       - "vps.auto-update=patch"

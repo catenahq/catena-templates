@@ -29,6 +29,9 @@ services:
       # its discovery XML even though it itself is listening on http.
       extra_params: --o:ssl.enable=false --o:ssl.termination=true
     labels:
+      - "vps.route.host=${DOMAIN_HOST}"
+      - "vps.route.port=9980"
+      - "vps.route.service=collabora"
       - "vps.auth.mode=public"
       - "vps.auto-update=patch"
     networks:

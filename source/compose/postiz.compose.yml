@@ -30,6 +30,9 @@ services:
       - postiz-uploads:/uploads
       - postiz-config:/config
     labels:
+      - "vps.route.host=${DOMAIN_HOST}"
+      - "vps.route.port=5000"
+      - "vps.route.service=postiz"
       - "vps.auth.mode=public"
       - "vps.auto-update=patch"
     networks:

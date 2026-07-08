@@ -116,6 +116,9 @@ services:
         target: /app/config.json
         mode: 0644
     labels:
+      - "vps.route.host=${DOMAIN_HOST}"
+      - "vps.route.port=80"
+      - "vps.route.service=element-web"
       - "vps.auth.mode=public"
       - "vps.auto-update=patch"
     networks:

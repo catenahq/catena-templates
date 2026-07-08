@@ -30,6 +30,9 @@ services:
       db:
         condition: service_healthy
     labels:
+      - "vps.route.host=${DOMAIN_HOST}"
+      - "vps.route.port=5678"
+      - "vps.route.service=n8n"
       - "vps.auth.mode=public"
       - "vps.auto-update=patch"
     networks:

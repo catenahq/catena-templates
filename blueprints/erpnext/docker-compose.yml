@@ -111,6 +111,9 @@ services:
       - backend
       - websocket
     labels:
+      - "vps.route.host=${DOMAIN_HOST}"
+      - "vps.route.port=8080"
+      - "vps.route.service=frontend"
       - "vps.auth.mode=public"
       - "vps.auto-update=patch"
     networks:

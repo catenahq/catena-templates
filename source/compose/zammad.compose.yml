@@ -88,6 +88,9 @@ services:
       - zammad-railsserver
       - zammad-websocket
     labels:
+      - "vps.route.host=${DOMAIN_HOST}"
+      - "vps.route.port=8080"
+      - "vps.route.service=zammad-nginx"
       - "vps.auth.mode=public"
       - "vps.auth.oidc=true"
       - "vps.auth.groups=staff"

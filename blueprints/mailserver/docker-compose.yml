@@ -115,6 +115,9 @@ services:
       retries: 5
       start_period: 30s
     labels:
+      - "vps.route.host=${DOMAIN_HOST}"
+      - "vps.route.port=80"
+      - "vps.route.service=roundcube"
       # Roundcube does its OWN Keycloak login (not behind oauth2-proxy);
       # public at the proxy layer, OIDC enforced by the app.
       - "vps.auth.mode=public"

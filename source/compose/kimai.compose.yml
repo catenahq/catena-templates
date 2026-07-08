@@ -37,6 +37,9 @@ services:
       db:
         condition: service_healthy
     labels:
+      - "vps.route.host=${DOMAIN_HOST}"
+      - "vps.route.port=8001"
+      - "vps.route.service=kimai"
       - "vps.auth.mode=public"
       - "vps.auth.groups=staff"
       - "vps.auto-update=patch"

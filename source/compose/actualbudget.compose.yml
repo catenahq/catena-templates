@@ -14,6 +14,9 @@ services:
     volumes:
       - actual-data:/data
     labels:
+      - "vps.route.host=${DOMAIN_HOST}"
+      - "vps.route.port=5006"
+      - "vps.route.service=actual"
       - "vps.auth.mode=public"
       - "vps.auto-update=patch"
     networks:

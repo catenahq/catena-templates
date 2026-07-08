@@ -40,6 +40,9 @@ services:
       redis:
         condition: service_started
     labels:
+      - "vps.route.host=${DOMAIN_HOST}"
+      - "vps.route.port=3000"
+      - "vps.route.service=outline"
       - "vps.auth.mode=public"
       - "vps.auth.oidc=true"
       - "vps.auth.groups=staff"

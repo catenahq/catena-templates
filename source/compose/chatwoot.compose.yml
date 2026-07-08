@@ -31,6 +31,9 @@ services:
     volumes:
       - storage-data:/app/storage
     labels:
+      - "vps.route.host=${DOMAIN_HOST}"
+      - "vps.route.port=3000"
+      - "vps.route.service=rails"
       - "vps.auth.mode=public"
       - "vps.auto-update=patch"
     networks:

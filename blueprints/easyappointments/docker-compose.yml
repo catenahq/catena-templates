@@ -36,6 +36,9 @@ services:
       retries: 10
       start_period: 30s
     labels:
+      - "vps.route.host=${DOMAIN_HOST}"
+      - "vps.route.port=80"
+      - "vps.route.service=easyappointments"
       - "vps.auth.mode=public"
       - "vps.auto-update=patch"
     networks:

@@ -236,6 +236,9 @@ services:
       # -- still backed up but with an opaque sha256 name.
       - nc-data:/var/www/html/data
     labels:
+      - "vps.route.host=${DOMAIN_HOST}"
+      - "vps.route.port=80"
+      - "vps.route.service=app"
       - "vps.auth.mode=public"
       - "vps.auth.oidc=true"
       - "vps.auth.groups=staff"

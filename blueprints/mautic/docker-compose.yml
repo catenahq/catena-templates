@@ -67,6 +67,9 @@ services:
       retries: 10
       start_period: 60s
     labels:
+      - "vps.route.host=${DOMAIN_HOST}"
+      - "vps.route.port=80"
+      - "vps.route.service=mautic_web"
       - "vps.auth.mode=public"
       - "vps.auto-update=patch"
     networks:

@@ -197,6 +197,7 @@ catena_template_catalog:
       - TURN_HOSTNAME
       - TURN_STATIC_AUTH_SECRET
     env_defaults:
+      - "DOMAIN_HOST=nextcloud.{{ cloudflare_zone }}"
       - "NEXTCLOUD_HOSTNAME=nextcloud.{{ cloudflare_zone }}"
       - "NEXTCLOUD_ADMIN_USER=admin"
       - "NEXTCLOUD_ADMIN_PASSWORD={{ lookup('password', '/dev/null length=24 chars=ascii_letters,digits') }}"
@@ -415,7 +416,8 @@ catena_template_catalog:
     compose_file: "compose/collabora.compose.yml"
     # Collabora has no JWT secret -- WOPI hosts are matched against the
     # `domain` regex inside the compose env (nextcloud\..*).
-    env_defaults: []
+    env_defaults:
+      - "DOMAIN_HOST=office.{{ cloudflare_zone }}"
     en:
       display_name: Collabora Online (CODE)
       what_it_is: Collaborative ODT/DOCX/XLSX/PPTX editing -- bolts into Nextcloud for real-time co-editing. LibreOffice-based; lighter than OnlyOffice; better fidelity for ODF formats.
@@ -463,6 +465,7 @@ catena_template_catalog:
     domain_port: 80
     compose_file: "compose/onlyoffice.compose.yml"
     env_defaults:
+      - "DOMAIN_HOST=office.{{ cloudflare_zone }}"
       - "JWT_SECRET={{ lookup('password', '/dev/null length=48 chars=ascii_letters,digits') }}"
     en:
       display_name: OnlyOffice
@@ -534,6 +537,7 @@ catena_template_catalog:
       - JITSI_JICOFO_COMPONENT_SECRET
       - JITSI_JVB_AUTH_PASSWORD
     env_defaults:
+      - "DOMAIN_HOST=chat.{{ cloudflare_zone }}"
       - "ROCKETCHAT_HOSTNAME=chat.{{ cloudflare_zone }}"
       # Used by the bundled Jitsi web UI for its PUBLIC_URL and by
       # JVB for JVB_TURN_HOST. compose interpolation does not have a
@@ -643,6 +647,7 @@ catena_template_catalog:
       - JITSI_JVB_AUTH_PASSWORD
       - JIGASI_XMPP_PASSWORD
     env_defaults:
+      - "DOMAIN_HOST=element.{{ cloudflare_zone }}"
       - "ELEMENT_HOSTNAME=element.{{ cloudflare_zone }}"
       - "MATRIX_HOSTNAME=matrix.{{ cloudflare_zone }}"
       - "ELEMENT_JITSI_HOSTNAME=elementmeet.{{ cloudflare_zone }}"
@@ -753,6 +758,7 @@ catena_template_catalog:
     domain_port: 3000
     compose_file: "compose/docuseal.compose.yml"
     env_defaults:
+      - "DOMAIN_HOST=sign.{{ cloudflare_zone }}"
       - "DOCUSEAL_HOSTNAME=sign.{{ cloudflare_zone }}"
       - "SECRET_KEY_BASE={{ lookup('password', '/dev/null length=128 chars=hexdigits') | lower }}"
       - "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
@@ -842,6 +848,7 @@ catena_template_catalog:
     domain_port: 3000
     compose_file: "compose/outline.compose.yml"
     env_defaults:
+      - "DOMAIN_HOST=wiki.{{ cloudflare_zone }}"
       - "OUTLINE_HOSTNAME=wiki.{{ cloudflare_zone }}"
       - "OUTLINE_SECRET_KEY={{ lookup('password', '/dev/null length=64 chars=hexdigits') | lower }}"
       - "OUTLINE_UTILS_SECRET={{ lookup('password', '/dev/null length=64 chars=hexdigits') | lower }}"
@@ -891,6 +898,7 @@ catena_template_catalog:
     quiesce_post: "true"
     quiesce_timeout_seconds: 60
     env_defaults:
+      - "DOMAIN_HOST=crm.{{ cloudflare_zone }}"
       - "ESPOCRM_HOSTNAME=crm.{{ cloudflare_zone }}"
       - "ESPOCRM_ADMIN_USERNAME=admin"
       - "ESPOCRM_ADMIN_PASSWORD={{ lookup('password', '/dev/null length=24 chars=ascii_letters,digits') }}"
@@ -974,6 +982,7 @@ catena_template_catalog:
     domain_port: 3000
     compose_file: "compose/twenty.compose.yml"
     env_defaults:
+      - "DOMAIN_HOST=twenty.{{ cloudflare_zone }}"
       - "TWENTY_HOSTNAME=twenty.{{ cloudflare_zone }}"
       - "TWENTY_APP_SECRET={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}"
       - "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
@@ -1020,6 +1029,7 @@ catena_template_catalog:
     domain_port: 80
     compose_file: "compose/plane.compose.yml"
     env_defaults:
+      - "DOMAIN_HOST=projects.{{ cloudflare_zone }}"
       - "PLANE_HOSTNAME=projects.{{ cloudflare_zone }}"
       - "PLANE_SECRET_KEY={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}"
       - "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
@@ -1066,6 +1076,7 @@ catena_template_catalog:
     domain_port: 8080
     compose_file: "compose/zammad.compose.yml"
     env_defaults:
+      - "DOMAIN_HOST=help.{{ cloudflare_zone }}"
       - "ZAMMAD_HOSTNAME=help.{{ cloudflare_zone }}"
       - "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
     en:
@@ -1110,6 +1121,7 @@ catena_template_catalog:
     domain_port: 3000
     compose_file: "compose/chatwoot.compose.yml"
     env_defaults:
+      - "DOMAIN_HOST=support.{{ cloudflare_zone }}"
       - "CHATWOOT_HOSTNAME=support.{{ cloudflare_zone }}"
       - "SECRET_KEY_BASE={{ lookup('password', '/dev/null length=128 chars=hexdigits') | lower }}"
       - "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
@@ -1165,6 +1177,7 @@ catena_template_catalog:
       - WORDPRESS_HOSTNAME
       - WPMS_SMTP_PASS
     env_defaults:
+      - "DOMAIN_HOST=www.{{ cloudflare_zone }}"
       - "WORDPRESS_HOSTNAME=www.{{ cloudflare_zone }}"
       - "WPMS_SMTP_PASS={{ vault_smtp_password | default('') }}"
       - "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
@@ -1240,6 +1253,7 @@ catena_template_catalog:
     domain_port: 5678
     compose_file: "compose/n8n.compose.yml"
     env_defaults:
+      - "DOMAIN_HOST=automate.{{ cloudflare_zone }}"
       - "N8N_HOSTNAME=automate.{{ cloudflare_zone }}"
       - "N8N_TIMEZONE=UTC"
       - "N8N_ENCRYPTION_KEY={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}"
@@ -1296,6 +1310,7 @@ catena_template_catalog:
     quiesce_post: "true"
     quiesce_timeout_seconds: 60
     env_defaults:
+      - "DOMAIN_HOST=erp.{{ cloudflare_zone }}"
       - "ERPNEXT_HOSTNAME=erp.{{ cloudflare_zone }}"
       - "ERPNEXT_ADMIN_PASSWORD={{ lookup('password', '/dev/null length=24 chars=ascii_letters,digits') }}"
       - "DB_ROOT_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
@@ -1364,7 +1379,8 @@ catena_template_catalog:
     quiesce_pre: "docker exec \"$(docker ps -q -f label=com.docker.compose.service=actual -f label=com.docker.compose.project~=actualbudget | head -1)\" sh -c 'sqlite3 /data/server-files/account.sqlite \".backup /data/server-files/.catena-snapshot.sqlite.new\" && mv /data/server-files/.catena-snapshot.sqlite.new /data/server-files/.catena-snapshot.sqlite'"
     quiesce_post: "true"
     quiesce_timeout_seconds: 30
-    env_defaults: []
+    env_defaults:
+      - "DOMAIN_HOST=budget.{{ cloudflare_zone }}"
     en:
       display_name: Actual Budget
       what_it_is: Self-hosted personal finance. Envelope budgeting, bank account syncing via SimpleFIN or GoCardless, encrypted end-to-end.
@@ -1410,6 +1426,7 @@ catena_template_catalog:
     domain_port: 5000
     compose_file: "compose/postiz.compose.yml"
     env_defaults:
+      - "DOMAIN_HOST=social.{{ cloudflare_zone }}"
       - "POSTIZ_HOSTNAME=social.{{ cloudflare_zone }}"
       - "JWT_SECRET={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}"
       - "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
@@ -1460,6 +1477,7 @@ catena_template_catalog:
     quiesce_post: "true"
     quiesce_timeout_seconds: 60
     env_defaults:
+      - "DOMAIN_HOST=book.{{ cloudflare_zone }}"
       - "EASYAPPOINTMENTS_HOSTNAME=book.{{ cloudflare_zone }}"
       - "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
       - "DB_ROOT_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
@@ -1538,6 +1556,7 @@ catena_template_catalog:
     quiesce_post: "true"
     quiesce_timeout_seconds: 60
     env_defaults:
+      - "DOMAIN_HOST=marketing.{{ cloudflare_zone }}"
       - "MAUTIC_HOSTNAME=marketing.{{ cloudflare_zone }}"
       - "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
       - "DB_ROOT_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
@@ -1641,6 +1660,7 @@ catena_template_catalog:
     quiesce_post: "true"
     quiesce_timeout_seconds: 60
     env_defaults:
+      - "DOMAIN_HOST=time.{{ cloudflare_zone }}"
       - "KIMAI_HOSTNAME=time.{{ cloudflare_zone }}"
       - "KIMAI_ADMIN_EMAIL=admin@{{ cloudflare_zone }}"
       - "KIMAI_ADMIN_PASSWORD={{ lookup('password', '/dev/null length=24 chars=ascii_letters,digits') }}"
@@ -1740,6 +1760,7 @@ catena_template_catalog:
     quiesce_post: "true"
     quiesce_timeout_seconds: 60
     env_defaults:
+      - "DOMAIN_HOST=invoice.{{ cloudflare_zone }}"
       - "INVOICENINJA_HOSTNAME=invoice.{{ cloudflare_zone }}"
       # APP_KEY must be set to base64:<44-char-base64-string> AFTER
       # first deploy. See setup_steps -- Portainer App Templates have
@@ -1885,6 +1906,7 @@ catena_template_catalog:
     env_managed_keys:
       - RELAY_PASSWORD
     env_defaults:
+      - "DOMAIN_HOST=webmail.{{ cloudflare_zone }}"
       - "MAIL_HOSTNAME=mail.{{ cloudflare_zone }}"
       - "MAIL_DOMAIN={{ cloudflare_zone }}"
       - "WEBMAIL_HOSTNAME=webmail.{{ cloudflare_zone }}"

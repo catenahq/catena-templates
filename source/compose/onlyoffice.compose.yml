@@ -28,6 +28,9 @@ services:
       - ds-rabbitmq:/var/lib/rabbitmq
       - ds-redis:/var/lib/redis
     labels:
+      - "vps.route.host=${DOMAIN_HOST}"
+      - "vps.route.port=80"
+      - "vps.route.service=documentserver"
       - "vps.auth.mode=public"
       - "vps.auto-update=patch"
     networks:

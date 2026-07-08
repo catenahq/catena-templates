@@ -8,6 +8,11 @@
       "env": [
         {
           "default": "nextcloud.",
+          "label": "DOMAIN_HOST",
+          "name": "DOMAIN_HOST"
+        },
+        {
+          "default": "nextcloud.",
           "label": "NEXTCLOUD_HOSTNAME",
           "name": "NEXTCLOUD_HOSTNAME"
         },
@@ -142,6 +147,13 @@
         "n/a"
       ],
       "description": "LibreOffice-based collaborative editor. Embedded in Nextcloud. Lighter alternative to OnlyOffice; better ODF fidelity.",
+      "env": [
+        {
+          "default": "office.",
+          "label": "DOMAIN_HOST",
+          "name": "DOMAIN_HOST"
+        }
+      ],
       "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/collabora/logo.svg",
       "note": "<p>LibreOffice-based collaborative editor. Embedded in Nextcloud. Lighter alternative to OnlyOffice; better ODF fidelity.</p>",
       "platform": "linux",
@@ -158,6 +170,11 @@
       ],
       "description": "Collaborative DOCX/XLSX/PPTX editor. Embedded in Nextcloud. Replaces Office 365 / Google Docs as the embedded editor.",
       "env": [
+        {
+          "default": "office.",
+          "label": "DOMAIN_HOST",
+          "name": "DOMAIN_HOST"
+        },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
           "label": "JWT_SECRET",
@@ -180,6 +197,11 @@
       ],
       "description": "Team chat + video. Keycloak SSO pre-wired. Replaces Slack / Microsoft Teams.",
       "env": [
+        {
+          "default": "chat.",
+          "label": "DOMAIN_HOST",
+          "name": "DOMAIN_HOST"
+        },
         {
           "default": "chat.",
           "label": "ROCKETCHAT_HOSTNAME",
@@ -252,6 +274,11 @@
       ],
       "description": "Element + Matrix homeserver. Chat (E2EE), voice, group video, SIP dial-in. Keycloak SSO pre-wired. Federation off by default.",
       "env": [
+        {
+          "default": "element.",
+          "label": "DOMAIN_HOST",
+          "name": "DOMAIN_HOST"
+        },
         {
           "default": "element.",
           "label": "ELEMENT_HOSTNAME",
@@ -381,6 +408,11 @@
       "env": [
         {
           "default": "sign.",
+          "label": "DOMAIN_HOST",
+          "name": "DOMAIN_HOST"
+        },
+        {
+          "default": "sign.",
           "label": "DOCUSEAL_HOSTNAME",
           "name": "DOCUSEAL_HOSTNAME"
         },
@@ -458,6 +490,11 @@
       "env": [
         {
           "default": "wiki.",
+          "label": "DOMAIN_HOST",
+          "name": "DOMAIN_HOST"
+        },
+        {
+          "default": "wiki.",
           "label": "OUTLINE_HOSTNAME",
           "name": "OUTLINE_HOSTNAME"
         },
@@ -493,6 +530,11 @@
       ],
       "description": "Open-source CRM (default). Replaces Salesforce / HubSpot / Zoho.",
       "env": [
+        {
+          "default": "crm.",
+          "label": "DOMAIN_HOST",
+          "name": "DOMAIN_HOST"
+        },
         {
           "default": "crm.",
           "label": "ESPOCRM_HOSTNAME",
@@ -552,6 +594,11 @@
       "env": [
         {
           "default": "twenty.",
+          "label": "DOMAIN_HOST",
+          "name": "DOMAIN_HOST"
+        },
+        {
+          "default": "twenty.",
           "label": "TWENTY_HOSTNAME",
           "name": "TWENTY_HOSTNAME"
         },
@@ -582,6 +629,11 @@
       ],
       "description": "Open-source project management. Replaces Jira / Linear / Asana.",
       "env": [
+        {
+          "default": "projects.",
+          "label": "DOMAIN_HOST",
+          "name": "DOMAIN_HOST"
+        },
         {
           "default": "projects.",
           "label": "PLANE_HOSTNAME",
@@ -626,6 +678,11 @@
       "env": [
         {
           "default": "help.",
+          "label": "DOMAIN_HOST",
+          "name": "DOMAIN_HOST"
+        },
+        {
+          "default": "help.",
           "label": "ZAMMAD_HOSTNAME",
           "name": "ZAMMAD_HOSTNAME"
         },
@@ -651,6 +708,11 @@
       ],
       "description": "Conversation-first omnichannel inbox. Replaces Intercom / Front.",
       "env": [
+        {
+          "default": "support.",
+          "label": "DOMAIN_HOST",
+          "name": "DOMAIN_HOST"
+        },
         {
           "default": "support.",
           "label": "CHATWOOT_HOSTNAME",
@@ -683,6 +745,11 @@
       ],
       "description": "Production-ready website / CMS with FastCGI cache + Redis. Replaces Wix / Squarespace.",
       "env": [
+        {
+          "default": "www.",
+          "label": "DOMAIN_HOST",
+          "name": "DOMAIN_HOST"
+        },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
           "label": "WORDPRESS_HOSTNAME",
@@ -720,6 +787,11 @@
       ],
       "description": "Workflow automation (400+ integrations). Replaces Zapier / Make.",
       "env": [
+        {
+          "default": "automate.",
+          "label": "DOMAIN_HOST",
+          "name": "DOMAIN_HOST"
+        },
         {
           "default": "automate.",
           "label": "N8N_HOSTNAME",
@@ -764,6 +836,11 @@
       "env": [
         {
           "default": "erp.",
+          "label": "DOMAIN_HOST",
+          "name": "DOMAIN_HOST"
+        },
+        {
+          "default": "erp.",
           "label": "ERPNEXT_HOSTNAME",
           "name": "ERPNEXT_HOSTNAME"
         },
@@ -793,6 +870,13 @@
         "none"
       ],
       "description": "Self-hosted personal finance + envelope budgeting. Replaces YNAB / Mint.",
+      "env": [
+        {
+          "default": "budget.",
+          "label": "DOMAIN_HOST",
+          "name": "DOMAIN_HOST"
+        }
+      ],
       "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/actualbudget/logo.svg",
       "note": "<p>Self-hosted personal finance + envelope budgeting. Replaces YNAB / Mint.</p>",
       "platform": "linux",
@@ -809,6 +893,11 @@
       ],
       "description": "Social media scheduling (Twitter/X, LinkedIn, FB, IG, YouTube, TikTok). Replaces Buffer / Hootsuite.",
       "env": [
+        {
+          "default": "social.",
+          "label": "DOMAIN_HOST",
+          "name": "DOMAIN_HOST"
+        },
         {
           "default": "social.",
           "label": "POSTIZ_HOSTNAME",
@@ -843,6 +932,11 @@
       "env": [
         {
           "default": "book.",
+          "label": "DOMAIN_HOST",
+          "name": "DOMAIN_HOST"
+        },
+        {
+          "default": "book.",
           "label": "EASYAPPOINTMENTS_HOSTNAME",
           "name": "EASYAPPOINTMENTS_HOSTNAME"
         },
@@ -873,6 +967,11 @@
       ],
       "description": "Open-source marketing automation. Drip campaigns, segments, landing pages. Replaces Mailchimp / ActiveCampaign.",
       "env": [
+        {
+          "default": "marketing.",
+          "label": "DOMAIN_HOST",
+          "name": "DOMAIN_HOST"
+        },
         {
           "default": "marketing.",
           "label": "MAUTIC_HOSTNAME",
@@ -932,6 +1031,11 @@
       "env": [
         {
           "default": "time.",
+          "label": "DOMAIN_HOST",
+          "name": "DOMAIN_HOST"
+        },
+        {
+          "default": "time.",
           "label": "KIMAI_HOSTNAME",
           "name": "KIMAI_HOSTNAME"
         },
@@ -987,6 +1091,11 @@
       ],
       "description": "Invoicing + Stripe payments + recurring + client portal. Replaces FreshBooks / Zoho Invoice / QuickBooks invoicing.",
       "env": [
+        {
+          "default": "invoice.",
+          "label": "DOMAIN_HOST",
+          "name": "DOMAIN_HOST"
+        },
         {
           "default": "invoice.",
           "label": "INVOICENINJA_HOSTNAME",
@@ -1064,6 +1173,11 @@
       ],
       "description": "Self-hosted mailboxes + Roundcube webmail, Keycloak SSO. Outbound requires an SMTP relay. Replaces Gmail / Exchange Online.",
       "env": [
+        {
+          "default": "webmail.",
+          "label": "DOMAIN_HOST",
+          "name": "DOMAIN_HOST"
+        },
         {
           "default": "mail.",
           "label": "MAIL_HOSTNAME",
