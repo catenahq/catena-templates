@@ -160,7 +160,11 @@ services:
         EOF
         exec nginx -g 'daemon off;'
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost/.well-known/mta-sts.txt >/dev/null || exit 1"]
+      # Probe 127.0.0.1, NOT localhost: nginx `listen 80;` binds IPv4
+      # 0.0.0.0:80 only, but the container /etc/hosts maps localhost to
+      # BOTH 127.0.0.1 and ::1, and busybox wget resolves ::1 first ->
+      # "connection refused" -> the container flaps unhealthy forever.
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/.well-known/mta-sts.txt >/dev/null || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
