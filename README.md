@@ -6,6 +6,11 @@ Single source of truth for the Catena template catalog: the compose files
 contracts-pattern) and by Portainer itself (its App Templates URL field
 pointing at this repo's raw templates.json).
 
+**What this repo promises and how that is enforced:** [SPEC.md](SPEC.md)
+(hand-written intent + machine-checked invariants) and
+[VALIDATION.md](VALIDATION.md) (generated CI-gate sheet; drift fails the
+maintainers' CI).
+
 ## Layout
 
 ```
