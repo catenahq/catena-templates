@@ -91,3 +91,14 @@ coordinated PRs:
 - Per-VPS runtime state. All under `/var/lib/catena/` on each VPS.
 - Docs site copy. catenahq/docs generates the per-template pages
   from `source/catalog.yml` via a sibling-write generator.
+
+## Security invariants (machine-enforced -- do not weaken silently)
+
+- No secrets, ever: sentinel placeholders only (gitleaks on every
+  change; the catalog is public and fetched raw by every deployment).
+- blueprints/ + templates.json are BUILD OUTPUTS; hand-edits fail the
+  idempotent-render CI gate.
+- Every catalog image ref is CVE-scanned (trivy-images workflow);
+  quiesce snippets pass build/lint_quiesce.py (no curl/wget, no rm
+  outside the app's data path).
+- SPEC.md gate pointers must resolve (ops audit --check-public-specs).
