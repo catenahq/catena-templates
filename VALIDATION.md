@@ -15,7 +15,7 @@ Parsed from the committed workflow files; every job below runs on each change.
 
 | Workflow | File | Jobs |
 | --- | --- | --- |
-| build-and-verify | `.github/workflows/build-and-verify.yml` | `render-idempotency`, `unicode-hygiene`, `lint-quiesce-tests` |
+| build-and-verify | `.github/workflows/build-and-verify.yml` | `render-idempotency`, `unicode-hygiene`, `lint-quiesce-tests`, `duplication` |
 | security | `.github/workflows/security.yml` | `scanctl` |
 | Trivy images (catalog) | `.github/workflows/trivy-images.yml` | `list-images`, `trivy-image` |
 
