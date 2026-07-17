@@ -1603,7 +1603,7 @@ catena_template_catalog:
 
         ### SMTP and sending reputation
 
-        Mautic does NOT send email directly. It hands every outbound to your managed SMTP relay (see the [email providers guide](/guides/email-providers/) for recommended choices). Sending reputation, SPF/DKIM/DMARC, and bounce handling all live at the relay layer. Configure SMTP under **Settings** -> **Configuration** -> **Email Settings** with your relay's credentials before the first campaign goes out.
+        Mautic does NOT send email directly. It hands every outbound to your managed SMTP relay (see the [provider accounts guide](/guides/provider-accounts/) for recommended senders). Sending reputation, SPF/DKIM/DMARC, and bounce handling all live at the relay layer. Configure SMTP under **Settings** -> **Configuration** -> **Email Settings** with your relay's credentials before the first campaign goes out.
 
         ### Lead-magnet content and drip-campaign copy
 
@@ -1637,7 +1637,7 @@ catena_template_catalog:
 
         ### SMTP et réputation d'envoi
 
-        Mautic n'envoie PAS directement les courriels. Il remet chaque envoi à votre relais SMTP géré (voir le [guide des fournisseurs courriel](/fr/guides/email-providers/) pour les choix recommandés). Réputation d'envoi, SPF/DKIM/DMARC, et gestion des rebonds vivent au niveau du relais. Configurez SMTP sous **Settings** -> **Configuration** -> **Email Settings** avec les identifiants de votre relais avant la première campagne.
+        Mautic n'envoie PAS directement les courriels. Il remet chaque envoi à votre relais SMTP géré (voir le [guide des comptes fournisseurs](/fr/guides/provider-accounts/) pour les expéditeurs recommandés). Réputation d'envoi, SPF/DKIM/DMARC, et gestion des rebonds vivent au niveau du relais. Configurez SMTP sous **Settings** -> **Configuration** -> **Email Settings** avec les identifiants de votre relais avant la première campagne.
 
         ### Contenu d'aimant à prospects et copie des séquences drip
 
