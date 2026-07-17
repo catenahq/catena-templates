@@ -48,6 +48,25 @@
       "matchPackageNames": ["traefik"],
       "matchUpdateTypes": ["major", "minor"],
       "enabled": false
+    },
+    {
+      "description": "Postgres is centrally governed: the per-template compose pins must equal the top-level postgres_default_image in source/catalog.yml (build/lint_postgres_pins.py fails the build otherwise). Group EVERY postgres bump -- the docker-compose pins AND the catalog central-default customManager below -- into one reviewed PR so they move together and the lint stays green. A split bump (pins without the default, or vice versa) would redden the PR. automerge off: a Postgres major/minor is a coordinated, reviewed change.",
+      "matchPackageNames": ["postgres"],
+      "groupName": "postgres central bump",
+      "automerge": false
+    }
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Track the central Postgres image (postgres_default_image) in source/catalog.yml. The per-template compose pins follow it (enforced by build/lint_postgres_pins.py); the packageRule above groups this bump with the compose-pin bumps into one PR.",
+      "managerFilePatterns": [
+        "/^source/catalog\\.yml$/"
+      ],
+      "matchStrings": [
+        "postgres_default_image:\\s*(?<depName>postgres):(?<currentValue>[^\\s#\"]+)"
+      ],
+      "datasourceTemplate": "docker"
     }
   ],
   "ignorePaths": [
