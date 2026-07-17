@@ -110,6 +110,7 @@ services:
       POSTGRES_USER: zammad
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: zammad_production
+      PGDATA: /var/lib/postgresql/data/pgdata
     volumes:
       - db-data:/var/lib/postgresql/data
     healthcheck:

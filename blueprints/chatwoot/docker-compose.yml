@@ -73,6 +73,7 @@ services:
       POSTGRES_USER: chatwoot
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: chatwoot
+      PGDATA: /var/lib/postgresql/data/pgdata
     volumes:
       - db-data:/var/lib/postgresql/data
     healthcheck:

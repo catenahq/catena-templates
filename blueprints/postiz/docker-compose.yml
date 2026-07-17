@@ -48,6 +48,7 @@ services:
       POSTGRES_USER: postiz
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: postiz
+      PGDATA: /var/lib/postgresql/data/pgdata
     volumes:
       - db-data:/var/lib/postgresql/data
     healthcheck:
