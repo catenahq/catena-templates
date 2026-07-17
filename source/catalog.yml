@@ -119,6 +119,16 @@
 #     setup_steps         -- Markdown block of numbered steps to get running
 #     extra_notes         -- optional Markdown block (for walk-throughs, tables, etc.)
 
+# Central Postgres image for every vanilla-postgres template DB. One knob for
+# the whole catalog: each entry whose compose pins `postgres:<tag>` MUST match
+# this value UNLESS that entry declares `postgres_image_override` (used ONLY
+# when the app's upstream cannot run the default major). Enforced by
+# build/lint_postgres_pins.py (CI: build-and-verify.yml) -- drift fails the
+# build. Bumping the major = edit this line + the pins in one PR. Keep the
+# catena-ce infra Postgres (roles/postgres/defaults/main.yml) in step
+# separately; it follows Keycloak's support matrix, not the app ceilings.
+postgres_default_image: postgres:18.4-alpine
+
 catena_template_catalog:
   - id: nextcloud-s3-oidc
     app_name: nextcloud

@@ -60,6 +60,8 @@ jobs:
         run: uv run --with pytest --with pyyaml pytest tests/ -q
       - name: lint quiesce snippets against the catalog
         run: uv run build/lint_quiesce.py
+      - name: lint postgres pins against the central default
+        run: uv run build/lint_postgres_pins.py
 
   duplication:
     # Copy-paste ratchet: .jscpd.json carries the baseline threshold;
