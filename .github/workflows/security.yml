@@ -42,6 +42,10 @@ jobs:
         # uv backs the Python scanners (semgrep, guarddog), lazy-fetched at scan time.
         uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
       - name: Install scanctl
+        env:
+          # Straight from git, not proxy.golang.org: the proxy caches branch
+          # resolution (~30 min), so @main could install a stale scanctl.
+          GOPRIVATE: github.com/catenahq/*
         run: go install github.com/catenahq/scanctl/cmd/scanctl@main
       - name: Run scanctl
         env:
