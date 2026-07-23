@@ -47,8 +47,15 @@ jobs:
         env:
           # zizmor's API-backed audits use this when present; absent = --offline.
           GH_TOKEN: ${{ github.token }}
+          # PR runs diff-gate against the merge-base with the target branch:
+          # only findings the PR introduces gate; pre-existing repo findings
+          # stay visible but no longer block unrelated PRs. push/cron runs
+          # keep the full gate, so they still fail on the default branch.
+          BASELINE_REF: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || '' }}
         run: |
-          "$(go env GOPATH)/bin/scanctl" run --profile full \
+          baseline_ref_flag=""
+          if [ -n "$BASELINE_REF" ]; then baseline_ref_flag="--baseline-ref $BASELINE_REF"; fi
+          "$(go env GOPATH)/bin/scanctl" run --profile full $baseline_ref_flag \
             --out scanctl.sarif --sbom sbom.cdx.json \
             --summary "$GITHUB_STEP_SUMMARY" .
       - name: Upload SARIF to code scanning
