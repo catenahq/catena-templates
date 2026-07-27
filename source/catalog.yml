@@ -43,24 +43,28 @@
 #                        apps where pause is unsafe (long-running jobs,
 #                        connection pools that don't survive freeze).
 #                        See R20 in BACKLOG_TECHNICAL.md.
-#     s3_reconcile (optional dict) -- declares a post-restore DB ↔ S3
+#     s3_reconcile (optional dict) -- declares a post-restore DB - S3
 #                        consistency check (R19 in BACKLOG_TECHNICAL.md). Apps
 #                        that store primary file content in customer-
-#                        owned S3 (Nextcloud objectstore, Outline
-#                        attachments) keep their DB in restic but the
-#                        S3 bucket is excluded by design. After a
-#                        restore, the DB still indexes files; if the
-#                        bucket is missing or rotated, the user sees
-#                        broken links. The reconciliation step runs the
-#                        declared command inside the app's container
-#                        and reports any orphan rows. Shape:
+#                        owned S3 (Nextcloud objectstore) keep their DB
+#                        in restic but the S3 bucket is excluded by
+#                        design. After a restore, the DB still indexes
+#                        files; if the bucket is missing or rotated, the
+#                        user sees broken links. The reconciliation step
+#                        runs the declared command inside the app's
+#                        container and reports any orphan rows. Shape:
 #                            s3_reconcile:
 #                              service: app          # compose service
 #                              command: ["sh","-c","occ files:scan --all"]
 #                              orphan_pattern: "^([0-9]+) errors?"
-#                        Default: report-only (no DB mutations). Add
-#                        a `delete_orphans: true` flag (off by default)
-#                        to opt into destructive cleanup.
+#                        Report-only. There is no cleanup mode and no
+#                        opt-in flag: a `delete_orphans: true` was
+#                        documented here for a year and read by nothing.
+#                        Deleting rows that reference missing objects is
+#                        irreversible and sometimes wrong (the bucket may
+#                        be misconfigured rather than empty), so a broken
+#                        link the client can ask about is the outcome we
+#                        want anyway.
 #     bench_pack (optional, default "nodb" inference) -- which
 #                        BENCH_DEPLOY_PACK groups this template for the
 #                        catena-ops test bench. Enum:
