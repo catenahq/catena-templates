@@ -7,8 +7,9 @@
 # in catenahq/ops).
 #
 # Downstream consumers:
-#   - catenahq/sales/onboarding/3_discovery_call/sizing.md
-#     (operator-facing tier guide)
+#   - catenahq/ops sales/onboarding/3_discovery_call/sizing.md
+#     (operator-facing tier guide; the sales pipeline was folded into
+#     catenahq/ops on 2026-06-07)
 #   - catenahq/docs/src/content/docs/{,en/}sizing.md
 #     (client-facing, FR default + EN)
 #     -- both rendered by catenahq/ops operator-tools/generate-sizing-doc.py.
@@ -19,14 +20,20 @@
 #
 # Hand-edit this file, run the generator, commit the diff together.
 #
-# Population path (interim, until R25 fixture harness lands):
-#   - Numbers below are operator's best-known measurements from manual
-#     runs on dev1 (idle = 30 minutes after deploy with no user load;
-#     peak = under the documented setup-step load described in the
-#     catalog entry's setup_steps).
-#   - When R25 (per-template fixture seeding harness) ships, the
-#     test_bench scenario re-runs each fixture and overwrites the
-#     numbers in this file from `docker stats --no-stream` samples.
+# Population path: HAND-MAINTAINED. The numbers below are the operator's
+# best-known measurements from manual runs on the host named in
+# measurement_host (idle = 30 minutes after deploy with no user load; peak =
+# under the setup-step load described in the catalog entry's setup_steps).
+#
+# This block used to say the R25 fixture harness would re-run each template
+# and overwrite these values from `docker stats --no-stream`. The harness
+# exists (ops automation/test_bench/orchestrator/fixtures.py) but it seeds and
+# asserts fixtures; it has never measured anything, and nothing anywhere
+# writes this file -- the bench only READS peak_ram_mb, to size its parallel
+# slots. Promising a self-freshening table made these numbers read as
+# machine-maintained, and the reader most affected is the one deciding whether
+# to trust one against a real client's workload. Read last_measured_at, and
+# re-measure by hand.
 #
 # Schema per entry:
 #   id              -- catalog id from source/catalog.yml.
@@ -287,8 +294,9 @@ services:
   # conservative value previously hand-maintained in catalog.yml
   # `memory_mb` (dropped 2026-05-21); idle / CPU / disk numbers stay
   # null until a real measurement run lands. Notes are client-tone so
-  # the docs page reads naturally; replace estimates + populate the
-  # null fields on the next bench fixture pass (R25).
+  # the docs page reads naturally. Filling these in is a MANUAL
+  # measurement run -- no bench pass populates them; see the population
+  # note at the top of this file.
 
   - id: collabora
     idle_ram_mb: null
