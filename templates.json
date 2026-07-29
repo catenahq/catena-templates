@@ -223,7 +223,7 @@
           "name": "ADMIN_USERNAME"
         },
         {
-          "default": "__CATENA_OPERATOR_WIRED__",
+          "default": "{{ admin_password }}",
           "label": "ADMIN_PASS",
           "name": "ADMIN_PASS"
         },

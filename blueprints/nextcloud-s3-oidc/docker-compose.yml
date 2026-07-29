@@ -368,7 +368,7 @@ services:
   #      TALK_PORT) to use the EXTERNAL standalone coturn for its
   #      own ICE relay. Janus's start.sh inside aio-talk mints
   #      ephemeral HMAC-SHA1 creds against TURN_SECRET (which we
-  #      set to vault_turn_static_auth_secret -- the same secret
+  #      set to turn_static_auth_secret -- the same secret
   #      coturn validates with). Clients dialing Talk get TURN
   #      coordinates pointing at the same coturn (set by the
   #      catena-wire-nextcloud-talk-hpb wire script via

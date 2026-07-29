@@ -249,7 +249,7 @@ catena_template_catalog:
       # vault) and the Keycloak discovery URL. The script reads them
       # from inside the running container at click time.
       - "OIDC_CLIENT_ID=nextcloud"
-      - "OIDC_CLIENT_SECRET={{ vault_nextcloud_oidc_client_secret }}"
+      - "OIDC_CLIENT_SECRET={{ nextcloud_oidc_client_secret }}"
       - "OIDC_DISCOVERY_URL=https://{{ keycloak_hostname | default('auth.' ~ cloudflare_zone) }}/realms/{{ keycloak_realm | default('vps') }}/.well-known/openid-configuration"
       - "OIDC_ISSUER_URL=https://{{ keycloak_hostname | default('auth.' ~ cloudflare_zone) }}/realms/{{ keycloak_realm | default('vps') }}"
       - "OIDC_REDIRECT_URL=https://nextcloud.{{ cloudflare_zone }}/apps/user_oidc/code"
@@ -269,10 +269,10 @@ catena_template_catalog:
       # relay. Sharing the secret with Rocket.Chat's Jitsi consolidates
       # all media through one TURN provider.
       - "SIGNALING_HOSTNAME=signaling.{{ cloudflare_zone }}"
-      - "SIGNALING_SECRET={{ vault_nextcloud_talk_signaling_secret }}"
-      - "TALK_INTERNAL_SECRET={{ vault_nextcloud_talk_internal_secret }}"
+      - "SIGNALING_SECRET={{ nextcloud_talk_signaling_secret }}"
+      - "TALK_INTERNAL_SECRET={{ nextcloud_talk_internal_secret }}"
       - "TURN_HOSTNAME={{ coturn_hostname | default('turn.' ~ cloudflare_zone) }}"
-      - "TURN_STATIC_AUTH_SECRET={{ vault_turn_static_auth_secret }}"
+      - "TURN_STATIC_AUTH_SECRET={{ turn_static_auth_secret }}"
     en:
       display_name: Nextcloud
       what_it_is: Self-hosted file sharing and collaboration -- the file hub that other templates plug into.
@@ -564,16 +564,16 @@ catena_template_catalog:
       # rocketchat-jitsi-wire.sh (logs in as this user to flip the
       # Jitsi_* settings via REST). Password lives in the vault.
       - "ADMIN_USERNAME=admin"
-      - "ADMIN_PASS={{ vault_admin_password }}"
+      - "ADMIN_PASS={{ admin_password }}"
       # Jitsi env -- shared coturn secret + per-component bearer
       # secrets minted in seed.py. Idle when the JITSI block is
       # commented out (RC keeps working as chat-only).
       - "VPS_PUBLIC_IP={{ public_ip }}"
-      - "TURN_STATIC_AUTH_SECRET={{ vault_turn_static_auth_secret }}"
-      - "JITSI_PROSODY_PASSWORD={{ vault_jitsi_prosody_password }}"
-      - "JITSI_JICOFO_AUTH_PASSWORD={{ vault_jitsi_jicofo_auth_password }}"
-      - "JITSI_JICOFO_COMPONENT_SECRET={{ vault_jitsi_jicofo_component_secret }}"
-      - "JITSI_JVB_AUTH_PASSWORD={{ vault_jitsi_jvb_auth_password }}"
+      - "TURN_STATIC_AUTH_SECRET={{ turn_static_auth_secret }}"
+      - "JITSI_PROSODY_PASSWORD={{ jitsi_prosody_password }}"
+      - "JITSI_JICOFO_AUTH_PASSWORD={{ jitsi_jicofo_auth_password }}"
+      - "JITSI_JICOFO_COMPONENT_SECRET={{ jitsi_jicofo_component_secret }}"
+      - "JITSI_JVB_AUTH_PASSWORD={{ jitsi_jvb_auth_password }}"
     en:
       display_name: Rocket.Chat
       what_it_is: Team chat -- channels, direct messages, file sharing, mobile apps, and video calls. Keycloak SSO pre-wired.
@@ -684,16 +684,16 @@ catena_template_catalog:
       # env_managed_keys re-injects on every converge.
       - "OIDC_BASE_URL=https://{{ keycloak_hostname | default('auth.' ~ cloudflare_zone) }}"
       - "OIDC_CLIENT_ID=element"
-      - "OIDC_CLIENT_SECRET={{ vault_element_oidc_client_secret }}"
+      - "OIDC_CLIENT_SECRET={{ element_oidc_client_secret }}"
       # Bundled Jitsi env. Shared coturn secret + per-component bearer
       # secrets. Identical pattern to rocketchat's bundled Jitsi.
       - "VPS_PUBLIC_IP={{ public_ip }}"
       - "TURN_HOSTNAME={{ coturn_hostname | default('turn.' ~ cloudflare_zone) }}"
-      - "TURN_STATIC_AUTH_SECRET={{ vault_turn_static_auth_secret }}"
-      - "JITSI_JICOFO_AUTH_PASSWORD={{ vault_element_jitsi_jicofo_auth_password }}"
-      - "JITSI_JICOFO_COMPONENT_SECRET={{ vault_element_jitsi_jicofo_component_secret }}"
-      - "JITSI_JVB_AUTH_PASSWORD={{ vault_element_jitsi_jvb_auth_password }}"
-      - "JIGASI_XMPP_PASSWORD={{ vault_element_jigasi_xmpp_password }}"
+      - "TURN_STATIC_AUTH_SECRET={{ turn_static_auth_secret }}"
+      - "JITSI_JICOFO_AUTH_PASSWORD={{ element_jitsi_jicofo_auth_password }}"
+      - "JITSI_JICOFO_COMPONENT_SECRET={{ element_jitsi_jicofo_component_secret }}"
+      - "JITSI_JVB_AUTH_PASSWORD={{ element_jitsi_jvb_auth_password }}"
+      - "JIGASI_XMPP_PASSWORD={{ element_jigasi_xmpp_password }}"
       # SIP trunk -- operator fills these in the Environment tab once
       # they have a SIP provider account (Twilio / OVH / Bandwidth /
       # etc.). Empty values leave jigasi unregistered; the rest of
@@ -1193,7 +1193,7 @@ catena_template_catalog:
     env_defaults:
       - "DOMAIN_HOST=www.{{ cloudflare_zone }}"
       - "WORDPRESS_HOSTNAME=www.{{ cloudflare_zone }}"
-      - "WPMS_SMTP_PASS={{ vault_smtp_password | default('') }}"
+      - "WPMS_SMTP_PASS={{ smtp_password | default('') }}"
       - "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
       - "DB_ROOT_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
     en:
@@ -1934,7 +1934,7 @@ catena_template_catalog:
       - "RELAY_HOST="
       - "RELAY_PORT=587"
       - "RELAY_USER="
-      - "RELAY_PASSWORD={{ vault_mailserver_relay_password }}"
+      - "RELAY_PASSWORD={{ mailserver_relay_password }}"
     en:
       display_name: Mail server + webmail
       what_it_is: Self-hosted email -- inbox storage on your VPS (Postfix + Dovecot + Rspamd) with Roundcube webmail and Keycloak single sign-on. Outbound requires an SMTP relay through a reputable provider (set up before deploy) so messages are not flagged as spam.
