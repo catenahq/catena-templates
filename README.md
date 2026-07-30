@@ -132,8 +132,6 @@ a vendored-tarball-bump PR on its next daily run.
 ## Repo split status
 
 Seventh repo in the catenahq split, lifted out of catenahq/ops on
-2026-05-16. Predecessor location: the in-tree catalog under
-`ops/automation/ansible/roles/infrastructure/vars/`
-+ `ops/internal_docs/operator/client-app-templates/`. Lift driven by
-the need to expose the catalog through the App Templates BASE URL field
-and to ship the CVE-watcher template (catenahq/ops `BACKLOG_TECHNICAL.md` R2).
+2026-05-16. Lift driven by the need to expose the catalog through the
+App Templates BASE URL field and to ship the CVE-watcher template
+(catenahq/ops `BACKLOG_TECHNICAL.md` R2).
