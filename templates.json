@@ -47,7 +47,7 @@
           "name": "NEXTCLOUD_TRASH_RETENTION"
         },
         {
-          "default": "52428800",
+          "default": "83886080",
           "label": "NEXTCLOUD_MAX_CHUNK_SIZE",
           "name": "NEXTCLOUD_MAX_CHUNK_SIZE"
         },

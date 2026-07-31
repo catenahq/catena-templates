@@ -168,24 +168,32 @@ catena_template_catalog:
         port: 8081
     compose_file: "compose/nextcloud-s3.compose.yml"
     # R19: Nextcloud objectstore stores the file content in customer-
-    # owned S3, excluded from restic. After a restore, run `occ
-    # files:scan --all` so Nextcloud reconciles its DB filecache
-    # against what's actually in the bucket. occ exits non-zero +
-    # logs counts of missing files when the bucket has rotated.
+    # owned S3, excluded from restic. After a restore the DB still
+    # indexes those files; if the bucket rotated or lost objects, the
+    # user sees broken links.
+    #
+    # This used to declare `occ files:scan --all` with a regex over its
+    # output, and it was blind: files:scan walks FILESYSTEM storage, and
+    # on objectstore primary storage there is no filesystem to walk (the
+    # filecache IS the index), so it reported 0 folders / 0 files /
+    # 0 errors without touching the bucket. The regex could not have
+    # matched that command's table output either. Two independent
+    # reasons the answer was always zero.
+    #
+    # `check` names a strategy the recovery engine implements instead.
+    # It computes database-minus-bucket -- the direction that matters
+    # after a restore -- from `occ files:object:list` and the filecache.
+    # (Nextcloud's own files:object:orphans is the OTHER direction:
+    # objects with no DB row, i.e. bucket garbage.)
     s3_reconcile:
       service: app
-      # nextcloud:apache image has no sudo; honor the user via
-      # `docker exec -u www-data` (s3_reconcile.yml's argv builder
-      # injects -u when this field is set). occ MUST run as
-      # www-data so files-scan writes oc_filecache rows with the
-      # right ownership.
+      # nextcloud:apache has no sudo; the user is honored via
+      # `docker exec -u www-data`. occ MUST run as www-data.
       user: www-data
-      command:
-        - php
-        - occ
-        - files:scan
-        - --all
-      orphan_pattern: "\\\\| Errors\\\\s*\\\\|\\\\s*([0-9]+)\\\\s*\\\\|"
+      check: nextcloud-objectstore
+      # Compose service holding the filecache the check asks what the
+      # bucket is supposed to contain.
+      db_service: db
     # EP3: every operator-controlled OIDC env var is in
     # env_managed_keys so a converge auto-heals the discovery URL,
     # client ID, and client secret if a client edited them in the
