@@ -94,7 +94,7 @@ services:
   # in ICE candidates so direct peer-to-JVB UDP works for the typical
   # case (no relay needed).
   #
-  # Wire-up: rocketchat-jitsi-wire.sh (OliveTin button) hits
+  # Wire-up: rocketchat-jitsi-wire.sh (catena-admin action) hits
   # https://rocketchat.<base>/api/v1/settings/Jitsi_* with the bootstrap
   # admin credentials and flips Jitsi_Enabled=true,
   # Jitsi_Domain=meet.<base>, etc. Idempotent.

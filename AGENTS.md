@@ -86,8 +86,8 @@ coordinated PRs:
 
 ## What does NOT live here
 
-- Operator-side wiring (vault key names, OIDC client minting flow,
-  env_managed_keys re-injection logic). All in catenahq/ops.
+- Operator-side wiring (on-box config key names, OIDC client minting
+  flow, env_managed_keys re-injection logic). All in catenahq/ops.
 - Per-VPS runtime state. All under `/var/lib/catena/` on each VPS.
 - Docs site copy. catenahq/docs generates the per-template pages
   from `source/catalog.yml` via a sibling-write generator.

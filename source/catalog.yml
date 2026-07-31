@@ -243,11 +243,12 @@ catena_template_catalog:
       - "S3_ACCESS_KEY="
       - "S3_SECRET_KEY="
       # OIDC env vars consumed by the post-deploy "Wire Nextcloud
-      # OIDC" OliveTin button (script:
+      # OIDC" catena-admin action (script:
       # /usr/local/bin/catena-wire-nextcloud-oidc). These match
       # the Keycloak realm client (clientId=nextcloud, secret from
-      # vault) and the Keycloak discovery URL. The script reads them
-      # from inside the running container at click time.
+      # the on-box config store) and the Keycloak discovery URL. The
+      # script reads them from inside the running container at click
+      # time.
       - "OIDC_CLIENT_ID=nextcloud"
       - "OIDC_CLIENT_SECRET={{ nextcloud_oidc_client_secret }}"
       - "OIDC_DISCOVERY_URL=https://{{ keycloak_hostname | default('auth.' ~ cloudflare_zone) }}/realms/{{ keycloak_realm | default('vps') }}/.well-known/openid-configuration"
@@ -290,13 +291,13 @@ catena_template_catalog:
       setup_steps: |
         1. Open the **Environment** tab and fill `S3_BUCKET`, `S3_REGION`, `S3_HOST`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` with your bucket's coordinates. (Everything else is pre-filled -- `NEXTCLOUD_HOSTNAME`, admin/DB credentials, OIDC integration vars.)
         2. Click **Deploy**. Wait ~2 minutes for the first boot.
-        3. Wire SSO: open `actions.<your-domain>` and click **Wire Nextcloud OIDC**. The button registers Keycloak as an OIDC provider inside Nextcloud (idempotent -- safe to re-click after redeploys or secret rotations).
+        3. Wire SSO: open `dash.<your-domain>`, go to the **Actions** tab and click **Wire Nextcloud OIDC**. The action registers Keycloak as an OIDC provider inside Nextcloud (idempotent -- safe to re-run after redeploys or secret rotations).
         4. Sign in at your Nextcloud domain with **Log in with keycloak** (uses your operator-managed identity), or fall back to `NEXTCLOUD_ADMIN_USER` / `NEXTCLOUD_ADMIN_PASSWORD` from the Environment tab.
       extra_notes: |
-        ### Sign-in with Keycloak -- wired by the OliveTin button
+        ### Sign-in with Keycloak -- wired by a catena-admin action
 
         After Nextcloud's first deploy you click **Wire Nextcloud
-        OIDC** at `actions.<your-domain>`. The button enables
+        OIDC** on the **Actions** tab at `dash.<your-domain>`. It enables
         Nextcloud's `user_oidc` app and registers a `keycloak`
         provider with the OIDC fields from the Environment tab. The
         Nextcloud login page then shows **Log in with keycloak** the
@@ -304,7 +305,7 @@ catena_template_catalog:
         / `NEXTCLOUD_ADMIN_PASSWORD`) keeps working alongside SSO as
         a break-glass.
 
-        Re-click the button any time the OIDC configuration drifts
+        Re-run the action any time the OIDC configuration drifts
         (after a secret rotation, a destructive redeploy, etc.). It
         is idempotent -- re-running just refreshes the provider
         record.
@@ -351,14 +352,14 @@ catena_template_catalog:
       setup_steps: |
         1. Ouvrez l'onglet **Environment** et remplissez `S3_BUCKET`, `S3_REGION`, `S3_HOST`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` avec les coordonnées de votre seau S3. (Le reste est pré-rempli -- `NEXTCLOUD_HOSTNAME`, identifiants admin/DB, variables d'intégration OIDC.)
         2. Cliquez **Deploy**. Patientez ~2 min pour le premier démarrage.
-        3. Câblez le SSO : ouvrez `actions.<votre-domaine>` puis cliquez **Câbler l'OIDC pour Nextcloud**. Le bouton enregistre Keycloak comme fournisseur OIDC à l'intérieur de Nextcloud (idempotent -- peut être recliqué sans risque après un redéploiement ou une rotation de secret).
+        3. Câblez le SSO : ouvrez `dash.<votre-domaine>`, allez dans l'onglet **Actions** puis cliquez **Câbler l'OIDC pour Nextcloud**. L'action enregistre Keycloak comme fournisseur OIDC à l'intérieur de Nextcloud (idempotent -- peut être relancée sans risque après un redéploiement ou une rotation de secret).
         4. Connectez-vous sur votre domaine Nextcloud avec **Se connecter avec keycloak** (utilise votre identité gérée par l'opérateur), ou repli sur `NEXTCLOUD_ADMIN_USER` / `NEXTCLOUD_ADMIN_PASSWORD` de l'onglet Environment.
       extra_notes: |
-        ### Connexion avec Keycloak -- câblée par le bouton OliveTin
+        ### Connexion avec Keycloak -- câblée par une action catena-admin
 
         Après le premier déploiement de Nextcloud, vous cliquez
-        **Câbler l'OIDC pour Nextcloud** sur
-        `actions.<votre-domaine>`. Le bouton active l'application
+        **Câbler l'OIDC pour Nextcloud** dans l'onglet **Actions** sur
+        `dash.<votre-domaine>`. L'action active l'application
         `user_oidc` de Nextcloud et enregistre un fournisseur
         `keycloak` avec les valeurs OIDC de l'onglet Environment. La
         page de connexion Nextcloud affiche alors **Se connecter
@@ -366,9 +367,9 @@ catena_template_catalog:
         locale (`NEXTCLOUD_ADMIN_USER` / `NEXTCLOUD_ADMIN_PASSWORD`)
         continue de fonctionner en parallèle comme issue de secours.
 
-        Recliquez le bouton chaque fois que la configuration OIDC
+        Relancez l'action chaque fois que la configuration OIDC
         dérive (après une rotation de secret, un redéploiement
-        destructif, etc.). Il est idempotent -- relancer ne fait que
+        destructif, etc.). Elle est idempotente -- relancer ne fait que
         rafraîchir l'enregistrement du fournisseur.
 
         ### Le partage de fichiers par lien courriel fonctionne toujours
@@ -407,8 +408,8 @@ catena_template_catalog:
   # Both office editors target office.<base>. Only ONE is deployed
   # per client at install time (operator picks per format-fidelity
   # preference). Both shipped as App Templates so the choice is a
-  # single deploy in Portainer. The companion OliveTin buttons (Wire Nextcloud Collabora
-  # / Wire Nextcloud OnlyOffice) install + configure the matching
+  # single deploy in Portainer. The companion catena-admin actions (Wire Nextcloud
+  # Collabora / Wire Nextcloud OnlyOffice) install + configure the matching
   # Nextcloud-side app and remove the OTHER editor's app cleanly,
   # so switching is reversible without leftover state.
 
