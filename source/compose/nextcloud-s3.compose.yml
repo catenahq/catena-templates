@@ -56,6 +56,7 @@ services:
         : "$${NEXTCLOUD_LOGLEVEL:=1}"
         : "$${NEXTCLOUD_VERSIONS_RETENTION:=auto, 7}"
         : "$${NEXTCLOUD_TRASH_RETENTION:=auto, 30}"
+        : "$${NEXTCLOUD_MAX_CHUNK_SIZE:=52428800}"
         cat > /var/www/html/config/zz-catena.config.php <<PHP
         <?php
         \$$CONFIG = [
@@ -64,6 +65,28 @@ services:
           'trashbin_retention_obligation' => '$${NEXTCLOUD_TRASH_RETENTION}',
         ];
         PHP
+        # Chunked-upload size, set through occ rather than the overlay
+        # above: the documented key is the DOTTED system config
+        # `files.chunked_upload.max_size` (a literal top-level key, not
+        # a nested files->chunked_upload->max_size array), and
+        # config:system:set is the only form upstream documents. It is
+        # an upsert, so re-running it on every container start is
+        # idempotent.
+        #
+        # Why override at all: Nextcloud's default is 104857600
+        # (100 MiB), which sits AT Cloudflare's 100 MB request-body
+        # ceiling on the Free/Pro plans this product ships on. Every
+        # chunk is one PUT, so a full-size chunk plus WebDAV headers
+        # lands on or over the ceiling and Cloudflare answers 413 --
+        # the desktop client then retries the same oversized chunk
+        # forever. 50 MiB keeps a 2x margin under the ceiling.
+        #
+        # Do NOT raise this above ~90 MiB without moving off
+        # Cloudflare's proxy, and do NOT set it to 0 (upstream's
+        # "no chunking at all" value) -- that sends whole files as one
+        # PUT and every upload over 100 MB fails at the edge.
+        php occ config:system:set --type int \
+          --value "$${NEXTCLOUD_MAX_CHUNK_SIZE}" files.chunked_upload.max_size
         # Server-side encryption (SSE), master-key mode. Encrypts file
         # content before it is handed to the S3 object-store driver, so
         # the storage provider only ever sees ciphertext at rest.
@@ -172,9 +195,21 @@ services:
       # it only for storage-constrained clients who accept a shorter
       # recovery window. (versions_retention covers OVERWRITES; this
       # covers DELETES -- both are needed.)
+      #
+      # NEXTCLOUD_MAX_CHUNK_SIZE: bytes per chunk for the desktop/web
+      # client's chunked upload, written to the system config key
+      # `files.chunked_upload.max_size` by the hook. Upstream default is
+      # 104857600 (100 MiB); we ship 52428800 (50 MiB) because Catena
+      # publishes every app through a Cloudflare Tunnel and Cloudflare
+      # caps a request body at 100 MB on Free/Pro (200 MB Business,
+      # 500 MB Enterprise). A 100 MiB chunk has no headroom under that
+      # cap and 413s at the edge. Raise it only in step with the plan's
+      # cap; 0 disables chunking entirely and breaks every upload over
+      # 100 MB.
       NEXTCLOUD_LOGLEVEL: ${NEXTCLOUD_LOGLEVEL:-1}
       NEXTCLOUD_VERSIONS_RETENTION: ${NEXTCLOUD_VERSIONS_RETENTION:-auto, 7}
       NEXTCLOUD_TRASH_RETENTION: ${NEXTCLOUD_TRASH_RETENTION:-auto, 30}
+      NEXTCLOUD_MAX_CHUNK_SIZE: ${NEXTCLOUD_MAX_CHUNK_SIZE:-52428800}
 
       # TLS is terminated upstream (Cloudflare Tunnel -> Traefik). Force
       # Nextcloud to render https:// links + trust the reverse-proxy

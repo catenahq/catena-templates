@@ -227,6 +227,13 @@ catena_template_catalog:
       - "NEXTCLOUD_LOGLEVEL=1"
       - "NEXTCLOUD_VERSIONS_RETENTION=auto, 7"
       - "NEXTCLOUD_TRASH_RETENTION=auto, 30"
+      # 52428800 = 50 MiB per chunked-upload PUT. Upstream defaults to
+      # 104857600 (100 MiB), which has zero headroom under Cloudflare's
+      # 100 MB request-body cap on Free/Pro -- the edge answers 413 and
+      # the desktop client retries the same chunk forever. NOT in
+      # env_managed_keys: a client on a Business/Enterprise zone is
+      # free to raise it, and the converge should not stomp that.
+      - "NEXTCLOUD_MAX_CHUNK_SIZE=52428800"
       # S3 primary-storage coords. Defaults target the canonical
       # catena hot-tier (OVH BHS); operator overrides region/host
       # in the Portainer UI for non-default deployments. Bucket name +
