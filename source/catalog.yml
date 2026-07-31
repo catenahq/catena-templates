@@ -224,7 +224,7 @@ catena_template_catalog:
       # ~50-70% on hot+cold bucket storage cost vs the upstream
       # 30-day cap; client policy decision -- NOT in env_managed_keys
       # because operator + client are free to flip it.
-      - "NEXTCLOUD_LOGLEVEL=1"
+      - "NEXTCLOUD_LOGLEVEL=3"
       - "NEXTCLOUD_VERSIONS_RETENTION=auto, 7"
       - "NEXTCLOUD_TRASH_RETENTION=auto, 30"
       # 52428800 = 50 MiB per chunked-upload PUT. Upstream defaults to

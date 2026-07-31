@@ -32,7 +32,7 @@
           "name": "DB_PASSWORD"
         },
         {
-          "default": "1",
+          "default": "3",
           "label": "NEXTCLOUD_LOGLEVEL",
           "name": "NEXTCLOUD_LOGLEVEL"
         },
