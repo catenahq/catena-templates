@@ -56,7 +56,7 @@ services:
         : "$${NEXTCLOUD_LOGLEVEL:=3}"
         : "$${NEXTCLOUD_VERSIONS_RETENTION:=auto, 7}"
         : "$${NEXTCLOUD_TRASH_RETENTION:=auto, 30}"
-        : "$${NEXTCLOUD_MAX_CHUNK_SIZE:=52428800}"
+        : "$${NEXTCLOUD_MAX_CHUNK_SIZE:=83886080}"
         cat > /var/www/html/config/zz-catena.config.php <<PHP
         <?php
         \$$CONFIG = [
@@ -202,7 +202,7 @@ services:
       # NEXTCLOUD_MAX_CHUNK_SIZE: bytes per chunk for the desktop/web
       # client's chunked upload, written to the system config key
       # `files.chunked_upload.max_size` by the hook. Upstream default is
-      # 104857600 (100 MiB); we ship 52428800 (50 MiB) because Catena
+      # 104857600 (100 MiB); we ship 83886080 (80 MiB) because Catena
       # publishes every app through a Cloudflare Tunnel and Cloudflare
       # caps a request body at 100 MB on Free/Pro (200 MB Business,
       # 500 MB Enterprise). A 100 MiB chunk has no headroom under that
@@ -212,7 +212,7 @@ services:
       NEXTCLOUD_LOGLEVEL: ${NEXTCLOUD_LOGLEVEL:-3}
       NEXTCLOUD_VERSIONS_RETENTION: ${NEXTCLOUD_VERSIONS_RETENTION:-auto, 7}
       NEXTCLOUD_TRASH_RETENTION: ${NEXTCLOUD_TRASH_RETENTION:-auto, 30}
-      NEXTCLOUD_MAX_CHUNK_SIZE: ${NEXTCLOUD_MAX_CHUNK_SIZE:-52428800}
+      NEXTCLOUD_MAX_CHUNK_SIZE: ${NEXTCLOUD_MAX_CHUNK_SIZE:-83886080}
 
       # TLS is terminated upstream (Cloudflare Tunnel -> Traefik). Force
       # Nextcloud to render https:// links + trust the reverse-proxy
