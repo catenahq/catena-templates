@@ -176,7 +176,7 @@ services:
     notes: |
       Multi-container stack (api + worker + beat + frontend + space +
       MinIO + Postgres + Redis). Heavy idle RAM; budget 1 GB
-      headroom over the rest of your suite.
+      headroom over the rest of the suite.
     notes_fr: |
       Pile multi-conteneurs (api + worker + beat + frontend + space +
       MinIO + Postgres + Redis). Empreinte RAM importante ; prévoyez
@@ -210,8 +210,8 @@ services:
       should size for the peak, not the idle.
     notes_fr: |
       Léger au repos ; un workflow lance des processus Node par nœud
-      et peut faire pointer RAM/CPU. Si vous automatisez beaucoup,
-      dimensionnez sur le pic, pas le repos.
+      et peut faire pointer RAM/CPU. Une automatisation intensive se
+      dimensionne sur le pic, pas sur le repos.
 
   - id: erpnext
     idle_ram_mb: 2100
