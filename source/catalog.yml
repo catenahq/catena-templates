@@ -299,24 +299,24 @@ catena_template_catalog:
         First-time setup:
         1. Fill the S3_* variables in the Environment tab.
         2. Click Deploy.
-        3. Open actions.<your-domain> and click "Wire Nextcloud OIDC" -- registers Keycloak SSO inside Nextcloud (idempotent, safe to re-click).
-        4. Sign in with "Log in with keycloak" at your Nextcloud domain.
+        3. Open the actions dashboard and click "Wire Nextcloud OIDC" -- registers Keycloak SSO inside Nextcloud (idempotent, safe to re-click).
+        4. Sign in with "Log in with keycloak" at the Nextcloud domain.
 
         Full docs: https://docs.catena.run/apps/nextcloud-s3-oidc/
       setup_steps: |
-        1. Open the **Environment** tab and fill `S3_BUCKET`, `S3_REGION`, `S3_HOST`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` with your bucket's coordinates. (Everything else is pre-filled -- `NEXTCLOUD_HOSTNAME`, admin/DB credentials, OIDC integration vars.)
+        1. Open the **Environment** tab and fill `S3_BUCKET`, `S3_REGION`, `S3_HOST`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` with the bucket's coordinates. (Everything else is pre-filled -- `NEXTCLOUD_HOSTNAME`, admin/DB credentials, OIDC integration vars.)
         2. Click **Deploy**. Wait ~2 minutes for the first boot.
         3. Wire SSO: open `dash.<your-domain>`, go to the **Actions** tab and click **Wire Nextcloud OIDC**. The action registers Keycloak as an OIDC provider inside Nextcloud (idempotent -- safe to re-run after redeploys or secret rotations).
-        4. Sign in at your Nextcloud domain with **Log in with keycloak** (uses your operator-managed identity), or fall back to `NEXTCLOUD_ADMIN_USER` / `NEXTCLOUD_ADMIN_PASSWORD` from the Environment tab.
+        4. Sign in at the Nextcloud domain with **Log in with keycloak** (which uses the managed identity), or fall back to `NEXTCLOUD_ADMIN_USER` / `NEXTCLOUD_ADMIN_PASSWORD` from the Environment tab.
       extra_notes: |
         ### Sign-in with Keycloak -- wired by a catena-admin action
 
-        After Nextcloud's first deploy you click **Wire Nextcloud
-        OIDC** on the **Actions** tab at `dash.<your-domain>`. It enables
+        After Nextcloud's first deploy, the **Wire Nextcloud OIDC**
+        button on the **Actions** tab at `dash.<your-domain>` enables
         Nextcloud's `user_oidc` app and registers a `keycloak`
         provider with the OIDC fields from the Environment tab. The
-        Nextcloud login page then shows **Log in with keycloak** the
-        next time you visit. Local admin login (`NEXTCLOUD_ADMIN_USER`
+        Nextcloud login page then shows **Log in with keycloak** on
+        the next visit. Local admin login (`NEXTCLOUD_ADMIN_USER`
         / `NEXTCLOUD_ADMIN_PASSWORD`) keeps working alongside SSO as
         a break-glass.
 
@@ -329,27 +329,27 @@ catena_template_catalog:
 
         Keycloak SSO governs **user login** to Nextcloud. It does
         **not** restrict anonymous public share links --
-        `/s/<token>` URLs your team generates from inside Nextcloud
-        are reachable by recipients who have no Keycloak account.
+        `/s/<token>` URLs generated from inside Nextcloud stay
+        reachable by recipients who have no Keycloak account.
 
         So the common workflow stays intact:
 
-        1. A signed-in user (your team member) creates a share link
-           in Nextcloud, optionally with a password and expiry date.
+        1. A signed-in team member creates a share link in
+           Nextcloud, optionally with a password and expiry date.
         2. Nextcloud emails the link to the recipient.
         3. The recipient clicks the link. Cloudflare Tunnel routes
            the request straight to Nextcloud; Nextcloud serves the
-           public share page (or the password prompt, if you set
-           one). No Keycloak redirect, no login required.
+           public share page (or the password prompt, where one was
+           set). No Keycloak redirect, no login required.
 
         This works because Nextcloud is reached via Nextcloud's own
         auth code, not a forward-auth proxy. The `user_oidc` plugin
-        only handles the login flow for *your team members*; the
+        only handles the login flow for *team members*; the
         public-share endpoints remain anonymous-by-design.
 
-        If you ever need to lock down public shares entirely, the
-        right control is inside Nextcloud (Settings -> Sharing ->
-        "Allow share via public link"), not at the network layer.
+        Locking down public shares entirely is a control inside
+        Nextcloud (Settings -> Sharing -> "Allow share via public
+        link"), not at the network layer.
     fr:
       display_name: Nextcloud
       what_it_is: Partage de fichiers et collaboration auto-hébergés -- le hub auquel d'autres templates se connectent.
@@ -360,25 +360,25 @@ catena_template_catalog:
         Configuration initiale :
         1. Remplissez les variables S3_* dans l'onglet Environment.
         2. Cliquez sur Deploy.
-        3. Ouvrez actions.<votre-domaine> et cliquez "Câbler l'OIDC pour Nextcloud" -- enregistre le SSO Keycloak dans Nextcloud (idempotent, peut être recliqué).
-        4. Connectez-vous avec "Se connecter avec keycloak" sur votre domaine Nextcloud.
+        3. Ouvrez le tableau de bord des actions et cliquez "Câbler l'OIDC pour Nextcloud" -- enregistre le SSO Keycloak dans Nextcloud (idempotent, peut être recliqué).
+        4. Connexion avec "Se connecter avec keycloak" sur le domaine Nextcloud.
 
         Doc complète : https://docs.catena.run/apps/nextcloud-s3-oidc/
       setup_steps: |
-        1. Ouvrez l'onglet **Environment** et remplissez `S3_BUCKET`, `S3_REGION`, `S3_HOST`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` avec les coordonnées de votre seau S3. (Le reste est pré-rempli -- `NEXTCLOUD_HOSTNAME`, identifiants admin/DB, variables d'intégration OIDC.)
+        1. Ouvrez l'onglet **Environment** et remplissez `S3_BUCKET`, `S3_REGION`, `S3_HOST`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` avec les coordonnées du seau S3. (Le reste est pré-rempli -- `NEXTCLOUD_HOSTNAME`, identifiants admin/DB, variables d'intégration OIDC.)
         2. Cliquez **Deploy**. Patientez ~2 min pour le premier démarrage.
         3. Câblez le SSO : ouvrez `dash.<votre-domaine>`, allez dans l'onglet **Actions** puis cliquez **Câbler l'OIDC pour Nextcloud**. L'action enregistre Keycloak comme fournisseur OIDC à l'intérieur de Nextcloud (idempotent -- peut être relancée sans risque après un redéploiement ou une rotation de secret).
-        4. Connectez-vous sur votre domaine Nextcloud avec **Se connecter avec keycloak** (utilise votre identité gérée par l'opérateur), ou repli sur `NEXTCLOUD_ADMIN_USER` / `NEXTCLOUD_ADMIN_PASSWORD` de l'onglet Environment.
+        4. Connexion sur le domaine Nextcloud avec **Se connecter avec keycloak** (utilise l'identité gérée), ou repli sur `NEXTCLOUD_ADMIN_USER` / `NEXTCLOUD_ADMIN_PASSWORD` de l'onglet Environment.
       extra_notes: |
         ### Connexion avec Keycloak -- câblée par une action catena-admin
 
-        Après le premier déploiement de Nextcloud, vous cliquez
-        **Câbler l'OIDC pour Nextcloud** dans l'onglet **Actions** sur
-        `dash.<votre-domaine>`. L'action active l'application
+        Après le premier déploiement de Nextcloud, le bouton
+        **Câbler l'OIDC pour Nextcloud** de l'onglet **Actions** sur
+        `dash.<votre-domaine>` active l'application
         `user_oidc` de Nextcloud et enregistre un fournisseur
         `keycloak` avec les valeurs OIDC de l'onglet Environment. La
         page de connexion Nextcloud affiche alors **Se connecter
-        avec keycloak** à votre prochaine visite. La connexion admin
+        avec keycloak** à la visite suivante. La connexion admin
         locale (`NEXTCLOUD_ADMIN_USER` / `NEXTCLOUD_ADMIN_PASSWORD`)
         continue de fonctionner en parallèle comme issue de secours.
 
@@ -392,33 +392,33 @@ catena_template_catalog:
         L'authentification Keycloak gouverne la **connexion des
         utilisateurs** à Nextcloud. Elle ne restreint **pas** les
         liens de partage publics anonymes -- les URL
-        `/s/<jeton>` que votre équipe génère depuis Nextcloud
+        `/s/<jeton>` générées depuis Nextcloud
         restent accessibles aux destinataires qui n'ont pas de
         compte Keycloak.
 
         Le flux courant fonctionne donc tel quel :
 
-        1. Un membre de votre équipe (utilisateur connecté) crée un
+        1. Un membre de l'équipe (utilisateur connecté) crée un
            lien de partage dans Nextcloud, avec un mot de passe et
            une date d'expiration s'il le souhaite.
         2. Nextcloud envoie le lien par courriel au destinataire.
         3. Le destinataire clique le lien. Cloudflare Tunnel
            achemine la requête directement à Nextcloud ; Nextcloud
            sert la page de partage publique (ou l'invite de mot de
-           passe, si vous en avez défini un). Pas de redirection
-           Keycloak, pas de connexion requise.
+           passe, lorsqu'un mot de passe a été défini). Pas de
+           redirection Keycloak, pas de connexion requise.
 
         Cela fonctionne parce que Nextcloud est atteint via son
         propre code d'authentification, pas via un proxy
         forward-auth. Le module `user_oidc` ne gère que le flux de
-        connexion pour *les membres de votre équipe* ; les points
+        connexion pour *les membres de l'équipe* ; les points
         d'accès des partages publics restent anonymes par
         conception.
 
-        Si vous souhaitez verrouiller complètement les partages
-        publics, le bon contrôle est à l'intérieur de Nextcloud
-        (Paramètres -> Partage -> "Autoriser le partage par lien
-        public"), pas au niveau réseau.
+        Le verrouillage complet des partages publics est un
+        contrôle interne à Nextcloud (Paramètres -> Partage ->
+        "Autoriser le partage par lien public"), pas au niveau
+        réseau.
 
   # Both office editors target office.<base>. Only ONE is deployed
   # per client at install time (operator picks per format-fidelity
@@ -458,7 +458,7 @@ catena_template_catalog:
         https://docs.catena.run/apps/collabora/
       setup_steps: |
         1. Click **Deploy**. Wait ~30 s for the document server to boot.
-        2. From the operator dashboard, click the **Wire Nextcloud Collabora** button. The button installs the Nextcloud Office app, points it at this server, and -- if you previously had OnlyOffice wired -- removes the OnlyOffice Nextcloud app cleanly.
+        2. From the operator dashboard, click the **Wire Nextcloud Collabora** button. The button installs the Nextcloud Office app, points it at this server, and -- where OnlyOffice was previously wired -- removes the OnlyOffice Nextcloud app cleanly.
         3. Open any DOCX/XLSX/PPTX/ODT file in Nextcloud. It opens in the embedded Collabora editor.
 
         Switching back to OnlyOffice later is one click: stop this Collabora compose, deploy `onlyoffice`, then click the **Wire Nextcloud OnlyOffice** button.
@@ -507,7 +507,7 @@ catena_template_catalog:
         https://docs.catena.run/apps/onlyoffice/
       setup_steps: |
         1. Click **Deploy**. Wait ~1 min for the document server to boot.
-        2. From the operator dashboard, click the **Wire Nextcloud OnlyOffice** button. The button installs the Nextcloud OnlyOffice app, reads the JWT secret from this template, points the app at this server, and -- if you previously had Collabora wired -- removes the Collabora Nextcloud app cleanly.
+        2. From the operator dashboard, click the **Wire Nextcloud OnlyOffice** button. The button installs the Nextcloud OnlyOffice app, reads the JWT secret from this template, points the app at this server, and -- where Collabora was previously wired -- removes the Collabora Nextcloud app cleanly.
         3. Open any DOCX/XLSX/PPTX file in Nextcloud. It opens in the embedded OnlyOffice editor.
 
         Switching to Collabora later is one click: stop this OnlyOffice compose, deploy `collabora`, then click the **Wire Nextcloud Collabora** button.
@@ -599,14 +599,14 @@ catena_template_catalog:
 
         https://docs.catena.run/apps/rocketchat-oidc/
       setup_steps: |
-        1. Click **Deploy**. Nothing to fill in the Environment tab unless you want a different hostname.
+        1. Click **Deploy**. Nothing to fill in the Environment tab except a different hostname, where one is wanted.
         2. Wait ~5 minutes for the first sync. The login page will show **Sign in with Keycloak**.
         3. Sign in. The first user becomes the workspace admin.
-        4. *(Optional, ~30 s)* Attach Nextcloud files in chats: Administration -> Apps -> Marketplace -> search `Nextcloud` -> install -> set your Nextcloud domain in the app settings. Users can then type `/nextcloud` in any chat to browse and attach files.
+        4. *(Optional, ~30 s)* Attach Nextcloud files in chats: Administration -> Apps -> Marketplace -> search `Nextcloud` -> install -> set the Nextcloud domain in the app settings. Users can then type `/nextcloud` in any chat to browse and attach files.
       extra_notes: |
         ### Mobile apps
 
-        Rocket.Chat's iOS and Android apps connect straight to your server. Users paste `https://chat.<your-domain>` into the app on first launch and sign in via Keycloak.
+        Rocket.Chat's iOS and Android apps connect straight to the server. Users paste `https://chat.<your-domain>` into the app on first launch and sign in via Keycloak.
     fr:
       display_name: Rocket.Chat
       what_it_is: Messagerie d'équipe -- canaux, messages directs, partage de fichiers, apps mobiles, appels vidéo. Keycloak SSO pré-câblé.
@@ -616,14 +616,14 @@ catena_template_catalog:
 
         https://docs.catena.run/apps/rocketchat-oidc/
       setup_steps: |
-        1. Cliquez **Deploy**. Rien à remplir dans l'onglet Environment sauf si vous voulez un autre nom de domaine.
+        1. Cliquez **Deploy**. Rien à remplir dans l'onglet Environment, sauf un autre nom de domaine le cas échéant.
         2. Patientez ~5 min pour la synchro initiale. La page de connexion affichera **Se connecter avec Keycloak**.
-        3. Connectez-vous. Le premier utilisateur devient l'admin du workspace.
-        4. *(Optionnel, ~30 s)* Joindre des fichiers Nextcloud : Administration -> Apps -> Marketplace -> cherchez `Nextcloud` -> installez -> indiquez votre domaine Nextcloud. Les utilisateurs tapent ensuite `/nextcloud` dans un chat pour parcourir et joindre leurs fichiers.
+        3. Connexion. Le premier utilisateur devient l'admin du workspace.
+        4. *(Optionnel, ~30 s)* Joindre des fichiers Nextcloud : Administration -> Apps -> Marketplace -> cherchez `Nextcloud` -> installez -> indiquez le domaine Nextcloud. Les utilisateurs tapent ensuite `/nextcloud` dans un chat pour parcourir et joindre des fichiers.
       extra_notes: |
         ### Applications mobiles
 
-        Les apps iOS et Android de Rocket.Chat se connectent directement à votre serveur. Les utilisateurs collent `https://chat.<votre-domaine>` au premier lancement et se connectent via Keycloak.
+        Les apps iOS et Android de Rocket.Chat se connectent directement au serveur. Les utilisateurs collent `https://chat.<votre-domaine>` au premier lancement et se connectent via Keycloak.
 
   - id: element
     app_name: element
@@ -730,22 +730,22 @@ catena_template_catalog:
         1. Click **Deploy**. First boot takes ~3 minutes (Synapse generates signing keys, postgres initialises, Jitsi components register).
         2. Open `element.<your-domain>` -- the Element web client opens. Click **Sign in with Keycloak**.
         3. The first Keycloak user lands as a regular Matrix user. To promote them to homeserver admin, open `synapseadmin.<your-domain>` (operator-only, gated by Keycloak admin group), find the user, and toggle the admin flag.
-        4. *(Optional)* Enable SIP dial-in: fill `JIGASI_SIP_URI`, `JIGASI_SIP_PASSWORD`, `JIGASI_SIP_SERVER` in the Environment tab with your SIP provider's credentials, then redeploy. Without these, chat / voice / video still work -- only dial-in from a phone is off.
+        4. *(Optional)* Enable SIP dial-in: fill `JIGASI_SIP_URI`, `JIGASI_SIP_PASSWORD`, `JIGASI_SIP_SERVER` in the Environment tab with the SIP provider's credentials, then redeploy. Without these, chat / voice / video still work -- only dial-in from a phone is off.
         5. *(Optional)* Open federation: edit `FEDERATION_DOMAIN_WHITELIST` in the Environment tab (e.g. `"matrix.org","example.com"`) and redeploy. Default is empty (no federation -- the homeserver only talks to itself).
       extra_notes: |
         ### End-to-end encryption
 
-        New direct messages and new invite-only rooms are encrypted by default. Public rooms stay unencrypted (E2EE in large public rooms hurts mobile sync UX). Each user is prompted to set up **Secure Backup** the first time they log in -- this is a 24-character recovery key that lets them read encrypted history from a new device. Losing the key locks the user out of old encrypted messages; back it up the same way you back up a password manager.
+        New direct messages and new invite-only rooms are encrypted by default. Public rooms stay unencrypted (E2EE in large public rooms hurts mobile sync UX). Each user is prompted to set up **Secure Backup** the first time they log in -- this is a 24-character recovery key that lets them read encrypted history from a new device. Losing the key locks the user out of old encrypted messages, so it deserves the same care as a password-manager vault key.
 
         ### Voice and video
 
         - **1:1 calls** use the bundled Element/Matrix call stack and the shared TURN/STUN server at `turn.<your-domain>` for restrictive-network media relay.
-        - **Group video calls** open in an embedded Jitsi widget at `elementmeet.<your-domain>` (the bundled Jitsi instance). Calls never leave your server -- there is no fallback to `meet.jit.si`.
+        - **Group video calls** open in an embedded Jitsi widget at `elementmeet.<your-domain>` (the bundled Jitsi instance). Calls never leave the server -- there is no fallback to `meet.jit.si`.
         - **SIP dial-in** (jigasi) lets a regular phone dial a SIP number to join a Jitsi room. Enable by filling the `JIGASI_SIP_*` env vars (see step 4 above).
 
         ### Mobile apps
 
-        Element's iOS and Android apps connect straight to your homeserver. Users tap **Use custom server** at first launch and enter `matrix.<your-domain>`. SSO via Keycloak works in-app.
+        Element's iOS and Android apps connect straight to the homeserver. Users tap **Use custom server** at first launch and enter `matrix.<your-domain>`. SSO via Keycloak works in-app.
     fr:
       display_name: Element / Matrix
       what_it_is: Element + serveur Matrix auto-hébergés -- messagerie d'équipe avec chiffrement de bout en bout, voix, visio de groupe (Jitsi embarqué), et entrée SIP par téléphone. Fédération capable mais désactivée par défaut.
@@ -758,7 +758,7 @@ catena_template_catalog:
         1. Cliquez **Deploy**. Le premier démarrage prend ~3 min (Synapse génère ses clés de signature, postgres s'initialise, les composants Jitsi s'enregistrent).
         2. Ouvrez `element.<votre-domaine>` -- le client web Element s'ouvre. Cliquez **Se connecter avec Keycloak**.
         3. Le premier utilisateur Keycloak arrive comme utilisateur Matrix normal. Pour le promouvoir admin du homeserver, ouvrez `synapseadmin.<votre-domaine>` (réservé opérateur, protégé par le groupe admin Keycloak), trouvez l'utilisateur, et activez l'indicateur admin.
-        4. *(Optionnel)* Activez l'entrée SIP : remplissez `JIGASI_SIP_URI`, `JIGASI_SIP_PASSWORD`, `JIGASI_SIP_SERVER` dans l'onglet Environment avec les identifiants de votre fournisseur SIP, puis redéployez. Sans ces valeurs, chat / voix / vidéo fonctionnent quand même -- seule l'entrée par téléphone est désactivée.
+        4. *(Optionnel)* Activez l'entrée SIP : remplissez `JIGASI_SIP_URI`, `JIGASI_SIP_PASSWORD`, `JIGASI_SIP_SERVER` dans l'onglet Environment avec les identifiants du fournisseur SIP, puis redéployez. Sans ces valeurs, chat / voix / vidéo fonctionnent quand même -- seule l'entrée par téléphone est désactivée.
         5. *(Optionnel)* Ouvrez la fédération : éditez `FEDERATION_DOMAIN_WHITELIST` dans l'onglet Environment (ex : `"matrix.org","example.com"`) puis redéployez. Par défaut vide (pas de fédération -- le homeserver ne parle qu'à lui-même).
       extra_notes: |
         ### Chiffrement de bout en bout
@@ -768,12 +768,12 @@ catena_template_catalog:
         ### Voix et vidéo
 
         - **Appels 1:1** utilisent le moteur d'appel Element/Matrix et le serveur TURN/STUN partagé `turn.<votre-domaine>` pour relayer les médias en réseau restrictif.
-        - **Appels de groupe** s'ouvrent dans un widget Jitsi embarqué sur `elementmeet.<votre-domaine>` (l'instance Jitsi embarquée). Les appels ne quittent jamais votre serveur -- pas de repli sur `meet.jit.si`.
+        - **Appels de groupe** s'ouvrent dans un widget Jitsi embarqué sur `elementmeet.<votre-domaine>` (l'instance Jitsi embarquée). Les appels ne quittent jamais le serveur -- pas de repli sur `meet.jit.si`.
         - **Entrée SIP** (jigasi) permet à un téléphone classique d'appeler un numéro SIP pour rejoindre un salon Jitsi. Activez en remplissant les variables d'environnement `JIGASI_SIP_*` (voir étape 4 ci-dessus).
 
         ### Applications mobiles
 
-        Les apps iOS et Android d'Element se connectent directement à votre homeserver. Les utilisateurs touchent **Utiliser un serveur personnalisé** au premier lancement et saisissent `matrix.<votre-domaine>`. La connexion via Keycloak fonctionne dans l'app.
+        Les apps iOS et Android d'Element se connectent directement au homeserver. Les utilisateurs touchent **Utiliser un serveur personnalisé** au premier lancement et saisissent `matrix.<votre-domaine>`. La connexion via Keycloak fonctionne dans l'app.
 
   - id: docuseal
     app_name: docuseal
@@ -815,10 +815,10 @@ catena_template_catalog:
         https://docs.catena.run/apps/docuseal/
       setup_steps: |
         1. Click **Deploy**. Wait ~1 min for the first boot.
-        2. Visit your DocuSeal domain and complete the first-run wizard (creates the initial admin account).
+        2. Visit the DocuSeal domain and complete the first-run wizard (creates the initial admin account).
         3. *(Optional)* Enable Keycloak SSO: **Settings** -> **SSO** -> choose **OpenID Connect** -> paste:
            - **Client ID:** `OIDC_CLIENT_ID` from Environment (`docuseal`)
-           - **Client Secret:** `OIDC_CLIENT_SECRET` from Environment (ask your operator to mint one in Keycloak if blank)
+           - **Client Secret:** `OIDC_CLIENT_SECRET` from Environment (minted in Keycloak on request when blank)
            - **Issuer URL:** `OIDC_ISSUER_URL`
            - Save. The login page gains a **Sign in with Keycloak** button. Local admin login keeps working as a break-glass.
         4. *(Optional)* Configure SMTP for signature-request emails: fill `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM_ADDRESS` in the Environment tab and redeploy. Without SMTP, recipients only see pending requests in their DocuSeal dashboard.
@@ -829,7 +829,7 @@ catena_template_catalog:
 
         ### Signing certificate
 
-        DocuSeal generates signed PDFs out of the box without a separate signing-cert mint step. Adobe Acrobat shows the signature as cryptographically valid but with a "self-signed root" warning by default -- same caveat as Documenso. For legally-binding signatures, contact your operator to install a CA-issued cert via DocuSeal's admin UI (Settings -> Signature -> Certificates).
+        DocuSeal generates signed PDFs out of the box without a separate signing-cert mint step. Adobe Acrobat shows the signature as cryptographically valid but with a "self-signed root" warning by default -- same caveat as Documenso. Legally-binding signatures need a CA-issued cert, installed on request via DocuSeal's admin UI (Settings -> Signature -> Certificates).
 
         ### SMTP
 
@@ -845,10 +845,10 @@ catena_template_catalog:
         https://docs.catena.run/apps/docuseal/
       setup_steps: |
         1. Cliquez **Deploy**. Patientez ~1 min pour le premier démarrage.
-        2. Visitez votre domaine DocuSeal et complétez l'assistant initial (création du compte admin).
+        2. Visitez le domaine DocuSeal et complétez l'assistant initial (création du compte admin).
         3. *(Optionnel)* Activez Keycloak SSO : **Settings** -> **SSO** -> choisissez **OpenID Connect** -> collez :
            - **Client ID :** `OIDC_CLIENT_ID` depuis Environment (`docuseal`)
-           - **Client Secret :** `OIDC_CLIENT_SECRET` depuis Environment (demandez à votre opérateur de le générer côté Keycloak si vide)
+           - **Client Secret :** `OIDC_CLIENT_SECRET` depuis Environment (généré côté Keycloak sur demande lorsqu'il est vide)
            - **Issuer URL :** `OIDC_ISSUER_URL`
            - Validez. La page de connexion affiche **Sign in with Keycloak**. La connexion admin locale continue de fonctionner comme issue de secours.
         4. *(Optionnel)* Configurez SMTP pour les e-mails de demande de signature : remplissez `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM_ADDRESS` dans l'onglet Environment puis redéployez. Sans SMTP, les destinataires ne voient que les demandes en attente dans leur tableau de bord.
@@ -859,7 +859,7 @@ catena_template_catalog:
 
         ### Certificat de signature
 
-        DocuSeal génère des PDF signés d'emblée sans étape de génération de certificat. Adobe Acrobat affiche la signature comme cryptographiquement valide mais avec un avertissement "racine auto-signée" par défaut -- même limite que Documenso. Pour des signatures à valeur légale, contactez votre opérateur pour installer un certificat émis par une AC via l'UI admin DocuSeal (Settings -> Signature -> Certificates).
+        DocuSeal génère des PDF signés d'emblée sans étape de génération de certificat. Adobe Acrobat affiche la signature comme cryptographiquement valide mais avec un avertissement "racine auto-signée" par défaut -- même limite que Documenso. Les signatures à valeur légale demandent un certificat émis par une AC, installé sur demande via l'UI admin DocuSeal (Settings -> Signature -> Certificates).
 
         ### SMTP
 
@@ -894,7 +894,7 @@ catena_template_catalog:
       setup_steps: |
         1. Click **Deploy**. Environment defaults are all pre-filled.
         2. Wait ~1 min for the first boot.
-        3. Visit your Outline domain -> click **Sign in with Keycloak**. The first user to sign in becomes the workspace admin.
+        3. Visit the Outline domain -> click **Sign in with Keycloak**. The first user to sign in becomes the workspace admin.
       extra_notes: ""
     fr:
       display_name: Outline
@@ -907,7 +907,7 @@ catena_template_catalog:
       setup_steps: |
         1. Cliquez **Deploy**. Les valeurs par défaut de l'Environment sont pré-remplies.
         2. Patientez ~1 min pour le premier démarrage.
-        3. Visitez votre domaine Outline -> cliquez **Se connecter avec Keycloak**. Le premier utilisateur devient l'admin du workspace.
+        3. Visitez le domaine Outline -> cliquez **Se connecter avec Keycloak**. Le premier utilisateur devient l'admin du workspace.
       extra_notes: ""
 
   - id: espocrm
@@ -952,10 +952,10 @@ catena_template_catalog:
         https://docs.catena.run/apps/espocrm/
       setup_steps: |
         1. Click **Deploy**. Wait ~1 min.
-        2. Visit your EspoCRM domain. Sign in as `ESPOCRM_ADMIN_USERNAME` / `ESPOCRM_ADMIN_PASSWORD` from the Environment tab.
+        2. Visit the EspoCRM domain. Sign in as `ESPOCRM_ADMIN_USERNAME` / `ESPOCRM_ADMIN_PASSWORD` from the Environment tab.
         3. *(Optional)* Enable Keycloak SSO: **Administration** -> **Authentication** -> set **Method** to **OIDC** -> paste:
            - **Client ID:** `OIDC_CLIENT_ID` from Environment (`espocrm`)
-           - **Client Secret:** `OIDC_CLIENT_SECRET` from Environment (ask your operator to mint one in Keycloak if blank)
+           - **Client Secret:** `OIDC_CLIENT_SECRET` from Environment (minted in Keycloak on request when blank)
            - **Authorization Endpoint:** `<OIDC_ISSUER_URL>/protocol/openid-connect/auth`
            - **Token Endpoint:** `<OIDC_ISSUER_URL>/protocol/openid-connect/token`
            - **JSON Web Key Set Endpoint:** `<OIDC_ISSUER_URL>/protocol/openid-connect/certs`
@@ -964,7 +964,7 @@ catena_template_catalog:
       extra_notes: |
         ### Why EspoCRM is the default
 
-        It is the only fully open-source CRM in this catalog with native OIDC in the community edition (no Pro tier upgrade), pre-built mobile apps, and an established record of stable upgrades. Twenty is the alternative if you prefer its modern Notion-like UI; both are kept in the catalog so you can pick.
+        It is the only fully open-source CRM in this catalog with native OIDC in the community edition (no Pro tier upgrade), pre-built mobile apps, and an established record of stable upgrades. Twenty is the alternative for a modern Notion-like UI; both are kept in the catalog so the choice stays open.
 
         ### Resource note
 
@@ -980,10 +980,10 @@ catena_template_catalog:
         https://docs.catena.run/apps/espocrm/
       setup_steps: |
         1. Cliquez **Deploy**. Patientez ~1 min.
-        2. Visitez votre domaine EspoCRM. Connectez-vous avec `ESPOCRM_ADMIN_USERNAME` / `ESPOCRM_ADMIN_PASSWORD` de l'onglet Environment.
+        2. Visitez le domaine EspoCRM. Connexion avec `ESPOCRM_ADMIN_USERNAME` / `ESPOCRM_ADMIN_PASSWORD` de l'onglet Environment.
         3. *(Optionnel)* Activez Keycloak SSO : **Administration** -> **Authentication** -> réglez **Method** sur **OIDC** -> collez :
            - **Client ID :** `OIDC_CLIENT_ID` depuis Environment (`espocrm`)
-           - **Client Secret :** `OIDC_CLIENT_SECRET` depuis Environment (demandez à votre opérateur de le générer côté Keycloak si vide)
+           - **Client Secret :** `OIDC_CLIENT_SECRET` depuis Environment (généré côté Keycloak sur demande lorsqu'il est vide)
            - **Authorization Endpoint :** `<OIDC_ISSUER_URL>/protocol/openid-connect/auth`
            - **Token Endpoint :** `<OIDC_ISSUER_URL>/protocol/openid-connect/token`
            - **JSON Web Key Set Endpoint :** `<OIDC_ISSUER_URL>/protocol/openid-connect/certs`
@@ -992,7 +992,7 @@ catena_template_catalog:
       extra_notes: |
         ### Pourquoi EspoCRM est le CRM par défaut
 
-        C'est le seul CRM entièrement open-source du catalogue avec OIDC natif en édition communautaire (sans palier Pro), des apps mobiles existantes et un historique stable de mises à jour. Twenty est l'alternative si vous préférez son UI moderne façon Notion ; les deux restent au catalogue pour vous laisser choisir.
+        C'est le seul CRM entièrement open-source du catalogue avec OIDC natif en édition communautaire (sans palier Pro), des apps mobiles existantes et un historique stable de mises à jour. Twenty est l'alternative pour une UI moderne façon Notion ; les deux restent au catalogue pour laisser le choix ouvert.
 
         ### Ressources
 
@@ -1026,7 +1026,7 @@ catena_template_catalog:
         https://docs.catena.run/apps/twenty/
       setup_steps: |
         1. Click **Deploy**. Wait ~1 min.
-        2. Visit your Twenty domain and sign up to create the initial workspace + admin user.
+        2. Visit the Twenty domain and sign up to create the initial workspace + admin user.
         3. *(Optional)* Enable Keycloak SSO: **Settings** -> **Security** -> **Single sign-on** -> paste `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_ISSUER_URL` from the Environment tab. Save.
       extra_notes: |
         **EspoCRM vs Twenty.** EspoCRM is this stack's default CRM (mature, native OIDC, mobile apps). Twenty is offered as an alternative for clients who prefer its Notion-style UI; both can be deployed side-by-side. The default `crm.<your-domain>` host is reserved for EspoCRM -- Twenty defaults to `twenty.<your-domain>`.
@@ -1040,7 +1040,7 @@ catena_template_catalog:
         https://docs.catena.run/apps/twenty/
       setup_steps: |
         1. Cliquez **Deploy**. Patientez ~1 min.
-        2. Visitez votre domaine Twenty et créez le compte initial (workspace + admin).
+        2. Visitez le domaine Twenty et créez le compte initial (workspace + admin).
         3. *(Optionnel)* Activez Keycloak SSO : **Settings** -> **Security** -> **Single sign-on** -> collez `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_ISSUER_URL` depuis l'onglet Environment. Validez.
       extra_notes: |
         **EspoCRM vs Twenty.** EspoCRM est le CRM par défaut de cette stack (mature, OIDC natif, apps mobiles). Twenty est offert comme alternative pour les clients qui préfèrent son UI façon Notion ; les deux peuvent cohabiter. Le domaine par défaut `crm.<votre-domaine>` est réservé à EspoCRM -- Twenty utilise par défaut `twenty.<votre-domaine>`.
@@ -1075,7 +1075,7 @@ catena_template_catalog:
         https://docs.catena.run/apps/plane/
       setup_steps: |
         1. Click **Deploy**. Wait ~2-3 min (multi-service stack with MinIO).
-        2. Visit your Plane domain and sign up to create the instance admin + first workspace.
+        2. Visit the Plane domain and sign up to create the instance admin + first workspace.
         3. *(Optional)* Enable Keycloak SSO: while signed in, visit `https://projects.<your-domain>/god-mode` -> **Authentication** -> **OpenID Connect** -> paste `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_ISSUER_URL` from the Environment tab. Save.
       extra_notes: ""
     fr:
@@ -1088,7 +1088,7 @@ catena_template_catalog:
         https://docs.catena.run/apps/plane/
       setup_steps: |
         1. Cliquez **Deploy**. Patientez ~2-3 min (pile multi-services avec MinIO).
-        2. Visitez votre domaine Plane et créez le compte admin initial + le premier workspace.
+        2. Visitez le domaine Plane et créez le compte admin initial + le premier workspace.
         3. *(Optionnel)* Activez Keycloak SSO : une fois connecté, visitez `https://projects.<votre-domaine>/god-mode` -> **Authentication** -> **OpenID Connect** -> collez `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_ISSUER_URL` depuis l'onglet Environment. Validez.
       extra_notes: ""
 
@@ -1119,10 +1119,10 @@ catena_template_catalog:
         https://docs.catena.run/apps/zammad/
       setup_steps: |
         1. Click **Deploy**. First boot is slow (2-3 min) -- Elasticsearch and Rails migrations run on startup.
-        2. Visit your Zammad domain. Complete the setup wizard (admin account, organization name).
+        2. Visit the Zammad domain. Complete the setup wizard (admin account, organization name).
         3. *(Optional)* Enable Keycloak SSO: **Settings** -> **Security** -> **Third-party authentication** -> **OpenID Connect** -> paste `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_ISSUER_URL` from the Environment tab. Save.
       extra_notes: |
-        **Resource note:** Zammad bundles Elasticsearch which reserves ~1.5 GB RAM. Plan for a ≥4 GB VPS if you run Zammad alongside other apps.
+        **Resource note:** Zammad bundles Elasticsearch which reserves ~1.5 GB RAM. Zammad alongside other apps needs a ≥4 GB VPS.
     fr:
       display_name: Zammad
       what_it_is: Helpdesk orienté tickets. Email, Telegram, canaux sociaux, SLA, base de connaissances. OIDC natif.
@@ -1133,10 +1133,10 @@ catena_template_catalog:
         https://docs.catena.run/apps/zammad/
       setup_steps: |
         1. Cliquez **Deploy**. Le premier démarrage est lent (2-3 min) -- Elasticsearch et les migrations Rails se lancent au démarrage.
-        2. Visitez votre domaine Zammad. Complétez l'assistant de configuration (compte admin, nom d'organisation).
+        2. Visitez le domaine Zammad. Complétez l'assistant de configuration (compte admin, nom d'organisation).
         3. *(Optionnel)* Activez Keycloak SSO : **Settings** -> **Security** -> **Third-party authentication** -> **OpenID Connect** -> collez `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_ISSUER_URL` depuis l'onglet Environment. Validez.
       extra_notes: |
-        **Ressources :** Zammad intègre Elasticsearch qui réserve ~1,5 GB de RAM. Prévoyez un VPS ≥4 GB si vous lancez Zammad avec d'autres apps.
+        **Ressources :** Zammad intègre Elasticsearch qui réserve ~1,5 GB de RAM. Zammad avec d'autres apps demande un VPS ≥4 GB.
 
   - id: chatwoot
     app_name: chatwoot
@@ -1165,7 +1165,7 @@ catena_template_catalog:
         https://docs.catena.run/apps/chatwoot/
       setup_steps: |
         1. Click **Deploy**. Wait ~2 min for the first boot (Rails migrations).
-        2. Visit your Chatwoot domain. Complete the setup wizard to create the first admin account.
+        2. Visit the Chatwoot domain. Complete the setup wizard to create the first admin account.
         3. Add channels: **Settings** -> **Inboxes** -> **Add inbox**. Pick the channel (email, website widget, WhatsApp, etc.) and follow the per-channel instructions.
       extra_notes: |
         **Note on sign-in:** Chatwoot's community edition doesn't support OIDC/SSO -- agents keep per-app email/password logins. SAML/OIDC is enterprise-only. If SSO matters, consider Zammad instead (trade-off: ticket-first workflow vs Chatwoot's conversation-first inbox).
@@ -1179,7 +1179,7 @@ catena_template_catalog:
         https://docs.catena.run/apps/chatwoot/
       setup_steps: |
         1. Cliquez **Deploy**. Patientez ~2 min le premier démarrage (migrations Rails).
-        2. Visitez votre domaine Chatwoot. Complétez l'assistant pour créer le premier admin.
+        2. Visitez le domaine Chatwoot. Complétez l'assistant pour créer le premier admin.
         3. Ajoutez des canaux : **Settings** -> **Inboxes** -> **Add inbox**. Choisissez le canal (email, widget, WhatsApp, etc.) et suivez les instructions.
       extra_notes: |
         **À propos de la connexion :** l'édition communautaire de Chatwoot ne supporte pas OIDC/SSO -- chaque agent garde un email/mot de passe spécifique à l'app. Le SSO SAML/OIDC est enterprise uniquement. Si le SSO est important, envisagez Zammad (compromis : flux orienté ticket au lieu de l'inbox orienté conversation de Chatwoot).
@@ -1223,8 +1223,8 @@ catena_template_catalog:
         https://docs.catena.run/apps/wordpress/
       setup_steps: |
         1. Click **Deploy**. Wait ~1 min for MariaDB + Redis + nginx + WordPress to initialize.
-        2. Visit your WordPress domain. Run through the install wizard (site title, admin username, admin password, email).
-        3. After the install wizard completes, the next operator converge auto-installs and configures the curated plugin set: kadence-blocks, performance-lab + its seven feature modules (auto-sizes, dominant-color-images, embed-optimizer, image-prioritizer, optimization-detective, speculation-rules, webp-uploads), nginx-cache-purge-and-preload (NPP -- purges + re-warms the FastCGI cache via your Rank Math sitemap), redis-cache (wired to the bundled Redis), wp-mail-smtp (wired to your operator-configured SMTP), wp-mail-logging, complianz-gdpr, wp-consent-api, seo-by-rank-math, and Fluent Forms.
+        2. Visit the WordPress domain. Run through the install wizard (site title, admin username, admin password, email).
+        3. After the install wizard completes, the next operator converge auto-installs and configures the curated plugin set: kadence-blocks, performance-lab + its seven feature modules (auto-sizes, dominant-color-images, embed-optimizer, image-prioritizer, optimization-detective, speculation-rules, webp-uploads), nginx-cache-purge-and-preload (NPP -- purges + re-warms the FastCGI cache via the Rank Math sitemap), redis-cache (wired to the bundled Redis), wp-mail-smtp (wired to the managed SMTP relay), wp-mail-logging, complianz-gdpr, wp-consent-api, seo-by-rank-math, and Fluent Forms.
         4. Visit `/wp-admin/admin.php?page=rank-math` and `/wp-admin/admin.php?page=cmplz-wizard` to run the Rank Math + Complianz first-run wizards. Their answers are site-specific (industry, EU/non-EU, etc.) and intentionally not pre-filled.
         5. *(Optional)* Wire `/wp-admin` login to Keycloak: **Plugins** -> **Add New** -> search `OpenID Connect Generic` -> **Install** -> **Activate**. Go to **Settings** -> **OpenID Connect Client** and fill:
            - **Client ID:** `OIDC_CLIENT_ID` from Environment
@@ -1237,7 +1237,7 @@ catena_template_catalog:
 
            Save. The login page gains a **Login with OpenID Connect** button. The public-facing site stays anonymous and indexable.
       extra_notes: |
-        **Stack.** WordPress runs as nginx + php-fpm + MariaDB + Redis. Nginx serves static assets directly, caches PHP responses with FastCGI cache (purged automatically by NPP on edit/publish, then re-warmed via your sitemap), and proxies the rest to php-fpm. Redis backs the WordPress object cache. Sized for a single-VPS deploy; for traffic spikes scale vertically.
+        **Stack.** WordPress runs as nginx + php-fpm + MariaDB + Redis. Nginx serves static assets directly, caches PHP responses with FastCGI cache (purged automatically by NPP on edit/publish, then re-warmed via the sitemap), and proxies the rest to php-fpm. Redis backs the WordPress object cache. Sized for a single-VPS deploy; for traffic spikes scale vertically.
 
         **Split-auth note.** Public pages (the website itself) are served anonymously -- search engines crawl normally, visitors don't see Keycloak. Only `/wp-admin` goes through the optional OIDC plugin for admin/editor logins. That's what makes WordPress on this stack a hybrid: reader-facing but SSO-managed for staff.
     fr:
@@ -1251,8 +1251,8 @@ catena_template_catalog:
         https://docs.catena.run/apps/wordpress/
       setup_steps: |
         1. Cliquez **Deploy**. Patientez ~1 min le temps que MariaDB + Redis + nginx + WordPress s'initialisent.
-        2. Visitez votre domaine WordPress. Suivez l'assistant d'installation (titre du site, admin, mot de passe, email).
-        3. Une fois l'assistant terminé, le prochain converge opérateur installe et configure automatiquement la liste curatée : kadence-blocks, performance-lab et ses sept modules (auto-sizes, dominant-color-images, embed-optimizer, image-prioritizer, optimization-detective, speculation-rules, webp-uploads), nginx-cache-purge-and-preload (NPP -- purge le cache FastCGI à la publication puis le réchauffe via votre sitemap Rank Math), redis-cache (câblé au Redis embarqué), wp-mail-smtp (câblé au SMTP configuré côté opérateur), wp-mail-logging, complianz-gdpr, wp-consent-api, seo-by-rank-math, et Fluent Forms.
+        2. Visitez le domaine WordPress. Suivez l'assistant d'installation (titre du site, admin, mot de passe, email).
+        3. Une fois l'assistant terminé, le prochain converge opérateur installe et configure automatiquement la liste curatée : kadence-blocks, performance-lab et ses sept modules (auto-sizes, dominant-color-images, embed-optimizer, image-prioritizer, optimization-detective, speculation-rules, webp-uploads), nginx-cache-purge-and-preload (NPP -- purge le cache FastCGI à la publication puis le réchauffe via le sitemap Rank Math), redis-cache (câblé au Redis embarqué), wp-mail-smtp (câblé au SMTP configuré côté opérateur), wp-mail-logging, complianz-gdpr, wp-consent-api, seo-by-rank-math, et Fluent Forms.
         4. Visitez `/wp-admin/admin.php?page=rank-math` et `/wp-admin/admin.php?page=cmplz-wizard` pour exécuter les assistants de première utilisation Rank Math + Complianz. Leurs réponses dépendent du site (secteur, UE / hors-UE, etc.) et ne sont volontairement pas pré-remplies.
         5. *(Optionnel)* Connectez `/wp-admin` à Keycloak : **Extensions** -> **Ajouter** -> chercher `OpenID Connect Generic` -> **Installer** -> **Activer**. Puis **Réglages** -> **OpenID Connect Client** et remplissez :
            - **Client ID :** `OIDC_CLIENT_ID` depuis Environment
@@ -1299,7 +1299,7 @@ catena_template_catalog:
         https://docs.catena.run/apps/n8n/
       setup_steps: |
         1. Click **Deploy**. Wait ~1 min for Postgres + n8n to initialize.
-        2. Visit your n8n domain and create the owner account via the setup wizard.
+        2. Visit the n8n domain and create the owner account via the setup wizard.
         3. Invite additional users: **Settings** -> **Users** -> **Invite**. Each user receives an email invite.
         4. Start building workflows: **Workflows** -> **+ Add Workflow**. Browse the integrations library for pre-built nodes.
       extra_notes: |
@@ -1315,7 +1315,7 @@ catena_template_catalog:
         https://docs.catena.run/apps/n8n/
       setup_steps: |
         1. Cliquez **Deploy**. Patientez ~1 min le temps que Postgres + n8n s'initialisent.
-        2. Visitez votre domaine n8n et créez le compte propriétaire via l'assistant.
+        2. Visitez le domaine n8n et créez le compte propriétaire via l'assistant.
         3. Invitez d'autres utilisateurs : **Settings** -> **Users** -> **Invite**. Chaque utilisateur reçoit une invitation par courriel.
         4. Créez des workflows : **Workflows** -> **+ Add Workflow**. Parcourez la bibliothèque d'intégrations pour les nœuds prêts à l'emploi.
       extra_notes: |
@@ -1353,8 +1353,8 @@ catena_template_catalog:
 
         https://docs.catena.run/apps/erpnext/
       setup_steps: |
-        1. Click **Deploy**. First boot takes 5-10 min -- the site must be created, MariaDB initialized, Python apps installed. Watch the `create-site` container logs in Portainer if you want to follow along.
-        2. Visit your ERPNext domain. Sign in as `Administrator` / `ERPNEXT_ADMIN_PASSWORD` from the Environment tab.
+        1. Click **Deploy**. First boot takes 5-10 min -- the site must be created, MariaDB initialized, Python apps installed. The `create-site` container logs in Portainer track the progress.
+        2. Visit the ERPNext domain. Sign in as `Administrator` / `ERPNEXT_ADMIN_PASSWORD` from the Environment tab.
         3. Complete the setup wizard: company name, fiscal year, base currency, chart of accounts template.
         4. *(Optional)* Enable Keycloak SSO: **Integrations** -> **Social Login Keys** -> **New** -> **Provider: OpenID Connect**. Fill:
            - **Client ID:** `OIDC_CLIENT_ID` from Environment
@@ -1362,7 +1362,7 @@ catena_template_catalog:
            - **Base URL:** `OIDC_ISSUER_URL`
            - Save. The login page shows **Login with OpenID Connect**.
       extra_notes: |
-        **Resource note.** ERPNext is heavy -- 10+ containers, ~3 GB RAM + 2 CPUs recommended minimum. Consider running it on a dedicated VPS tier if you also deploy Nextcloud + chat + other apps alongside.
+        **Resource note.** ERPNext is heavy -- 10+ containers, ~3 GB RAM + 2 CPUs recommended minimum. A dedicated VPS tier is the right home when Nextcloud + chat + other apps run alongside.
 
         **Upgrade path.** Major version bumps (v15 -> v16) require `bench migrate`. The compose template leaves `vps.auto-update=patch` on every service so weekly automated updates stay within v15.x.x -- majors are a deliberate operator action, not a 3 a.m. auto-update.
     fr:
@@ -1374,8 +1374,8 @@ catena_template_catalog:
 
         https://docs.catena.run/apps/erpnext/
       setup_steps: |
-        1. Cliquez **Deploy**. Le premier démarrage dure 5-10 min -- le site est créé, MariaDB initialisé, les apps Python installées. Consultez les logs du conteneur `create-site` dans Portainer si vous voulez suivre.
-        2. Visitez votre domaine ERPNext. Connectez-vous avec `Administrator` / `ERPNEXT_ADMIN_PASSWORD` de l'onglet Environment.
+        1. Cliquez **Deploy**. Le premier démarrage dure 5-10 min -- le site est créé, MariaDB initialisé, les apps Python installées. Les logs du conteneur `create-site` dans Portainer permettent de suivre la progression.
+        2. Visitez le domaine ERPNext. Connexion avec `Administrator` / `ERPNEXT_ADMIN_PASSWORD` de l'onglet Environment.
         3. Complétez l'assistant : nom de société, exercice fiscal, devise, plan comptable.
         4. *(Optionnel)* Activez Keycloak SSO : **Integrations** -> **Social Login Keys** -> **New** -> **Provider: OpenID Connect**. Remplissez :
            - **Client ID :** `OIDC_CLIENT_ID` depuis Environment
@@ -1383,7 +1383,7 @@ catena_template_catalog:
            - **Base URL :** `OIDC_ISSUER_URL`
            - Validez. La page de connexion affiche **Login with OpenID Connect**.
       extra_notes: |
-        **Ressources.** ERPNext est lourd -- 10+ conteneurs, minimum ~3 GB RAM + 2 CPUs recommandés. Envisagez un VPS dédié si vous déployez aussi Nextcloud + chat + autres apps en parallèle.
+        **Ressources.** ERPNext est lourd -- 10+ conteneurs, minimum ~3 GB RAM + 2 CPUs recommandés. Un VPS dédié s'impose lorsque Nextcloud + chat + d'autres apps tournent en parallèle.
 
         **Montées de version.** Les bumps majeurs (v15 -> v16) nécessitent `bench migrate`. Le template laisse `vps.auto-update=patch` sur chaque service : les mises à jour hebdomadaires automatiques restent en v15.x.x -- les majeurs sont une action opérateur délibérée, pas une auto-update à 3 h du matin.
 
@@ -1414,14 +1414,14 @@ catena_template_catalog:
     en:
       display_name: Actual Budget
       what_it_is: Self-hosted personal finance. Envelope budgeting, bank account syncing via SimpleFIN or GoCardless, encrypted end-to-end.
-      replaces: ["YNAB (You Need A Budget)", "Mint", "EveryDollar"]
+      replaces: ["YNAB", "Mint", "EveryDollar"]
       compose_description: |
         Self-hosted personal finance + envelope budgeting. Replaces YNAB / Mint.
 
         https://docs.catena.run/apps/actualbudget/
       setup_steps: |
         1. Click **Deploy**. Wait ~30 s.
-        2. Visit your Actual Budget domain. Set a server password on first visit (it's stored locally; remember it -- no recovery).
+        2. Visit the Actual Budget domain. Set a server password on first visit (it's stored locally; remember it -- no recovery).
         3. Create a new budget or import an existing one (file menu -> Import from YNAB4 / YNAB5 / nYNAB).
         4. *(Optional)* Connect bank accounts via **Settings** -> **Connected Accounts** -> SimpleFIN (USD/CAD, paid) or GoCardless (EUR/GBP, free).
       extra_notes: |
@@ -1429,14 +1429,14 @@ catena_template_catalog:
     fr:
       display_name: Actual Budget
       what_it_is: Finances personnelles auto-hébergées. Budgétisation par enveloppes, synchro bancaire via SimpleFIN ou GoCardless, chiffré de bout en bout.
-      replaces: ["YNAB (You Need A Budget)", "Mint", "EveryDollar"]
+      replaces: ["YNAB", "Mint", "EveryDollar"]
       compose_description: |
         Finances personnelles + budgétisation par enveloppes auto-hébergées. Remplace YNAB / Mint.
 
         https://docs.catena.run/apps/actualbudget/
       setup_steps: |
         1. Cliquez **Deploy**. Patientez ~30 s.
-        2. Visitez votre domaine Actual Budget. Définissez un mot de passe serveur au premier accès (stocké localement ; retenez-le -- pas de récupération).
+        2. Visitez le domaine Actual Budget. Définissez un mot de passe serveur au premier accès (stocké localement ; retenez-le -- pas de récupération).
         3. Créez un nouveau budget ou importez-en un existant (menu fichier -> Importer depuis YNAB4 / YNAB5 / nYNAB).
         4. *(Optionnel)* Connectez des comptes bancaires via **Settings** -> **Connected Accounts** -> SimpleFIN (USD/CAD, payant) ou GoCardless (EUR/GBP, gratuit).
       extra_notes: |
@@ -1470,8 +1470,8 @@ catena_template_catalog:
         https://docs.catena.run/apps/postiz/
       setup_steps: |
         1. Click **Deploy**. Wait ~1 min.
-        2. Visit your Postiz domain and create the admin account.
-        3. Add each social network's app credentials: **Settings** -> pick the network -> paste your developer-app client ID + secret from the network's developer portal. One-time per network.
+        2. Visit the Postiz domain and create the admin account.
+        3. Add each social network's app credentials: **Settings** -> pick the network -> paste the developer-app client ID + secret from the network's developer portal. One-time per network.
       extra_notes: |
         **Note on sign-in:** Postiz uses local email/password login. No native OIDC in the current community release. The user count for this tool is typically 1-3 marketing people, so the SSO gap is less impactful than for chat / helpdesk tools.
     fr:
@@ -1484,8 +1484,8 @@ catena_template_catalog:
         https://docs.catena.run/apps/postiz/
       setup_steps: |
         1. Cliquez **Deploy**. Patientez ~1 min.
-        2. Visitez votre domaine Postiz et créez le compte admin.
-        3. Ajoutez les identifiants d'application de chaque réseau : **Settings** -> choisissez le réseau -> collez le client ID + secret de votre app développeur depuis le portail du réseau. Une fois par réseau.
+        2. Visitez le domaine Postiz et créez le compte admin.
+        3. Ajoutez les identifiants d'application de chaque réseau : **Settings** -> choisissez le réseau -> collez le client ID + secret de l'app développeur depuis le portail du réseau. Une fois par réseau.
       extra_notes: |
         **À propos de la connexion :** Postiz utilise un email/mot de passe local. Pas d'OIDC natif dans la version communautaire actuelle. Le nombre d'utilisateurs pour cet outil est typiquement de 1 à 3 personnes en marketing, donc l'absence de SSO est moins impactante que pour les outils de chat / helpdesk.
 
@@ -1521,16 +1521,16 @@ catena_template_catalog:
         https://docs.catena.run/apps/easyappointments/
       setup_steps: |
         1. Click **Deploy**. Wait ~1 min for the first boot (database initializes on first run).
-        2. Visit your Easy!Appointments domain and complete the first-run installer (creates the initial admin account, business name, working hours).
+        2. Visit the Easy!Appointments domain and complete the first-run installer (creates the initial admin account, business name, working hours).
         3. Add providers (staff with bookable calendars), services (durations + prices), and customers as needed.
         4. *(Optional)* Configure SMTP under **Settings** -> **Business Logic** -> **Email** to send appointment confirmations and reminders. Without SMTP, customers and staff still see bookings inside the app, but no emails go out.
-        5. *(Optional)* Embed the booking page on your website: copy the public booking URL from **Settings** -> **Booking Settings** and link to it from your site or business listings.
+        5. *(Optional)* Embed the booking page on a website: copy the public booking URL from **Settings** -> **Booking Settings** and link to it from a site or business listing.
       extra_notes: |
         ### Authentication
 
         Easy!Appointments v1.5.2 uses local email/password sign-in for staff. No native OIDC in the upstream release. The customer-facing booking page is public by design -- visitors book a slot without creating an account, only providing name, email, and phone. The SSO gap therefore only affects staff sign-in and is typically manageable for the small teams (1-10 staff) the app targets.
 
-        If a single sign-on for staff is required, contact your operator to discuss an oauth2-proxy front layer; default deployment ships with local accounts.
+        Single sign-on for staff is available on request as an oauth2-proxy front layer; the default deployment ships with local accounts.
 
         ### Email + SMS reminders
 
@@ -1538,7 +1538,7 @@ catena_template_catalog:
 
         ### Public booking URL
 
-        The default public URL is `https://book.<your-domain>/`. Share this directly with customers, embed it as a button on your business website, or list it on Google Business Profile.
+        The default public URL is `https://book.<your-domain>/`. It can be shared directly with customers, embedded as a button on a business website, or listed on a Google Business Profile.
     fr:
       display_name: Easy!Appointments
       what_it_is: Application de réservation côté client pour un ou plusieurs prestataires (clinique, salon, cours, atelier de réparation). Page de réservation publique ; calendriers du personnel ; rappels courriel + SMS ; export ICS.
@@ -1549,16 +1549,16 @@ catena_template_catalog:
         https://docs.catena.run/apps/easyappointments/
       setup_steps: |
         1. Cliquez **Deploy**. Patientez ~1 min pour le premier démarrage (la base de données s'initialise au premier lancement).
-        2. Visitez votre domaine Easy!Appointments et complétez l'assistant initial (compte admin, nom de l'entreprise, heures d'ouverture).
+        2. Visitez le domaine Easy!Appointments et complétez l'assistant initial (compte admin, nom de l'entreprise, heures d'ouverture).
         3. Ajoutez les prestataires (membres du personnel avec calendriers réservables), les services (durées + prix), et les clients au besoin.
         4. *(Optionnel)* Configurez SMTP sous **Settings** -> **Business Logic** -> **Email** pour envoyer les confirmations et rappels de rendez-vous. Sans SMTP, les clients et le personnel voient les réservations dans l'application, mais aucun courriel n'est envoyé.
-        5. *(Optionnel)* Intégrez la page de réservation à votre site web : copiez l'URL publique depuis **Settings** -> **Booking Settings** et liez-la depuis votre site ou vos fiches d'établissement.
+        5. *(Optionnel)* Intégrez la page de réservation à un site web : copiez l'URL publique depuis **Settings** -> **Booking Settings** et liez-la depuis le site ou une fiche d'établissement.
       extra_notes: |
         ### Authentification
 
         Easy!Appointments v1.5.2 utilise une connexion locale par courriel/mot de passe pour le personnel. Pas d'OIDC natif dans la version upstream. La page de réservation côté client est publique par conception -- les visiteurs réservent un créneau sans compte, en fournissant seulement leur nom, courriel et téléphone. L'absence de SSO ne touche donc que la connexion du personnel et reste gérable pour les petites équipes (1 à 10 personnes) ciblées par l'application.
 
-        Si un SSO unifié pour le personnel est requis, contactez votre opérateur pour discuter d'un proxy oauth2 en façade ; le déploiement par défaut utilise des comptes locaux.
+        Un SSO unifié pour le personnel est disponible sur demande sous forme de proxy oauth2 en façade ; le déploiement par défaut utilise des comptes locaux.
 
         ### Rappels courriel + SMS
 
@@ -1566,7 +1566,7 @@ catena_template_catalog:
 
         ### URL de réservation publique
 
-        L'URL publique par défaut est `https://book.<votre-domaine>/`. Partagez-la directement avec vos clients, intégrez-la comme bouton sur votre site web, ou listez-la sur votre fiche Google Business.
+        L'URL publique par défaut est `https://book.<votre-domaine>/`. Elle peut être partagée directement avec les clients, intégrée comme bouton sur un site web, ou listée sur une fiche Google Business.
 
   - id: mautic
     app_name: mautic
@@ -1609,25 +1609,25 @@ catena_template_catalog:
         https://docs.catena.run/apps/mautic/
       setup_steps: |
         1. Click **Deploy**. Wait ~2 min for the first boot (database migrations run on first start).
-        2. Visit your Mautic domain and complete the first-run wizard:
+        2. Visit the Mautic domain and complete the first-run wizard:
            - **Database**: pre-filled (host `db`, name `mautic`, user `mautic`, password from the `DB_PASSWORD` env var).
-           - **Admin user**: create your initial admin account.
-           - **Email settings**: paste your managed-relay SMTP creds (host, port `587`, username, password, from-address). Skip if you'll do this later under **Settings** -> **Configuration** -> **Email Settings**.
+           - **Admin user**: create the initial admin account.
+           - **Email settings**: paste the managed-relay SMTP credentials (host, port `587`, username, password, from-address). It can also be set later under **Settings** -> **Configuration** -> **Email Settings**.
         3. Verify the cron + worker containers are running in Portainer (Mautic needs `mautic_cron` for scheduled campaigns + `mautic_worker` for the email queue).
-        4. Build your first segment: **Segments** -> **New** -> filter by contact attribute.
-        5. Build your first email campaign: **Campaigns** -> **New** -> drag the **Send email** action onto a segment trigger.
+        4. Build a first segment: **Segments** -> **New** -> filter by contact attribute.
+        5. Build a first email campaign: **Campaigns** -> **New** -> drag the **Send email** action onto a segment trigger.
       extra_notes: |
         ### Authentication
 
-        Mautic community edition does not ship native OIDC. Local username/password is the default. SAML2 is supported upstream but requires per-deploy config; third-party generic-OAuth2 plugins exist. If single sign-on across the stack is required, contact your operator to add an oauth2-proxy front layer (Keycloak group `staff` gates access at the Traefik edge before traffic reaches Mautic).
+        Mautic community edition does not ship native OIDC. Local username/password is the default. SAML2 is supported upstream but requires per-deploy config; third-party generic-OAuth2 plugins exist. Single sign-on across the suite is available on request as an oauth2-proxy front layer (Keycloak group `staff` gates access at the Traefik edge before traffic reaches Mautic).
 
         ### SMTP and sending reputation
 
-        Mautic does NOT send email directly. It hands every outbound to your managed SMTP relay (see the [provider accounts guide](/guides/provider-accounts/) for recommended senders). Sending reputation, SPF/DKIM/DMARC, and bounce handling all live at the relay layer. Configure SMTP under **Settings** -> **Configuration** -> **Email Settings** with your relay's credentials before the first campaign goes out.
+        Mautic does NOT send email directly. It hands every outbound to the managed SMTP relay (see the [provider accounts guide](/guides/provider-accounts/) for recommended senders). Sending reputation, SPF/DKIM/DMARC, and bounce handling all live at the relay layer. SMTP is configured under **Settings** -> **Configuration** -> **Email Settings** with the relay's credentials before the first campaign goes out.
 
         ### Lead-magnet content and drip-campaign copy
 
-        The template ships the engine. Authoring the lead-magnet PDFs, drip-sequence copy, and email templates is your team's job (or your operator's, if they offer marketing-content services). Mautic itself does not ship pre-built campaigns.
+        The template ships the engine. Authoring the lead-magnet PDFs, drip-sequence copy and email templates is content work, not deployment work. Mautic itself does not ship pre-built campaigns.
 
         ### Resource note
 
@@ -1643,25 +1643,25 @@ catena_template_catalog:
         https://docs.catena.run/apps/mautic/
       setup_steps: |
         1. Cliquez **Deploy**. Patientez ~2 min pour le premier démarrage (les migrations de base s'exécutent au premier lancement).
-        2. Visitez votre domaine Mautic et complétez l'assistant initial :
+        2. Visitez le domaine Mautic et complétez l'assistant initial :
            - **Base de données** : pré-remplie (hôte `db`, nom `mautic`, utilisateur `mautic`, mot de passe depuis la variable `DB_PASSWORD`).
-           - **Utilisateur admin** : créez votre compte admin initial.
-           - **Paramètres courriel** : collez les identifiants SMTP de votre relais géré (hôte, port `587`, nom d'utilisateur, mot de passe, adresse expéditeur). Sautez cette étape si vous préférez la configurer plus tard sous **Settings** -> **Configuration** -> **Email Settings**.
+           - **Utilisateur admin** : créez le compte admin initial.
+           - **Paramètres courriel** : collez les identifiants SMTP du relais géré (hôte, port `587`, nom d'utilisateur, mot de passe, adresse expéditeur). Cette étape peut aussi être faite plus tard sous **Settings** -> **Configuration** -> **Email Settings**.
         3. Vérifiez que les conteneurs cron + worker tournent dans Portainer (Mautic a besoin de `mautic_cron` pour les campagnes planifiées + `mautic_worker` pour la file d'envoi).
-        4. Créez votre premier segment : **Segments** -> **New** -> filtrez par attribut de contact.
-        5. Créez votre première campagne : **Campaigns** -> **New** -> glissez l'action **Send email** sur un déclencheur de segment.
+        4. Créez un premier segment : **Segments** -> **New** -> filtrez par attribut de contact.
+        5. Créez une première campagne : **Campaigns** -> **New** -> glissez l'action **Send email** sur un déclencheur de segment.
       extra_notes: |
         ### Authentification
 
-        Mautic édition communautaire ne fournit pas d'OIDC natif. Connexion locale par nom d'utilisateur/mot de passe par défaut. SAML2 est supporté en amont mais demande une configuration par déploiement ; des plugins OAuth2 génériques tiers existent. Si un SSO unifié pour la stack est requis, contactez votre opérateur pour ajouter une couche oauth2-proxy en façade (le groupe Keycloak `staff` filtre l'accès au niveau Traefik avant que le trafic n'atteigne Mautic).
+        Mautic édition communautaire ne fournit pas d'OIDC natif. Connexion locale par nom d'utilisateur/mot de passe par défaut. SAML2 est supporté en amont mais demande une configuration par déploiement ; des plugins OAuth2 génériques tiers existent. Un SSO unifié pour la suite est disponible sur demande sous forme de couche oauth2-proxy en façade (le groupe Keycloak `staff` filtre l'accès au niveau Traefik avant que le trafic n'atteigne Mautic).
 
         ### SMTP et réputation d'envoi
 
-        Mautic n'envoie PAS directement les courriels. Il remet chaque envoi à votre relais SMTP géré (voir le [guide des comptes fournisseurs](/fr/guides/provider-accounts/) pour les expéditeurs recommandés). Réputation d'envoi, SPF/DKIM/DMARC, et gestion des rebonds vivent au niveau du relais. Configurez SMTP sous **Settings** -> **Configuration** -> **Email Settings** avec les identifiants de votre relais avant la première campagne.
+        Mautic n'envoie PAS directement les courriels. Il remet chaque envoi au relais SMTP géré (voir le [guide des comptes fournisseurs](/fr/guides/provider-accounts/) pour les expéditeurs recommandés). Réputation d'envoi, SPF/DKIM/DMARC, et gestion des rebonds vivent au niveau du relais. SMTP se configure sous **Settings** -> **Configuration** -> **Email Settings** avec les identifiants du relais avant la première campagne.
 
         ### Contenu d'aimant à prospects et copie des séquences drip
 
-        Le template fournit le moteur. La rédaction des PDF d'aimants, des séquences drip et des modèles d'envoi est le travail de votre équipe (ou de votre opérateur, s'il offre des services de contenu marketing). Mautic lui-même ne livre aucune campagne pré-bâtie.
+        Le template fournit le moteur. La rédaction des PDF d'aimants, des séquences drip et des modèles d'envoi relève du travail de contenu, pas du déploiement. Mautic lui-même ne livre aucune campagne pré-bâtie.
 
         ### Ressources
 
@@ -1713,26 +1713,26 @@ catena_template_catalog:
         https://docs.catena.run/apps/kimai/
       setup_steps: |
         1. Click **Deploy**. Wait ~1 min for the first boot (database migrations run on first start).
-        2. Visit your Kimai domain. Sign in as `KIMAI_ADMIN_EMAIL` / `KIMAI_ADMIN_PASSWORD` from the Environment tab.
+        2. Visit the Kimai domain. Sign in as `KIMAI_ADMIN_EMAIL` / `KIMAI_ADMIN_PASSWORD` from the Environment tab.
         3. *(Optional)* Enable Keycloak SAML SSO: **System** -> **Settings** -> **SAML** -> enable + paste:
-           - **Identity Provider Entity ID:** `<OIDC_ISSUER_URL>/protocol/saml/descriptor` (your operator can mint a SAML client in Keycloak)
+           - **Identity Provider Entity ID:** `<OIDC_ISSUER_URL>/protocol/saml/descriptor` (a SAML client can be minted in Keycloak on request)
            - **Single Sign-On URL:** `<OIDC_ISSUER_URL>/protocol/saml`
            - **X.509 Certificate:** from the Keycloak realm metadata
            - **Username Attribute:** `username` (or `email`)
            - Save. Local admin login keeps working as break-glass.
-        4. Configure your default invoice template under **Invoices** -> **Templates** -> pick one (DOCX / HTML / PDF). Set your company logo, address, and tax rates under **System** -> **Configuration**.
+        4. Configure the default invoice template under **Invoices** -> **Templates** -> pick one (DOCX / HTML / PDF). Set the company logo, address, and tax rates under **System** -> **Configuration**.
       extra_notes: |
         ### Time tracking in the Catena suite
 
-        Kimai is the time-tracking master in the Catena suite. Hours tracked here flow downstream to your invoicing app (Invoice Ninja) via the operator's monthly sync (see your operator if you want this automated). Customer records in Kimai carry an `espo_account_id` custom field so each timesheet ties back to the EspoCRM Account.
+        Kimai is the time-tracking master in the Catena suite. Hours tracked here flow downstream to the invoicing app (Invoice Ninja) via a monthly sync, which can be automated on request. Customer records in Kimai carry an `espo_account_id` custom field so each timesheet ties back to the EspoCRM Account.
 
         ### Invoicing built in
 
-        Kimai can generate PDF invoices directly from tracked time. Use this if your billing flow is "email a PDF; client pays via e-transfer or wire." If you need Stripe-driven online payment, a client portal, or recurring billing, ask your operator to deploy Invoice Ninja and the suite will route invoices through that instead.
+        Kimai can generate PDF invoices directly from tracked time. That suits a billing flow of "email a PDF; the client pays by e-transfer or wire". Stripe-driven online payment, a client portal or recurring billing call for Invoice Ninja instead, deployed on request, and the suite then routes invoices through it.
 
         ### Authentication
 
-        Until SAML is wired (step 3 above), Kimai uses local username/password. Even after SAML is wired, local admin login keeps working as a break-glass path. The Keycloak `staff` group gates access at the Traefik edge via oauth2-proxy before traffic reaches Kimai, so people outside your staff group cannot reach the login page.
+        Until SAML is wired (step 3 above), Kimai uses local username/password. Even after SAML is wired, local admin login keeps working as a break-glass path. The Keycloak `staff` group gates access at the Traefik edge via oauth2-proxy before traffic reaches Kimai, so people outside the staff group cannot reach the login page.
 
         ### Resource note
 
@@ -1747,26 +1747,26 @@ catena_template_catalog:
         https://docs.catena.run/apps/kimai/
       setup_steps: |
         1. Cliquez **Deploy**. Patientez ~1 min pour le premier démarrage (les migrations de base s'exécutent au premier lancement).
-        2. Visitez votre domaine Kimai. Connectez-vous avec `KIMAI_ADMIN_EMAIL` / `KIMAI_ADMIN_PASSWORD` de l'onglet Environment.
+        2. Visitez le domaine Kimai. Connexion avec `KIMAI_ADMIN_EMAIL` / `KIMAI_ADMIN_PASSWORD` de l'onglet Environment.
         3. *(Optionnel)* Activez Keycloak SAML SSO : **System** -> **Settings** -> **SAML** -> activez et collez :
-           - **Identity Provider Entity ID :** `<OIDC_ISSUER_URL>/protocol/saml/descriptor` (votre contact peut générer un client SAML dans Keycloak)
+           - **Identity Provider Entity ID :** `<OIDC_ISSUER_URL>/protocol/saml/descriptor` (un client SAML peut être généré dans Keycloak sur demande)
            - **URL de connexion unique :** `<OIDC_ISSUER_URL>/protocol/saml`
            - **Certificat X.509 :** tiré des métadonnées du realm Keycloak
            - **Attribut nom d'utilisateur :** `username` (ou `email`)
            - Validez. La connexion admin locale continue de fonctionner comme issue de secours.
-        4. Configurez votre modèle de facture par défaut sous **Invoices** -> **Templates** -> choisissez-en un (DOCX / HTML / PDF). Réglez le logo, l'adresse et les taux de taxe sous **System** -> **Configuration**.
+        4. Configurez le modèle de facture par défaut sous **Invoices** -> **Templates** -> choisissez-en un (DOCX / HTML / PDF). Réglez le logo, l'adresse et les taux de taxe sous **System** -> **Configuration**.
       extra_notes: |
         ### Suivi du temps dans la suite Catena
 
-        Kimai est le maître du suivi du temps dans la suite Catena. Les heures saisies ici alimentent votre application de facturation (Invoice Ninja) via la synchronisation mensuelle de votre contact (demandez-lui de l'automatiser si vous le souhaitez). Les fiches clients dans Kimai portent un champ personnalisé `espo_account_id` afin que chaque feuille de temps soit liée au compte EspoCRM correspondant.
+        Kimai est le maître du suivi du temps dans la suite Catena. Les heures saisies ici alimentent l'application de facturation (Invoice Ninja) via une synchronisation mensuelle, automatisable sur demande. Les fiches clients dans Kimai portent un champ personnalisé `espo_account_id` afin que chaque feuille de temps soit liée au compte EspoCRM correspondant.
 
         ### Facturation intégrée
 
-        Kimai peut générer des factures PDF directement depuis le temps suivi. Utilisez cette voie si votre flux de facturation est "envoyer un PDF, le client paie par virement Interac ou bancaire". Si vous avez besoin de paiements en ligne via Stripe, d'un portail client ou de facturation récurrente, demandez à votre contact de déployer Invoice Ninja et la suite acheminera les factures à travers lui.
+        Kimai peut générer des factures PDF directement depuis le temps suivi. Cette voie convient à un flux "envoyer un PDF, le client paie par virement Interac ou bancaire". Les paiements en ligne via Stripe, un portail client ou la facturation récurrente appellent plutôt Invoice Ninja, déployé sur demande, et la suite achemine alors les factures à travers lui.
 
         ### Authentification
 
-        Tant que SAML n'est pas câblé (étape 3 ci-dessus), Kimai utilise un identifiant local. Même après SAML, la connexion admin locale continue de fonctionner comme issue de secours. Le groupe Keycloak `staff` filtre l'accès au bord Traefik via oauth2-proxy avant que le trafic n'atteigne Kimai, donc les personnes hors de votre équipe ne peuvent pas atteindre la page de connexion.
+        Tant que SAML n'est pas câblé (étape 3 ci-dessus), Kimai utilise un identifiant local. Même après SAML, la connexion admin locale continue de fonctionner comme issue de secours. Le groupe Keycloak `staff` filtre l'accès au bord Traefik via oauth2-proxy avant que le trafic n'atteigne Kimai, donc les personnes hors de l'équipe ne peuvent pas atteindre la page de connexion.
 
         ### Ressources
 
@@ -1822,15 +1822,15 @@ catena_template_catalog:
         https://docs.catena.run/apps/invoiceninja/
       setup_steps: |
         1. Click **Deploy**. Wait ~2 min for the first boot (Laravel migrations + admin user seeding via `init.sh`).
-        2. **One-time: generate APP_KEY**. From a shell on your VPS:
+        2. **One-time: generate APP_KEY**. From a shell on the VPS:
            ```
            docker exec $(docker ps --filter name=invoiceninja-app --format '{{.Names}}' | head -1) \
              runuser -u www-data -- php artisan key:generate --show --no-interaction
            ```
            Copy the `base64:...` output. In Portainer: edit the **Environment variables** -> set `INVOICENINJA_APP_KEY` to the copied value, then click **Update the stack** to redeploy.
-        3. Visit your Invoice Ninja domain. Sign in as `INVOICENINJA_ADMIN_EMAIL` / `INVOICENINJA_ADMIN_PASSWORD` from the Environment tab.
-        4. Configure your **company profile** (Settings -> Company Details): logo, address, tax IDs (GST/QST for Canada), default currency.
-        5. Wire **Stripe**: Settings -> Online Payments -> Add Gateway -> Stripe. Paste your Stripe publishable + secret keys. The client portal will accept card payments after this.
+        3. Visit the Invoice Ninja domain. Sign in as `INVOICENINJA_ADMIN_EMAIL` / `INVOICENINJA_ADMIN_PASSWORD` from the Environment tab.
+        4. Configure the **company profile** (Settings -> Company Details): logo, address, tax IDs (GST/QST for Canada), default currency.
+        5. Wire **Stripe**: Settings -> Online Payments -> Add Gateway -> Stripe. Paste the Stripe publishable + secret keys. The client portal accepts card payments after this.
         6. *(Optional)* Configure SMTP: paste `INVOICENINJA_SMTP_*` in the Environment tab, click Redeploy. Mail send fails silently into the queue until SMTP is wired.
       extra_notes: |
         ### Invoicing in the Catena suite
@@ -1840,17 +1840,17 @@ catena_template_catalog:
         ### License
 
         Invoice Ninja's self-hosted edition ships under the Elastic License 2.0. Two practical implications:
-        - Hosting Invoice Ninja for your business on your VPS, and your operator hosting it for you and billing for the hosting service, are both explicitly within the license terms.
-        - Reselling Invoice Ninja as a SaaS product, or bundling it into another SaaS, requires a commercial license from Invoice Ninja LLC. Catena's deployment model is "we deploy onto your VPS; you own the deployment" -- the licensed-and-permitted hosting path.
-        - The free self-hosted edition shows "Powered by Invoice Ninja" branding on client-facing surfaces. A US$40/year white-label license removes this. Recommended once you're invoicing real clients.
+        - Hosting Invoice Ninja for a business on its own VPS, and a third party hosting it on that business's behalf and billing for the hosting service, are both explicitly within the license terms.
+        - Reselling Invoice Ninja as a SaaS product, or bundling it into another SaaS, requires a commercial license from Invoice Ninja LLC. Catena's deployment model is "deployed onto a client-owned VPS, owned by that client" -- the licensed-and-permitted hosting path.
+        - The free self-hosted edition shows "Powered by Invoice Ninja" branding on client-facing surfaces. A US$40/year white-label license removes it, which is worth doing once real clients are being invoiced.
 
         ### Authentication
 
-        Native OIDC for self-hosted is an open feature request upstream. Until it ships, Invoice Ninja uses local username/password. The Keycloak `staff` group gates access at the Traefik edge via oauth2-proxy before traffic reaches Invoice Ninja, so people outside your staff group cannot reach the login page.
+        Native OIDC for self-hosted is an open feature request upstream. Until it ships, Invoice Ninja uses local username/password. The Keycloak `staff` group gates access at the Traefik edge via oauth2-proxy before traffic reaches Invoice Ninja, so people outside the staff group cannot reach the login page.
 
         ### Payment processing
 
-        Invoice Ninja handles the client-payment side. When a client pays via the portal, Stripe processes the card and Invoice Ninja marks the invoice paid + records the payment. The amount is settled into your Stripe account (under your name, your tax ID); Catena does not route payments through any operator-owned account.
+        Invoice Ninja handles the client-payment side. When a client pays via the portal, Stripe processes the card and Invoice Ninja marks the invoice paid + records the payment. The amount settles into the business's own Stripe account, under its own name and tax ID; Catena routes no payment through any account it controls.
 
         ### Resource note
 
@@ -1865,35 +1865,35 @@ catena_template_catalog:
         https://docs.catena.run/apps/invoiceninja/
       setup_steps: |
         1. Cliquez **Deploy**. Patientez ~2 min pour le premier démarrage (migrations Laravel + création de l'admin par `init.sh`).
-        2. **Une seule fois : générez APP_KEY**. Depuis un terminal sur votre VPS :
+        2. **Une seule fois : générez APP_KEY**. Depuis un terminal sur le VPS :
            ```
            docker exec $(docker ps --filter name=invoiceninja-app --format '{{.Names}}' | head -1) \
              runuser -u www-data -- php artisan key:generate --show --no-interaction
            ```
            Copiez la sortie `base64:...`. Dans Portainer : modifiez les **variables d'environnement** -> réglez `INVOICENINJA_APP_KEY` à la valeur copiée, puis cliquez **Update the stack** pour redéployer.
-        3. Visitez votre domaine Invoice Ninja. Connectez-vous avec `INVOICENINJA_ADMIN_EMAIL` / `INVOICENINJA_ADMIN_PASSWORD` de l'onglet Environment.
-        4. Configurez votre **profil d'entreprise** (Settings -> Company Details) : logo, adresse, identifiants fiscaux (TPS/TVQ au Canada), devise par défaut.
-        5. Connectez **Stripe** : Settings -> Online Payments -> Add Gateway -> Stripe. Collez vos clés publishable + secret. Le portail client accepte les paiements par carte après cela.
+        3. Visitez le domaine Invoice Ninja. Connexion avec `INVOICENINJA_ADMIN_EMAIL` / `INVOICENINJA_ADMIN_PASSWORD` de l'onglet Environment.
+        4. Configurez le **profil d'entreprise** (Settings -> Company Details) : logo, adresse, identifiants fiscaux (TPS/TVQ au Canada), devise par défaut.
+        5. Connectez **Stripe** : Settings -> Online Payments -> Add Gateway -> Stripe. Collez les clés publishable + secret. Le portail client accepte les paiements par carte après cela.
         6. *(Optionnel)* Configurez SMTP : collez `INVOICENINJA_SMTP_*` dans l'onglet Environment, cliquez Redeploy. L'envoi de courriel reste en file d'attente silencieusement tant que SMTP n'est pas câblé.
       extra_notes: |
         ### Facturation dans la suite Catena
 
-        Invoice Ninja est le maître de la facturation dans la suite Catena. Les heures depuis Kimai (maître du suivi du temps) alimentent les factures Invoice Ninja via la synchronisation mensuelle de votre contact, et les factures payées depuis Invoice Ninja alimentent ERPNext (maître de la comptabilité) via l'action de fin de mois de votre contact. Les clients dans Invoice Ninja portent un champ personnalisé `espo_account_id` afin que chaque facture soit liée au compte EspoCRM correspondant.
+        Invoice Ninja est le maître de la facturation dans la suite Catena. Les heures depuis Kimai (maître du suivi du temps) alimentent les factures Invoice Ninja via la synchronisation mensuelle, et les factures payées depuis Invoice Ninja alimentent ERPNext (maître de la comptabilité) via l'action de fin de mois. Les clients dans Invoice Ninja portent un champ personnalisé `espo_account_id` afin que chaque facture soit liée au compte EspoCRM correspondant.
 
         ### Licence
 
         L'édition auto-hébergée d'Invoice Ninja est sous Elastic License 2.0. Deux implications pratiques :
-        - Héberger Invoice Ninja pour votre entreprise sur votre VPS, et votre contact qui l'héberge pour vous et facture pour le service d'hébergement, sont explicitement autorisés par la licence.
-        - Revendre Invoice Ninja comme SaaS, ou l'intégrer comme partie d'un autre SaaS, requiert une licence commerciale d'Invoice Ninja LLC. Le modèle Catena est "nous déployons sur votre VPS ; vous possédez le déploiement" -- c'est la voie d'hébergement autorisée.
-        - L'édition gratuite affiche un bandeau "Powered by Invoice Ninja" sur les surfaces client. Une licence white-label à 40 USD/an le retire. Recommandé dès que vous facturez de vrais clients.
+        - Héberger Invoice Ninja pour une entreprise sur son propre VPS, et un tiers qui l'héberge pour le compte de cette entreprise et facture le service d'hébergement, sont explicitement autorisés par la licence.
+        - Revendre Invoice Ninja comme SaaS, ou l'intégrer comme partie d'un autre SaaS, requiert une licence commerciale d'Invoice Ninja LLC. Le modèle Catena est "déployé sur un VPS appartenant au client, qui en reste propriétaire" -- c'est la voie d'hébergement autorisée.
+        - L'édition gratuite affiche un bandeau "Powered by Invoice Ninja" sur les surfaces client. Une licence white-label à 40 USD/an le retire, ce qui vaut la peine dès que de vrais clients sont facturés.
 
         ### Authentification
 
-        OIDC natif en auto-hébergement est une demande ouverte côté upstream. En attendant, Invoice Ninja utilise un identifiant local. Le groupe Keycloak `staff` filtre l'accès au bord Traefik via oauth2-proxy avant que le trafic n'atteigne Invoice Ninja, donc les personnes hors de votre équipe ne peuvent pas atteindre la page de connexion.
+        OIDC natif en auto-hébergement est une demande ouverte côté upstream. En attendant, Invoice Ninja utilise un identifiant local. Le groupe Keycloak `staff` filtre l'accès au bord Traefik via oauth2-proxy avant que le trafic n'atteigne Invoice Ninja, donc les personnes hors de l'équipe ne peuvent pas atteindre la page de connexion.
 
         ### Traitement des paiements
 
-        Invoice Ninja gère le côté paiement client. Quand un client paie via le portail, Stripe traite la carte et Invoice Ninja marque la facture payée + enregistre le paiement. Le montant est versé sur votre compte Stripe (à votre nom, votre identifiant fiscal) ; Catena ne fait transiter aucun paiement par un compte appartenant au contact.
+        Invoice Ninja gère le côté paiement client. Quand un client paie via le portail, Stripe traite la carte et Invoice Ninja marque la facture payée + enregistre le paiement. Le montant est versé sur le compte Stripe de l'entreprise, à son nom et sous son identifiant fiscal ; Catena ne fait transiter aucun paiement par un compte qu'elle contrôle.
 
         ### Ressources
 
@@ -1953,21 +1953,21 @@ catena_template_catalog:
       - "RELAY_PASSWORD={{ mailserver_relay_password }}"
     en:
       display_name: Mail server + webmail
-      what_it_is: Self-hosted email -- inbox storage on your VPS (Postfix + Dovecot + Rspamd) with Roundcube webmail and Keycloak single sign-on. Outbound requires an SMTP relay through a reputable provider (set up before deploy) so messages are not flagged as spam.
+      what_it_is: Self-hosted email -- inbox storage on the VPS (Postfix + Dovecot + Rspamd) with Roundcube webmail and Keycloak single sign-on. Outbound requires an SMTP relay through a reputable provider (set up before deploy) so messages are not flagged as spam.
       replaces: ["Google Workspace (Gmail)", "Microsoft 365 (Exchange Online)"]
       compose_description: |
         Self-hosted mailboxes + Roundcube webmail, Keycloak SSO. Outbound requires an SMTP relay. Replaces Gmail / Exchange Online.
 
         https://docs.catena.run/apps/mailserver/
       setup_steps: |
-        1. **Before deploy -- DNS + relay.** Mail needs DNS records and an outbound relay set up first. Your contact handles the MX, SPF, DKIM, DMARC, reverse-DNS, and MTA-STS / TLS-RPT records and pastes the relay credentials. See the operator runbook.
+        1. **Before deploy -- DNS + relay.** Mail needs DNS records and an outbound relay set up first. The MX, SPF, DKIM, DMARC, reverse-DNS and MTA-STS / TLS-RPT records are set up for the domain, and the relay credentials pasted in, before the first deploy.
         2. Click **Deploy**. Wait ~3 minutes for the first boot (mail services + Roundcube).
-        3. Sign in at your webmail domain (`webmail.<your-domain>`). The login goes through Keycloak -- one account for every app in the suite. There is no separate mail password.
-        4. Mailboxes are created automatically for your staff and client users from Keycloak. A new user can sign in to webmail as soon as their account exists.
+        3. Sign in at the webmail domain (`webmail.<your-domain>`). The login goes through Keycloak -- one account for every app in the suite. There is no separate mail password.
+        4. Mailboxes are created automatically for staff and client users from Keycloak. A new user can sign in to webmail as soon as their account exists.
       extra_notes: |
         ### How sign-in works
 
-        Roundcube sends you to Keycloak to log in, then connects to your mailbox on your behalf using a single-sign-on token. You never type a separate email password, and nothing stores one. Because this needs a normal browser tab, webmail opens in its own tab from the suite menu rather than embedded inside another app.
+        Roundcube redirects to Keycloak for login, then connects to the mailbox on the signed-in user's behalf with a single-sign-on token. No separate email password is ever typed, and none is stored. Because this needs a normal browser tab, webmail opens in its own tab from the suite menu rather than embedded inside another app.
 
         ### Desktop and phone mail apps
 
@@ -1975,28 +1975,28 @@ catena_template_catalog:
 
         ### Why outbound goes through a relay
 
-        Sending mail straight from a VPS lands in spam: large providers distrust new server IPs. Outbound is relayed through a reputable provider so your messages are delivered, while your inbox and data stay on your VPS. This relay is separate from the suite's notification email.
+        Sending mail straight from a VPS lands in spam: large providers distrust new server IPs. Outbound is relayed through a reputable provider so messages are delivered, while the inbox and its data stay on the VPS. This relay is separate from the suite's notification email.
 
         ### Spam and virus scanning
 
-        Incoming mail is checked for spam (sender reputation, content scoring) and every attachment is scanned for viruses before it reaches your inbox, the same protection a hosted suite gives you. The virus scanner is shared with Nextcloud when both are deployed, so files you upload there are scanned by the same engine.
+        Incoming mail is checked for spam (sender reputation, content scoring) and every attachment is scanned for viruses before it reaches the inbox -- the same protection a hosted suite provides. The virus scanner is shared with Nextcloud when both are deployed, so files uploaded there are scanned by the same engine.
     fr:
       display_name: Serveur de courriel + webmail
-      what_it_is: Courriel auto-hébergé -- stockage des boîtes sur votre VPS (Postfix + Dovecot + Rspamd) avec le webmail Roundcube et l'authentification unique Keycloak. L'envoi requiert un relais SMTP via un fournisseur réputé (configuré avant le déploiement) pour éviter le classement en pourriel.
+      what_it_is: Courriel auto-hébergé -- stockage des boîtes sur le VPS (Postfix + Dovecot + Rspamd) avec le webmail Roundcube et l'authentification unique Keycloak. L'envoi requiert un relais SMTP via un fournisseur réputé (configuré avant le déploiement) pour éviter le classement en pourriel.
       replaces: ["Google Workspace (Gmail)", "Microsoft 365 (Exchange Online)"]
       compose_description: |
         Boîtes auto-hébergées + webmail Roundcube, SSO Keycloak. Un relais SMTP est requis pour l'envoi. Remplace Gmail / Exchange Online.
 
         https://docs.catena.run/apps/mailserver/
       setup_steps: |
-        1. **Avant le déploiement -- DNS + relais.** Le courriel nécessite des enregistrements DNS et un relais d'envoi configurés au préalable. Votre contact s'occupe des enregistrements MX, SPF, DKIM, DMARC, DNS inverse, et MTA-STS / TLS-RPT, et colle les identifiants du relais. Voir le guide de l'exploitant.
+        1. **Avant le déploiement -- DNS + relais.** Le courriel nécessite des enregistrements DNS et un relais d'envoi configurés au préalable. Les enregistrements MX, SPF, DKIM, DMARC, DNS inverse et MTA-STS / TLS-RPT sont configurés pour le domaine, et les identifiants du relais renseignés, avant le premier déploiement.
         2. Cliquez **Deploy**. Patientez ~3 minutes pour le premier démarrage (services de courriel + Roundcube).
-        3. Connectez-vous à votre domaine webmail (`webmail.<votre-domaine>`). La connexion passe par Keycloak -- un seul compte pour toutes les applications de la suite. Aucun mot de passe de courriel distinct.
-        4. Les boîtes sont créées automatiquement pour vos utilisateurs staff et client depuis Keycloak. Un nouvel utilisateur peut se connecter au webmail dès que son compte existe.
+        3. Connexion sur le domaine webmail (`webmail.<votre-domaine>`). La connexion passe par Keycloak -- un seul compte pour toutes les applications de la suite. Aucun mot de passe de courriel distinct.
+        4. Les boîtes sont créées automatiquement pour les utilisateurs staff et client depuis Keycloak. Un nouvel utilisateur peut se connecter au webmail dès que son compte existe.
       extra_notes: |
         ### Fonctionnement de la connexion
 
-        Roundcube vous redirige vers Keycloak pour vous connecter, puis accède à votre boîte en votre nom à l'aide d'un jeton d'authentification unique. Vous ne saisissez jamais de mot de passe de courriel distinct, et aucun n'est stocké. Comme cela exige un onglet de navigateur standard, le webmail s'ouvre dans son propre onglet depuis le menu de la suite plutôt qu'intégré dans une autre application.
+        Roundcube redirige vers Keycloak pour la connexion, puis accède à la boîte au nom de l'utilisateur connecté à l'aide d'un jeton d'authentification unique. Aucun mot de passe de courriel distinct n'est saisi, et aucun n'est stocké. Comme cela exige un onglet de navigateur standard, le webmail s'ouvre dans son propre onglet depuis le menu de la suite plutôt qu'intégré dans une autre application.
 
         ### Applications de bureau et mobiles
 
@@ -2004,8 +2004,8 @@ catena_template_catalog:
 
         ### Pourquoi l'envoi passe par un relais
 
-        Envoyer du courriel directement depuis un VPS finit en pourriel : les grands fournisseurs se méfient des nouvelles IP de serveur. L'envoi passe par un fournisseur réputé pour que vos messages soient livrés, tandis que votre boîte et vos données restent sur votre VPS. Ce relais est distinct du courriel de notification de la suite.
+        Envoyer du courriel directement depuis un VPS finit en pourriel : les grands fournisseurs se méfient des nouvelles IP de serveur. L'envoi passe par un fournisseur réputé pour que les messages soient livrés, tandis que la boîte et ses données restent sur le VPS. Ce relais est distinct du courriel de notification de la suite.
 
         ### Analyse antipourriel et antivirus
 
-        Le courriel entrant est vérifié contre le pourriel (réputation de l'expéditeur, pointage du contenu) et chaque pièce jointe est analysée contre les virus avant d'atteindre votre boîte, la même protection qu'une suite hébergée. L'antivirus est partagé avec Nextcloud lorsque les deux sont déployés, donc les fichiers que vous y téléversez sont analysés par le même moteur.
+        Le courriel entrant est vérifié contre le pourriel (réputation de l'expéditeur, pointage du contenu) et chaque pièce jointe est analysée contre les virus avant d'atteindre la boîte -- la même protection qu'une suite hébergée. L'antivirus est partagé avec Nextcloud lorsque les deux sont déployés, donc les fichiers téléversés là sont analysés par le même moteur.
