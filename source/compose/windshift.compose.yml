@@ -1,0 +1,118 @@
+# Windshift -- self-hosted work management (Jira-shaped): work items,
+# boards, backlogs, test management, time tracking, and branded customer
+# portals. Single Go binary + Postgres.
+#
+# Auth: OIDC is configured in the admin panel (Admin -> Single Sign-On),
+# never through env vars -- marked sso_mode=post-deploy-ui in the
+# catalog. The callback URI is BASE_URL + /api/sso/callback/<slug>,
+# where <slug> is the provider slug typed into that panel; the setup
+# steps pin it to `keycloak` so the minted client's redirect URI matches
+# the label below. WebAuthn/passkeys and password login are toggled from
+# the same panel. SAML 2.0 and LDAP are Windshift Pro, not this edition.
+#
+# Storage: windshift-data holds attachments, plugins, and AI prompt
+# overrides. Postgres holds every work item, test case/run, worklog,
+# and portal request.
+#
+# The runtime image is FROM scratch (one static Go binary, USER 65534).
+# There is no shell and no package manager in this container: anything
+# that needs to run inside it goes through `/windshift <subcommand>`.
+
+services:
+  windshift:
+    image: ghcr.io/windshiftapp/windshift:v0.8.4
+    restart: unless-stopped
+    environment:
+      BASE_URL: https://${WINDSHIFT_HOSTNAME}
+      PORT: "8080"
+      # Behind Traefik + the Cloudflare tunnel, so the forwarded
+      # proto/host headers are the only source of the real scheme.
+      USE_PROXY: "true"
+      SSO_SECRET: ${SSO_SECRET}
+      # WebAuthn credentials are bound to this relying-party id. It must
+      # equal the hostname users type; changing it invalidates every
+      # passkey already registered.
+      WEBAUTHN_RP_ID: ${WINDSHIFT_HOSTNAME}
+
+      DB_TYPE: postgres
+      POSTGRES_HOST: db
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: windshift
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: windshift
+      POSTGRES_SSLMODE: disable
+
+      ATTACHMENT_PATH: /data/attachments
+      PLUGIN_DIR: /data/plugins
+      LOG_LEVEL: info
+      LOG_FORMAT: json
+      # Process budget. Keep mem_limit below in step with it.
+      WINDSHIFT_MEMORY_LIMIT_MB: "2048"
+      # Scratch has no /tmp of its own; the tmpfs below supplies it.
+      TMPDIR: /tmp
+      SQLITE_TMPDIR: /tmp
+    volumes:
+      - windshift-data:/data
+    # exec is required: the temp dir backs SQLite WAL scratch files even
+    # in postgres mode.
+    tmpfs:
+      - /tmp:exec,size=64M
+    # Every open item-detail view holds an SSE connection; the default
+    # 1024 fd ceiling is the failure point near ~1000 concurrent streams.
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    mem_limit: 2g
+    healthcheck:
+      test: ["CMD", "/windshift", "healthcheck"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    depends_on:
+      db:
+        condition: service_healthy
+    labels:
+      - "vps.route.host=${DOMAIN_HOST}"
+      - "vps.route.port=8080"
+      - "vps.route.service=windshift"
+      - "vps.auth.mode=public"
+      - "vps.auth.oidc=true"
+      - "vps.auth.groups=staff"
+      - "vps.auth.oidc.redirect_uris=https://${WINDSHIFT_HOSTNAME}/api/sso/callback/keycloak"
+      - "vps.auth.oidc.scopes=openid email profile"
+      - "vps.auto-update=patch"
+    networks:
+      catena-network:
+        aliases:
+          - windshift
+      default: {}
+
+  db:
+    image: postgres:18.4-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: windshift
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: windshift
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U windshift"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    labels:
+      - "vps.auto-update=patch"
+    networks:
+      - default
+
+volumes:
+  windshift-data:
+  db-data:
+
+networks:
+  catena-network:
+    external: true

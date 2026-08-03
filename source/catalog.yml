@@ -1092,6 +1092,60 @@ catena_template_catalog:
         3. *(Optionnel)* Activez Keycloak SSO : une fois connecté, visitez `https://projects.<votre-domaine>/god-mode` -> **Authentication** -> **OpenID Connect** -> collez `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_ISSUER_URL` depuis l'onglet Environment. Validez.
       extra_notes: ""
 
+  - id: windshift
+    app_name: windshift
+    bench_pack: postgres
+    # BASE_URL + WEBAUTHN_RP_ID are read from env on every boot, so the
+    # FQDN is not persisted into immutable state. One caveat that is not
+    # a scheduler concern: passkeys already registered stay bound to the
+    # old relying-party id and stop working if the hostname changes.
+    hostname_baked: false
+    upstream_url: https://windshift.sh/
+    sso_mode: post-deploy-ui
+    domain_host: "work.{{ cloudflare_zone }}"
+    domain_service: windshift
+    domain_port: 8080
+    compose_file: "compose/windshift.compose.yml"
+    env_defaults:
+      - "DOMAIN_HOST=work.{{ cloudflare_zone }}"
+      - "WINDSHIFT_HOSTNAME=work.{{ cloudflare_zone }}"
+      - "SSO_SECRET={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}"
+      - "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
+    en:
+      display_name: Windshift
+      what_it_is: Work management with test runs, time tracking, and branded customer portals.
+      replaces: ["Jira", "Jira Service Management", "Tempo", "Xray"]
+      compose_description: |
+        Work management with test runs, time tracking, and customer portals. Replaces Jira / Jira Service Management.
+
+        https://docs.catena.run/apps/windshift/
+      setup_steps: |
+        1. Click **Deploy**. Wait ~1 min (one binary plus its database).
+        2. Visit the Windshift domain and create the first administrator account.
+        3. *(Optional)* Enable Keycloak SSO: **Admin** -> **Single Sign-On** -> add an **OpenID Connect** provider. Name it `keycloak` so the pre-registered redirect URI matches, paste `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET` and `OIDC_ISSUER_URL` from the Environment tab, and set the scopes to `openid email profile`. If a different provider name is used, copy the **Callback URL** shown in the dialog into the identity provider's redirect URIs.
+        4. *(Optional)* Add a customer portal from the admin area. Portal accounts are separate from internal accounts, and each portal carries its own name, branding, request types, and access rules.
+      extra_notes: |
+        **Interface language:** Windshift ships English, German, Spanish, Portuguese, Arabic, and Chinese. There is no French interface upstream as of v0.8.4.
+
+        **Edition:** the self-hosted edition is AGPL-3.0 with no user or workspace cap. SAML 2.0, LDAP, and audit logging are announced for the paid Windshift Pro edition; OpenID Connect and passkeys are in this one.
+    fr:
+      display_name: Windshift
+      what_it_is: Gestion du travail avec suites de tests, feuilles de temps et portails clients personnalisés.
+      replaces: ["Jira", "Jira Service Management", "Tempo", "Xray"]
+      compose_description: |
+        Gestion du travail avec suites de tests, feuilles de temps et portails clients. Remplace Jira / Jira Service Management.
+
+        https://docs.catena.run/apps/windshift/
+      setup_steps: |
+        1. Cliquez **Deploy**. Patientez ~1 min (un binaire et sa base de données).
+        2. Visitez le domaine Windshift et créez le premier compte administrateur.
+        3. *(Optionnel)* Activez Keycloak SSO : **Admin** -> **Single Sign-On** -> ajoutez un fournisseur **OpenID Connect**. Nommez-le `keycloak` pour que l'URI de redirection pré-enregistrée corresponde, collez `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET` et `OIDC_ISSUER_URL` depuis l'onglet Environment, puis indiquez les scopes `openid email profile`. Avec un autre nom de fournisseur, copiez la **Callback URL** affichée dans la fenêtre vers les URI de redirection du fournisseur d'identité.
+        4. *(Optionnel)* Ajoutez un portail client depuis la zone d'administration. Les comptes de portail sont distincts des comptes internes, et chaque portail a son nom, son habillage, ses types de demandes et ses règles d'accès.
+      extra_notes: |
+        **Langue de l'interface :** Windshift est livré en anglais, allemand, espagnol, portugais, arabe et chinois. Aucune traduction française n'existe en amont à la version v0.8.4.
+
+        **Édition :** l'édition auto-hébergée est sous AGPL-3.0, sans limite d'utilisateurs ni d'espaces de travail. SAML 2.0, LDAP et le journal d'audit sont annoncés pour l'édition payante Windshift Pro ; OpenID Connect et les clés d'accès sont inclus ici.
+
   - id: zammad
     app_name: zammad
     bench_pack: postgres

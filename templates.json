@@ -679,6 +679,43 @@
       "categories": [
         "post-deploy-ui"
       ],
+      "description": "Work management with test runs, time tracking, and customer portals. Replaces Jira / Jira Service Management.",
+      "env": [
+        {
+          "default": "work.",
+          "label": "DOMAIN_HOST",
+          "name": "DOMAIN_HOST"
+        },
+        {
+          "default": "work.",
+          "label": "WINDSHIFT_HOSTNAME",
+          "name": "WINDSHIFT_HOSTNAME"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "label": "SSO_SECRET",
+          "name": "SSO_SECRET"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "label": "DB_PASSWORD",
+          "name": "DB_PASSWORD"
+        }
+      ],
+      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/windshift/logo.svg",
+      "note": "<p>Work management with test runs, time tracking, and customer portals. Replaces Jira / Jira Service Management.</p>",
+      "platform": "linux",
+      "repository": {
+        "stackfile": "blueprints/windshift/docker-compose.yml",
+        "url": "https://github.com/catenahq/catena-templates"
+      },
+      "title": "Windshift",
+      "type": 3
+    },
+    {
+      "categories": [
+        "post-deploy-ui"
+      ],
       "description": "Ticket-first help desk. Replaces Zendesk / Freshdesk.",
       "env": [
         {

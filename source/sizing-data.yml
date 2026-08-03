@@ -182,6 +182,29 @@ services:
       MinIO + Postgres + Redis). Empreinte RAM importante ; prévoyez
       1 Go au-dessus du reste de la suite.
 
+  - id: windshift
+    idle_ram_mb: null
+    peak_ram_mb: 2300
+    idle_cpu_pct: null
+    peak_cpu_pct: null
+    disk_baseline_mb: null
+    notes: |
+      NOT MEASURED. peak_ram_mb here is a declared budget, not an
+      observation: 2048 MB is the process budget Windshift ships as its
+      own default (WINDSHIFT_MEMORY_LIMIT_MB, matched by mem_limit: 2g
+      in the compose), plus ~250 MB for the Postgres side. The bench
+      scheduler needs a positive int, and over-declaring only costs
+      parallel slots. Replace all five numbers on the first measured
+      run and drop this paragraph.
+    notes_fr: |
+      NON MESURÉ. La valeur peak_ram_mb est un budget déclaré, pas une
+      observation : 2048 Mo correspond au budget que Windshift applique
+      par défaut (WINDSHIFT_MEMORY_LIMIT_MB, aligné sur mem_limit: 2g
+      dans le compose), plus ~250 Mo pour la base Postgres. Le
+      planificateur du banc exige un entier positif, et surestimer ne
+      coûte que des créneaux parallèles. À remplacer par les cinq
+      mesures réelles dès la première campagne.
+
   - id: wordpress
     idle_ram_mb: 320
     peak_ram_mb: 600
