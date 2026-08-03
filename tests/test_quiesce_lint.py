@@ -143,5 +143,8 @@ def test_lint_all_rejects_a_bad_snippet(monkeypatch, tmp_path):
         },
     }
     (tmp_path / "synthetic-bad.json").write_text(json.dumps(doc))
+    (tmp_path / model.META_NAME).write_text(
+        json.dumps({"order": ["synthetic-bad"], "postgres_default_image": "postgres:18.4-alpine"})
+    )
     monkeypatch.setattr(model, "SOURCES", tmp_path)
     assert L.lint_all() == 1

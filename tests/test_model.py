@@ -54,8 +54,15 @@ def _valid_doc(slug: str = "example") -> dict:
 def sources(tmp_path, monkeypatch):
     (tmp_path / "compose").mkdir()
     (tmp_path / "compose" / "example.compose.yml").write_text("services: {}\n")
+    _meta(tmp_path, ["example"])
     monkeypatch.setattr(model, "SOURCES", tmp_path)
     return tmp_path
+
+
+def _meta(sources: Path, order: list[str]) -> None:
+    (sources / model.META_NAME).write_text(
+        json.dumps({"order": order, "postgres_default_image": "postgres:18.4-alpine"})
+    )
 
 
 def _write(sources: Path, doc: dict, name: str | None = None) -> None:
@@ -71,14 +78,39 @@ def test_valid_source_loads(sources):
 
 
 def test_meta_prefixed_files_are_not_templates(sources):
+    """_meta.json sits in the same directory and must not be loaded as a
+    template."""
     _write(sources, _valid_doc())
-    (sources / "_meta.json").write_text(json.dumps({"postgres_default_image": "postgres:18"}))
     assert [e.slug for e in model.load_sources()] == ["example"]
 
 
 def test_id_must_match_filename(sources):
     _write(sources, _valid_doc("example"), name="something-else")
     with pytest.raises(model.SourceError, match="does not match the filename stem"):
+        model.load_sources()
+
+
+def test_order_drives_the_returned_sequence(sources):
+    """The order is curated (hubs first), not alphabetical: it is what
+    the Portainer gallery and the generated docs index show."""
+    for slug in ("alpha", "omega", "middle"):
+        doc = _valid_doc(slug)
+        _write(sources, doc)
+    _meta(sources, ["omega", "alpha", "middle"])
+    assert [e.slug for e in model.load_sources()] == ["omega", "alpha", "middle"]
+
+
+def test_template_missing_from_order_is_an_error(sources):
+    _write(sources, _valid_doc("example"))
+    _write(sources, _valid_doc("unlisted"))
+    with pytest.raises(model.SourceError, match="not listed in _meta.json order"):
+        model.load_sources()
+
+
+def test_order_naming_an_absent_template_is_an_error(sources):
+    _write(sources, _valid_doc("example"))
+    _meta(sources, ["example", "deleted-template"])
+    with pytest.raises(model.SourceError, match="has no source file"):
         model.load_sources()
 
 

@@ -27,7 +27,7 @@ ROOT = Path(__file__).resolve().parent.parent
 SOURCES = ROOT / "sources"
 COMPOSE_DIR = SOURCES / "compose"
 ASSETS_DIR = SOURCES / "assets"
-META_FILE = SOURCES / "_meta.json"
+META_NAME = "_meta.json"
 SOURCE_SCHEMA = ROOT / "sources.schema.json"
 OUTPUT_SCHEMA = ROOT / "Schema.json"
 
@@ -70,7 +70,10 @@ class Entry:
 
 
 def load_meta() -> dict[str, Any]:
-    return json.loads(META_FILE.read_text())
+    """Catalog-wide values: the deployment order and the central Postgres
+    pin. Resolved against SOURCES at call time so a test can point the
+    whole loader at a fixture tree."""
+    return json.loads((SOURCES / META_NAME).read_text())
 
 
 def _schema(path: Path) -> dict[str, Any]:
@@ -87,8 +90,14 @@ def _validate_schema(doc: dict[str, Any], schema: dict[str, Any], label: str) ->
 
 
 def load_sources() -> list[Entry]:
-    """Return every template, sorted by slug, or raise SourceError with
-    the full problem list."""
+    """Return every template in catalog order, or raise SourceError with
+    the full problem list.
+
+    Order comes from `_meta.json.order`, not from the filesystem. It is a
+    curated deployment sequence (hubs first, integrations next,
+    independents last) that the Portainer gallery and the generated docs
+    index both present to clients; sorting by filename would silently
+    replace it with alphabetical."""
     if not SOURCES.is_dir():
         raise SourceError(f"missing sources directory: {SOURCES}")
 
@@ -140,9 +149,21 @@ def load_sources() -> list[Entry]:
 
     if not entries and not errors:
         errors.append(f"{SOURCES} contains no template files")
+
+    order = load_meta().get("order") or []
+    ranked = {slug: idx for idx, slug in enumerate(order)}
+    found = {e.slug for e in entries}
+    for slug in sorted(found - set(ranked)):
+        errors.append(
+            f"sources/{slug}.json: not listed in _meta.json order -- add it "
+            f"where the template belongs in the deployment sequence"
+        )
+    for slug in sorted(set(ranked) - found):
+        errors.append(f"_meta.json order names {slug!r}, which has no source file")
+
     if errors:
         raise SourceError("\n".join(f"  {e}" for e in errors))
-    return sorted(entries, key=lambda e: e.slug)
+    return sorted(entries, key=lambda e: ranked[e.slug])
 
 
 def validate_output(doc: dict[str, Any]) -> list[str]:
