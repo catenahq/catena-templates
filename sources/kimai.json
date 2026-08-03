@@ -1,0 +1,77 @@
+{
+  "id": "kimai",
+  "type": 3,
+  "title": "Kimai",
+  "name": "kimai",
+  "categories": [
+    "Time tracking",
+    "Business"
+  ],
+  "platform": "linux",
+  "x-catena": {
+    "app_name": "kimai",
+    "upstream_url": "https://www.kimai.org/",
+    "sso_mode": "post-deploy-ui",
+    "domain": {
+      "host": "time.{{ cloudflare_zone }}",
+      "service": "kimai",
+      "port": 8001
+    },
+    "compose_file": "compose/kimai.compose.yml",
+    "env_defaults": [
+      "DOMAIN_HOST=time.{{ cloudflare_zone }}",
+      "KIMAI_HOSTNAME=time.{{ cloudflare_zone }}",
+      "KIMAI_ADMIN_EMAIL=admin@{{ cloudflare_zone }}",
+      "KIMAI_ADMIN_PASSWORD={{ lookup('password', '/dev/null length=24 chars=ascii_letters,digits') }}",
+      "KIMAI_APP_SECRET={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}",
+      "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
+      "DB_ROOT_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
+      "KIMAI_MAIL_FROM=time@{{ cloudflare_zone }}",
+      "KIMAI_MAIL_URL=null://localhost"
+    ],
+    "bench": {
+      "pack": "mariadb",
+      "hostname_baked": true
+    },
+    "sizing": {
+      "idle_ram_mb": 250,
+      "peak_ram_mb": 500,
+      "idle_cpu_pct": 1,
+      "peak_cpu_pct": 35,
+      "disk_baseline_mb": 180,
+      "notes": "PHP-Apache + MariaDB. Idle is comparable to EspoCRM. Bulk\ntimesheet export or end-of-month invoice rendering pushes peak\nRAM to ~500 MB and CPU briefly to ~35% on one vCPU. Conservative\npre-launch estimate, not yet a measured value.",
+      "notes_fr": "PHP-Apache + MariaDB. Au repos comparable \u00e0 EspoCRM. Export de\nfeuilles de temps en masse ou rendu de factures de fin de mois\npousse \u00e0 ~500 Mo et ~35 % CPU sur un vCPU pendant un court instant.\nEstimation prudente pr\u00e9-lancement, pas encore une mesure r\u00e9elle."
+    },
+    "en": {
+      "display_name": "Kimai",
+      "what_it_is": "Open-source time tracker. Customers, projects, activities, timesheets, multi-user teams, invoice generation from tracked time. SAML federates with Keycloak via the post-deploy admin UI.",
+      "replaces": [
+        "Toggl",
+        "Clockify",
+        "Harvest",
+        "TimeCamp"
+      ],
+      "compose_description": "Open-source time tracker. Customers, projects, timesheets, invoices. Replaces Toggl / Clockify / Harvest.\n\nhttps://docs.catena.run/apps/kimai/\n",
+      "setup_steps": "1. Click **Deploy**. Wait ~1 min for the first boot (database migrations run on first start).\n2. Visit the Kimai domain. Sign in as `KIMAI_ADMIN_EMAIL` / `KIMAI_ADMIN_PASSWORD` from the Environment tab.\n3. *(Optional)* Enable Keycloak SAML SSO: **System** -> **Settings** -> **SAML** -> enable + paste:\n   - **Identity Provider Entity ID:** `<OIDC_ISSUER_URL>/protocol/saml/descriptor` (a SAML client can be minted in Keycloak on request)\n   - **Single Sign-On URL:** `<OIDC_ISSUER_URL>/protocol/saml`\n   - **X.509 Certificate:** from the Keycloak realm metadata\n   - **Username Attribute:** `username` (or `email`)\n   - Save. Local admin login keeps working as break-glass.\n4. Configure the default invoice template under **Invoices** -> **Templates** -> pick one (DOCX / HTML / PDF). Set the company logo, address, and tax rates under **System** -> **Configuration**.\n",
+      "extra_notes": "### Time tracking in the Catena suite\n\nKimai is the time-tracking master in the Catena suite. Hours tracked here flow downstream to the invoicing app (Invoice Ninja) via a monthly sync, which can be automated on request. Customer records in Kimai carry an `espo_account_id` custom field so each timesheet ties back to the EspoCRM Account.\n\n### Invoicing built in\n\nKimai can generate PDF invoices directly from tracked time. That suits a billing flow of \"email a PDF; the client pays by e-transfer or wire\". Stripe-driven online payment, a client portal or recurring billing call for Invoice Ninja instead, deployed on request, and the suite then routes invoices through it.\n\n### Authentication\n\nUntil SAML is wired (step 3 above), Kimai uses local username/password. Even after SAML is wired, local admin login keeps working as a break-glass path. The Keycloak `staff` group gates access at the Traefik edge via oauth2-proxy before traffic reaches Kimai, so people outside the staff group cannot reach the login page.\n\n### Resource note\n\nKimai runs as PHP-Apache + MariaDB. Plan for ~250 MB RAM at idle, ~500 MB under bulk export or invoice rendering on busy month-end.\n"
+    },
+    "fr": {
+      "display_name": "Kimai",
+      "what_it_is": "Suivi du temps open-source. Clients, projets, activit\u00e9s, feuilles de temps, \u00e9quipes multi-utilisateur, facturation \u00e0 partir du temps suivi. SAML f\u00e9d\u00e8re avec Keycloak via l'UI admin post-d\u00e9ploiement.",
+      "replaces": [
+        "Toggl",
+        "Clockify",
+        "Harvest",
+        "TimeCamp"
+      ],
+      "compose_description": "Suivi du temps open-source. Clients, projets, feuilles de temps, factures. Remplace Toggl / Clockify / Harvest.\n\nhttps://docs.catena.run/apps/kimai/\n",
+      "setup_steps": "1. Cliquez **Deploy**. Patientez ~1 min pour le premier d\u00e9marrage (les migrations de base s'ex\u00e9cutent au premier lancement).\n2. Visitez le domaine Kimai. Connexion avec `KIMAI_ADMIN_EMAIL` / `KIMAI_ADMIN_PASSWORD` de l'onglet Environment.\n3. *(Optionnel)* Activez Keycloak SAML SSO : **System** -> **Settings** -> **SAML** -> activez et collez :\n   - **Identity Provider Entity ID :** `<OIDC_ISSUER_URL>/protocol/saml/descriptor` (un client SAML peut \u00eatre g\u00e9n\u00e9r\u00e9 dans Keycloak sur demande)\n   - **URL de connexion unique :** `<OIDC_ISSUER_URL>/protocol/saml`\n   - **Certificat X.509 :** tir\u00e9 des m\u00e9tadonn\u00e9es du realm Keycloak\n   - **Attribut nom d'utilisateur :** `username` (ou `email`)\n   - Validez. La connexion admin locale continue de fonctionner comme issue de secours.\n4. Configurez le mod\u00e8le de facture par d\u00e9faut sous **Invoices** -> **Templates** -> choisissez-en un (DOCX / HTML / PDF). R\u00e9glez le logo, l'adresse et les taux de taxe sous **System** -> **Configuration**.\n",
+      "extra_notes": "### Suivi du temps dans la suite Catena\n\nKimai est le ma\u00eetre du suivi du temps dans la suite Catena. Les heures saisies ici alimentent l'application de facturation (Invoice Ninja) via une synchronisation mensuelle, automatisable sur demande. Les fiches clients dans Kimai portent un champ personnalis\u00e9 `espo_account_id` afin que chaque feuille de temps soit li\u00e9e au compte EspoCRM correspondant.\n\n### Facturation int\u00e9gr\u00e9e\n\nKimai peut g\u00e9n\u00e9rer des factures PDF directement depuis le temps suivi. Cette voie convient \u00e0 un flux \"envoyer un PDF, le client paie par virement Interac ou bancaire\". Les paiements en ligne via Stripe, un portail client ou la facturation r\u00e9currente appellent plut\u00f4t Invoice Ninja, d\u00e9ploy\u00e9 sur demande, et la suite achemine alors les factures \u00e0 travers lui.\n\n### Authentification\n\nTant que SAML n'est pas c\u00e2bl\u00e9 (\u00e9tape 3 ci-dessus), Kimai utilise un identifiant local. M\u00eame apr\u00e8s SAML, la connexion admin locale continue de fonctionner comme issue de secours. Le groupe Keycloak `staff` filtre l'acc\u00e8s au bord Traefik via oauth2-proxy avant que le trafic n'atteigne Kimai, donc les personnes hors de l'\u00e9quipe ne peuvent pas atteindre la page de connexion.\n\n### Ressources\n\nKimai tourne en PHP-Apache + MariaDB. Pr\u00e9voyez ~250 Mo de RAM au repos, ~500 Mo lors d'exports en masse ou de rendu de factures en fin de mois charg\u00e9e.\n"
+    },
+    "quiesce": {
+      "pre": "docker exec \"$(docker ps -q -f label=com.docker.compose.service=db -f label=com.docker.compose.project~=kimai | head -1)\" sh -c 'mariadb-dump --single-transaction --quick --routines --triggers --add-drop-table -u root -p\"$MARIADB_ROOT_PASSWORD\" --all-databases > /var/lib/mysql/.catena-dump.sql.new && mv /var/lib/mysql/.catena-dump.sql.new /var/lib/mysql/.catena-dump.sql'",
+      "post": "true",
+      "timeout_seconds": 60
+    }
+  }
+}

@@ -1,0 +1,67 @@
+{
+  "id": "windshift",
+  "type": 3,
+  "title": "Windshift",
+  "name": "windshift",
+  "categories": [
+    "Project management",
+    "Support"
+  ],
+  "platform": "linux",
+  "x-catena": {
+    "app_name": "windshift",
+    "upstream_url": "https://windshift.sh/",
+    "sso_mode": "post-deploy-ui",
+    "domain": {
+      "host": "work.{{ cloudflare_zone }}",
+      "service": "windshift",
+      "port": 8080
+    },
+    "compose_file": "compose/windshift.compose.yml",
+    "env_defaults": [
+      "DOMAIN_HOST=work.{{ cloudflare_zone }}",
+      "WINDSHIFT_HOSTNAME=work.{{ cloudflare_zone }}",
+      "SSO_SECRET={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}",
+      "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
+    ],
+    "bench": {
+      "pack": "postgres",
+      "hostname_baked": false
+    },
+    "sizing": {
+      "idle_ram_mb": null,
+      "peak_ram_mb": 2300,
+      "idle_cpu_pct": null,
+      "peak_cpu_pct": null,
+      "disk_baseline_mb": null,
+      "notes": "NOT MEASURED. peak_ram_mb here is a declared budget, not an\nobservation: 2048 MB is the process budget Windshift ships as its\nown default (WINDSHIFT_MEMORY_LIMIT_MB, matched by mem_limit: 2g\nin the compose), plus ~250 MB for the Postgres side. The bench\nscheduler needs a positive int, and over-declaring only costs\nparallel slots. Replace all five numbers on the first measured\nrun and drop this paragraph.",
+      "notes_fr": "NON MESUR\u00c9. La valeur peak_ram_mb est un budget d\u00e9clar\u00e9, pas une\nobservation : 2048 Mo correspond au budget que Windshift applique\npar d\u00e9faut (WINDSHIFT_MEMORY_LIMIT_MB, align\u00e9 sur mem_limit: 2g\ndans le compose), plus ~250 Mo pour la base Postgres. Le\nplanificateur du banc exige un entier positif, et surestimer ne\nco\u00fbte que des cr\u00e9neaux parall\u00e8les. \u00c0 remplacer par les cinq\nmesures r\u00e9elles d\u00e8s la premi\u00e8re campagne."
+    },
+    "en": {
+      "display_name": "Windshift",
+      "what_it_is": "Work management with test runs, time tracking, and branded customer portals.",
+      "replaces": [
+        "Jira",
+        "Jira Service Management",
+        "Tempo",
+        "Xray"
+      ],
+      "compose_description": "Work management with test runs, time tracking, and customer portals. Replaces Jira / Jira Service Management.\n\nhttps://docs.catena.run/apps/windshift/\n",
+      "setup_steps": "1. Click **Deploy**. Wait ~1 min (one binary plus its database).\n2. Visit the Windshift domain and create the first administrator account.\n3. *(Optional)* Enable Keycloak SSO: **Admin** -> **Single Sign-On** -> add an **OpenID Connect** provider. Name it `keycloak` so the pre-registered redirect URI matches, paste `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET` and `OIDC_ISSUER_URL` from the Environment tab, and set the scopes to `openid email profile`. If a different provider name is used, copy the **Callback URL** shown in the dialog into the identity provider's redirect URIs.\n4. *(Optional)* Add a customer portal from the admin area. Portal accounts are separate from internal accounts, and each portal carries its own name, branding, request types, and access rules.\n",
+      "extra_notes": "**Interface language:** Windshift ships English, German, Spanish, Portuguese, Arabic, and Chinese. There is no French interface upstream as of v0.8.4.\n\n**Edition:** the self-hosted edition is AGPL-3.0 with no user or workspace cap. SAML 2.0, LDAP, and audit logging are announced for the paid Windshift Pro edition; OpenID Connect and passkeys are in this one.\n"
+    },
+    "fr": {
+      "display_name": "Windshift",
+      "what_it_is": "Gestion du travail avec suites de tests, feuilles de temps et portails clients personnalis\u00e9s.",
+      "replaces": [
+        "Jira",
+        "Jira Service Management",
+        "Tempo",
+        "Xray"
+      ],
+      "compose_description": "Gestion du travail avec suites de tests, feuilles de temps et portails clients. Remplace Jira / Jira Service Management.\n\nhttps://docs.catena.run/apps/windshift/\n",
+      "setup_steps": "1. Cliquez **Deploy**. Patientez ~1 min (un binaire et sa base de donn\u00e9es).\n2. Visitez le domaine Windshift et cr\u00e9ez le premier compte administrateur.\n3. *(Optionnel)* Activez Keycloak SSO : **Admin** -> **Single Sign-On** -> ajoutez un fournisseur **OpenID Connect**. Nommez-le `keycloak` pour que l'URI de redirection pr\u00e9-enregistr\u00e9e corresponde, collez `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET` et `OIDC_ISSUER_URL` depuis l'onglet Environment, puis indiquez les scopes `openid email profile`. Avec un autre nom de fournisseur, copiez la **Callback URL** affich\u00e9e dans la fen\u00eatre vers les URI de redirection du fournisseur d'identit\u00e9.\n4. *(Optionnel)* Ajoutez un portail client depuis la zone d'administration. Les comptes de portail sont distincts des comptes internes, et chaque portail a son nom, son habillage, ses types de demandes et ses r\u00e8gles d'acc\u00e8s.\n",
+      "extra_notes": "**Langue de l'interface :** Windshift est livr\u00e9 en anglais, allemand, espagnol, portugais, arabe et chinois. Aucune traduction fran\u00e7aise n'existe en amont \u00e0 la version v0.8.4.\n\n**\u00c9dition :** l'\u00e9dition auto-h\u00e9berg\u00e9e est sous AGPL-3.0, sans limite d'utilisateurs ni d'espaces de travail. SAML 2.0, LDAP et le journal d'audit sont annonc\u00e9s pour l'\u00e9dition payante Windshift Pro ; OpenID Connect et les cl\u00e9s d'acc\u00e8s sont inclus ici.\n"
+    }
+  }
+}

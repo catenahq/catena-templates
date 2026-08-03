@@ -1,104 +1,113 @@
-# catenahq/templates -- Portainer App Template catalog
+# catenahq/catena-templates -- Portainer App Template catalog
 
 This repo holds the Catena Portainer App Template catalog. See README.md
 for layout, consumer model, and BASE URL setup.
 
 ## Edit rules
 
-- `source/` is canonical. `blueprints/` and `templates.json` are generated.
-  Never hand-edit a file under `blueprints/` or `templates.json` -- the
-  change is overwritten on the next `render.py` run, and CI rejects the PR.
-- Every change is a deliberate version bump. Tag a `vX.Y.Z` release
-  on every merge to main; catenahq/ops pulls via that tag.
+- `sources/` is canonical. `blueprints/`, `templates.json`,
+  `catalog.json` and `index.html` are generated. Never hand-edit a
+  generated file -- the change is overwritten on the next render, and CI
+  rejects the PR.
+- One template is one file: `sources/<id>.json`. The `id` MUST equal the
+  filename stem; the loader fails the build otherwise.
+- Every change is a deliberate version bump. Tag a `vX.Y.Z` release on
+  every merge to main; catenahq/ops pulls via that tag.
 - No emojis or em-dashes in any artifact. Plain hyphens + straight
   quotes only. `npm run check:unicode` enforces.
-- Bilingual prose (the `en` / `fr` blocks per catalog entry): both
+- Bilingual prose (the `x-catena.en` / `x-catena.fr` blocks): both
   required, no EN-only or FR-only templates.
 - No secrets, ever. Sentinel placeholders (`__CATENA_OPERATOR_WIRED__`)
-  in templates.json for env vars that ops/ converge owns. Portainer App
-  Templates have no per-deploy secret generator, so ALL secrets default
-  to the sentinel and ops/ converge re-injects them.
+  in templates.json for env vars the converge owns.
 
 ## The render contract
 
-`build/render.py` transforms `source/catalog.yml` + `source/sizing-data.yml`
-+ `source/compose/` to `blueprints/` + `templates.json` (Portainer App
-Templates v3). `sizing-data.yml` is validated for catalog parity (every
-catalog id must have a matching sizing entry with a positive int
-`peak_ram_mb`; orphan sizing entries fail the build too) but is NOT emitted
-to `blueprints/` -- it is consumed downstream by ops/ (bench scheduler +
-generate-sizing-doc.py), not by Portainer itself.
+`make render` (thin entrypoint: `build/render.py`, logic in `lib/`)
+transforms `sources/` into:
 
-- The compose file is copied verbatim into `blueprints/<id>/docker-compose.yml`
-  (the Portainer type-3 stackfile). Jinja stays in place; ops/ converge
-  reconciles env + routing post-deploy (catena is operator-managed).
-- `templates.json` holds one Portainer App Template per catalog entry:
-  type 3, title/description/note/categories/logo from catalog metadata,
-  `repository{url, stackfile}` -> `blueprints/<id>/`, and `env`
-  `[{name,label,default}]` from env_defaults. Portainer has NO per-deploy
-  secret generator, so secret + `env_managed_keys` default to the sentinel
-  (`__CATENA_OPERATOR_WIRED__`) that ops/ re-injects.
+- `blueprints/<id>/docker-compose.yml` -- the compose file copied
+  verbatim; it IS the Portainer type-3 stackfile. Jinja stays in place;
+  the converge reconciles env + routing post-deploy.
+- `blueprints/<id>/quiesce.yml` -- when the entry declares
+  `x-catena.quiesce`.
+- `templates.json` -- one Portainer App Template per source: type 3,
+  title/name/description/note/categories/logo, `repository{url,
+  stackfile}` pointing at `blueprints/<id>/`, and `env` with human
+  labels. Three classes of value render to the sentinel: declared
+  `env_managed_keys`, `lookup('password', ...)` expressions, and
+  anything still carrying Jinja (Portainer has no template engine, so an
+  unresolved expression would become the app's literal secret).
+- `catalog.json` -- the machine view every Catena consumer reads, in one
+  fetch: the flat per-template fields, `sizing`, and the EN/FR prose.
+- `index.html` -- a static preview of the catalog.
 
-The render must be idempotent: running `render.py` twice produces
-byte-identical outputs. CI verifies this with `git diff --exit-code`
-after running render.
+The render must be idempotent: running it twice produces byte-identical
+outputs. CI verifies with `git diff --exit-code` over all four.
+
+## Validation layers
+
+1. `sources.schema.json` -- field shapes, enums, required keys,
+   the quiesce timeout cap. Runs on every load, not just in CI.
+2. Cross-file invariants in `lib/model.py` -- id matches filename, no
+   duplicate slug, the compose file exists, no `env_managed_keys` entry
+   that names nothing.
+3. `Schema.json` -- the generated `templates.json` against the published
+   Portainer App Templates format, because that file is what a client's
+   Portainer fetches.
+4. `make lint` -- quiesce-hook allowlist + shellcheck, central Postgres
+   pin enforcement.
 
 ## Add a new template
 
-Checklist:
+1. `sources/<id>.json`. Required: `id`, `type` (3), `title`, `name`,
+   `categories`, `platform`, and the `x-catena` block (`app_name`,
+   `upstream_url`, `sso_mode`, `domain`, `compose_file`, `env_defaults`,
+   `bench.pack`, `sizing.peak_ram_mb`, `en`, `fr`).
+2. `sources/compose/<id>.compose.yml` (existing Jinja-templated form is
+   fine -- render copies it verbatim).
+3. `sources/assets/<id>/logo.png` (512x512 PNG, max 100KB). Optional.
+4. If the template has write traffic during backup, add
+   `x-catena.quiesce`. Stateless / read-only templates omit it. Real
+   examples: `sources/nextcloud-s3-oidc.json`,
+   `sources/rocketchat-oidc.json`.
+5. `make` -- render + lint + test. Commit the regenerated artifacts.
+6. Open a PR. CI must pass `build-and-verify.yml` and `check:unicode`.
+7. After merge, `git tag -a vX.Y.Z -m "..." && git push --tags`.
 
-1. `source/catalog.yml` entry with all required fields (id, app_name,
-   upstream_url, sso_mode, domain_host, domain_port, env_defaults,
-   en, fr).
-2. Matching `source/sizing-data.yml` entry (same id). `peak_ram_mb`
-   is required (positive int); other RAM/CPU/disk fields nullable
-   until a real measurement run lands. Render.py validates parity
-   and fails the build on a missing or orphan id.
-3. `source/compose/<id>.compose.yml` (existing Jinja-templated form
-   is fine -- render strips it).
-4. `source/assets/<id>/logo.png` (512x512 PNG, max 100KB).
-5. If the template has write traffic during backup (DB writes,
-   append-only filesystem state, queue consumption), add
-   `quiesce_pre` + `quiesce_post` + `quiesce_timeout_seconds` to
-   the catalog entry. Real examples: Nextcloud at
-   `source/catalog.yml:142-144` and Rocket.Chat at `:505-507`.
-   Stateless / read-only templates can omit OR use `"true"`
-   placeholders with a justifying comment (Synapse at `:614-616`
-   is the placeholder pattern). `uv run build/lint_quiesce.py`
-   enforces snippet safety (no curl/wget, no rm outside the app's
-   data path).
-6. `uv run build/render.py` locally. Commit the regenerated
-   `blueprints/<id>/` and the updated `templates.json`.
-7. Open a PR. CI must pass `build-and-verify.yml` (idempotent render)
-   and `check:unicode`.
-8. After merge, `git tag -a vX.Y.Z -m "..." && git push --tags`.
+## When to bump the schema
 
-## When to bump the catalog schema
+`sources.schema.json` is internal to this repo; the CONTRACT with
+catenahq/ops is `catalog.json`. Changing the source shape is a minor
+bump when `catalog.json` comes out identical. Changing `catalog.json`
+is a major bump and needs coordinated PRs:
 
-The schema (catalog.yml entry shape) is a contract with the ops/
-loader and with `generate-template-docs.py`. Breaking changes need
-coordinated PRs:
-
-1. Land the new shape in templates/ behind a version bump (major).
-2. Update ops/'s catalog loader in the same merge window.
-3. Update `generate-template-docs.py` in catenahq/ops.
-4. Bump the vendored tarball in catenahq/ops via the bump workflow.
+1. Land the new shape here behind a major version bump.
+2. Update `automation/helpers/templates_catalog.py` in catenahq/ops in
+   the same merge window.
+3. Update `generate-template-docs.py` + `generate-sizing-doc.py`.
+4. Update the Ansible loader in catena-ce
+   (`roles/infrastructure/tasks/_templates_catalog_load.yml`).
+5. Bump the vendored tarball in catenahq/ops via the bump workflow.
 
 ## What does NOT live here
 
 - Operator-side wiring (on-box config key names, OIDC client minting
-  flow, env_managed_keys re-injection logic). All in catenahq/ops.
+  flow, `env_managed_keys` re-injection logic). All in catenahq/ops.
 - Per-VPS runtime state. All under `/var/lib/catena/` on each VPS.
-- Docs site copy. catenahq/docs generates the per-template pages
-  from `source/catalog.yml` via a sibling-write generator.
+- Docs site copy. catenahq/docs generates the per-template pages from
+  `catalog.json` via a sibling-write generator.
 
 ## Security invariants (machine-enforced -- do not weaken silently)
 
 - No secrets, ever: sentinel placeholders only (gitleaks on every
   change; the catalog is public and fetched raw by every deployment).
-- blueprints/ + templates.json are BUILD OUTPUTS; hand-edits fail the
+- No unresolved Jinja in `templates.json`: it would become the literal
+  value of the app's secret on a marketplace deploy. Asserted in
+  `tests/test_render.py`.
+- Generated artifacts are BUILD OUTPUTS; hand-edits fail the
   idempotent-render CI gate.
 - Every catalog image ref is CVE-scanned (trivy-images workflow);
-  quiesce snippets pass build/lint_quiesce.py (no curl/wget, no rm
-  outside the app's data path).
+  quiesce snippets pass the allowlist + path restriction in
+  `lib/quiesce_lint.py` (no curl/wget, no rm outside the app's data
+  path).
 - SPEC.md gate pointers must resolve (ops audit --check-public-specs).

@@ -1,0 +1,8 @@
+{
+  "postgres_default_image": "postgres:18.4-alpine",
+  "sizing": {
+    "last_measured_at": "2026-04-29",
+    "measurement_host": "dev1 (1 vCPU / 2 GB OVH VPS)",
+    "measurement_method": "manual: docker stats --no-stream sampled at idle + setup-step peak"
+  }
+}

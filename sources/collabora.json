@@ -1,0 +1,59 @@
+{
+  "id": "collabora",
+  "type": 3,
+  "title": "Collabora Online (CODE)",
+  "name": "collabora",
+  "categories": [
+    "Productivity",
+    "Documents"
+  ],
+  "platform": "linux",
+  "x-catena": {
+    "app_name": "collabora",
+    "upstream_url": "https://www.collaboraonline.com/",
+    "sso_mode": "n/a",
+    "domain": {
+      "host": "office.{{ cloudflare_zone }}",
+      "service": "collabora",
+      "port": 9980
+    },
+    "compose_file": "compose/collabora.compose.yml",
+    "env_defaults": [
+      "DOMAIN_HOST=office.{{ cloudflare_zone }}"
+    ],
+    "bench": {
+      "pack": "nodb",
+      "fixture": "skip",
+      "hostname_baked": false
+    },
+    "sizing": {
+      "idle_ram_mb": null,
+      "peak_ram_mb": 1024,
+      "idle_cpu_pct": null,
+      "peak_cpu_pct": null,
+      "disk_baseline_mb": null,
+      "notes": "Stateless document editor backed by Nextcloud. Sizing is dominated\nby per-document worker processes spawned during active editing;\nidle footprint is small. The peak figure above is a conservative\npre-launch estimate, not yet a measured value.",
+      "notes_fr": "\u00c9diteur de documents sans \u00e9tat adoss\u00e9 \u00e0 Nextcloud. Le\ndimensionnement est domin\u00e9 par les workers par document lors de\nl'\u00e9dition active ; l'empreinte au repos est faible. La valeur de\npic ci-dessus est une estimation prudente pr\u00e9-lancement, pas\nencore une mesure r\u00e9elle."
+    },
+    "en": {
+      "display_name": "Collabora Online (CODE)",
+      "what_it_is": "Collaborative ODT/DOCX/XLSX/PPTX editing -- bolts into Nextcloud for real-time co-editing. LibreOffice-based; lighter than OnlyOffice; better fidelity for ODF formats.",
+      "replaces": [
+        "Microsoft Office Online",
+        "Google Docs (as embedded editor)"
+      ],
+      "compose_description": "LibreOffice-based collaborative editor. Embedded in Nextcloud. Lighter alternative to OnlyOffice; better ODF fidelity.\n\nhttps://docs.catena.run/apps/collabora/\n",
+      "setup_steps": "1. Click **Deploy**. Wait ~30 s for the document server to boot.\n2. From the operator dashboard, click the **Wire Nextcloud Collabora** button. The button installs the Nextcloud Office app, points it at this server, and -- where OnlyOffice was previously wired -- removes the OnlyOffice Nextcloud app cleanly.\n3. Open any DOCX/XLSX/PPTX/ODT file in Nextcloud. It opens in the embedded Collabora editor.\n\nSwitching back to OnlyOffice later is one click: stop this Collabora compose, deploy `onlyoffice`, then click the **Wire Nextcloud OnlyOffice** button.\n\nDon't visit the Collabora domain directly in a browser -- it has no UI of its own. Users only ever see it through Nextcloud when they open a document.\n"
+    },
+    "fr": {
+      "display_name": "Collabora Online (CODE)",
+      "what_it_is": "\u00c9dition collaborative ODT/DOCX/XLSX/PPTX -- s'int\u00e8gre \u00e0 Nextcloud pour la co-\u00e9dition temps r\u00e9el. Bas\u00e9 sur LibreOffice ; plus l\u00e9ger qu'OnlyOffice ; meilleure fid\u00e9lit\u00e9 pour les formats ODF.",
+      "replaces": [
+        "Microsoft Office Online",
+        "Google Docs (\u00e9diteur embarqu\u00e9)"
+      ],
+      "compose_description": "\u00c9diteur collaboratif bas\u00e9 sur LibreOffice. Embarqu\u00e9 dans Nextcloud. Alternative l\u00e9g\u00e8re \u00e0 OnlyOffice ; meilleure fid\u00e9lit\u00e9 ODF.\n\nhttps://docs.catena.run/apps/collabora/\n",
+      "setup_steps": "1. Cliquez **Deploy**. Patientez ~30 s le d\u00e9marrage du serveur d'\u00e9dition.\n2. Depuis le tableau de bord op\u00e9rateur, cliquez le bouton **Wire Nextcloud Collabora**. Le bouton installe l'application Nextcloud Office, la pointe vers ce serveur, et -- si OnlyOffice \u00e9tait pr\u00e9c\u00e9demment c\u00e2bl\u00e9 -- retire proprement l'application Nextcloud OnlyOffice.\n3. Ouvrez n'importe quel fichier DOCX/XLSX/PPTX/ODT dans Nextcloud. Il s'ouvre dans l'\u00e9diteur Collabora embarqu\u00e9.\n\nPour revenir \u00e0 OnlyOffice plus tard : arr\u00eatez ce conteneur Collabora, d\u00e9ployez `onlyoffice`, puis cliquez le bouton **Wire Nextcloud OnlyOffice**.\n\nN'acc\u00e9dez pas au domaine Collabora directement dans un navigateur -- il n'a pas d'interface utilisateur. Les utilisateurs ne le voient qu'\u00e0 travers Nextcloud.\n"
+    }
+  }
+}

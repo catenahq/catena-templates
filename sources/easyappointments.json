@@ -1,0 +1,71 @@
+{
+  "id": "easyappointments",
+  "type": 3,
+  "title": "Easy!Appointments",
+  "name": "easyappointments",
+  "categories": [
+    "Scheduling"
+  ],
+  "platform": "linux",
+  "x-catena": {
+    "app_name": "easyappointments",
+    "upstream_url": "https://easyappointments.org/",
+    "sso_mode": "none",
+    "domain": {
+      "host": "book.{{ cloudflare_zone }}",
+      "service": "easyappointments",
+      "port": 80
+    },
+    "compose_file": "compose/easyappointments.compose.yml",
+    "env_defaults": [
+      "DOMAIN_HOST=book.{{ cloudflare_zone }}",
+      "EASYAPPOINTMENTS_HOSTNAME=book.{{ cloudflare_zone }}",
+      "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
+      "DB_ROOT_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
+    ],
+    "bench": {
+      "pack": "mariadb",
+      "hostname_baked": true
+    },
+    "sizing": {
+      "idle_ram_mb": null,
+      "peak_ram_mb": 384,
+      "idle_cpu_pct": null,
+      "peak_cpu_pct": null,
+      "disk_baseline_mb": null,
+      "notes": "PHP-Apache + MariaDB; lightweight footprint dominated by the\ndatabase. Conservative pre-launch estimate, not yet a measured\nvalue.",
+      "notes_fr": "PHP-Apache + MariaDB ; empreinte l\u00e9g\u00e8re domin\u00e9e par la base de\ndonn\u00e9es. Estimation prudente pr\u00e9-lancement, pas encore une mesure\nr\u00e9elle."
+    },
+    "en": {
+      "display_name": "Easy!Appointments",
+      "what_it_is": "Customer-facing booking app for one or many providers (clinic, salon, lessons, repair shop). Public booking page; staff calendars; email + SMS reminders; ICS export.",
+      "replaces": [
+        "Calendly",
+        "Acuity",
+        "SimplyBook",
+        "Setmore"
+      ],
+      "compose_description": "Open-source customer booking app. One or many providers, public booking page, ICS sync. Replaces Calendly / Acuity.\n\nhttps://docs.catena.run/apps/easyappointments/\n",
+      "setup_steps": "1. Click **Deploy**. Wait ~1 min for the first boot (database initializes on first run).\n2. Visit the Easy!Appointments domain and complete the first-run installer (creates the initial admin account, business name, working hours).\n3. Add providers (staff with bookable calendars), services (durations + prices), and customers as needed.\n4. *(Optional)* Configure SMTP under **Settings** -> **Business Logic** -> **Email** to send appointment confirmations and reminders. Without SMTP, customers and staff still see bookings inside the app, but no emails go out.\n5. *(Optional)* Embed the booking page on a website: copy the public booking URL from **Settings** -> **Booking Settings** and link to it from a site or business listing.\n",
+      "extra_notes": "### Authentication\n\nEasy!Appointments v1.5.2 uses local email/password sign-in for staff. No native OIDC in the upstream release. The customer-facing booking page is public by design -- visitors book a slot without creating an account, only providing name, email, and phone. The SSO gap therefore only affects staff sign-in and is typically manageable for the small teams (1-10 staff) the app targets.\n\nSingle sign-on for staff is available on request as an oauth2-proxy front layer; the default deployment ships with local accounts.\n\n### Email + SMS reminders\n\nEmail reminders work as soon as SMTP is configured. SMS reminders require a Twilio account (configured under **Settings** -> **Notifications** -> **SMS**). SMS is opt-in per customer at booking time.\n\n### Public booking URL\n\nThe default public URL is `https://book.<your-domain>/`. It can be shared directly with customers, embedded as a button on a business website, or listed on a Google Business Profile.\n"
+    },
+    "fr": {
+      "display_name": "Easy!Appointments",
+      "what_it_is": "Application de r\u00e9servation c\u00f4t\u00e9 client pour un ou plusieurs prestataires (clinique, salon, cours, atelier de r\u00e9paration). Page de r\u00e9servation publique ; calendriers du personnel ; rappels courriel + SMS ; export ICS.",
+      "replaces": [
+        "Calendly",
+        "Acuity",
+        "SimplyBook",
+        "Setmore"
+      ],
+      "compose_description": "Application de r\u00e9servation client open-source. Un ou plusieurs prestataires, page publique, synchronisation ICS. Remplace Calendly / Acuity.\n\nhttps://docs.catena.run/apps/easyappointments/\n",
+      "setup_steps": "1. Cliquez **Deploy**. Patientez ~1 min pour le premier d\u00e9marrage (la base de donn\u00e9es s'initialise au premier lancement).\n2. Visitez le domaine Easy!Appointments et compl\u00e9tez l'assistant initial (compte admin, nom de l'entreprise, heures d'ouverture).\n3. Ajoutez les prestataires (membres du personnel avec calendriers r\u00e9servables), les services (dur\u00e9es + prix), et les clients au besoin.\n4. *(Optionnel)* Configurez SMTP sous **Settings** -> **Business Logic** -> **Email** pour envoyer les confirmations et rappels de rendez-vous. Sans SMTP, les clients et le personnel voient les r\u00e9servations dans l'application, mais aucun courriel n'est envoy\u00e9.\n5. *(Optionnel)* Int\u00e9grez la page de r\u00e9servation \u00e0 un site web : copiez l'URL publique depuis **Settings** -> **Booking Settings** et liez-la depuis le site ou une fiche d'\u00e9tablissement.\n",
+      "extra_notes": "### Authentification\n\nEasy!Appointments v1.5.2 utilise une connexion locale par courriel/mot de passe pour le personnel. Pas d'OIDC natif dans la version upstream. La page de r\u00e9servation c\u00f4t\u00e9 client est publique par conception -- les visiteurs r\u00e9servent un cr\u00e9neau sans compte, en fournissant seulement leur nom, courriel et t\u00e9l\u00e9phone. L'absence de SSO ne touche donc que la connexion du personnel et reste g\u00e9rable pour les petites \u00e9quipes (1 \u00e0 10 personnes) cibl\u00e9es par l'application.\n\nUn SSO unifi\u00e9 pour le personnel est disponible sur demande sous forme de proxy oauth2 en fa\u00e7ade ; le d\u00e9ploiement par d\u00e9faut utilise des comptes locaux.\n\n### Rappels courriel + SMS\n\nLes rappels par courriel fonctionnent d\u00e8s que SMTP est configur\u00e9. Les rappels SMS n\u00e9cessitent un compte Twilio (configur\u00e9 sous **Settings** -> **Notifications** -> **SMS**). Les SMS sont consentis par le client au moment de la r\u00e9servation.\n\n### URL de r\u00e9servation publique\n\nL'URL publique par d\u00e9faut est `https://book.<votre-domaine>/`. Elle peut \u00eatre partag\u00e9e directement avec les clients, int\u00e9gr\u00e9e comme bouton sur un site web, ou list\u00e9e sur une fiche Google Business.\n"
+    },
+    "quiesce": {
+      "pre": "docker exec \"$(docker ps -q -f label=com.docker.compose.service=db -f label=com.docker.compose.project~=easyappointments | head -1)\" sh -c 'mariadb-dump --single-transaction --quick --routines --triggers --add-drop-table -u root -p\"$MARIADB_ROOT_PASSWORD\" --all-databases > /var/lib/mysql/.catena-dump.sql.new && mv /var/lib/mysql/.catena-dump.sql.new /var/lib/mysql/.catena-dump.sql'",
+      "post": "true",
+      "timeout_seconds": 60
+    }
+  }
+}

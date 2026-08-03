@@ -2,925 +2,20 @@
   "templates": [
     {
       "categories": [
-        "auto"
-      ],
-      "description": "Self-hosted file sharing + collaboration. Replaces Google Drive / Dropbox / OneDrive.",
-      "env": [
-        {
-          "default": "nextcloud.",
-          "label": "DOMAIN_HOST",
-          "name": "DOMAIN_HOST"
-        },
-        {
-          "default": "nextcloud.",
-          "label": "NEXTCLOUD_HOSTNAME",
-          "name": "NEXTCLOUD_HOSTNAME"
-        },
-        {
-          "default": "admin",
-          "label": "NEXTCLOUD_ADMIN_USER",
-          "name": "NEXTCLOUD_ADMIN_USER"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "label": "NEXTCLOUD_ADMIN_PASSWORD",
-          "name": "NEXTCLOUD_ADMIN_PASSWORD"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "label": "DB_PASSWORD",
-          "name": "DB_PASSWORD"
-        },
-        {
-          "default": "3",
-          "label": "NEXTCLOUD_LOGLEVEL",
-          "name": "NEXTCLOUD_LOGLEVEL"
-        },
-        {
-          "default": "auto, 7",
-          "label": "NEXTCLOUD_VERSIONS_RETENTION",
-          "name": "NEXTCLOUD_VERSIONS_RETENTION"
-        },
-        {
-          "default": "auto, 30",
-          "label": "NEXTCLOUD_TRASH_RETENTION",
-          "name": "NEXTCLOUD_TRASH_RETENTION"
-        },
-        {
-          "default": "83886080",
-          "label": "NEXTCLOUD_MAX_CHUNK_SIZE",
-          "name": "NEXTCLOUD_MAX_CHUNK_SIZE"
-        },
-        {
-          "default": "",
-          "label": "S3_BUCKET",
-          "name": "S3_BUCKET"
-        },
-        {
-          "default": "bhs",
-          "label": "S3_REGION",
-          "name": "S3_REGION"
-        },
-        {
-          "default": "s3.bhs.io.cloud.ovh.net",
-          "label": "S3_HOST",
-          "name": "S3_HOST"
-        },
-        {
-          "default": "443",
-          "label": "S3_PORT",
-          "name": "S3_PORT"
-        },
-        {
-          "default": "true",
-          "label": "S3_SSL",
-          "name": "S3_SSL"
-        },
-        {
-          "default": "",
-          "label": "S3_ACCESS_KEY",
-          "name": "S3_ACCESS_KEY"
-        },
-        {
-          "default": "",
-          "label": "S3_SECRET_KEY",
-          "name": "S3_SECRET_KEY"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "label": "OIDC_CLIENT_ID",
-          "name": "OIDC_CLIENT_ID"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "label": "OIDC_CLIENT_SECRET",
-          "name": "OIDC_CLIENT_SECRET"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "label": "OIDC_DISCOVERY_URL",
-          "name": "OIDC_DISCOVERY_URL"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "label": "OIDC_ISSUER_URL",
-          "name": "OIDC_ISSUER_URL"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "label": "OIDC_REDIRECT_URL",
-          "name": "OIDC_REDIRECT_URL"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "label": "SIGNALING_HOSTNAME",
-          "name": "SIGNALING_HOSTNAME"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "label": "SIGNALING_SECRET",
-          "name": "SIGNALING_SECRET"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "label": "TALK_INTERNAL_SECRET",
-          "name": "TALK_INTERNAL_SECRET"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "label": "TURN_HOSTNAME",
-          "name": "TURN_HOSTNAME"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "label": "TURN_STATIC_AUTH_SECRET",
-          "name": "TURN_STATIC_AUTH_SECRET"
-        }
-      ],
-      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/nextcloud-s3-oidc/logo.svg",
-      "note": "<p>Self-hosted file sharing + collaboration. Replaces Google Drive / Dropbox / OneDrive.</p>",
-      "platform": "linux",
-      "repository": {
-        "stackfile": "blueprints/nextcloud-s3-oidc/docker-compose.yml",
-        "url": "https://github.com/catenahq/catena-templates"
-      },
-      "title": "Nextcloud",
-      "type": 3
-    },
-    {
-      "categories": [
-        "n/a"
-      ],
-      "description": "LibreOffice-based collaborative editor. Embedded in Nextcloud. Lighter alternative to OnlyOffice; better ODF fidelity.",
-      "env": [
-        {
-          "default": "office.",
-          "label": "DOMAIN_HOST",
-          "name": "DOMAIN_HOST"
-        }
-      ],
-      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/collabora/logo.svg",
-      "note": "<p>LibreOffice-based collaborative editor. Embedded in Nextcloud. Lighter alternative to OnlyOffice; better ODF fidelity.</p>",
-      "platform": "linux",
-      "repository": {
-        "stackfile": "blueprints/collabora/docker-compose.yml",
-        "url": "https://github.com/catenahq/catena-templates"
-      },
-      "title": "Collabora Online (CODE)",
-      "type": 3
-    },
-    {
-      "categories": [
-        "n/a"
-      ],
-      "description": "Collaborative DOCX/XLSX/PPTX editor. Embedded in Nextcloud. Replaces Office 365 / Google Docs as the embedded editor.",
-      "env": [
-        {
-          "default": "office.",
-          "label": "DOMAIN_HOST",
-          "name": "DOMAIN_HOST"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "label": "JWT_SECRET",
-          "name": "JWT_SECRET"
-        }
-      ],
-      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/onlyoffice/logo.svg",
-      "note": "<p>Collaborative DOCX/XLSX/PPTX editor. Embedded in Nextcloud. Replaces Office 365 / Google Docs as the embedded editor.</p>",
-      "platform": "linux",
-      "repository": {
-        "stackfile": "blueprints/onlyoffice/docker-compose.yml",
-        "url": "https://github.com/catenahq/catena-templates"
-      },
-      "title": "OnlyOffice",
-      "type": 3
-    },
-    {
-      "categories": [
-        "pre-wired"
-      ],
-      "description": "Team chat + video. Keycloak SSO pre-wired. Replaces Slack / Microsoft Teams.",
-      "env": [
-        {
-          "default": "chat.",
-          "label": "DOMAIN_HOST",
-          "name": "DOMAIN_HOST"
-        },
-        {
-          "default": "chat.",
-          "label": "ROCKETCHAT_HOSTNAME",
-          "name": "ROCKETCHAT_HOSTNAME"
-        },
-        {
-          "default": "",
-          "label": "ROCKETCHAT_HOSTNAME_BASE",
-          "name": "ROCKETCHAT_HOSTNAME_BASE"
-        },
-        {
-          "default": "https://{{ keycloak_hostname | default('auth.' ~ cloudflare_zone) }}",
-          "label": "OIDC_BASE_URL",
-          "name": "OIDC_BASE_URL"
-        },
-        {
-          "default": "admin",
-          "label": "ADMIN_USERNAME",
-          "name": "ADMIN_USERNAME"
-        },
-        {
-          "default": "{{ admin_password }}",
-          "label": "ADMIN_PASS",
-          "name": "ADMIN_PASS"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "label": "VPS_PUBLIC_IP",
-          "name": "VPS_PUBLIC_IP"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "label": "TURN_STATIC_AUTH_SECRET",
-          "name": "TURN_STATIC_AUTH_SECRET"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "label": "JITSI_PROSODY_PASSWORD",
-          "name": "JITSI_PROSODY_PASSWORD"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "label": "JITSI_JICOFO_AUTH_PASSWORD",
-          "name": "JITSI_JICOFO_AUTH_PASSWORD"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "label": "JITSI_JICOFO_COMPONENT_SECRET",
-          "name": "JITSI_JICOFO_COMPONENT_SECRET"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "label": "JITSI_JVB_AUTH_PASSWORD",
-          "name": "JITSI_JVB_AUTH_PASSWORD"
-        }
-      ],
-      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/rocketchat-oidc/logo.svg",
-      "note": "<p>Team chat + video. Keycloak SSO pre-wired. Replaces Slack / Microsoft Teams.</p>",
-      "platform": "linux",
-      "repository": {
-        "stackfile": "blueprints/rocketchat-oidc/docker-compose.yml",
-        "url": "https://github.com/catenahq/catena-templates"
-      },
-      "title": "Rocket.Chat",
-      "type": 3
-    },
-    {
-      "categories": [
-        "pre-wired"
-      ],
-      "description": "Element + Matrix homeserver. Chat (E2EE), voice, group video, SIP dial-in. Keycloak SSO pre-wired. Federation off by default.",
-      "env": [
-        {
-          "default": "element.",
-          "label": "DOMAIN_HOST",
-          "name": "DOMAIN_HOST"
-        },
-        {
-          "default": "element.",
-          "label": "ELEMENT_HOSTNAME",
-          "name": "ELEMENT_HOSTNAME"
-        },
-        {
-          "default": "matrix.",
-          "label": "MATRIX_HOSTNAME",
-          "name": "MATRIX_HOSTNAME"
-        },
-        {
-          "default": "elementmeet.",
-          "label": "ELEMENT_JITSI_HOSTNAME",
-          "name": "ELEMENT_JITSI_HOSTNAME"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "label": "DB_PASSWORD",
-          "name": "DB_PASSWORD"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "label": "SYNAPSE_REGISTRATION_SHARED_SECRET",
-          "name": "SYNAPSE_REGISTRATION_SHARED_SECRET"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "label": "SYNAPSE_MACAROON_SECRET",
-          "name": "SYNAPSE_MACAROON_SECRET"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "label": "SYNAPSE_FORM_SECRET",
-          "name": "SYNAPSE_FORM_SECRET"
-        },
-        {
-          "default": "false",
-          "label": "ALLOW_PUBLIC_REGISTRATION",
-          "name": "ALLOW_PUBLIC_REGISTRATION"
-        },
-        {
-          "default": "",
-          "label": "FEDERATION_DOMAIN_WHITELIST",
-          "name": "FEDERATION_DOMAIN_WHITELIST"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "label": "OIDC_BASE_URL",
-          "name": "OIDC_BASE_URL"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "label": "OIDC_CLIENT_ID",
-          "name": "OIDC_CLIENT_ID"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "label": "OIDC_CLIENT_SECRET",
-          "name": "OIDC_CLIENT_SECRET"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "label": "VPS_PUBLIC_IP",
-          "name": "VPS_PUBLIC_IP"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "label": "TURN_HOSTNAME",
-          "name": "TURN_HOSTNAME"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "label": "TURN_STATIC_AUTH_SECRET",
-          "name": "TURN_STATIC_AUTH_SECRET"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "label": "JITSI_JICOFO_AUTH_PASSWORD",
-          "name": "JITSI_JICOFO_AUTH_PASSWORD"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "label": "JITSI_JICOFO_COMPONENT_SECRET",
-          "name": "JITSI_JICOFO_COMPONENT_SECRET"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "label": "JITSI_JVB_AUTH_PASSWORD",
-          "name": "JITSI_JVB_AUTH_PASSWORD"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "label": "JIGASI_XMPP_PASSWORD",
-          "name": "JIGASI_XMPP_PASSWORD"
-        },
-        {
-          "default": "",
-          "label": "JIGASI_SIP_URI",
-          "name": "JIGASI_SIP_URI"
-        },
-        {
-          "default": "",
-          "label": "JIGASI_SIP_PASSWORD",
-          "name": "JIGASI_SIP_PASSWORD"
-        },
-        {
-          "default": "",
-          "label": "JIGASI_SIP_SERVER",
-          "name": "JIGASI_SIP_SERVER"
-        }
-      ],
-      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/element/logo.svg",
-      "note": "<p>Element + Matrix homeserver. Chat (E2EE), voice, group video, SIP dial-in. Keycloak SSO pre-wired. Federation off by default.</p>",
-      "platform": "linux",
-      "repository": {
-        "stackfile": "blueprints/element/docker-compose.yml",
-        "url": "https://github.com/catenahq/catena-templates"
-      },
-      "title": "Element / Matrix",
-      "type": 3
-    },
-    {
-      "categories": [
-        "post-deploy-ui"
-      ],
-      "description": "Open-source document signing (default). Replaces DocuSign / HelloSign.",
-      "env": [
-        {
-          "default": "sign.",
-          "label": "DOMAIN_HOST",
-          "name": "DOMAIN_HOST"
-        },
-        {
-          "default": "sign.",
-          "label": "DOCUSEAL_HOSTNAME",
-          "name": "DOCUSEAL_HOSTNAME"
-        },
-        {
-          "default": "{{ lookup('password', '/dev/null length=128 chars=hexdigits') | lower }}",
-          "label": "SECRET_KEY_BASE",
-          "name": "SECRET_KEY_BASE"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "label": "DB_PASSWORD",
-          "name": "DB_PASSWORD"
-        },
-        {
-          "default": "",
-          "label": "SMTP_HOST",
-          "name": "SMTP_HOST"
-        },
-        {
-          "default": "587",
-          "label": "SMTP_PORT",
-          "name": "SMTP_PORT"
-        },
-        {
-          "default": "",
-          "label": "SMTP_USERNAME",
-          "name": "SMTP_USERNAME"
-        },
-        {
-          "default": "",
-          "label": "SMTP_PASSWORD",
-          "name": "SMTP_PASSWORD"
-        },
-        {
-          "default": "",
-          "label": "SMTP_FROM_ADDRESS",
-          "name": "SMTP_FROM_ADDRESS"
-        },
-        {
-          "default": "plain",
-          "label": "SMTP_AUTH",
-          "name": "SMTP_AUTH"
-        },
-        {
-          "default": "docuseal",
-          "label": "OIDC_CLIENT_ID",
-          "name": "OIDC_CLIENT_ID"
-        },
-        {
-          "default": "",
-          "label": "OIDC_CLIENT_SECRET",
-          "name": "OIDC_CLIENT_SECRET"
-        },
-        {
-          "default": "https://{{ keycloak_hostname | default('auth.' ~ cloudflare_zone) }}/realms/{{ keycloak_realm | default('vps') }}",
-          "label": "OIDC_ISSUER_URL",
-          "name": "OIDC_ISSUER_URL"
-        }
-      ],
-      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/docuseal/logo.svg",
-      "note": "<p>Open-source document signing (default). Replaces DocuSign / HelloSign.</p>",
-      "platform": "linux",
-      "repository": {
-        "stackfile": "blueprints/docuseal/docker-compose.yml",
-        "url": "https://github.com/catenahq/catena-templates"
-      },
-      "title": "DocuSeal",
-      "type": 3
-    },
-    {
-      "categories": [
-        "pre-wired"
-      ],
-      "description": "Team wiki + knowledge base. Keycloak SSO pre-wired. Replaces Notion / Confluence.",
-      "env": [
-        {
-          "default": "wiki.",
-          "label": "DOMAIN_HOST",
-          "name": "DOMAIN_HOST"
-        },
-        {
-          "default": "wiki.",
-          "label": "OUTLINE_HOSTNAME",
-          "name": "OUTLINE_HOSTNAME"
-        },
-        {
-          "default": "{{ lookup('password', '/dev/null length=64 chars=hexdigits') | lower }}",
-          "label": "OUTLINE_SECRET_KEY",
-          "name": "OUTLINE_SECRET_KEY"
-        },
-        {
-          "default": "{{ lookup('password', '/dev/null length=64 chars=hexdigits') | lower }}",
-          "label": "OUTLINE_UTILS_SECRET",
-          "name": "OUTLINE_UTILS_SECRET"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "label": "DB_PASSWORD",
-          "name": "DB_PASSWORD"
-        }
-      ],
-      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/outline/logo.svg",
-      "note": "<p>Team wiki + knowledge base. Keycloak SSO pre-wired. Replaces Notion / Confluence.</p>",
-      "platform": "linux",
-      "repository": {
-        "stackfile": "blueprints/outline/docker-compose.yml",
-        "url": "https://github.com/catenahq/catena-templates"
-      },
-      "title": "Outline",
-      "type": 3
-    },
-    {
-      "categories": [
-        "post-deploy-ui"
-      ],
-      "description": "Open-source CRM (default). Replaces Salesforce / HubSpot / Zoho.",
-      "env": [
-        {
-          "default": "crm.",
-          "label": "DOMAIN_HOST",
-          "name": "DOMAIN_HOST"
-        },
-        {
-          "default": "crm.",
-          "label": "ESPOCRM_HOSTNAME",
-          "name": "ESPOCRM_HOSTNAME"
-        },
-        {
-          "default": "admin",
-          "label": "ESPOCRM_ADMIN_USERNAME",
-          "name": "ESPOCRM_ADMIN_USERNAME"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "label": "ESPOCRM_ADMIN_PASSWORD",
-          "name": "ESPOCRM_ADMIN_PASSWORD"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "label": "DB_PASSWORD",
-          "name": "DB_PASSWORD"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "label": "DB_ROOT_PASSWORD",
-          "name": "DB_ROOT_PASSWORD"
-        },
-        {
-          "default": "espocrm",
-          "label": "OIDC_CLIENT_ID",
-          "name": "OIDC_CLIENT_ID"
-        },
-        {
-          "default": "",
-          "label": "OIDC_CLIENT_SECRET",
-          "name": "OIDC_CLIENT_SECRET"
-        },
-        {
-          "default": "https://{{ keycloak_hostname | default('auth.' ~ cloudflare_zone) }}/realms/{{ keycloak_realm | default('vps') }}",
-          "label": "OIDC_ISSUER_URL",
-          "name": "OIDC_ISSUER_URL"
-        }
-      ],
-      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/espocrm/logo.svg",
-      "note": "<p>Open-source CRM (default). Replaces Salesforce / HubSpot / Zoho.</p>",
-      "platform": "linux",
-      "repository": {
-        "stackfile": "blueprints/espocrm/docker-compose.yml",
-        "url": "https://github.com/catenahq/catena-templates"
-      },
-      "title": "EspoCRM",
-      "type": 3
-    },
-    {
-      "categories": [
-        "post-deploy-ui"
-      ],
-      "description": "Modern open-source CRM (alternative to EspoCRM). Replaces Salesforce / HubSpot.",
-      "env": [
-        {
-          "default": "twenty.",
-          "label": "DOMAIN_HOST",
-          "name": "DOMAIN_HOST"
-        },
-        {
-          "default": "twenty.",
-          "label": "TWENTY_HOSTNAME",
-          "name": "TWENTY_HOSTNAME"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "label": "TWENTY_APP_SECRET",
-          "name": "TWENTY_APP_SECRET"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "label": "DB_PASSWORD",
-          "name": "DB_PASSWORD"
-        }
-      ],
-      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/twenty/logo.svg",
-      "note": "<p>Modern open-source CRM (alternative to EspoCRM). Replaces Salesforce / HubSpot.</p>",
-      "platform": "linux",
-      "repository": {
-        "stackfile": "blueprints/twenty/docker-compose.yml",
-        "url": "https://github.com/catenahq/catena-templates"
-      },
-      "title": "Twenty",
-      "type": 3
-    },
-    {
-      "categories": [
-        "post-deploy-ui"
-      ],
-      "description": "Open-source project management. Replaces Jira / Linear / Asana.",
-      "env": [
-        {
-          "default": "projects.",
-          "label": "DOMAIN_HOST",
-          "name": "DOMAIN_HOST"
-        },
-        {
-          "default": "projects.",
-          "label": "PLANE_HOSTNAME",
-          "name": "PLANE_HOSTNAME"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "label": "PLANE_SECRET_KEY",
-          "name": "PLANE_SECRET_KEY"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "label": "DB_PASSWORD",
-          "name": "DB_PASSWORD"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "label": "PLANE_MINIO_ACCESS_KEY",
-          "name": "PLANE_MINIO_ACCESS_KEY"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "label": "PLANE_MINIO_SECRET_KEY",
-          "name": "PLANE_MINIO_SECRET_KEY"
-        }
-      ],
-      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/plane/logo.svg",
-      "note": "<p>Open-source project management. Replaces Jira / Linear / Asana.</p>",
-      "platform": "linux",
-      "repository": {
-        "stackfile": "blueprints/plane/docker-compose.yml",
-        "url": "https://github.com/catenahq/catena-templates"
-      },
-      "title": "Plane",
-      "type": 3
-    },
-    {
-      "categories": [
-        "post-deploy-ui"
-      ],
-      "description": "Work management with test runs, time tracking, and customer portals. Replaces Jira / Jira Service Management.",
-      "env": [
-        {
-          "default": "work.",
-          "label": "DOMAIN_HOST",
-          "name": "DOMAIN_HOST"
-        },
-        {
-          "default": "work.",
-          "label": "WINDSHIFT_HOSTNAME",
-          "name": "WINDSHIFT_HOSTNAME"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "label": "SSO_SECRET",
-          "name": "SSO_SECRET"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "label": "DB_PASSWORD",
-          "name": "DB_PASSWORD"
-        }
-      ],
-      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/windshift/logo.svg",
-      "note": "<p>Work management with test runs, time tracking, and customer portals. Replaces Jira / Jira Service Management.</p>",
-      "platform": "linux",
-      "repository": {
-        "stackfile": "blueprints/windshift/docker-compose.yml",
-        "url": "https://github.com/catenahq/catena-templates"
-      },
-      "title": "Windshift",
-      "type": 3
-    },
-    {
-      "categories": [
-        "post-deploy-ui"
-      ],
-      "description": "Ticket-first help desk. Replaces Zendesk / Freshdesk.",
-      "env": [
-        {
-          "default": "help.",
-          "label": "DOMAIN_HOST",
-          "name": "DOMAIN_HOST"
-        },
-        {
-          "default": "help.",
-          "label": "ZAMMAD_HOSTNAME",
-          "name": "ZAMMAD_HOSTNAME"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "label": "DB_PASSWORD",
-          "name": "DB_PASSWORD"
-        }
-      ],
-      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/zammad/logo.svg",
-      "note": "<p>Ticket-first help desk. Replaces Zendesk / Freshdesk.</p>",
-      "platform": "linux",
-      "repository": {
-        "stackfile": "blueprints/zammad/docker-compose.yml",
-        "url": "https://github.com/catenahq/catena-templates"
-      },
-      "title": "Zammad",
-      "type": 3
-    },
-    {
-      "categories": [
-        "none"
-      ],
-      "description": "Conversation-first omnichannel inbox. Replaces Intercom / Front.",
-      "env": [
-        {
-          "default": "support.",
-          "label": "DOMAIN_HOST",
-          "name": "DOMAIN_HOST"
-        },
-        {
-          "default": "support.",
-          "label": "CHATWOOT_HOSTNAME",
-          "name": "CHATWOOT_HOSTNAME"
-        },
-        {
-          "default": "{{ lookup('password', '/dev/null length=128 chars=hexdigits') | lower }}",
-          "label": "SECRET_KEY_BASE",
-          "name": "SECRET_KEY_BASE"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "label": "DB_PASSWORD",
-          "name": "DB_PASSWORD"
-        }
-      ],
-      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/chatwoot/logo.svg",
-      "note": "<p>Conversation-first omnichannel inbox. Replaces Intercom / Front.</p>",
-      "platform": "linux",
-      "repository": {
-        "stackfile": "blueprints/chatwoot/docker-compose.yml",
-        "url": "https://github.com/catenahq/catena-templates"
-      },
-      "title": "Chatwoot",
-      "type": 3
-    },
-    {
-      "categories": [
-        "post-deploy-ui"
-      ],
-      "description": "Production-ready website / CMS with FastCGI cache + Redis. Replaces Wix / Squarespace.",
-      "env": [
-        {
-          "default": "www.",
-          "label": "DOMAIN_HOST",
-          "name": "DOMAIN_HOST"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "label": "WORDPRESS_HOSTNAME",
-          "name": "WORDPRESS_HOSTNAME"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "label": "WPMS_SMTP_PASS",
-          "name": "WPMS_SMTP_PASS"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "label": "DB_PASSWORD",
-          "name": "DB_PASSWORD"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "label": "DB_ROOT_PASSWORD",
-          "name": "DB_ROOT_PASSWORD"
-        }
-      ],
-      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/wordpress/logo.svg",
-      "note": "<p>Production-ready website / CMS with FastCGI cache + Redis. Replaces Wix / Squarespace.</p>",
-      "platform": "linux",
-      "repository": {
-        "stackfile": "blueprints/wordpress/docker-compose.yml",
-        "url": "https://github.com/catenahq/catena-templates"
-      },
-      "title": "WordPress",
-      "type": 3
-    },
-    {
-      "categories": [
-        "none"
-      ],
-      "description": "Workflow automation (400+ integrations). Replaces Zapier / Make.",
-      "env": [
-        {
-          "default": "automate.",
-          "label": "DOMAIN_HOST",
-          "name": "DOMAIN_HOST"
-        },
-        {
-          "default": "automate.",
-          "label": "N8N_HOSTNAME",
-          "name": "N8N_HOSTNAME"
-        },
-        {
-          "default": "UTC",
-          "label": "N8N_TIMEZONE",
-          "name": "N8N_TIMEZONE"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "label": "N8N_ENCRYPTION_KEY",
-          "name": "N8N_ENCRYPTION_KEY"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "label": "N8N_JWT_SECRET",
-          "name": "N8N_JWT_SECRET"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "label": "DB_PASSWORD",
-          "name": "DB_PASSWORD"
-        }
-      ],
-      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/n8n/logo.svg",
-      "note": "<p>Workflow automation (400+ integrations). Replaces Zapier / Make.</p>",
-      "platform": "linux",
-      "repository": {
-        "stackfile": "blueprints/n8n/docker-compose.yml",
-        "url": "https://github.com/catenahq/catena-templates"
-      },
-      "title": "n8n",
-      "type": 3
-    },
-    {
-      "categories": [
-        "post-deploy-ui"
-      ],
-      "description": "Open-source ERP (accounting/inventory/HR/CRM/manufacturing). Replaces SAP / Odoo / NetSuite.",
-      "env": [
-        {
-          "default": "erp.",
-          "label": "DOMAIN_HOST",
-          "name": "DOMAIN_HOST"
-        },
-        {
-          "default": "erp.",
-          "label": "ERPNEXT_HOSTNAME",
-          "name": "ERPNEXT_HOSTNAME"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "label": "ERPNEXT_ADMIN_PASSWORD",
-          "name": "ERPNEXT_ADMIN_PASSWORD"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "label": "DB_ROOT_PASSWORD",
-          "name": "DB_ROOT_PASSWORD"
-        }
-      ],
-      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/erpnext/logo.svg",
-      "note": "<p>Open-source ERP (accounting/inventory/HR/CRM/manufacturing). Replaces SAP / Odoo / NetSuite.</p>",
-      "platform": "linux",
-      "repository": {
-        "stackfile": "blueprints/erpnext/docker-compose.yml",
-        "url": "https://github.com/catenahq/catena-templates"
-      },
-      "title": "ERPNext",
-      "type": 3
-    },
-    {
-      "categories": [
-        "none"
+        "Finance"
       ],
       "description": "Self-hosted personal finance + envelope budgeting. Replaces YNAB / Mint.",
       "env": [
         {
           "default": "budget.",
-          "label": "DOMAIN_HOST",
+          "label": "Domain",
           "name": "DOMAIN_HOST"
         }
       ],
       "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/actualbudget/logo.svg",
-      "note": "<p>Self-hosted personal finance + envelope budgeting. Replaces YNAB / Mint.</p>",
+      "maintainer": "https://github.com/catenahq/catena-templates",
+      "name": "actualbudget",
+      "note": "<p>Self-hosted personal finance. Envelope budgeting, bank account syncing via SimpleFIN or GoCardless, encrypted end-to-end.</p><p>Replaces YNAB, Mint, EveryDollar.</p><p><a href=\"https://docs.catena.run/apps/actualbudget/\">https://docs.catena.run/apps/actualbudget/</a></p>",
       "platform": "linux",
       "repository": {
         "stackfile": "blueprints/actualbudget/docker-compose.yml",
@@ -931,70 +26,192 @@
     },
     {
       "categories": [
-        "none"
+        "Communication",
+        "Support"
       ],
-      "description": "Social media scheduling (Twitter/X, LinkedIn, FB, IG, YouTube, TikTok). Replaces Buffer / Hootsuite.",
+      "description": "Conversation-first omnichannel inbox. Replaces Intercom / Front.",
       "env": [
         {
-          "default": "social.",
-          "label": "DOMAIN_HOST",
+          "default": "support.",
+          "label": "Domain",
           "name": "DOMAIN_HOST"
         },
         {
-          "default": "social.",
-          "label": "POSTIZ_HOSTNAME",
-          "name": "POSTIZ_HOSTNAME"
+          "default": "support.",
+          "label": "Chatwoot hostname",
+          "name": "CHATWOOT_HOSTNAME"
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "label": "JWT_SECRET",
-          "name": "JWT_SECRET"
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "Application secret",
+          "name": "SECRET_KEY_BASE"
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "label": "DB_PASSWORD",
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "Database password",
           "name": "DB_PASSWORD"
         }
       ],
-      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/postiz/logo.svg",
-      "note": "<p>Social media scheduling (Twitter/X, LinkedIn, FB, IG, YouTube, TikTok). Replaces Buffer / Hootsuite.</p>",
+      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/chatwoot/logo.svg",
+      "maintainer": "https://github.com/catenahq/catena-templates",
+      "name": "chatwoot",
+      "note": "<p>Conversation-first omnichannel inbox. Email, live-chat widget, WhatsApp, Facebook, Instagram, Twitter/X in one inbox.</p><p>Replaces Intercom, Front, Help Scout (for chat channels).</p><p><a href=\"https://docs.catena.run/apps/chatwoot/\">https://docs.catena.run/apps/chatwoot/</a></p>",
       "platform": "linux",
       "repository": {
-        "stackfile": "blueprints/postiz/docker-compose.yml",
+        "stackfile": "blueprints/chatwoot/docker-compose.yml",
         "url": "https://github.com/catenahq/catena-templates"
       },
-      "title": "Postiz",
+      "title": "Chatwoot",
       "type": 3
     },
     {
       "categories": [
-        "none"
+        "Productivity",
+        "Documents"
+      ],
+      "description": "LibreOffice-based collaborative editor. Embedded in Nextcloud. Lighter alternative to OnlyOffice; better ODF fidelity.",
+      "env": [
+        {
+          "default": "office.",
+          "label": "Domain",
+          "name": "DOMAIN_HOST"
+        }
+      ],
+      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/collabora/logo.svg",
+      "maintainer": "https://github.com/catenahq/catena-templates",
+      "name": "collabora",
+      "note": "<p>Collaborative ODT/DOCX/XLSX/PPTX editing -- bolts into Nextcloud for real-time co-editing. LibreOffice-based; lighter than OnlyOffice; better fidelity for ODF formats.</p><p>Replaces Microsoft Office Online, Google Docs (as embedded editor).</p><p><a href=\"https://docs.catena.run/apps/collabora/\">https://docs.catena.run/apps/collabora/</a></p>",
+      "platform": "linux",
+      "repository": {
+        "stackfile": "blueprints/collabora/docker-compose.yml",
+        "url": "https://github.com/catenahq/catena-templates"
+      },
+      "title": "Collabora Online (CODE)",
+      "type": 3
+    },
+    {
+      "categories": [
+        "Documents",
+        "Signing"
+      ],
+      "description": "Open-source document signing (default). Replaces DocuSign / HelloSign.",
+      "env": [
+        {
+          "default": "sign.",
+          "label": "Domain",
+          "name": "DOMAIN_HOST"
+        },
+        {
+          "default": "sign.",
+          "label": "Docuseal hostname",
+          "name": "DOCUSEAL_HOSTNAME"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "Application secret",
+          "name": "SECRET_KEY_BASE"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "Database password",
+          "name": "DB_PASSWORD"
+        },
+        {
+          "default": "",
+          "label": "SMTP host",
+          "name": "SMTP_HOST"
+        },
+        {
+          "default": "587",
+          "label": "SMTP port",
+          "name": "SMTP_PORT"
+        },
+        {
+          "default": "",
+          "label": "SMTP username",
+          "name": "SMTP_USERNAME"
+        },
+        {
+          "default": "",
+          "label": "SMTP password",
+          "name": "SMTP_PASSWORD"
+        },
+        {
+          "default": "",
+          "label": "SMTP from address",
+          "name": "SMTP_FROM_ADDRESS"
+        },
+        {
+          "default": "plain",
+          "label": "SMTP auth",
+          "name": "SMTP_AUTH"
+        },
+        {
+          "default": "docuseal",
+          "label": "OIDC client ID",
+          "name": "OIDC_CLIENT_ID"
+        },
+        {
+          "default": "",
+          "label": "OIDC client secret",
+          "name": "OIDC_CLIENT_SECRET"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "OIDC issuer URL",
+          "name": "OIDC_ISSUER_URL"
+        }
+      ],
+      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/docuseal/logo.svg",
+      "maintainer": "https://github.com/catenahq/catena-templates",
+      "name": "docuseal",
+      "note": "<p>Default document-signing app in the stack (replaces Documenso). Upload a PDF, place signature fields, send for signature. Audit trail + signed-PDF generation built-in.</p><p>Replaces DocuSign, HelloSign, PandaDoc, Adobe Sign.</p><p><a href=\"https://docs.catena.run/apps/docuseal/\">https://docs.catena.run/apps/docuseal/</a></p>",
+      "platform": "linux",
+      "repository": {
+        "stackfile": "blueprints/docuseal/docker-compose.yml",
+        "url": "https://github.com/catenahq/catena-templates"
+      },
+      "title": "DocuSeal",
+      "type": 3
+    },
+    {
+      "categories": [
+        "Scheduling"
       ],
       "description": "Open-source customer booking app. One or many providers, public booking page, ICS sync. Replaces Calendly / Acuity.",
       "env": [
         {
           "default": "book.",
-          "label": "DOMAIN_HOST",
+          "label": "Domain",
           "name": "DOMAIN_HOST"
         },
         {
           "default": "book.",
-          "label": "EASYAPPOINTMENTS_HOSTNAME",
+          "label": "Easyappointments hostname",
           "name": "EASYAPPOINTMENTS_HOSTNAME"
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "label": "DB_PASSWORD",
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "Database password",
           "name": "DB_PASSWORD"
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "label": "DB_ROOT_PASSWORD",
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "Database root password",
           "name": "DB_ROOT_PASSWORD"
         }
       ],
       "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/easyappointments/logo.svg",
-      "note": "<p>Open-source customer booking app. One or many providers, public booking page, ICS sync. Replaces Calendly / Acuity.</p>",
+      "maintainer": "https://github.com/catenahq/catena-templates",
+      "name": "easyappointments",
+      "note": "<p>Customer-facing booking app for one or many providers (clinic, salon, lessons, repair shop). Public booking page; staff calendars; email + SMS reminders; ICS export.</p><p>Replaces Calendly, Acuity, SimplyBook, Setmore.</p><p><a href=\"https://docs.catena.run/apps/easyappointments/\">https://docs.catena.run/apps/easyappointments/</a></p>",
       "platform": "linux",
       "repository": {
         "stackfile": "blueprints/easyappointments/docker-compose.yml",
@@ -1005,202 +222,344 @@
     },
     {
       "categories": [
-        "none"
+        "Communication",
+        "Chat"
       ],
-      "description": "Open-source marketing automation. Drip campaigns, segments, landing pages. Replaces Mailchimp / ActiveCampaign.",
+      "description": "Element + Matrix homeserver. Chat (E2EE), voice, group video, SIP dial-in. Keycloak SSO pre-wired. Federation off by default.",
       "env": [
         {
-          "default": "marketing.",
-          "label": "DOMAIN_HOST",
+          "default": "element.",
+          "label": "Domain",
           "name": "DOMAIN_HOST"
         },
         {
-          "default": "marketing.",
-          "label": "MAUTIC_HOSTNAME",
-          "name": "MAUTIC_HOSTNAME"
+          "default": "element.",
+          "label": "Element hostname",
+          "name": "ELEMENT_HOSTNAME"
+        },
+        {
+          "default": "matrix.",
+          "label": "Matrix hostname",
+          "name": "MATRIX_HOSTNAME"
+        },
+        {
+          "default": "elementmeet.",
+          "label": "Element jitsi hostname",
+          "name": "ELEMENT_JITSI_HOSTNAME"
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "label": "DB_PASSWORD",
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "Database password",
           "name": "DB_PASSWORD"
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "label": "DB_ROOT_PASSWORD",
-          "name": "DB_ROOT_PASSWORD"
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "Synapse registration shared secret",
+          "name": "SYNAPSE_REGISTRATION_SHARED_SECRET"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "Synapse macaroon secret",
+          "name": "SYNAPSE_MACAROON_SECRET"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "Synapse form secret",
+          "name": "SYNAPSE_FORM_SECRET"
+        },
+        {
+          "default": "false",
+          "label": "Allow public registration",
+          "name": "ALLOW_PUBLIC_REGISTRATION"
         },
         {
           "default": "",
-          "label": "SMTP_HOST",
-          "name": "SMTP_HOST"
+          "label": "Federation domain whitelist",
+          "name": "FEDERATION_DOMAIN_WHITELIST"
         },
         {
-          "default": "587",
-          "label": "SMTP_PORT",
-          "name": "SMTP_PORT"
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "OIDC base URL",
+          "name": "OIDC_BASE_URL"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "OIDC client ID",
+          "name": "OIDC_CLIENT_ID"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "OIDC client secret",
+          "name": "OIDC_CLIENT_SECRET"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "Vps public IP",
+          "name": "VPS_PUBLIC_IP"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "TURN hostname",
+          "name": "TURN_HOSTNAME"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "TURN static auth secret",
+          "name": "TURN_STATIC_AUTH_SECRET"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "Jitsi jicofo auth password",
+          "name": "JITSI_JICOFO_AUTH_PASSWORD"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "Jitsi jicofo component secret",
+          "name": "JITSI_JICOFO_COMPONENT_SECRET"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "Jitsi jvb auth password",
+          "name": "JITSI_JVB_AUTH_PASSWORD"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "Jigasi xmpp password",
+          "name": "JIGASI_XMPP_PASSWORD"
         },
         {
           "default": "",
-          "label": "SMTP_USERNAME",
-          "name": "SMTP_USERNAME"
+          "label": "Jigasi sip URI",
+          "name": "JIGASI_SIP_URI"
         },
         {
           "default": "",
-          "label": "SMTP_PASSWORD",
-          "name": "SMTP_PASSWORD"
+          "label": "Jigasi sip password",
+          "name": "JIGASI_SIP_PASSWORD"
         },
         {
           "default": "",
-          "label": "SMTP_FROM_ADDRESS",
-          "name": "SMTP_FROM_ADDRESS"
+          "label": "Jigasi sip server",
+          "name": "JIGASI_SIP_SERVER"
         }
       ],
-      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/mautic/logo.svg",
-      "note": "<p>Open-source marketing automation. Drip campaigns, segments, landing pages. Replaces Mailchimp / ActiveCampaign.</p>",
+      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/element/logo.svg",
+      "maintainer": "https://github.com/catenahq/catena-templates",
+      "name": "element",
+      "note": "<p>Self-hosted Element + Matrix homeserver -- federated-capable team chat with end-to-end encryption, voice, group video (bundled Jitsi), and SIP dial-in.</p><p>Replaces Slack, Microsoft Teams, Signal (for team use), Zoom (for small group calls).</p><p><a href=\"https://docs.catena.run/apps/element/\">https://docs.catena.run/apps/element/</a></p>",
       "platform": "linux",
       "repository": {
-        "stackfile": "blueprints/mautic/docker-compose.yml",
+        "stackfile": "blueprints/element/docker-compose.yml",
         "url": "https://github.com/catenahq/catena-templates"
       },
-      "title": "Mautic",
+      "title": "Element / Matrix",
       "type": 3
     },
     {
       "categories": [
-        "post-deploy-ui"
+        "ERP",
+        "Business"
       ],
-      "description": "Open-source time tracker. Customers, projects, timesheets, invoices. Replaces Toggl / Clockify / Harvest.",
+      "description": "Open-source ERP (accounting/inventory/HR/CRM/manufacturing). Replaces SAP / Odoo / NetSuite.",
       "env": [
         {
-          "default": "time.",
-          "label": "DOMAIN_HOST",
+          "default": "erp.",
+          "label": "Domain",
           "name": "DOMAIN_HOST"
         },
         {
-          "default": "time.",
-          "label": "KIMAI_HOSTNAME",
-          "name": "KIMAI_HOSTNAME"
-        },
-        {
-          "default": "admin@",
-          "label": "KIMAI_ADMIN_EMAIL",
-          "name": "KIMAI_ADMIN_EMAIL"
+          "default": "erp.",
+          "label": "Erpnext hostname",
+          "name": "ERPNEXT_HOSTNAME"
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "label": "KIMAI_ADMIN_PASSWORD",
-          "name": "KIMAI_ADMIN_PASSWORD"
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "Erpnext admin password",
+          "name": "ERPNEXT_ADMIN_PASSWORD"
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "label": "KIMAI_APP_SECRET",
-          "name": "KIMAI_APP_SECRET"
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "Database root password",
+          "name": "DB_ROOT_PASSWORD"
+        }
+      ],
+      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/erpnext/logo.svg",
+      "maintainer": "https://github.com/catenahq/catena-templates",
+      "name": "erpnext",
+      "note": "<p>Full open-source ERP suite -- accounting, inventory, HR/payroll, CRM, manufacturing, projects, and a built-in website/e-commerce module.</p><p>Replaces SAP Business One, Odoo, Oracle NetSuite.</p><p><a href=\"https://docs.catena.run/apps/erpnext/\">https://docs.catena.run/apps/erpnext/</a></p>",
+      "platform": "linux",
+      "repository": {
+        "stackfile": "blueprints/erpnext/docker-compose.yml",
+        "url": "https://github.com/catenahq/catena-templates"
+      },
+      "title": "ERPNext",
+      "type": 3
+    },
+    {
+      "categories": [
+        "CRM",
+        "Business"
+      ],
+      "description": "Open-source CRM (default). Replaces Salesforce / HubSpot / Zoho.",
+      "env": [
+        {
+          "default": "crm.",
+          "label": "Domain",
+          "name": "DOMAIN_HOST"
+        },
+        {
+          "default": "crm.",
+          "label": "Espocrm hostname",
+          "name": "ESPOCRM_HOSTNAME"
+        },
+        {
+          "default": "admin",
+          "label": "Espocrm admin username",
+          "name": "ESPOCRM_ADMIN_USERNAME"
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "label": "DB_PASSWORD",
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "Espocrm admin password",
+          "name": "ESPOCRM_ADMIN_PASSWORD"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "Database password",
           "name": "DB_PASSWORD"
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "label": "DB_ROOT_PASSWORD",
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "Database root password",
           "name": "DB_ROOT_PASSWORD"
         },
         {
-          "default": "time@",
-          "label": "KIMAI_MAIL_FROM",
-          "name": "KIMAI_MAIL_FROM"
+          "default": "espocrm",
+          "label": "OIDC client ID",
+          "name": "OIDC_CLIENT_ID"
         },
         {
-          "default": "null://localhost",
-          "label": "KIMAI_MAIL_URL",
-          "name": "KIMAI_MAIL_URL"
+          "default": "",
+          "label": "OIDC client secret",
+          "name": "OIDC_CLIENT_SECRET"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "OIDC issuer URL",
+          "name": "OIDC_ISSUER_URL"
         }
       ],
-      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/kimai/logo.svg",
-      "note": "<p>Open-source time tracker. Customers, projects, timesheets, invoices. Replaces Toggl / Clockify / Harvest.</p>",
+      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/espocrm/logo.svg",
+      "maintainer": "https://github.com/catenahq/catena-templates",
+      "name": "espocrm",
+      "note": "<p>Default CRM in the stack. Contacts, accounts, opportunities, leads, calendar, email integration, mass mail, workflow automation. Native OIDC via post-deploy toggle.</p><p>Replaces Salesforce, HubSpot, Zoho CRM, Pipedrive.</p><p><a href=\"https://docs.catena.run/apps/espocrm/\">https://docs.catena.run/apps/espocrm/</a></p>",
       "platform": "linux",
       "repository": {
-        "stackfile": "blueprints/kimai/docker-compose.yml",
+        "stackfile": "blueprints/espocrm/docker-compose.yml",
         "url": "https://github.com/catenahq/catena-templates"
       },
-      "title": "Kimai",
+      "title": "EspoCRM",
       "type": 3
     },
     {
       "categories": [
-        "post-deploy-ui"
+        "Finance",
+        "Invoicing"
       ],
       "description": "Invoicing + Stripe payments + recurring + client portal. Replaces FreshBooks / Zoho Invoice / QuickBooks invoicing.",
       "env": [
         {
           "default": "invoice.",
-          "label": "DOMAIN_HOST",
+          "label": "Domain",
           "name": "DOMAIN_HOST"
         },
         {
           "default": "invoice.",
-          "label": "INVOICENINJA_HOSTNAME",
+          "label": "Invoiceninja hostname",
           "name": "INVOICENINJA_HOSTNAME"
         },
         {
           "default": "",
-          "label": "INVOICENINJA_APP_KEY",
+          "label": "Invoiceninja app key",
           "name": "INVOICENINJA_APP_KEY"
         },
         {
           "default": "admin@",
-          "label": "INVOICENINJA_ADMIN_EMAIL",
+          "label": "Invoiceninja admin email",
           "name": "INVOICENINJA_ADMIN_EMAIL"
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "label": "INVOICENINJA_ADMIN_PASSWORD",
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "Invoiceninja admin password",
           "name": "INVOICENINJA_ADMIN_PASSWORD"
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "label": "DB_PASSWORD",
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "Database password",
           "name": "DB_PASSWORD"
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "label": "DB_ROOT_PASSWORD",
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "Database root password",
           "name": "DB_ROOT_PASSWORD"
         },
         {
           "default": "",
-          "label": "INVOICENINJA_SMTP_HOST",
+          "label": "Invoiceninja SMTP host",
           "name": "INVOICENINJA_SMTP_HOST"
         },
         {
           "default": "587",
-          "label": "INVOICENINJA_SMTP_PORT",
+          "label": "Invoiceninja SMTP port",
           "name": "INVOICENINJA_SMTP_PORT"
         },
         {
           "default": "",
-          "label": "INVOICENINJA_SMTP_USERNAME",
+          "label": "Invoiceninja SMTP username",
           "name": "INVOICENINJA_SMTP_USERNAME"
         },
         {
           "default": "",
-          "label": "INVOICENINJA_SMTP_PASSWORD",
+          "label": "Invoiceninja SMTP password",
           "name": "INVOICENINJA_SMTP_PASSWORD"
         },
         {
           "default": "invoice@",
-          "label": "INVOICENINJA_MAIL_FROM",
+          "label": "Invoiceninja mail from",
           "name": "INVOICENINJA_MAIL_FROM"
         },
         {
           "default": "Invoicing",
-          "label": "INVOICENINJA_MAIL_FROM_NAME",
+          "label": "Invoiceninja mail from name",
           "name": "INVOICENINJA_MAIL_FROM_NAME"
         }
       ],
       "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/invoiceninja/logo.svg",
-      "note": "<p>Invoicing + Stripe payments + recurring + client portal. Replaces FreshBooks / Zoho Invoice / QuickBooks invoicing.</p>",
+      "maintainer": "https://github.com/catenahq/catena-templates",
+      "name": "invoiceninja",
+      "note": "<p>Open-source invoicing with Stripe + PayPal payment gateways, recurring billing, expense tracking, client portal for online payment. Self-hosted gets all Pro + Enterprise features.</p><p>Replaces FreshBooks, QuickBooks (invoicing module), Zoho Invoice, Harvest (invoicing).</p><p><a href=\"https://docs.catena.run/apps/invoiceninja/\">https://docs.catena.run/apps/invoiceninja/</a></p>",
       "platform": "linux",
       "repository": {
         "stackfile": "blueprints/invoiceninja/docker-compose.yml",
@@ -1211,64 +570,850 @@
     },
     {
       "categories": [
-        "auto"
+        "Time tracking",
+        "Business"
+      ],
+      "description": "Open-source time tracker. Customers, projects, timesheets, invoices. Replaces Toggl / Clockify / Harvest.",
+      "env": [
+        {
+          "default": "time.",
+          "label": "Domain",
+          "name": "DOMAIN_HOST"
+        },
+        {
+          "default": "time.",
+          "label": "Kimai hostname",
+          "name": "KIMAI_HOSTNAME"
+        },
+        {
+          "default": "admin@",
+          "label": "Kimai admin email",
+          "name": "KIMAI_ADMIN_EMAIL"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "Kimai admin password",
+          "name": "KIMAI_ADMIN_PASSWORD"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "Kimai app secret",
+          "name": "KIMAI_APP_SECRET"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "Database password",
+          "name": "DB_PASSWORD"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "Database root password",
+          "name": "DB_ROOT_PASSWORD"
+        },
+        {
+          "default": "time@",
+          "label": "Kimai mail from",
+          "name": "KIMAI_MAIL_FROM"
+        },
+        {
+          "default": "null://localhost",
+          "label": "Kimai mail URL",
+          "name": "KIMAI_MAIL_URL"
+        }
+      ],
+      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/kimai/logo.svg",
+      "maintainer": "https://github.com/catenahq/catena-templates",
+      "name": "kimai",
+      "note": "<p>Open-source time tracker. Customers, projects, activities, timesheets, multi-user teams, invoice generation from tracked time. SAML federates with Keycloak via the post-deploy admin UI.</p><p>Replaces Toggl, Clockify, Harvest, TimeCamp.</p><p><a href=\"https://docs.catena.run/apps/kimai/\">https://docs.catena.run/apps/kimai/</a></p>",
+      "platform": "linux",
+      "repository": {
+        "stackfile": "blueprints/kimai/docker-compose.yml",
+        "url": "https://github.com/catenahq/catena-templates"
+      },
+      "title": "Kimai",
+      "type": 3
+    },
+    {
+      "categories": [
+        "Email",
+        "Infrastructure"
       ],
       "description": "Self-hosted mailboxes + Roundcube webmail, Keycloak SSO. Outbound requires an SMTP relay. Replaces Gmail / Exchange Online.",
       "env": [
         {
           "default": "webmail.",
-          "label": "DOMAIN_HOST",
+          "label": "Domain",
           "name": "DOMAIN_HOST"
         },
         {
           "default": "mail.",
-          "label": "MAIL_HOSTNAME",
+          "label": "Mail hostname",
           "name": "MAIL_HOSTNAME"
         },
         {
           "default": "",
-          "label": "MAIL_DOMAIN",
+          "label": "Mail domain",
           "name": "MAIL_DOMAIN"
         },
         {
           "default": "webmail.",
-          "label": "WEBMAIL_HOSTNAME",
+          "label": "Webmail hostname",
           "name": "WEBMAIL_HOSTNAME"
         },
         {
-          "default": "https://{{ keycloak_hostname | default('auth.' ~ cloudflare_zone) }}/realms/{{ keycloak_realm | default('vps') }}/protocol/openid-connect/token/introspect",
-          "label": "OIDC_INTROSPECTION_URL",
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "OIDC introspection URL",
           "name": "OIDC_INTROSPECTION_URL"
         },
         {
           "default": "",
-          "label": "RELAY_HOST",
+          "label": "Relay host",
           "name": "RELAY_HOST"
         },
         {
           "default": "587",
-          "label": "RELAY_PORT",
+          "label": "Relay port",
           "name": "RELAY_PORT"
         },
         {
           "default": "",
-          "label": "RELAY_USER",
+          "label": "Relay user",
           "name": "RELAY_USER"
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "label": "RELAY_PASSWORD",
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "Relay password",
           "name": "RELAY_PASSWORD"
         }
       ],
       "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/mailserver/logo.svg",
-      "note": "<p>Self-hosted mailboxes + Roundcube webmail, Keycloak SSO. Outbound requires an SMTP relay. Replaces Gmail / Exchange Online.</p>",
+      "maintainer": "https://github.com/catenahq/catena-templates",
+      "name": "mailserver",
+      "note": "<p>Self-hosted email -- inbox storage on the VPS (Postfix + Dovecot + Rspamd) with Roundcube webmail and Keycloak single sign-on. Outbound requires an SMTP relay through a reputable provider (set up before deploy) so messages are not flagged as spam.</p><p>Replaces Google Workspace (Gmail), Microsoft 365 (Exchange Online).</p><p><a href=\"https://docs.catena.run/apps/mailserver/\">https://docs.catena.run/apps/mailserver/</a></p>",
       "platform": "linux",
       "repository": {
         "stackfile": "blueprints/mailserver/docker-compose.yml",
         "url": "https://github.com/catenahq/catena-templates"
       },
       "title": "Mail server + webmail",
+      "type": 3
+    },
+    {
+      "categories": [
+        "Marketing",
+        "Automation"
+      ],
+      "description": "Open-source marketing automation. Drip campaigns, segments, landing pages. Replaces Mailchimp / ActiveCampaign.",
+      "env": [
+        {
+          "default": "marketing.",
+          "label": "Domain",
+          "name": "DOMAIN_HOST"
+        },
+        {
+          "default": "marketing.",
+          "label": "Mautic hostname",
+          "name": "MAUTIC_HOSTNAME"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "Database password",
+          "name": "DB_PASSWORD"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "Database root password",
+          "name": "DB_ROOT_PASSWORD"
+        },
+        {
+          "default": "",
+          "label": "SMTP host",
+          "name": "SMTP_HOST"
+        },
+        {
+          "default": "587",
+          "label": "SMTP port",
+          "name": "SMTP_PORT"
+        },
+        {
+          "default": "",
+          "label": "SMTP username",
+          "name": "SMTP_USERNAME"
+        },
+        {
+          "default": "",
+          "label": "SMTP password",
+          "name": "SMTP_PASSWORD"
+        },
+        {
+          "default": "",
+          "label": "SMTP from address",
+          "name": "SMTP_FROM_ADDRESS"
+        }
+      ],
+      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/mautic/logo.svg",
+      "maintainer": "https://github.com/catenahq/catena-templates",
+      "name": "mautic",
+      "note": "<p>Open-source marketing automation. Contact segments, email campaigns, drip sequences, landing pages, forms, lead scoring. Replaces Mailchimp / ActiveCampaign / HubSpot Marketing.</p><p>Replaces Mailchimp, ActiveCampaign, HubSpot Marketing, Brevo (Sendinblue).</p><p><a href=\"https://docs.catena.run/apps/mautic/\">https://docs.catena.run/apps/mautic/</a></p>",
+      "platform": "linux",
+      "repository": {
+        "stackfile": "blueprints/mautic/docker-compose.yml",
+        "url": "https://github.com/catenahq/catena-templates"
+      },
+      "title": "Mautic",
+      "type": 3
+    },
+    {
+      "categories": [
+        "Automation"
+      ],
+      "description": "Workflow automation (400+ integrations). Replaces Zapier / Make.",
+      "env": [
+        {
+          "default": "automate.",
+          "label": "Domain",
+          "name": "DOMAIN_HOST"
+        },
+        {
+          "default": "automate.",
+          "label": "N8n hostname",
+          "name": "N8N_HOSTNAME"
+        },
+        {
+          "default": "UTC",
+          "label": "N8n timezone",
+          "name": "N8N_TIMEZONE"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "N8n encryption key",
+          "name": "N8N_ENCRYPTION_KEY"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "N8n JWT secret",
+          "name": "N8N_JWT_SECRET"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "Database password",
+          "name": "DB_PASSWORD"
+        }
+      ],
+      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/n8n/logo.svg",
+      "maintainer": "https://github.com/catenahq/catena-templates",
+      "name": "n8n",
+      "note": "<p>Workflow automation -- visually chain hundreds of integrations (APIs, apps, databases) into no-code/low-code workflows.</p><p>Replaces Zapier, Make (Integromat), Tray.io.</p><p><a href=\"https://docs.catena.run/apps/n8n/\">https://docs.catena.run/apps/n8n/</a></p>",
+      "platform": "linux",
+      "repository": {
+        "stackfile": "blueprints/n8n/docker-compose.yml",
+        "url": "https://github.com/catenahq/catena-templates"
+      },
+      "title": "n8n",
+      "type": 3
+    },
+    {
+      "categories": [
+        "Files",
+        "Collaboration"
+      ],
+      "description": "Self-hosted file sharing + collaboration. Replaces Google Drive / Dropbox / OneDrive.",
+      "env": [
+        {
+          "default": "nextcloud.",
+          "label": "Domain",
+          "name": "DOMAIN_HOST"
+        },
+        {
+          "default": "nextcloud.",
+          "label": "Nextcloud hostname",
+          "name": "NEXTCLOUD_HOSTNAME"
+        },
+        {
+          "default": "admin",
+          "label": "Nextcloud admin user",
+          "name": "NEXTCLOUD_ADMIN_USER"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "Nextcloud admin password",
+          "name": "NEXTCLOUD_ADMIN_PASSWORD"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "Database password",
+          "name": "DB_PASSWORD"
+        },
+        {
+          "default": "3",
+          "label": "Nextcloud loglevel",
+          "name": "NEXTCLOUD_LOGLEVEL"
+        },
+        {
+          "default": "auto, 7",
+          "label": "Nextcloud versions retention",
+          "name": "NEXTCLOUD_VERSIONS_RETENTION"
+        },
+        {
+          "default": "auto, 30",
+          "label": "Nextcloud trash retention",
+          "name": "NEXTCLOUD_TRASH_RETENTION"
+        },
+        {
+          "default": "83886080",
+          "label": "Nextcloud max chunk size",
+          "name": "NEXTCLOUD_MAX_CHUNK_SIZE"
+        },
+        {
+          "default": "",
+          "label": "S3 bucket",
+          "name": "S3_BUCKET"
+        },
+        {
+          "default": "bhs",
+          "label": "S3 region",
+          "name": "S3_REGION"
+        },
+        {
+          "default": "s3.bhs.io.cloud.ovh.net",
+          "label": "S3 host",
+          "name": "S3_HOST"
+        },
+        {
+          "default": "443",
+          "label": "S3 port",
+          "name": "S3_PORT"
+        },
+        {
+          "default": "true",
+          "label": "S3 SSL",
+          "name": "S3_SSL"
+        },
+        {
+          "default": "",
+          "label": "S3 access key",
+          "name": "S3_ACCESS_KEY"
+        },
+        {
+          "default": "",
+          "label": "S3 secret key",
+          "name": "S3_SECRET_KEY"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "OIDC client ID",
+          "name": "OIDC_CLIENT_ID"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "OIDC client secret",
+          "name": "OIDC_CLIENT_SECRET"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "OIDC discovery URL",
+          "name": "OIDC_DISCOVERY_URL"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "OIDC issuer URL",
+          "name": "OIDC_ISSUER_URL"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "OIDC redirect URL",
+          "name": "OIDC_REDIRECT_URL"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "Signaling hostname",
+          "name": "SIGNALING_HOSTNAME"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "Signaling secret",
+          "name": "SIGNALING_SECRET"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "Talk internal secret",
+          "name": "TALK_INTERNAL_SECRET"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "TURN hostname",
+          "name": "TURN_HOSTNAME"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "TURN static auth secret",
+          "name": "TURN_STATIC_AUTH_SECRET"
+        }
+      ],
+      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/nextcloud-s3-oidc/logo.svg",
+      "maintainer": "https://github.com/catenahq/catena-templates",
+      "name": "nextcloud",
+      "note": "<p>Self-hosted file sharing and collaboration -- the file hub that other templates plug into.</p><p>Replaces Google Drive, Dropbox, OneDrive for Business.</p>",
+      "platform": "linux",
+      "repository": {
+        "stackfile": "blueprints/nextcloud-s3-oidc/docker-compose.yml",
+        "url": "https://github.com/catenahq/catena-templates"
+      },
+      "title": "Nextcloud",
+      "type": 3
+    },
+    {
+      "categories": [
+        "Productivity",
+        "Documents"
+      ],
+      "description": "Collaborative DOCX/XLSX/PPTX editor. Embedded in Nextcloud. Replaces Office 365 / Google Docs as the embedded editor.",
+      "env": [
+        {
+          "default": "office.",
+          "label": "Domain",
+          "name": "DOMAIN_HOST"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "JWT secret",
+          "name": "JWT_SECRET"
+        }
+      ],
+      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/onlyoffice/logo.svg",
+      "maintainer": "https://github.com/catenahq/catena-templates",
+      "name": "onlyoffice",
+      "note": "<p>Collaborative DOCX/XLSX/PPTX editing -- bolts into Nextcloud for real-time co-editing with high MS Office fidelity.</p><p>Replaces Microsoft Office Online, Google Docs (as embedded editor).</p><p><a href=\"https://docs.catena.run/apps/onlyoffice/\">https://docs.catena.run/apps/onlyoffice/</a></p>",
+      "platform": "linux",
+      "repository": {
+        "stackfile": "blueprints/onlyoffice/docker-compose.yml",
+        "url": "https://github.com/catenahq/catena-templates"
+      },
+      "title": "OnlyOffice",
+      "type": 3
+    },
+    {
+      "categories": [
+        "Wiki",
+        "Documentation"
+      ],
+      "description": "Team wiki + knowledge base. Keycloak SSO pre-wired. Replaces Notion / Confluence.",
+      "env": [
+        {
+          "default": "wiki.",
+          "label": "Domain",
+          "name": "DOMAIN_HOST"
+        },
+        {
+          "default": "wiki.",
+          "label": "Outline hostname",
+          "name": "OUTLINE_HOSTNAME"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "Outline secret key",
+          "name": "OUTLINE_SECRET_KEY"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "Outline utils secret",
+          "name": "OUTLINE_UTILS_SECRET"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "Database password",
+          "name": "DB_PASSWORD"
+        }
+      ],
+      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/outline/logo.svg",
+      "maintainer": "https://github.com/catenahq/catena-templates",
+      "name": "outline",
+      "note": "<p>Team wiki / knowledge base. Notion-style pages, collections, nested docs. Keycloak SSO pre-wired.</p><p>Replaces Notion, Confluence, Google Sites.</p><p><a href=\"https://docs.catena.run/apps/outline/\">https://docs.catena.run/apps/outline/</a></p>",
+      "platform": "linux",
+      "repository": {
+        "stackfile": "blueprints/outline/docker-compose.yml",
+        "url": "https://github.com/catenahq/catena-templates"
+      },
+      "title": "Outline",
+      "type": 3
+    },
+    {
+      "categories": [
+        "Project management"
+      ],
+      "description": "Open-source project management. Replaces Jira / Linear / Asana.",
+      "env": [
+        {
+          "default": "projects.",
+          "label": "Domain",
+          "name": "DOMAIN_HOST"
+        },
+        {
+          "default": "projects.",
+          "label": "Plane hostname",
+          "name": "PLANE_HOSTNAME"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "Plane secret key",
+          "name": "PLANE_SECRET_KEY"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "Database password",
+          "name": "DB_PASSWORD"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "Plane minio access key",
+          "name": "PLANE_MINIO_ACCESS_KEY"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "Plane minio secret key",
+          "name": "PLANE_MINIO_SECRET_KEY"
+        }
+      ],
+      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/plane/logo.svg",
+      "maintainer": "https://github.com/catenahq/catena-templates",
+      "name": "plane",
+      "note": "<p>Open-source project management -- issues, cycles, modules, pages, workspaces.</p><p>Replaces Jira, Linear, Asana, ClickUp.</p><p><a href=\"https://docs.catena.run/apps/plane/\">https://docs.catena.run/apps/plane/</a></p>",
+      "platform": "linux",
+      "repository": {
+        "stackfile": "blueprints/plane/docker-compose.yml",
+        "url": "https://github.com/catenahq/catena-templates"
+      },
+      "title": "Plane",
+      "type": 3
+    },
+    {
+      "categories": [
+        "Marketing",
+        "Social"
+      ],
+      "description": "Social media scheduling (Twitter/X, LinkedIn, FB, IG, YouTube, TikTok). Replaces Buffer / Hootsuite.",
+      "env": [
+        {
+          "default": "social.",
+          "label": "Domain",
+          "name": "DOMAIN_HOST"
+        },
+        {
+          "default": "social.",
+          "label": "Postiz hostname",
+          "name": "POSTIZ_HOSTNAME"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "JWT secret",
+          "name": "JWT_SECRET"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "Database password",
+          "name": "DB_PASSWORD"
+        }
+      ],
+      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/postiz/logo.svg",
+      "maintainer": "https://github.com/catenahq/catena-templates",
+      "name": "postiz",
+      "note": "<p>Schedule and publish social media posts across Twitter/X, LinkedIn, Facebook, Instagram, YouTube, TikTok, and more.</p><p>Replaces Buffer, Hootsuite, Later.</p><p><a href=\"https://docs.catena.run/apps/postiz/\">https://docs.catena.run/apps/postiz/</a></p>",
+      "platform": "linux",
+      "repository": {
+        "stackfile": "blueprints/postiz/docker-compose.yml",
+        "url": "https://github.com/catenahq/catena-templates"
+      },
+      "title": "Postiz",
+      "type": 3
+    },
+    {
+      "categories": [
+        "Communication",
+        "Chat"
+      ],
+      "description": "Team chat + video. Keycloak SSO pre-wired. Replaces Slack / Microsoft Teams.",
+      "env": [
+        {
+          "default": "chat.",
+          "label": "Domain",
+          "name": "DOMAIN_HOST"
+        },
+        {
+          "default": "chat.",
+          "label": "Rocketchat hostname",
+          "name": "ROCKETCHAT_HOSTNAME"
+        },
+        {
+          "default": "",
+          "label": "Rocketchat hostname base",
+          "name": "ROCKETCHAT_HOSTNAME_BASE"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "OIDC base URL",
+          "name": "OIDC_BASE_URL"
+        },
+        {
+          "default": "admin",
+          "label": "Admin username",
+          "name": "ADMIN_USERNAME"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "Admin pass",
+          "name": "ADMIN_PASS"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "Vps public IP",
+          "name": "VPS_PUBLIC_IP"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "TURN static auth secret",
+          "name": "TURN_STATIC_AUTH_SECRET"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "Jitsi prosody password",
+          "name": "JITSI_PROSODY_PASSWORD"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "Jitsi jicofo auth password",
+          "name": "JITSI_JICOFO_AUTH_PASSWORD"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "Jitsi jicofo component secret",
+          "name": "JITSI_JICOFO_COMPONENT_SECRET"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "Jitsi jvb auth password",
+          "name": "JITSI_JVB_AUTH_PASSWORD"
+        }
+      ],
+      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/rocketchat-oidc/logo.svg",
+      "maintainer": "https://github.com/catenahq/catena-templates",
+      "name": "rocketchat",
+      "note": "<p>Team chat -- channels, direct messages, file sharing, mobile apps, and video calls. Keycloak SSO pre-wired.</p><p>Replaces Slack, Microsoft Teams, Discord (for work).</p><p><a href=\"https://docs.catena.run/apps/rocketchat-oidc/\">https://docs.catena.run/apps/rocketchat-oidc/</a></p>",
+      "platform": "linux",
+      "repository": {
+        "stackfile": "blueprints/rocketchat-oidc/docker-compose.yml",
+        "url": "https://github.com/catenahq/catena-templates"
+      },
+      "title": "Rocket.Chat",
+      "type": 3
+    },
+    {
+      "categories": [
+        "CRM",
+        "Business"
+      ],
+      "description": "Modern open-source CRM (alternative to EspoCRM). Replaces Salesforce / HubSpot.",
+      "env": [
+        {
+          "default": "twenty.",
+          "label": "Domain",
+          "name": "DOMAIN_HOST"
+        },
+        {
+          "default": "twenty.",
+          "label": "Twenty hostname",
+          "name": "TWENTY_HOSTNAME"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "Twenty app secret",
+          "name": "TWENTY_APP_SECRET"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "Database password",
+          "name": "DB_PASSWORD"
+        }
+      ],
+      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/twenty/logo.svg",
+      "maintainer": "https://github.com/catenahq/catena-templates",
+      "name": "twenty",
+      "note": "<p>Modern open-source CRM. Contacts, companies, opportunities, email sync, pipelines. Alternative to EspoCRM (the default CRM).</p><p>Replaces Salesforce, HubSpot, Pipedrive.</p><p><a href=\"https://docs.catena.run/apps/twenty/\">https://docs.catena.run/apps/twenty/</a></p>",
+      "platform": "linux",
+      "repository": {
+        "stackfile": "blueprints/twenty/docker-compose.yml",
+        "url": "https://github.com/catenahq/catena-templates"
+      },
+      "title": "Twenty",
+      "type": 3
+    },
+    {
+      "categories": [
+        "Project management",
+        "Support"
+      ],
+      "description": "Work management with test runs, time tracking, and customer portals. Replaces Jira / Jira Service Management.",
+      "env": [
+        {
+          "default": "work.",
+          "label": "Domain",
+          "name": "DOMAIN_HOST"
+        },
+        {
+          "default": "work.",
+          "label": "Windshift hostname",
+          "name": "WINDSHIFT_HOSTNAME"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "Session signing secret",
+          "name": "SSO_SECRET"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "Database password",
+          "name": "DB_PASSWORD"
+        }
+      ],
+      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/windshift/logo.svg",
+      "maintainer": "https://github.com/catenahq/catena-templates",
+      "name": "windshift",
+      "note": "<p>Work management with test runs, time tracking, and branded customer portals.</p><p>Replaces Jira, Jira Service Management, Tempo, Xray.</p><p><a href=\"https://docs.catena.run/apps/windshift/\">https://docs.catena.run/apps/windshift/</a></p>",
+      "platform": "linux",
+      "repository": {
+        "stackfile": "blueprints/windshift/docker-compose.yml",
+        "url": "https://github.com/catenahq/catena-templates"
+      },
+      "title": "Windshift",
+      "type": 3
+    },
+    {
+      "categories": [
+        "CMS",
+        "Website"
+      ],
+      "description": "Production-ready website / CMS with FastCGI cache + Redis. Replaces Wix / Squarespace.",
+      "env": [
+        {
+          "default": "www.",
+          "label": "Domain",
+          "name": "DOMAIN_HOST"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "Wordpress hostname",
+          "name": "WORDPRESS_HOSTNAME"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "Wpms SMTP pass",
+          "name": "WPMS_SMTP_PASS"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "Database password",
+          "name": "DB_PASSWORD"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "Database root password",
+          "name": "DB_ROOT_PASSWORD"
+        }
+      ],
+      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/wordpress/logo.svg",
+      "maintainer": "https://github.com/catenahq/catena-templates",
+      "name": "wordpress",
+      "note": "<p>Production-ready public CMS / website platform with FastCGI cache, Redis object cache, and a curated free-tier plugin set pre-installed. The site serves anonymously; admin sign-in runs on /wp-admin and can be wired to Keycloak via a plugin.</p><p>Replaces Wix, Squarespace, self-hosted Drupal.</p><p><a href=\"https://docs.catena.run/apps/wordpress/\">https://docs.catena.run/apps/wordpress/</a></p>",
+      "platform": "linux",
+      "repository": {
+        "stackfile": "blueprints/wordpress/docker-compose.yml",
+        "url": "https://github.com/catenahq/catena-templates"
+      },
+      "title": "WordPress",
+      "type": 3
+    },
+    {
+      "categories": [
+        "Support",
+        "Helpdesk"
+      ],
+      "description": "Ticket-first help desk. Replaces Zendesk / Freshdesk.",
+      "env": [
+        {
+          "default": "help.",
+          "label": "Domain",
+          "name": "DOMAIN_HOST"
+        },
+        {
+          "default": "help.",
+          "label": "Zammad hostname",
+          "name": "ZAMMAD_HOSTNAME"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "label": "Database password",
+          "name": "DB_PASSWORD"
+        }
+      ],
+      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/zammad/logo.svg",
+      "maintainer": "https://github.com/catenahq/catena-templates",
+      "name": "zammad",
+      "note": "<p>Ticket-first help desk. Email, Telegram, social channels, SLAs, knowledge base. Native OIDC.</p><p>Replaces Zendesk, Freshdesk, Jira Service Desk.</p><p><a href=\"https://docs.catena.run/apps/zammad/\">https://docs.catena.run/apps/zammad/</a></p>",
+      "platform": "linux",
+      "repository": {
+        "stackfile": "blueprints/zammad/docker-compose.yml",
+        "url": "https://github.com/catenahq/catena-templates"
+      },
+      "title": "Zammad",
       "type": 3
     }
   ],

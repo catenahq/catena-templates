@@ -1,0 +1,70 @@
+{
+  "id": "erpnext",
+  "type": 3,
+  "title": "ERPNext",
+  "name": "erpnext",
+  "categories": [
+    "ERP",
+    "Business"
+  ],
+  "platform": "linux",
+  "x-catena": {
+    "app_name": "erpnext",
+    "upstream_url": "https://erpnext.com/",
+    "sso_mode": "post-deploy-ui",
+    "domain": {
+      "host": "erp.{{ cloudflare_zone }}",
+      "service": "frontend",
+      "port": 8080
+    },
+    "compose_file": "compose/erpnext.compose.yml",
+    "env_defaults": [
+      "DOMAIN_HOST=erp.{{ cloudflare_zone }}",
+      "ERPNEXT_HOSTNAME=erp.{{ cloudflare_zone }}",
+      "ERPNEXT_ADMIN_PASSWORD={{ lookup('password', '/dev/null length=24 chars=ascii_letters,digits') }}",
+      "DB_ROOT_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
+    ],
+    "bench": {
+      "pack": "mariadb",
+      "hostname_baked": true
+    },
+    "sizing": {
+      "idle_ram_mb": 2100,
+      "peak_ram_mb": 2900,
+      "idle_cpu_pct": 8,
+      "peak_cpu_pct": 90,
+      "disk_baseline_mb": 850,
+      "notes": "~10 containers. Heaviest template in the catalog. Plan for a\ndedicated 8 GB+ VPS; co-locating ERPNext with the full productivity\nbundle wants a 12 GB tier.",
+      "notes_fr": "~10 conteneurs. Le template le plus lourd du catalogue. Pr\u00e9voyez\nun VPS d\u00e9di\u00e9 de 8 Go ou plus ; colocaliser ERPNext avec le combo\nproductivit\u00e9 complet demande un palier de 12 Go."
+    },
+    "en": {
+      "display_name": "ERPNext",
+      "what_it_is": "Full open-source ERP suite -- accounting, inventory, HR/payroll, CRM, manufacturing, projects, and a built-in website/e-commerce module.",
+      "replaces": [
+        "SAP Business One",
+        "Odoo",
+        "Oracle NetSuite"
+      ],
+      "compose_description": "Open-source ERP (accounting/inventory/HR/CRM/manufacturing). Replaces SAP / Odoo / NetSuite.\n\nhttps://docs.catena.run/apps/erpnext/\n",
+      "setup_steps": "1. Click **Deploy**. First boot takes 5-10 min -- the site must be created, MariaDB initialized, Python apps installed. The `create-site` container logs in Portainer track the progress.\n2. Visit the ERPNext domain. Sign in as `Administrator` / `ERPNEXT_ADMIN_PASSWORD` from the Environment tab.\n3. Complete the setup wizard: company name, fiscal year, base currency, chart of accounts template.\n4. *(Optional)* Enable Keycloak SSO: **Integrations** -> **Social Login Keys** -> **New** -> **Provider: OpenID Connect**. Fill:\n   - **Client ID:** `OIDC_CLIENT_ID` from Environment\n   - **Client Secret:** `OIDC_CLIENT_SECRET`\n   - **Base URL:** `OIDC_ISSUER_URL`\n   - Save. The login page shows **Login with OpenID Connect**.\n",
+      "extra_notes": "**Resource note.** ERPNext is heavy -- 10+ containers, ~3 GB RAM + 2 CPUs recommended minimum. A dedicated VPS tier is the right home when Nextcloud + chat + other apps run alongside.\n\n**Upgrade path.** Major version bumps (v15 -> v16) require `bench migrate`. The compose template leaves `vps.auto-update=patch` on every service so weekly automated updates stay within v15.x.x -- majors are a deliberate operator action, not a 3 a.m. auto-update.\n"
+    },
+    "fr": {
+      "display_name": "ERPNext",
+      "what_it_is": "Suite ERP open-source compl\u00e8te -- comptabilit\u00e9, inventaire, RH/paie, CRM, production, projets, et un module site web / e-commerce int\u00e9gr\u00e9.",
+      "replaces": [
+        "SAP Business One",
+        "Odoo",
+        "Oracle NetSuite"
+      ],
+      "compose_description": "ERP open-source (compta/stock/RH/CRM/prod). Remplace SAP / Odoo / NetSuite.\n\nhttps://docs.catena.run/apps/erpnext/\n",
+      "setup_steps": "1. Cliquez **Deploy**. Le premier d\u00e9marrage dure 5-10 min -- le site est cr\u00e9\u00e9, MariaDB initialis\u00e9, les apps Python install\u00e9es. Les logs du conteneur `create-site` dans Portainer permettent de suivre la progression.\n2. Visitez le domaine ERPNext. Connexion avec `Administrator` / `ERPNEXT_ADMIN_PASSWORD` de l'onglet Environment.\n3. Compl\u00e9tez l'assistant : nom de soci\u00e9t\u00e9, exercice fiscal, devise, plan comptable.\n4. *(Optionnel)* Activez Keycloak SSO : **Integrations** -> **Social Login Keys** -> **New** -> **Provider: OpenID Connect**. Remplissez :\n   - **Client ID :** `OIDC_CLIENT_ID` depuis Environment\n   - **Client Secret :** `OIDC_CLIENT_SECRET`\n   - **Base URL :** `OIDC_ISSUER_URL`\n   - Validez. La page de connexion affiche **Login with OpenID Connect**.\n",
+      "extra_notes": "**Ressources.** ERPNext est lourd -- 10+ conteneurs, minimum ~3 GB RAM + 2 CPUs recommand\u00e9s. Un VPS d\u00e9di\u00e9 s'impose lorsque Nextcloud + chat + d'autres apps tournent en parall\u00e8le.\n\n**Mont\u00e9es de version.** Les bumps majeurs (v15 -> v16) n\u00e9cessitent `bench migrate`. Le template laisse `vps.auto-update=patch` sur chaque service : les mises \u00e0 jour hebdomadaires automatiques restent en v15.x.x -- les majeurs sont une action op\u00e9rateur d\u00e9lib\u00e9r\u00e9e, pas une auto-update \u00e0 3 h du matin.\n"
+    },
+    "quiesce": {
+      "pre": "docker exec \"$(docker ps -q -f label=com.docker.compose.service=db -f label=com.docker.compose.project~=erpnext | head -1)\" sh -c 'mariadb-dump --single-transaction --quick --routines --triggers --add-drop-table -u root -p\"$MARIADB_ROOT_PASSWORD\" --all-databases > /var/lib/mysql/.catena-dump.sql.new && mv /var/lib/mysql/.catena-dump.sql.new /var/lib/mysql/.catena-dump.sql'",
+      "post": "true",
+      "timeout_seconds": 60
+    }
+  }
+}

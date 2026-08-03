@@ -1,0 +1,110 @@
+{
+  "id": "nextcloud-s3-oidc",
+  "type": 3,
+  "title": "Nextcloud",
+  "name": "nextcloud",
+  "categories": [
+    "Files",
+    "Collaboration"
+  ],
+  "platform": "linux",
+  "x-catena": {
+    "app_name": "nextcloud",
+    "upstream_url": "https://nextcloud.com",
+    "sso_mode": "auto",
+    "domain": {
+      "host": "nextcloud.{{ cloudflare_zone }}",
+      "service": "app",
+      "port": 80
+    },
+    "compose_file": "compose/nextcloud-s3.compose.yml",
+    "env_defaults": [
+      "DOMAIN_HOST=nextcloud.{{ cloudflare_zone }}",
+      "NEXTCLOUD_HOSTNAME=nextcloud.{{ cloudflare_zone }}",
+      "NEXTCLOUD_ADMIN_USER=admin",
+      "NEXTCLOUD_ADMIN_PASSWORD={{ lookup('password', '/dev/null length=24 chars=ascii_letters,digits') }}",
+      "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
+      "NEXTCLOUD_LOGLEVEL=3",
+      "NEXTCLOUD_VERSIONS_RETENTION=auto, 7",
+      "NEXTCLOUD_TRASH_RETENTION=auto, 30",
+      "NEXTCLOUD_MAX_CHUNK_SIZE=83886080",
+      "S3_BUCKET=",
+      "S3_REGION=bhs",
+      "S3_HOST=s3.bhs.io.cloud.ovh.net",
+      "S3_PORT=443",
+      "S3_SSL=true",
+      "S3_ACCESS_KEY=",
+      "S3_SECRET_KEY=",
+      "OIDC_CLIENT_ID=nextcloud",
+      "OIDC_CLIENT_SECRET={{ nextcloud_oidc_client_secret }}",
+      "OIDC_DISCOVERY_URL=https://{{ keycloak_hostname | default('auth.' ~ cloudflare_zone) }}/realms/{{ keycloak_realm | default('vps') }}/.well-known/openid-configuration",
+      "OIDC_ISSUER_URL=https://{{ keycloak_hostname | default('auth.' ~ cloudflare_zone) }}/realms/{{ keycloak_realm | default('vps') }}",
+      "OIDC_REDIRECT_URL=https://nextcloud.{{ cloudflare_zone }}/apps/user_oidc/code",
+      "SIGNALING_HOSTNAME=signaling.{{ cloudflare_zone }}",
+      "SIGNALING_SECRET={{ nextcloud_talk_signaling_secret }}",
+      "TALK_INTERNAL_SECRET={{ nextcloud_talk_internal_secret }}",
+      "TURN_HOSTNAME={{ coturn_hostname | default('turn.' ~ cloudflare_zone) }}",
+      "TURN_STATIC_AUTH_SECRET={{ turn_static_auth_secret }}"
+    ],
+    "bench": {
+      "pack": "postgres",
+      "hostname_baked": false
+    },
+    "sizing": {
+      "idle_ram_mb": 420,
+      "peak_ram_mb": 880,
+      "idle_cpu_pct": 2,
+      "peak_cpu_pct": 65,
+      "disk_baseline_mb": 320,
+      "notes": "The app + db + redis + cron stack idles at ~420 MB. Heaviest single\nservice is `app` (PHP-FPM) at ~280 MB idle, ~600 MB during the\nfirst user's mass-upload pass. With S3 primary storage configured,\ndisk on the VPS stays roughly constant -- bucket grows instead.\nAntivirus (files_antivirus, Daemon mode) is wired by ops to the\nSHARED ops-managed clamd (catena-clamav network, ~1.5 GB resident),\nNOT counted in these figures -- it is base infra shared with the\nmail server; budget it once at the VPS level.",
+      "notes_fr": "La pile app + db + redis + cron tourne \u00e0 ~420 Mo au repos. Le\nservice le plus lourd est `app` (PHP-FPM) \u00e0 ~280 Mo au repos,\n~600 Mo lors du premier import massif. Avec S3 en stockage\nprimaire, le disque du VPS reste stable -- c'est le seau qui\ngrossit. L'antivirus (files_antivirus, mode Daemon) est c\u00e2bl\u00e9 par\nl'op\u00e9rateur vers le clamd PARTAG\u00c9 (r\u00e9seau catena-clamav, ~1,5 Go\nr\u00e9sident), NON compt\u00e9 ici -- c'est de l'infrastructure partag\u00e9e\navec le serveur de courriel ; \u00e0 budg\u00e9ter une fois au niveau du VPS."
+    },
+    "en": {
+      "display_name": "Nextcloud",
+      "what_it_is": "Self-hosted file sharing and collaboration -- the file hub that other templates plug into.",
+      "replaces": [
+        "Google Drive",
+        "Dropbox",
+        "OneDrive for Business"
+      ],
+      "compose_description": "Self-hosted file sharing + collaboration. Replaces Google Drive / Dropbox / OneDrive.\n\nFirst-time setup:\n1. Fill the S3_* variables in the Environment tab.\n2. Click Deploy.\n3. Open the actions dashboard and click \"Wire Nextcloud OIDC\" -- registers Keycloak SSO inside Nextcloud (idempotent, safe to re-click).\n4. Sign in with \"Log in with keycloak\" at the Nextcloud domain.\n\nFull docs: https://docs.catena.run/apps/nextcloud-s3-oidc/\n",
+      "setup_steps": "1. Open the **Environment** tab and fill `S3_BUCKET`, `S3_REGION`, `S3_HOST`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` with the bucket's coordinates. (Everything else is pre-filled -- `NEXTCLOUD_HOSTNAME`, admin/DB credentials, OIDC integration vars.)\n2. Click **Deploy**. Wait ~2 minutes for the first boot.\n3. Wire SSO: open `dash.<your-domain>`, go to the **Actions** tab and click **Wire Nextcloud OIDC**. The action registers Keycloak as an OIDC provider inside Nextcloud (idempotent -- safe to re-run after redeploys or secret rotations).\n4. Sign in at the Nextcloud domain with **Log in with keycloak** (which uses the managed identity), or fall back to `NEXTCLOUD_ADMIN_USER` / `NEXTCLOUD_ADMIN_PASSWORD` from the Environment tab.\n",
+      "extra_notes": "### Sign-in with Keycloak -- wired by a catena-admin action\n\nAfter Nextcloud's first deploy, the **Wire Nextcloud OIDC**\nbutton on the **Actions** tab at `dash.<your-domain>` enables\nNextcloud's `user_oidc` app and registers a `keycloak`\nprovider with the OIDC fields from the Environment tab. The\nNextcloud login page then shows **Log in with keycloak** on\nthe next visit. Local admin login (`NEXTCLOUD_ADMIN_USER`\n/ `NEXTCLOUD_ADMIN_PASSWORD`) keeps working alongside SSO as\na break-glass.\n\nRe-run the action any time the OIDC configuration drifts\n(after a secret rotation, a destructive redeploy, etc.). It\nis idempotent -- re-running just refreshes the provider\nrecord.\n\n### Sharing files by email link still works\n\nKeycloak SSO governs **user login** to Nextcloud. It does\n**not** restrict anonymous public share links --\n`/s/<token>` URLs generated from inside Nextcloud stay\nreachable by recipients who have no Keycloak account.\n\nSo the common workflow stays intact:\n\n1. A signed-in team member creates a share link in\n   Nextcloud, optionally with a password and expiry date.\n2. Nextcloud emails the link to the recipient.\n3. The recipient clicks the link. Cloudflare Tunnel routes\n   the request straight to Nextcloud; Nextcloud serves the\n   public share page (or the password prompt, where one was\n   set). No Keycloak redirect, no login required.\n\nThis works because Nextcloud is reached via Nextcloud's own\nauth code, not a forward-auth proxy. The `user_oidc` plugin\nonly handles the login flow for *team members*; the\npublic-share endpoints remain anonymous-by-design.\n\nLocking down public shares entirely is a control inside\nNextcloud (Settings -> Sharing -> \"Allow share via public\nlink\"), not at the network layer.\n"
+    },
+    "fr": {
+      "display_name": "Nextcloud",
+      "what_it_is": "Partage de fichiers et collaboration auto-h\u00e9berg\u00e9s -- le hub auquel d'autres templates se connectent.",
+      "replaces": [
+        "Google Drive",
+        "Dropbox",
+        "OneDrive Entreprise"
+      ],
+      "compose_description": "Partage de fichiers + collaboration auto-h\u00e9berg\u00e9s. Remplace Google Drive / Dropbox / OneDrive.\n\nConfiguration initiale :\n1. Remplissez les variables S3_* dans l'onglet Environment.\n2. Cliquez sur Deploy.\n3. Ouvrez le tableau de bord des actions et cliquez \"C\u00e2bler l'OIDC pour Nextcloud\" -- enregistre le SSO Keycloak dans Nextcloud (idempotent, peut \u00eatre recliqu\u00e9).\n4. Connexion avec \"Se connecter avec keycloak\" sur le domaine Nextcloud.\n\nDoc compl\u00e8te : https://docs.catena.run/apps/nextcloud-s3-oidc/\n",
+      "setup_steps": "1. Ouvrez l'onglet **Environment** et remplissez `S3_BUCKET`, `S3_REGION`, `S3_HOST`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` avec les coordonn\u00e9es du seau S3. (Le reste est pr\u00e9-rempli -- `NEXTCLOUD_HOSTNAME`, identifiants admin/DB, variables d'int\u00e9gration OIDC.)\n2. Cliquez **Deploy**. Patientez ~2 min pour le premier d\u00e9marrage.\n3. C\u00e2blez le SSO : ouvrez `dash.<votre-domaine>`, allez dans l'onglet **Actions** puis cliquez **C\u00e2bler l'OIDC pour Nextcloud**. L'action enregistre Keycloak comme fournisseur OIDC \u00e0 l'int\u00e9rieur de Nextcloud (idempotent -- peut \u00eatre relanc\u00e9e sans risque apr\u00e8s un red\u00e9ploiement ou une rotation de secret).\n4. Connexion sur le domaine Nextcloud avec **Se connecter avec keycloak** (utilise l'identit\u00e9 g\u00e9r\u00e9e), ou repli sur `NEXTCLOUD_ADMIN_USER` / `NEXTCLOUD_ADMIN_PASSWORD` de l'onglet Environment.\n",
+      "extra_notes": "### Connexion avec Keycloak -- c\u00e2bl\u00e9e par une action catena-admin\n\nApr\u00e8s le premier d\u00e9ploiement de Nextcloud, le bouton\n**C\u00e2bler l'OIDC pour Nextcloud** de l'onglet **Actions** sur\n`dash.<votre-domaine>` active l'application\n`user_oidc` de Nextcloud et enregistre un fournisseur\n`keycloak` avec les valeurs OIDC de l'onglet Environment. La\npage de connexion Nextcloud affiche alors **Se connecter\navec keycloak** \u00e0 la visite suivante. La connexion admin\nlocale (`NEXTCLOUD_ADMIN_USER` / `NEXTCLOUD_ADMIN_PASSWORD`)\ncontinue de fonctionner en parall\u00e8le comme issue de secours.\n\nRelancez l'action chaque fois que la configuration OIDC\nd\u00e9rive (apr\u00e8s une rotation de secret, un red\u00e9ploiement\ndestructif, etc.). Elle est idempotente -- relancer ne fait que\nrafra\u00eechir l'enregistrement du fournisseur.\n\n### Le partage de fichiers par lien courriel fonctionne toujours\n\nL'authentification Keycloak gouverne la **connexion des\nutilisateurs** \u00e0 Nextcloud. Elle ne restreint **pas** les\nliens de partage publics anonymes -- les URL\n`/s/<jeton>` g\u00e9n\u00e9r\u00e9es depuis Nextcloud\nrestent accessibles aux destinataires qui n'ont pas de\ncompte Keycloak.\n\nLe flux courant fonctionne donc tel quel :\n\n1. Un membre de l'\u00e9quipe (utilisateur connect\u00e9) cr\u00e9e un\n   lien de partage dans Nextcloud, avec un mot de passe et\n   une date d'expiration s'il le souhaite.\n2. Nextcloud envoie le lien par courriel au destinataire.\n3. Le destinataire clique le lien. Cloudflare Tunnel\n   achemine la requ\u00eate directement \u00e0 Nextcloud ; Nextcloud\n   sert la page de partage publique (ou l'invite de mot de\n   passe, lorsqu'un mot de passe a \u00e9t\u00e9 d\u00e9fini). Pas de\n   redirection Keycloak, pas de connexion requise.\n\nCela fonctionne parce que Nextcloud est atteint via son\npropre code d'authentification, pas via un proxy\nforward-auth. Le module `user_oidc` ne g\u00e8re que le flux de\nconnexion pour *les membres de l'\u00e9quipe* ; les points\nd'acc\u00e8s des partages publics restent anonymes par\nconception.\n\nLe verrouillage complet des partages publics est un\ncontr\u00f4le interne \u00e0 Nextcloud (Param\u00e8tres -> Partage ->\n\"Autoriser le partage par lien public\"), pas au niveau\nr\u00e9seau.\n"
+    },
+    "env_managed_keys": [
+      "OIDC_CLIENT_ID",
+      "OIDC_CLIENT_SECRET",
+      "OIDC_DISCOVERY_URL",
+      "OIDC_ISSUER_URL",
+      "OIDC_REDIRECT_URL",
+      "SIGNALING_HOSTNAME",
+      "SIGNALING_SECRET",
+      "TALK_INTERNAL_SECRET",
+      "TURN_HOSTNAME",
+      "TURN_STATIC_AUTH_SECRET"
+    ],
+    "s3_reconcile": {
+      "service": "app",
+      "user": "www-data",
+      "check": "nextcloud-objectstore",
+      "db_service": "db"
+    },
+    "quiesce": {
+      "pre": "docker exec -u www-data \"$(docker ps -q -f label=com.docker.compose.service=app -f label=com.docker.compose.project~=nextcloud | head -1)\" php occ maintenance:mode --on",
+      "post": "docker exec -u www-data \"$(docker ps -q -f label=com.docker.compose.service=app -f label=com.docker.compose.project~=nextcloud | head -1)\" php occ maintenance:mode --off",
+      "timeout_seconds": 30
+    }
+  }
+}

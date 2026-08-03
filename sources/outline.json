@@ -1,0 +1,64 @@
+{
+  "id": "outline",
+  "type": 3,
+  "title": "Outline",
+  "name": "outline",
+  "categories": [
+    "Wiki",
+    "Documentation"
+  ],
+  "platform": "linux",
+  "x-catena": {
+    "app_name": "outline",
+    "upstream_url": "https://www.getoutline.com/",
+    "sso_mode": "pre-wired",
+    "domain": {
+      "host": "wiki.{{ cloudflare_zone }}",
+      "service": "outline",
+      "port": 3000
+    },
+    "compose_file": "compose/outline.compose.yml",
+    "env_defaults": [
+      "DOMAIN_HOST=wiki.{{ cloudflare_zone }}",
+      "OUTLINE_HOSTNAME=wiki.{{ cloudflare_zone }}",
+      "OUTLINE_SECRET_KEY={{ lookup('password', '/dev/null length=64 chars=hexdigits') | lower }}",
+      "OUTLINE_UTILS_SECRET={{ lookup('password', '/dev/null length=64 chars=hexdigits') | lower }}",
+      "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
+    ],
+    "bench": {
+      "pack": "postgres",
+      "hostname_baked": true
+    },
+    "sizing": {
+      "idle_ram_mb": 280,
+      "peak_ram_mb": 420,
+      "idle_cpu_pct": 1,
+      "peak_cpu_pct": 25,
+      "disk_baseline_mb": 110,
+      "notes": "Node app + Postgres + Redis. Lightweight in steady state; the\ncollaborative-editor websocket layer adds ~50 MB per simultaneous\neditor.",
+      "notes_fr": "App Node + Postgres + Redis. L\u00e9ger en r\u00e9gime de croisi\u00e8re ; la\ncouche websocket de l'\u00e9diteur collaboratif ajoute ~50 Mo par\n\u00e9diteur connect\u00e9."
+    },
+    "en": {
+      "display_name": "Outline",
+      "what_it_is": "Team wiki / knowledge base. Notion-style pages, collections, nested docs. Keycloak SSO pre-wired.",
+      "replaces": [
+        "Notion",
+        "Confluence",
+        "Google Sites"
+      ],
+      "compose_description": "Team wiki + knowledge base. Keycloak SSO pre-wired. Replaces Notion / Confluence.\n\nhttps://docs.catena.run/apps/outline/\n",
+      "setup_steps": "1. Click **Deploy**. Environment defaults are all pre-filled.\n2. Wait ~1 min for the first boot.\n3. Visit the Outline domain -> click **Sign in with Keycloak**. The first user to sign in becomes the workspace admin.\n"
+    },
+    "fr": {
+      "display_name": "Outline",
+      "what_it_is": "Wiki d'\u00e9quipe / base de connaissances. Pages fa\u00e7on Notion, collections, documents imbriqu\u00e9s. Keycloak SSO pr\u00e9-c\u00e2bl\u00e9.",
+      "replaces": [
+        "Notion",
+        "Confluence",
+        "Google Sites"
+      ],
+      "compose_description": "Wiki d'\u00e9quipe + base de connaissances. Keycloak SSO pr\u00e9-c\u00e2bl\u00e9. Remplace Notion / Confluence.\n\nhttps://docs.catena.run/apps/outline/\n",
+      "setup_steps": "1. Cliquez **Deploy**. Les valeurs par d\u00e9faut de l'Environment sont pr\u00e9-remplies.\n2. Patientez ~1 min pour le premier d\u00e9marrage.\n3. Visitez le domaine Outline -> cliquez **Se connecter avec Keycloak**. Le premier utilisateur devient l'admin du workspace.\n"
+    }
+  }
+}

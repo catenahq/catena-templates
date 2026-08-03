@@ -19,14 +19,24 @@ jobs:
       - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
       - name: Render
         run: uv run build/render.py
-      - name: Verify no drift between source/ and blueprints/ + templates.json
+      - name: Verify no drift between sources/ and the generated artifacts
         run: |
-          if ! git diff --exit-code blueprints templates.json; then
+          if ! git diff --exit-code blueprints templates.json catalog.json index.html; then
             echo ""
             echo "render output drifted from committed artifacts."
-            echo "Run 'uv run build/render.py' locally, commit the diff, push."
+            echo "Run 'make render' locally, commit the diff, push."
             exit 1
           fi
+
+  schema:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+      - name: Validate sources/ and templates.json against their schemas
+        run: uv run build/validate.py
 
   unicode-hygiene:
     runs-on: ubuntu-latest
@@ -57,7 +67,7 @@ jobs:
           persist-credentials: false
       - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
       - name: pytest tests/
-        run: uv run --with pytest --with pyyaml pytest tests/ -q
+        run: uv run --with pytest --with jsonschema pytest tests/ -q
       - name: lint quiesce snippets against the catalog
         run: uv run build/lint_quiesce.py
       - name: lint postgres pins against the central default

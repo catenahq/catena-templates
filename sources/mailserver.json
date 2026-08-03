@@ -1,0 +1,71 @@
+{
+  "id": "mailserver",
+  "type": 3,
+  "title": "Mail server + webmail",
+  "name": "mailserver",
+  "categories": [
+    "Email",
+    "Infrastructure"
+  ],
+  "platform": "linux",
+  "x-catena": {
+    "app_name": "mailserver",
+    "upstream_url": "https://docker-mailserver.github.io/",
+    "sso_mode": "auto",
+    "domain": {
+      "host": "webmail.{{ cloudflare_zone }}",
+      "service": "roundcube",
+      "port": 80
+    },
+    "compose_file": "compose/mailserver.compose.yml",
+    "env_defaults": [
+      "DOMAIN_HOST=webmail.{{ cloudflare_zone }}",
+      "MAIL_HOSTNAME=mail.{{ cloudflare_zone }}",
+      "MAIL_DOMAIN={{ cloudflare_zone }}",
+      "WEBMAIL_HOSTNAME=webmail.{{ cloudflare_zone }}",
+      "OIDC_INTROSPECTION_URL=https://{{ keycloak_hostname | default('auth.' ~ cloudflare_zone) }}/realms/{{ keycloak_realm | default('vps') }}/protocol/openid-connect/token/introspect",
+      "RELAY_HOST=",
+      "RELAY_PORT=587",
+      "RELAY_USER=",
+      "RELAY_PASSWORD={{ mailserver_relay_password }}"
+    ],
+    "bench": {
+      "pack": "nodb",
+      "hostname_baked": true
+    },
+    "sizing": {
+      "idle_ram_mb": 520,
+      "peak_ram_mb": 900,
+      "idle_cpu_pct": 3,
+      "peak_cpu_pct": 40,
+      "disk_baseline_mb": 600,
+      "notes": "docker-mailserver (Postfix + Dovecot + Rspamd + Fail2ban) is the\ndominant cost; Rspamd and its Redis-backed stats account for most\nof the idle footprint. Roundcube (Apache + PHP, SQLite prefs) adds\n~120 MB; the mta-sts nginx is negligible (~5 MB). Peak is during a\nmailbox sync + spam-scan burst on a busy inbound window. Disk\nbaseline excludes stored mail (grows with the mailboxes).\nIMPORTANT base-infra cost NOT counted here: the bundled ClamAV is\nOFF; antivirus is the SHARED ops-managed clamd (catena-clamav\nnetwork), which holds the signature DB resident at ~1.5 GB. That\nclamd is a separate service (not in this compose), so it does not\nappear in these per-template figures -- budget it once at the VPS\nlevel. The same clamd also serves Nextcloud, so co-deploying the\ntwo is a net saving vs two clamds. Conservative pre-launch\nestimate, not yet measured.",
+      "notes_fr": "docker-mailserver (Postfix + Dovecot + Rspamd + Fail2ban) domine ;\nRspamd et ses statistiques sur Redis repr\u00e9sentent l'essentiel de\nl'empreinte au repos. Roundcube (Apache + PHP, pr\u00e9f\u00e9rences SQLite)\najoute ~120 Mo ; le nginx mta-sts est n\u00e9gligeable (~5 Mo). Le pic\nsurvient lors d'une synchro de bo\u00eetes + une rafale d'analyse\nantipourriel sur une fen\u00eatre entrante charg\u00e9e. Le disque de base\nexclut le courriel stock\u00e9 (qui grossit avec les bo\u00eetes).\nCo\u00fbt d'infrastructure NON compt\u00e9 ici : le ClamAV int\u00e9gr\u00e9 est\nD\u00c9SACTIV\u00c9 ; l'antivirus est le clamd PARTAG\u00c9 g\u00e9r\u00e9 par l'op\u00e9rateur\n(r\u00e9seau catena-clamav), qui garde sa base de signatures en m\u00e9moire\n\u00e0 ~1,5 Go. Ce clamd est un service distinct (hors de ce compose),\ndonc il n'appara\u00eet pas dans ces chiffres par mod\u00e8le -- \u00e0 budg\u00e9ter\nune fois au niveau du VPS. Le m\u00eame clamd sert aussi Nextcloud, donc\nd\u00e9ployer les deux ensemble est une \u00e9conomie nette par rapport \u00e0\ndeux clamd. Estimation prudente pr\u00e9-lancement, pas encore mesur\u00e9e."
+    },
+    "en": {
+      "display_name": "Mail server + webmail",
+      "what_it_is": "Self-hosted email -- inbox storage on the VPS (Postfix + Dovecot + Rspamd) with Roundcube webmail and Keycloak single sign-on. Outbound requires an SMTP relay through a reputable provider (set up before deploy) so messages are not flagged as spam.",
+      "replaces": [
+        "Google Workspace (Gmail)",
+        "Microsoft 365 (Exchange Online)"
+      ],
+      "compose_description": "Self-hosted mailboxes + Roundcube webmail, Keycloak SSO. Outbound requires an SMTP relay. Replaces Gmail / Exchange Online.\n\nhttps://docs.catena.run/apps/mailserver/\n",
+      "setup_steps": "1. **Before deploy -- DNS + relay.** Mail needs DNS records and an outbound relay set up first. The MX, SPF, DKIM, DMARC, reverse-DNS and MTA-STS / TLS-RPT records are set up for the domain, and the relay credentials pasted in, before the first deploy.\n2. Click **Deploy**. Wait ~3 minutes for the first boot (mail services + Roundcube).\n3. Sign in at the webmail domain (`webmail.<your-domain>`). The login goes through Keycloak -- one account for every app in the suite. There is no separate mail password.\n4. Mailboxes are created automatically for staff and client users from Keycloak. A new user can sign in to webmail as soon as their account exists.\n",
+      "extra_notes": "### How sign-in works\n\nRoundcube redirects to Keycloak for login, then connects to the mailbox on the signed-in user's behalf with a single-sign-on token. No separate email password is ever typed, and none is stored. Because this needs a normal browser tab, webmail opens in its own tab from the suite menu rather than embedded inside another app.\n\n### Desktop and phone mail apps\n\nThis template targets **webmail**. Standard desktop clients (Thunderbird, Apple Mail) and phone Mail apps cannot use Keycloak single sign-on with a self-hosted server, so they are not supported here -- use Roundcube in the browser.\n\n### Why outbound goes through a relay\n\nSending mail straight from a VPS lands in spam: large providers distrust new server IPs. Outbound is relayed through a reputable provider so messages are delivered, while the inbox and its data stay on the VPS. This relay is separate from the suite's notification email.\n\n### Spam and virus scanning\n\nIncoming mail is checked for spam (sender reputation, content scoring) and every attachment is scanned for viruses before it reaches the inbox -- the same protection a hosted suite provides. The virus scanner is shared with Nextcloud when both are deployed, so files uploaded there are scanned by the same engine.\n"
+    },
+    "fr": {
+      "display_name": "Serveur de courriel + webmail",
+      "what_it_is": "Courriel auto-h\u00e9berg\u00e9 -- stockage des bo\u00eetes sur le VPS (Postfix + Dovecot + Rspamd) avec le webmail Roundcube et l'authentification unique Keycloak. L'envoi requiert un relais SMTP via un fournisseur r\u00e9put\u00e9 (configur\u00e9 avant le d\u00e9ploiement) pour \u00e9viter le classement en pourriel.",
+      "replaces": [
+        "Google Workspace (Gmail)",
+        "Microsoft 365 (Exchange Online)"
+      ],
+      "compose_description": "Bo\u00eetes auto-h\u00e9berg\u00e9es + webmail Roundcube, SSO Keycloak. Un relais SMTP est requis pour l'envoi. Remplace Gmail / Exchange Online.\n\nhttps://docs.catena.run/apps/mailserver/\n",
+      "setup_steps": "1. **Avant le d\u00e9ploiement -- DNS + relais.** Le courriel n\u00e9cessite des enregistrements DNS et un relais d'envoi configur\u00e9s au pr\u00e9alable. Les enregistrements MX, SPF, DKIM, DMARC, DNS inverse et MTA-STS / TLS-RPT sont configur\u00e9s pour le domaine, et les identifiants du relais renseign\u00e9s, avant le premier d\u00e9ploiement.\n2. Cliquez **Deploy**. Patientez ~3 minutes pour le premier d\u00e9marrage (services de courriel + Roundcube).\n3. Connexion sur le domaine webmail (`webmail.<votre-domaine>`). La connexion passe par Keycloak -- un seul compte pour toutes les applications de la suite. Aucun mot de passe de courriel distinct.\n4. Les bo\u00eetes sont cr\u00e9\u00e9es automatiquement pour les utilisateurs staff et client depuis Keycloak. Un nouvel utilisateur peut se connecter au webmail d\u00e8s que son compte existe.\n",
+      "extra_notes": "### Fonctionnement de la connexion\n\nRoundcube redirige vers Keycloak pour la connexion, puis acc\u00e8de \u00e0 la bo\u00eete au nom de l'utilisateur connect\u00e9 \u00e0 l'aide d'un jeton d'authentification unique. Aucun mot de passe de courriel distinct n'est saisi, et aucun n'est stock\u00e9. Comme cela exige un onglet de navigateur standard, le webmail s'ouvre dans son propre onglet depuis le menu de la suite plut\u00f4t qu'int\u00e9gr\u00e9 dans une autre application.\n\n### Applications de bureau et mobiles\n\nCe mod\u00e8le vise le **webmail**. Les clients de bureau classiques (Thunderbird, Apple Mail) et les apps Mail des t\u00e9l\u00e9phones ne peuvent pas utiliser l'authentification unique Keycloak avec un serveur auto-h\u00e9berg\u00e9 ; ils ne sont donc pas pris en charge ici -- utilisez Roundcube dans le navigateur.\n\n### Pourquoi l'envoi passe par un relais\n\nEnvoyer du courriel directement depuis un VPS finit en pourriel : les grands fournisseurs se m\u00e9fient des nouvelles IP de serveur. L'envoi passe par un fournisseur r\u00e9put\u00e9 pour que les messages soient livr\u00e9s, tandis que la bo\u00eete et ses donn\u00e9es restent sur le VPS. Ce relais est distinct du courriel de notification de la suite.\n\n### Analyse antipourriel et antivirus\n\nLe courriel entrant est v\u00e9rifi\u00e9 contre le pourriel (r\u00e9putation de l'exp\u00e9diteur, pointage du contenu) et chaque pi\u00e8ce jointe est analys\u00e9e contre les virus avant d'atteindre la bo\u00eete -- la m\u00eame protection qu'une suite h\u00e9berg\u00e9e. L'antivirus est partag\u00e9 avec Nextcloud lorsque les deux sont d\u00e9ploy\u00e9s, donc les fichiers t\u00e9l\u00e9vers\u00e9s l\u00e0 sont analys\u00e9s par le m\u00eame moteur.\n"
+    },
+    "env_managed_keys": [
+      "RELAY_PASSWORD"
+    ]
+  }
+}

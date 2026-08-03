@@ -1,0 +1,75 @@
+{
+  "id": "wordpress",
+  "type": 3,
+  "title": "WordPress",
+  "name": "wordpress",
+  "categories": [
+    "CMS",
+    "Website"
+  ],
+  "platform": "linux",
+  "x-catena": {
+    "app_name": "wordpress",
+    "upstream_url": "https://wordpress.org/",
+    "sso_mode": "post-deploy-ui",
+    "domain": {
+      "host": "www.{{ cloudflare_zone }}",
+      "service": "nginx",
+      "port": 80
+    },
+    "compose_file": "compose/wordpress.compose.yml",
+    "env_defaults": [
+      "DOMAIN_HOST=www.{{ cloudflare_zone }}",
+      "WORDPRESS_HOSTNAME=www.{{ cloudflare_zone }}",
+      "WPMS_SMTP_PASS={{ smtp_password | default('') }}",
+      "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
+      "DB_ROOT_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
+    ],
+    "bench": {
+      "pack": "mariadb",
+      "hostname_baked": true
+    },
+    "sizing": {
+      "idle_ram_mb": 320,
+      "peak_ram_mb": 600,
+      "idle_cpu_pct": 1,
+      "peak_cpu_pct": 70,
+      "disk_baseline_mb": 180,
+      "notes": "nginx + php-fpm + MariaDB + Redis. FastCGI cache absorbs\nanonymous traffic; PHP only fires on cache misses + admin sessions.\nA burst of editor logins or a plugin install spikes CPU.",
+      "notes_fr": "nginx + php-fpm + MariaDB + Redis. Le cache FastCGI absorbe le\ntrafic anonyme ; PHP ne s'active que sur cache miss + sessions\nadmin. Pic de connexions \u00e9diteurs ou install plugin font monter\nle CPU."
+    },
+    "en": {
+      "display_name": "WordPress",
+      "what_it_is": "Production-ready public CMS / website platform with FastCGI cache, Redis object cache, and a curated free-tier plugin set pre-installed. The site serves anonymously; admin sign-in runs on /wp-admin and can be wired to Keycloak via a plugin.",
+      "replaces": [
+        "Wix",
+        "Squarespace",
+        "self-hosted Drupal"
+      ],
+      "compose_description": "Production-ready website / CMS with FastCGI cache + Redis. Replaces Wix / Squarespace.\n\nhttps://docs.catena.run/apps/wordpress/\n",
+      "setup_steps": "1. Click **Deploy**. Wait ~1 min for MariaDB + Redis + nginx + WordPress to initialize.\n2. Visit the WordPress domain. Run through the install wizard (site title, admin username, admin password, email).\n3. After the install wizard completes, the next operator converge auto-installs and configures the curated plugin set: kadence-blocks, performance-lab + its seven feature modules (auto-sizes, dominant-color-images, embed-optimizer, image-prioritizer, optimization-detective, speculation-rules, webp-uploads), nginx-cache-purge-and-preload (NPP -- purges + re-warms the FastCGI cache via the Rank Math sitemap), redis-cache (wired to the bundled Redis), wp-mail-smtp (wired to the managed SMTP relay), wp-mail-logging, complianz-gdpr, wp-consent-api, seo-by-rank-math, and Fluent Forms.\n4. Visit `/wp-admin/admin.php?page=rank-math` and `/wp-admin/admin.php?page=cmplz-wizard` to run the Rank Math + Complianz first-run wizards. Their answers are site-specific (industry, EU/non-EU, etc.) and intentionally not pre-filled.\n5. *(Optional)* Wire `/wp-admin` login to Keycloak: **Plugins** -> **Add New** -> search `OpenID Connect Generic` -> **Install** -> **Activate**. Go to **Settings** -> **OpenID Connect Client** and fill:\n   - **Client ID:** `OIDC_CLIENT_ID` from Environment\n   - **Client Secret:** `OIDC_CLIENT_SECRET`\n   - **Login Endpoint URL:** `<OIDC_ISSUER_URL>/authorize/`\n   - **Userinfo Endpoint URL:** `<OIDC_ISSUER_URL>/userinfo/`\n   - **Token Validation Endpoint URL:** `<OIDC_ISSUER_URL>/token/`\n   - **Identity Key:** `preferred_username`\n   - **Link Existing Users:** \u2714\n\n   Save. The login page gains a **Login with OpenID Connect** button. The public-facing site stays anonymous and indexable.\n",
+      "extra_notes": "**Stack.** WordPress runs as nginx + php-fpm + MariaDB + Redis. Nginx serves static assets directly, caches PHP responses with FastCGI cache (purged automatically by NPP on edit/publish, then re-warmed via the sitemap), and proxies the rest to php-fpm. Redis backs the WordPress object cache. Sized for a single-VPS deploy; for traffic spikes scale vertically.\n\n**Split-auth note.** Public pages (the website itself) are served anonymously -- search engines crawl normally, visitors don't see Keycloak. Only `/wp-admin` goes through the optional OIDC plugin for admin/editor logins. That's what makes WordPress on this stack a hybrid: reader-facing but SSO-managed for staff.\n"
+    },
+    "fr": {
+      "display_name": "WordPress",
+      "what_it_is": "Plateforme CMS / site web public pr\u00eate pour la production, avec cache FastCGI, cache d'objets Redis et un ensemble de plugins gratuits curat\u00e9s pr\u00e9-install\u00e9s. Le site est accessible anonymement ; la connexion admin sur /wp-admin peut \u00eatre c\u00e2bl\u00e9e \u00e0 Keycloak via un plugin.",
+      "replaces": [
+        "Wix",
+        "Squarespace",
+        "Drupal auto-h\u00e9berg\u00e9"
+      ],
+      "compose_description": "Site web / CMS pr\u00eat pour la production avec cache FastCGI + Redis. Remplace Wix / Squarespace.\n\nhttps://docs.catena.run/apps/wordpress/\n",
+      "setup_steps": "1. Cliquez **Deploy**. Patientez ~1 min le temps que MariaDB + Redis + nginx + WordPress s'initialisent.\n2. Visitez le domaine WordPress. Suivez l'assistant d'installation (titre du site, admin, mot de passe, email).\n3. Une fois l'assistant termin\u00e9, le prochain converge op\u00e9rateur installe et configure automatiquement la liste curat\u00e9e : kadence-blocks, performance-lab et ses sept modules (auto-sizes, dominant-color-images, embed-optimizer, image-prioritizer, optimization-detective, speculation-rules, webp-uploads), nginx-cache-purge-and-preload (NPP -- purge le cache FastCGI \u00e0 la publication puis le r\u00e9chauffe via le sitemap Rank Math), redis-cache (c\u00e2bl\u00e9 au Redis embarqu\u00e9), wp-mail-smtp (c\u00e2bl\u00e9 au SMTP configur\u00e9 c\u00f4t\u00e9 op\u00e9rateur), wp-mail-logging, complianz-gdpr, wp-consent-api, seo-by-rank-math, et Fluent Forms.\n4. Visitez `/wp-admin/admin.php?page=rank-math` et `/wp-admin/admin.php?page=cmplz-wizard` pour ex\u00e9cuter les assistants de premi\u00e8re utilisation Rank Math + Complianz. Leurs r\u00e9ponses d\u00e9pendent du site (secteur, UE / hors-UE, etc.) et ne sont volontairement pas pr\u00e9-remplies.\n5. *(Optionnel)* Connectez `/wp-admin` \u00e0 Keycloak : **Extensions** -> **Ajouter** -> chercher `OpenID Connect Generic` -> **Installer** -> **Activer**. Puis **R\u00e9glages** -> **OpenID Connect Client** et remplissez :\n   - **Client ID :** `OIDC_CLIENT_ID` depuis Environment\n   - **Client Secret :** `OIDC_CLIENT_SECRET`\n   - **Login Endpoint URL :** `<OIDC_ISSUER_URL>/authorize/`\n   - **Userinfo Endpoint URL :** `<OIDC_ISSUER_URL>/userinfo/`\n   - **Token Validation Endpoint URL :** `<OIDC_ISSUER_URL>/token/`\n   - **Identity Key :** `preferred_username`\n   - **Link Existing Users :** \u2714\n\n   Validez. La page de connexion affiche un bouton **Login with OpenID Connect**. Le site public reste accessible anonymement et indexable.\n",
+      "extra_notes": "**Stack.** WordPress tourne en nginx + php-fpm + MariaDB + Redis. Nginx sert directement les ressources statiques, met en cache les r\u00e9ponses PHP avec son cache FastCGI (purg\u00e9 automatiquement par NPP \u00e0 chaque \u00e9dition / publication, puis r\u00e9chauff\u00e9 via le sitemap), et d\u00e9l\u00e8gue le reste \u00e0 php-fpm. Redis sert de cache d'objets WordPress. Dimensionn\u00e9 pour un VPS unique ; pour absorber un pic de trafic, scaler verticalement.\n\n**Auth mixte.** Les pages publiques du site sont servies anonymement -- les moteurs de recherche crawlent normalement, les visiteurs ne voient pas Keycloak. Seul `/wp-admin` passe par le plugin OIDC optionnel pour les connexions admin/\u00e9diteur. C'est ce qui rend WordPress sur cette stack hybride : tourn\u00e9 vers les lecteurs mais administr\u00e9 en SSO.\n"
+    },
+    "env_managed_keys": [
+      "WORDPRESS_HOSTNAME",
+      "WPMS_SMTP_PASS"
+    ],
+    "quiesce": {
+      "pre": "docker exec \"$(docker ps -q -f label=com.docker.compose.service=db -f label=com.docker.compose.project~=wordpress | head -1)\" sh -c 'mariadb-dump --single-transaction --quick --routines --triggers --add-drop-table -u root -p\"$MARIADB_ROOT_PASSWORD\" --all-databases > /var/lib/mysql/.catena-dump.sql.new && mv /var/lib/mysql/.catena-dump.sql.new /var/lib/mysql/.catena-dump.sql'",
+      "post": "true",
+      "timeout_seconds": 60
+    }
+  }
+}

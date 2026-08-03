@@ -1,0 +1,65 @@
+{
+  "id": "postiz",
+  "type": 3,
+  "title": "Postiz",
+  "name": "postiz",
+  "categories": [
+    "Marketing",
+    "Social"
+  ],
+  "platform": "linux",
+  "x-catena": {
+    "app_name": "postiz",
+    "upstream_url": "https://postiz.com/",
+    "sso_mode": "none",
+    "domain": {
+      "host": "social.{{ cloudflare_zone }}",
+      "service": "postiz",
+      "port": 5000
+    },
+    "compose_file": "compose/postiz.compose.yml",
+    "env_defaults": [
+      "DOMAIN_HOST=social.{{ cloudflare_zone }}",
+      "POSTIZ_HOSTNAME=social.{{ cloudflare_zone }}",
+      "JWT_SECRET={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}",
+      "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
+    ],
+    "bench": {
+      "pack": "postgres",
+      "hostname_baked": true
+    },
+    "sizing": {
+      "idle_ram_mb": 480,
+      "peak_ram_mb": 680,
+      "idle_cpu_pct": 2,
+      "peak_cpu_pct": 35,
+      "disk_baseline_mb": 200,
+      "notes": "Postiz + Postgres + Redis. Mid-weight; image-heavy posts push the\nSharp library hard during scheduling.",
+      "notes_fr": "Postiz + Postgres + Redis. Poids moyen ; les publications avec\nimages sollicitent fortement la biblioth\u00e8que Sharp lors de la\nplanification."
+    },
+    "en": {
+      "display_name": "Postiz",
+      "what_it_is": "Schedule and publish social media posts across Twitter/X, LinkedIn, Facebook, Instagram, YouTube, TikTok, and more.",
+      "replaces": [
+        "Buffer",
+        "Hootsuite",
+        "Later"
+      ],
+      "compose_description": "Social media scheduling (Twitter/X, LinkedIn, FB, IG, YouTube, TikTok). Replaces Buffer / Hootsuite.\n\nhttps://docs.catena.run/apps/postiz/\n",
+      "setup_steps": "1. Click **Deploy**. Wait ~1 min.\n2. Visit the Postiz domain and create the admin account.\n3. Add each social network's app credentials: **Settings** -> pick the network -> paste the developer-app client ID + secret from the network's developer portal. One-time per network.\n",
+      "extra_notes": "**Note on sign-in:** Postiz uses local email/password login. No native OIDC in the current community release. The user count for this tool is typically 1-3 marketing people, so the SSO gap is less impactful than for chat / helpdesk tools.\n"
+    },
+    "fr": {
+      "display_name": "Postiz",
+      "what_it_is": "Planifier et publier des posts sociaux sur Twitter/X, LinkedIn, Facebook, Instagram, YouTube, TikTok, et d'autres.",
+      "replaces": [
+        "Buffer",
+        "Hootsuite",
+        "Later"
+      ],
+      "compose_description": "Planification de publications sociales (Twitter/X, LinkedIn, FB, IG, YouTube, TikTok). Remplace Buffer / Hootsuite.\n\nhttps://docs.catena.run/apps/postiz/\n",
+      "setup_steps": "1. Cliquez **Deploy**. Patientez ~1 min.\n2. Visitez le domaine Postiz et cr\u00e9ez le compte admin.\n3. Ajoutez les identifiants d'application de chaque r\u00e9seau : **Settings** -> choisissez le r\u00e9seau -> collez le client ID + secret de l'app d\u00e9veloppeur depuis le portail du r\u00e9seau. Une fois par r\u00e9seau.\n",
+      "extra_notes": "**\u00c0 propos de la connexion :** Postiz utilise un email/mot de passe local. Pas d'OIDC natif dans la version communautaire actuelle. Le nombre d'utilisateurs pour cet outil est typiquement de 1 \u00e0 3 personnes en marketing, donc l'absence de SSO est moins impactante que pour les outils de chat / helpdesk.\n"
+    }
+  }
+}

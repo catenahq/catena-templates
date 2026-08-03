@@ -1,0 +1,77 @@
+{
+  "id": "espocrm",
+  "type": 3,
+  "title": "EspoCRM",
+  "name": "espocrm",
+  "categories": [
+    "CRM",
+    "Business"
+  ],
+  "platform": "linux",
+  "x-catena": {
+    "app_name": "espocrm",
+    "upstream_url": "https://www.espocrm.com/",
+    "sso_mode": "post-deploy-ui",
+    "domain": {
+      "host": "crm.{{ cloudflare_zone }}",
+      "service": "espocrm",
+      "port": 80
+    },
+    "compose_file": "compose/espocrm.compose.yml",
+    "env_defaults": [
+      "DOMAIN_HOST=crm.{{ cloudflare_zone }}",
+      "ESPOCRM_HOSTNAME=crm.{{ cloudflare_zone }}",
+      "ESPOCRM_ADMIN_USERNAME=admin",
+      "ESPOCRM_ADMIN_PASSWORD={{ lookup('password', '/dev/null length=24 chars=ascii_letters,digits') }}",
+      "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
+      "DB_ROOT_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
+      "OIDC_CLIENT_ID=espocrm",
+      "OIDC_CLIENT_SECRET=",
+      "OIDC_ISSUER_URL=https://{{ keycloak_hostname | default('auth.' ~ cloudflare_zone) }}/realms/{{ keycloak_realm | default('vps') }}"
+    ],
+    "bench": {
+      "pack": "mariadb",
+      "hostname_baked": true
+    },
+    "sizing": {
+      "idle_ram_mb": 240,
+      "peak_ram_mb": 480,
+      "idle_cpu_pct": 1,
+      "peak_cpu_pct": 40,
+      "disk_baseline_mb": 200,
+      "notes": "PHP-Apache + MariaDB + cron sidecar. Lightweight day-to-day; mass\nemail or bulk import pushes peak RAM to ~480 MB and CPU to ~40%\non one vCPU.",
+      "notes_fr": "PHP-Apache + MariaDB + sidecar cron. L\u00e9ger au quotidien ; envoi\nmass-email ou import en masse poussent \u00e0 ~480 Mo et ~40 % CPU sur\nun vCPU."
+    },
+    "en": {
+      "display_name": "EspoCRM",
+      "what_it_is": "Default CRM in the stack. Contacts, accounts, opportunities, leads, calendar, email integration, mass mail, workflow automation. Native OIDC via post-deploy toggle.",
+      "replaces": [
+        "Salesforce",
+        "HubSpot",
+        "Zoho CRM",
+        "Pipedrive"
+      ],
+      "compose_description": "Open-source CRM (default). Replaces Salesforce / HubSpot / Zoho.\n\nhttps://docs.catena.run/apps/espocrm/\n",
+      "setup_steps": "1. Click **Deploy**. Wait ~1 min.\n2. Visit the EspoCRM domain. Sign in as `ESPOCRM_ADMIN_USERNAME` / `ESPOCRM_ADMIN_PASSWORD` from the Environment tab.\n3. *(Optional)* Enable Keycloak SSO: **Administration** -> **Authentication** -> set **Method** to **OIDC** -> paste:\n   - **Client ID:** `OIDC_CLIENT_ID` from Environment (`espocrm`)\n   - **Client Secret:** `OIDC_CLIENT_SECRET` from Environment (minted in Keycloak on request when blank)\n   - **Authorization Endpoint:** `<OIDC_ISSUER_URL>/protocol/openid-connect/auth`\n   - **Token Endpoint:** `<OIDC_ISSUER_URL>/protocol/openid-connect/token`\n   - **JSON Web Key Set Endpoint:** `<OIDC_ISSUER_URL>/protocol/openid-connect/certs`\n   - **Username Claim:** `preferred_username`\n   - Save. The login page gains a **Sign in with Keycloak** button. Local admin login keeps working as a break-glass.\n",
+      "extra_notes": "### Why EspoCRM is the default\n\nIt is the only fully open-source CRM in this catalog with native OIDC in the community edition (no Pro tier upgrade), pre-built mobile apps, and an established record of stable upgrades. Twenty is the alternative for a modern Notion-like UI; both are kept in the catalog so the choice stays open.\n\n### Resource note\n\nEspoCRM runs as PHP-Apache + MariaDB + a cron sidecar. Plan for ~1 GB RAM at idle, ~2 GB under bulk-import or mass-email workloads.\n"
+    },
+    "fr": {
+      "display_name": "EspoCRM",
+      "what_it_is": "CRM par d\u00e9faut de la stack. Contacts, comptes, opportunit\u00e9s, prospects, calendrier, int\u00e9gration email, mass mail, automatisation. OIDC natif via un bouton post-d\u00e9ploiement.",
+      "replaces": [
+        "Salesforce",
+        "HubSpot",
+        "Zoho CRM",
+        "Pipedrive"
+      ],
+      "compose_description": "CRM open-source (par d\u00e9faut). Remplace Salesforce / HubSpot / Zoho.\n\nhttps://docs.catena.run/apps/espocrm/\n",
+      "setup_steps": "1. Cliquez **Deploy**. Patientez ~1 min.\n2. Visitez le domaine EspoCRM. Connexion avec `ESPOCRM_ADMIN_USERNAME` / `ESPOCRM_ADMIN_PASSWORD` de l'onglet Environment.\n3. *(Optionnel)* Activez Keycloak SSO : **Administration** -> **Authentication** -> r\u00e9glez **Method** sur **OIDC** -> collez :\n   - **Client ID :** `OIDC_CLIENT_ID` depuis Environment (`espocrm`)\n   - **Client Secret :** `OIDC_CLIENT_SECRET` depuis Environment (g\u00e9n\u00e9r\u00e9 c\u00f4t\u00e9 Keycloak sur demande lorsqu'il est vide)\n   - **Authorization Endpoint :** `<OIDC_ISSUER_URL>/protocol/openid-connect/auth`\n   - **Token Endpoint :** `<OIDC_ISSUER_URL>/protocol/openid-connect/token`\n   - **JSON Web Key Set Endpoint :** `<OIDC_ISSUER_URL>/protocol/openid-connect/certs`\n   - **Username Claim :** `preferred_username`\n   - Validez. La page de connexion affiche **Sign in with Keycloak**. La connexion admin locale continue de fonctionner comme issue de secours.\n",
+      "extra_notes": "### Pourquoi EspoCRM est le CRM par d\u00e9faut\n\nC'est le seul CRM enti\u00e8rement open-source du catalogue avec OIDC natif en \u00e9dition communautaire (sans palier Pro), des apps mobiles existantes et un historique stable de mises \u00e0 jour. Twenty est l'alternative pour une UI moderne fa\u00e7on Notion ; les deux restent au catalogue pour laisser le choix ouvert.\n\n### Ressources\n\nEspoCRM tourne en PHP-Apache + MariaDB + un cron sidecar. Pr\u00e9voyez ~1 GB RAM au repos, ~2 GB sous import en masse ou envoi mass-email.\n"
+    },
+    "quiesce": {
+      "pre": "docker exec \"$(docker ps -q -f label=com.docker.compose.service=db -f label=com.docker.compose.project~=espocrm | head -1)\" sh -c 'mariadb-dump --single-transaction --quick --routines --triggers --add-drop-table -u root -p\"$MARIADB_ROOT_PASSWORD\" --all-databases > /var/lib/mysql/.catena-dump.sql.new && mv /var/lib/mysql/.catena-dump.sql.new /var/lib/mysql/.catena-dump.sql'",
+      "post": "true",
+      "timeout_seconds": 60
+    }
+  }
+}

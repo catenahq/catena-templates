@@ -1,0 +1,66 @@
+{
+  "id": "plane",
+  "type": 3,
+  "title": "Plane",
+  "name": "plane",
+  "categories": [
+    "Project management"
+  ],
+  "platform": "linux",
+  "x-catena": {
+    "app_name": "plane",
+    "upstream_url": "https://plane.so/",
+    "sso_mode": "post-deploy-ui",
+    "domain": {
+      "host": "projects.{{ cloudflare_zone }}",
+      "service": "proxy",
+      "port": 80
+    },
+    "compose_file": "compose/plane.compose.yml",
+    "env_defaults": [
+      "DOMAIN_HOST=projects.{{ cloudflare_zone }}",
+      "PLANE_HOSTNAME=projects.{{ cloudflare_zone }}",
+      "PLANE_SECRET_KEY={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}",
+      "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
+      "PLANE_MINIO_ACCESS_KEY={{ lookup('password', '/dev/null length=20 chars=ascii_letters,digits') }}",
+      "PLANE_MINIO_SECRET_KEY={{ lookup('password', '/dev/null length=40 chars=ascii_letters,digits') }}"
+    ],
+    "bench": {
+      "pack": "postgres",
+      "hostname_baked": true
+    },
+    "sizing": {
+      "idle_ram_mb": 720,
+      "peak_ram_mb": 1040,
+      "idle_cpu_pct": 4,
+      "peak_cpu_pct": 50,
+      "disk_baseline_mb": 380,
+      "notes": "Multi-container stack (api + worker + beat + frontend + space +\nMinIO + Postgres + Redis). Heavy idle RAM; budget 1 GB\nheadroom over the rest of the suite.",
+      "notes_fr": "Pile multi-conteneurs (api + worker + beat + frontend + space +\nMinIO + Postgres + Redis). Empreinte RAM importante ; pr\u00e9voyez\n1 Go au-dessus du reste de la suite."
+    },
+    "en": {
+      "display_name": "Plane",
+      "what_it_is": "Open-source project management -- issues, cycles, modules, pages, workspaces.",
+      "replaces": [
+        "Jira",
+        "Linear",
+        "Asana",
+        "ClickUp"
+      ],
+      "compose_description": "Open-source project management. Replaces Jira / Linear / Asana.\n\nhttps://docs.catena.run/apps/plane/\n",
+      "setup_steps": "1. Click **Deploy**. Wait ~2-3 min (multi-service stack with MinIO).\n2. Visit the Plane domain and sign up to create the instance admin + first workspace.\n3. *(Optional)* Enable Keycloak SSO: while signed in, visit `https://projects.<your-domain>/god-mode` -> **Authentication** -> **OpenID Connect** -> paste `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_ISSUER_URL` from the Environment tab. Save.\n"
+    },
+    "fr": {
+      "display_name": "Plane",
+      "what_it_is": "Gestion de projet open-source -- issues, cycles, modules, pages, workspaces.",
+      "replaces": [
+        "Jira",
+        "Linear",
+        "Asana",
+        "ClickUp"
+      ],
+      "compose_description": "Gestion de projet open-source. Remplace Jira / Linear / Asana.\n\nhttps://docs.catena.run/apps/plane/\n",
+      "setup_steps": "1. Cliquez **Deploy**. Patientez ~2-3 min (pile multi-services avec MinIO).\n2. Visitez le domaine Plane et cr\u00e9ez le compte admin initial + le premier workspace.\n3. *(Optionnel)* Activez Keycloak SSO : une fois connect\u00e9, visitez `https://projects.<votre-domaine>/god-mode` -> **Authentication** -> **OpenID Connect** -> collez `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_ISSUER_URL` depuis l'onglet Environment. Validez.\n"
+    }
+  }
+}

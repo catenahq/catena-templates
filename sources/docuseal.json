@@ -1,0 +1,76 @@
+{
+  "id": "docuseal",
+  "type": 3,
+  "title": "DocuSeal",
+  "name": "docuseal",
+  "categories": [
+    "Documents",
+    "Signing"
+  ],
+  "platform": "linux",
+  "x-catena": {
+    "app_name": "docuseal",
+    "upstream_url": "https://www.docuseal.com/",
+    "sso_mode": "post-deploy-ui",
+    "domain": {
+      "host": "sign.{{ cloudflare_zone }}",
+      "service": "docuseal",
+      "port": 3000
+    },
+    "compose_file": "compose/docuseal.compose.yml",
+    "env_defaults": [
+      "DOMAIN_HOST=sign.{{ cloudflare_zone }}",
+      "DOCUSEAL_HOSTNAME=sign.{{ cloudflare_zone }}",
+      "SECRET_KEY_BASE={{ lookup('password', '/dev/null length=128 chars=hexdigits') | lower }}",
+      "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
+      "SMTP_HOST=",
+      "SMTP_PORT=587",
+      "SMTP_USERNAME=",
+      "SMTP_PASSWORD=",
+      "SMTP_FROM_ADDRESS=",
+      "SMTP_AUTH=plain",
+      "OIDC_CLIENT_ID=docuseal",
+      "OIDC_CLIENT_SECRET=",
+      "OIDC_ISSUER_URL=https://{{ keycloak_hostname | default('auth.' ~ cloudflare_zone) }}/realms/{{ keycloak_realm | default('vps') }}"
+    ],
+    "bench": {
+      "pack": "postgres",
+      "hostname_baked": true
+    },
+    "sizing": {
+      "idle_ram_mb": 320,
+      "peak_ram_mb": 540,
+      "idle_cpu_pct": 1,
+      "peak_cpu_pct": 35,
+      "disk_baseline_mb": 140,
+      "notes": "Rails + Postgres. Light at idle; signing flow's PDF cert-stamping\nis the peak workload.",
+      "notes_fr": "Rails + Postgres. L\u00e9ger au repos ; le tamponnage PDF du flux de\nsignature est le pic de charge."
+    },
+    "en": {
+      "display_name": "DocuSeal",
+      "what_it_is": "Default document-signing app in the stack (replaces Documenso). Upload a PDF, place signature fields, send for signature. Audit trail + signed-PDF generation built-in.",
+      "replaces": [
+        "DocuSign",
+        "HelloSign",
+        "PandaDoc",
+        "Adobe Sign"
+      ],
+      "compose_description": "Open-source document signing (default). Replaces DocuSign / HelloSign.\n\nhttps://docs.catena.run/apps/docuseal/\n",
+      "setup_steps": "1. Click **Deploy**. Wait ~1 min for the first boot.\n2. Visit the DocuSeal domain and complete the first-run wizard (creates the initial admin account).\n3. *(Optional)* Enable Keycloak SSO: **Settings** -> **SSO** -> choose **OpenID Connect** -> paste:\n   - **Client ID:** `OIDC_CLIENT_ID` from Environment (`docuseal`)\n   - **Client Secret:** `OIDC_CLIENT_SECRET` from Environment (minted in Keycloak on request when blank)\n   - **Issuer URL:** `OIDC_ISSUER_URL`\n   - Save. The login page gains a **Sign in with Keycloak** button. Local admin login keeps working as a break-glass.\n4. *(Optional)* Configure SMTP for signature-request emails: fill `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM_ADDRESS` in the Environment tab and redeploy. Without SMTP, recipients only see pending requests in their DocuSeal dashboard.\n",
+      "extra_notes": "### Why DocuSeal is the default\n\nDocuSeal supersedes Documenso (still in the catalog under a deprecation banner). Faster boot, simpler signing-cert handling (no PKCS12 mint step on first deploy), and a maintained iOS/Android app. Documenso remains in catalog while existing clients migrate.\n\n### Signing certificate\n\nDocuSeal generates signed PDFs out of the box without a separate signing-cert mint step. Adobe Acrobat shows the signature as cryptographically valid but with a \"self-signed root\" warning by default -- same caveat as Documenso. Legally-binding signatures need a CA-issued cert, installed on request via DocuSeal's admin UI (Settings -> Signature -> Certificates).\n\n### SMTP\n\nWithout SMTP configured, signature-request emails are not delivered. Recipients still see pending requests in their dashboard. To enable email, fill the `SMTP_*` env vars in the Environment tab.\n"
+    },
+    "fr": {
+      "display_name": "DocuSeal",
+      "what_it_is": "Application de signature \u00e9lectronique par d\u00e9faut de la stack (remplace Documenso). T\u00e9l\u00e9versez un PDF, placez les champs de signature, envoyez pour signature. Piste d'audit + g\u00e9n\u00e9ration de PDF sign\u00e9 int\u00e9gr\u00e9es.",
+      "replaces": [
+        "DocuSign",
+        "HelloSign",
+        "PandaDoc",
+        "Adobe Sign"
+      ],
+      "compose_description": "Signature \u00e9lectronique open-source (par d\u00e9faut). Remplace DocuSign / HelloSign.\n\nhttps://docs.catena.run/apps/docuseal/\n",
+      "setup_steps": "1. Cliquez **Deploy**. Patientez ~1 min pour le premier d\u00e9marrage.\n2. Visitez le domaine DocuSeal et compl\u00e9tez l'assistant initial (cr\u00e9ation du compte admin).\n3. *(Optionnel)* Activez Keycloak SSO : **Settings** -> **SSO** -> choisissez **OpenID Connect** -> collez :\n   - **Client ID :** `OIDC_CLIENT_ID` depuis Environment (`docuseal`)\n   - **Client Secret :** `OIDC_CLIENT_SECRET` depuis Environment (g\u00e9n\u00e9r\u00e9 c\u00f4t\u00e9 Keycloak sur demande lorsqu'il est vide)\n   - **Issuer URL :** `OIDC_ISSUER_URL`\n   - Validez. La page de connexion affiche **Sign in with Keycloak**. La connexion admin locale continue de fonctionner comme issue de secours.\n4. *(Optionnel)* Configurez SMTP pour les e-mails de demande de signature : remplissez `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM_ADDRESS` dans l'onglet Environment puis red\u00e9ployez. Sans SMTP, les destinataires ne voient que les demandes en attente dans leur tableau de bord.\n",
+      "extra_notes": "### Pourquoi DocuSeal est par d\u00e9faut\n\nDocuSeal remplace Documenso (toujours au catalogue avec un bandeau de d\u00e9pr\u00e9ciation). D\u00e9marrage plus rapide, gestion du certificat de signature simplifi\u00e9e (pas d'\u00e9tape PKCS12 au premier d\u00e9ploiement), et apps iOS/Android maintenues. Documenso reste au catalogue le temps que les clients existants migrent.\n\n### Certificat de signature\n\nDocuSeal g\u00e9n\u00e8re des PDF sign\u00e9s d'embl\u00e9e sans \u00e9tape de g\u00e9n\u00e9ration de certificat. Adobe Acrobat affiche la signature comme cryptographiquement valide mais avec un avertissement \"racine auto-sign\u00e9e\" par d\u00e9faut -- m\u00eame limite que Documenso. Les signatures \u00e0 valeur l\u00e9gale demandent un certificat \u00e9mis par une AC, install\u00e9 sur demande via l'UI admin DocuSeal (Settings -> Signature -> Certificates).\n\n### SMTP\n\nSans SMTP configur\u00e9, les e-mails de demande de signature ne sont pas envoy\u00e9s. Les destinataires voient les demandes en attente dans leur tableau de bord. Pour activer les e-mails, renseignez les variables `SMTP_*` dans l'onglet Environment.\n"
+    }
+  }
+}

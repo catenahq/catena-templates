@@ -1,0 +1,65 @@
+{
+  "id": "twenty",
+  "type": 3,
+  "title": "Twenty",
+  "name": "twenty",
+  "categories": [
+    "CRM",
+    "Business"
+  ],
+  "platform": "linux",
+  "x-catena": {
+    "app_name": "twenty",
+    "upstream_url": "https://twenty.com/",
+    "sso_mode": "post-deploy-ui",
+    "domain": {
+      "host": "twenty.{{ cloudflare_zone }}",
+      "service": "server",
+      "port": 3000
+    },
+    "compose_file": "compose/twenty.compose.yml",
+    "env_defaults": [
+      "DOMAIN_HOST=twenty.{{ cloudflare_zone }}",
+      "TWENTY_HOSTNAME=twenty.{{ cloudflare_zone }}",
+      "TWENTY_APP_SECRET={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}",
+      "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
+    ],
+    "bench": {
+      "pack": "postgres",
+      "hostname_baked": true
+    },
+    "sizing": {
+      "idle_ram_mb": 580,
+      "peak_ram_mb": 920,
+      "idle_cpu_pct": 4,
+      "peak_cpu_pct": 55,
+      "disk_baseline_mb": 220,
+      "notes": "Server + worker + Postgres + Redis -- four containers; idle RAM is\nhigher than EspoCRM. Choose Twenty for the modern UI; choose\nEspoCRM for tighter footprint.",
+      "notes_fr": "Server + worker + Postgres + Redis -- quatre conteneurs ; RAM au\nrepos plus \u00e9lev\u00e9e qu'EspoCRM. Choisissez Twenty pour l'UI\nmoderne ; EspoCRM pour l'empreinte plus l\u00e9g\u00e8re."
+    },
+    "en": {
+      "display_name": "Twenty",
+      "what_it_is": "Modern open-source CRM. Contacts, companies, opportunities, email sync, pipelines. Alternative to EspoCRM (the default CRM).",
+      "replaces": [
+        "Salesforce",
+        "HubSpot",
+        "Pipedrive"
+      ],
+      "compose_description": "Modern open-source CRM (alternative to EspoCRM). Replaces Salesforce / HubSpot.\n\nhttps://docs.catena.run/apps/twenty/\n",
+      "setup_steps": "1. Click **Deploy**. Wait ~1 min.\n2. Visit the Twenty domain and sign up to create the initial workspace + admin user.\n3. *(Optional)* Enable Keycloak SSO: **Settings** -> **Security** -> **Single sign-on** -> paste `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_ISSUER_URL` from the Environment tab. Save.\n",
+      "extra_notes": "**EspoCRM vs Twenty.** EspoCRM is this stack's default CRM (mature, native OIDC, mobile apps). Twenty is offered as an alternative for clients who prefer its Notion-style UI; both can be deployed side-by-side. The default `crm.<your-domain>` host is reserved for EspoCRM -- Twenty defaults to `twenty.<your-domain>`.\n"
+    },
+    "fr": {
+      "display_name": "Twenty",
+      "what_it_is": "CRM moderne open-source. Contacts, entreprises, opportunit\u00e9s, synchronisation email, pipelines. Alternative \u00e0 EspoCRM (le CRM par d\u00e9faut).",
+      "replaces": [
+        "Salesforce",
+        "HubSpot",
+        "Pipedrive"
+      ],
+      "compose_description": "CRM moderne open-source (alternative \u00e0 EspoCRM). Remplace Salesforce / HubSpot.\n\nhttps://docs.catena.run/apps/twenty/\n",
+      "setup_steps": "1. Cliquez **Deploy**. Patientez ~1 min.\n2. Visitez le domaine Twenty et cr\u00e9ez le compte initial (workspace + admin).\n3. *(Optionnel)* Activez Keycloak SSO : **Settings** -> **Security** -> **Single sign-on** -> collez `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_ISSUER_URL` depuis l'onglet Environment. Validez.\n",
+      "extra_notes": "**EspoCRM vs Twenty.** EspoCRM est le CRM par d\u00e9faut de cette stack (mature, OIDC natif, apps mobiles). Twenty est offert comme alternative pour les clients qui pr\u00e9f\u00e8rent son UI fa\u00e7on Notion ; les deux peuvent cohabiter. Le domaine par d\u00e9faut `crm.<votre-domaine>` est r\u00e9serv\u00e9 \u00e0 EspoCRM -- Twenty utilise par d\u00e9faut `twenty.<votre-domaine>`.\n"
+    }
+  }
+}

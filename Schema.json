@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/catenahq/catena-templates/main/Schema.json",
+  "title": "Portainer App Templates (v3)",
+  "description": "Output schema for the generated templates.json, per https://docs.portainer.io/advanced/app-templates/format. Catena ships type-3 (git-repo compose stack) entries only, so the container-only fields (image, ports, volumes, restart_policy, privileged, interactive, network, command, hostname) are absent by construction rather than merely unused.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "templates"],
+  "properties": {
+    "version": {"const": "3"},
+    "templates": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/template"}
+    }
+  },
+  "$defs": {
+    "template": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "title", "description", "repository"],
+      "properties": {
+        "type": {"const": 3},
+        "title": {"type": "string", "minLength": 1},
+        "name": {"type": "string", "minLength": 1},
+        "description": {"type": "string", "minLength": 1},
+        "note": {"type": "string"},
+        "categories": {"type": "array", "items": {"type": "string"}},
+        "platform": {"enum": ["linux", "windows"]},
+        "logo": {"type": "string", "format": "uri"},
+        "administrator_only": {"type": "boolean"},
+        "maintainer": {"type": "string"},
+        "repository": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["url", "stackfile"],
+          "properties": {
+            "url": {"type": "string", "format": "uri"},
+            "stackfile": {"type": "string", "minLength": 1}
+          }
+        },
+        "env": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name"],
+            "properties": {
+              "name": {"type": "string", "minLength": 1},
+              "label": {"type": "string"},
+              "description": {"type": "string"},
+              "default": {"type": "string"},
+              "preset": {"type": "boolean"},
+              "select": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["text", "value"],
+                  "properties": {
+                    "text": {"type": "string"},
+                    "value": {"type": "string"},
+                    "default": {"type": "boolean"}
+                  }
+                }
+              }
+            },
+            "anyOf": [
+              {"required": ["label"]},
+              {"required": ["select"]}
+            ]
+          }
+        }
+      }
+    }
+  }
+}

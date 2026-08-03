@@ -1,0 +1,65 @@
+{
+  "id": "chatwoot",
+  "type": 3,
+  "title": "Chatwoot",
+  "name": "chatwoot",
+  "categories": [
+    "Communication",
+    "Support"
+  ],
+  "platform": "linux",
+  "x-catena": {
+    "app_name": "chatwoot",
+    "upstream_url": "https://www.chatwoot.com/",
+    "sso_mode": "none",
+    "domain": {
+      "host": "support.{{ cloudflare_zone }}",
+      "service": "rails",
+      "port": 3000
+    },
+    "compose_file": "compose/chatwoot.compose.yml",
+    "env_defaults": [
+      "DOMAIN_HOST=support.{{ cloudflare_zone }}",
+      "CHATWOOT_HOSTNAME=support.{{ cloudflare_zone }}",
+      "SECRET_KEY_BASE={{ lookup('password', '/dev/null length=128 chars=hexdigits') | lower }}",
+      "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
+    ],
+    "bench": {
+      "pack": "postgres",
+      "hostname_baked": true
+    },
+    "sizing": {
+      "idle_ram_mb": null,
+      "peak_ram_mb": 768,
+      "idle_cpu_pct": null,
+      "peak_cpu_pct": null,
+      "disk_baseline_mb": null,
+      "notes": "Chatwoot (Rails + Postgres + Redis + Sidekiq); peak grows with\nactive conversation count. Conservative pre-launch estimate, not\nyet a measured value.",
+      "notes_fr": "Chatwoot (Rails + Postgres + Redis + Sidekiq) ; le pic cro\u00eet avec\nle nombre de conversations actives. Estimation prudente\npr\u00e9-lancement, pas encore une mesure r\u00e9elle."
+    },
+    "en": {
+      "display_name": "Chatwoot",
+      "what_it_is": "Conversation-first omnichannel inbox. Email, live-chat widget, WhatsApp, Facebook, Instagram, Twitter/X in one inbox.",
+      "replaces": [
+        "Intercom",
+        "Front",
+        "Help Scout (for chat channels)"
+      ],
+      "compose_description": "Conversation-first omnichannel inbox. Replaces Intercom / Front.\n\nhttps://docs.catena.run/apps/chatwoot/\n",
+      "setup_steps": "1. Click **Deploy**. Wait ~2 min for the first boot (Rails migrations).\n2. Visit the Chatwoot domain. Complete the setup wizard to create the first admin account.\n3. Add channels: **Settings** -> **Inboxes** -> **Add inbox**. Pick the channel (email, website widget, WhatsApp, etc.) and follow the per-channel instructions.\n",
+      "extra_notes": "**Note on sign-in:** Chatwoot's community edition doesn't support OIDC/SSO -- agents keep per-app email/password logins. SAML/OIDC is enterprise-only. If SSO matters, consider Zammad instead (trade-off: ticket-first workflow vs Chatwoot's conversation-first inbox).\n"
+    },
+    "fr": {
+      "display_name": "Chatwoot",
+      "what_it_is": "Bo\u00eete de r\u00e9ception omnicanale orient\u00e9e conversation. Email, widget de chat, WhatsApp, Facebook, Instagram, Twitter/X en une seule vue.",
+      "replaces": [
+        "Intercom",
+        "Front",
+        "Help Scout (canaux de chat)"
+      ],
+      "compose_description": "Bo\u00eete omnicanale orient\u00e9e conversation. Remplace Intercom / Front.\n\nhttps://docs.catena.run/apps/chatwoot/\n",
+      "setup_steps": "1. Cliquez **Deploy**. Patientez ~2 min le premier d\u00e9marrage (migrations Rails).\n2. Visitez le domaine Chatwoot. Compl\u00e9tez l'assistant pour cr\u00e9er le premier admin.\n3. Ajoutez des canaux : **Settings** -> **Inboxes** -> **Add inbox**. Choisissez le canal (email, widget, WhatsApp, etc.) et suivez les instructions.\n",
+      "extra_notes": "**\u00c0 propos de la connexion :** l'\u00e9dition communautaire de Chatwoot ne supporte pas OIDC/SSO -- chaque agent garde un email/mot de passe sp\u00e9cifique \u00e0 l'app. Le SSO SAML/OIDC est enterprise uniquement. Si le SSO est important, envisagez Zammad (compromis : flux orient\u00e9 ticket au lieu de l'inbox orient\u00e9 conversation de Chatwoot).\n"
+    }
+  }
+}

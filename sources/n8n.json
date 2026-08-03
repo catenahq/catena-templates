@@ -1,0 +1,66 @@
+{
+  "id": "n8n",
+  "type": 3,
+  "title": "n8n",
+  "name": "n8n",
+  "categories": [
+    "Automation"
+  ],
+  "platform": "linux",
+  "x-catena": {
+    "app_name": "n8n",
+    "upstream_url": "https://n8n.io/",
+    "sso_mode": "none",
+    "domain": {
+      "host": "automate.{{ cloudflare_zone }}",
+      "service": "n8n",
+      "port": 5678
+    },
+    "compose_file": "compose/n8n.compose.yml",
+    "env_defaults": [
+      "DOMAIN_HOST=automate.{{ cloudflare_zone }}",
+      "N8N_HOSTNAME=automate.{{ cloudflare_zone }}",
+      "N8N_TIMEZONE=UTC",
+      "N8N_ENCRYPTION_KEY={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}",
+      "N8N_JWT_SECRET={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}",
+      "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
+    ],
+    "bench": {
+      "pack": "postgres",
+      "hostname_baked": true
+    },
+    "sizing": {
+      "idle_ram_mb": 280,
+      "peak_ram_mb": 700,
+      "idle_cpu_pct": 2,
+      "peak_cpu_pct": 80,
+      "disk_baseline_mb": 150,
+      "notes": "Lightweight at rest; a workflow run spawns Node child processes\nper node and can spike RAM/CPU sharply. Heavy automation users\nshould size for the peak, not the idle.",
+      "notes_fr": "L\u00e9ger au repos ; un workflow lance des processus Node par n\u0153ud\net peut faire pointer RAM/CPU. Une automatisation intensive se\ndimensionne sur le pic, pas sur le repos."
+    },
+    "en": {
+      "display_name": "n8n",
+      "what_it_is": "Workflow automation -- visually chain hundreds of integrations (APIs, apps, databases) into no-code/low-code workflows.",
+      "replaces": [
+        "Zapier",
+        "Make (Integromat)",
+        "Tray.io"
+      ],
+      "compose_description": "Workflow automation (400+ integrations). Replaces Zapier / Make.\n\nhttps://docs.catena.run/apps/n8n/\n",
+      "setup_steps": "1. Click **Deploy**. Wait ~1 min for Postgres + n8n to initialize.\n2. Visit the n8n domain and create the owner account via the setup wizard.\n3. Invite additional users: **Settings** -> **Users** -> **Invite**. Each user receives an email invite.\n4. Start building workflows: **Workflows** -> **+ Add Workflow**. Browse the integrations library for pre-built nodes.\n",
+      "extra_notes": "**Note on sign-in.** n8n's community edition uses email/password user management with invite flows. OIDC and SAML are enterprise-gated, so SSO isn't available here -- each user maintains a per-app login. Fine for an automation team of 1-5 people.\n"
+    },
+    "fr": {
+      "display_name": "n8n",
+      "what_it_is": "Automatisation de flux de travail -- encha\u00eenez visuellement des centaines d'int\u00e9grations (APIs, apps, bases de donn\u00e9es) en workflows no-code/low-code.",
+      "replaces": [
+        "Zapier",
+        "Make (Integromat)",
+        "Tray.io"
+      ],
+      "compose_description": "Automatisation de workflows (400+ int\u00e9grations). Remplace Zapier / Make.\n\nhttps://docs.catena.run/apps/n8n/\n",
+      "setup_steps": "1. Cliquez **Deploy**. Patientez ~1 min le temps que Postgres + n8n s'initialisent.\n2. Visitez le domaine n8n et cr\u00e9ez le compte propri\u00e9taire via l'assistant.\n3. Invitez d'autres utilisateurs : **Settings** -> **Users** -> **Invite**. Chaque utilisateur re\u00e7oit une invitation par courriel.\n4. Cr\u00e9ez des workflows : **Workflows** -> **+ Add Workflow**. Parcourez la biblioth\u00e8que d'int\u00e9grations pour les n\u0153uds pr\u00eats \u00e0 l'emploi.\n",
+      "extra_notes": "**\u00c0 propos de la connexion.** L'\u00e9dition communautaire de n8n utilise email/mot de passe avec des invitations. OIDC et SAML sont enterprise, donc le SSO n'est pas disponible ici -- chaque utilisateur garde une connexion sp\u00e9cifique. Convient \u00e0 une \u00e9quipe d'automatisation de 1-5 personnes.\n"
+    }
+  }
+}

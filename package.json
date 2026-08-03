@@ -1,20 +1,21 @@
 {
   "name": "@catenahq/templates",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": false,
-  "description": "Catena template catalog: per-template compose files + metadata + render pipeline emitting Portainer App Templates (templates.json v3). Consumed by catenahq/ops (vendored tarball) and Portainer directly (App Templates URL).",
+  "description": "Catena template catalog: one JSON source per template plus its compose file, rendered into Portainer App Templates (templates.json v3) and the machine catalog (catalog.json). Consumed by catenahq/ops (vendored tarball) and by Portainer directly (App Templates URL).",
   "type": "module",
   "files": [
-    "source"
+    "sources"
   ],
   "scripts": {
     "render": "uv run build/render.py",
-    "verify": "uv run build/render.py && git diff --exit-code blueprints templates.json",
+    "validate": "uv run build/validate.py",
+    "verify": "uv run build/render.py && git diff --exit-code blueprints templates.json catalog.json index.html",
     "check:unicode": "node scripts/check-unicode.mjs"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/catenahq/templates.git"
+    "url": "git+https://github.com/catenahq/catena-templates.git"
   },
   "license": "SEE LICENSE IN LICENSE"
 }

@@ -1,0 +1,77 @@
+{
+  "id": "mautic",
+  "type": 3,
+  "title": "Mautic",
+  "name": "mautic",
+  "categories": [
+    "Marketing",
+    "Automation"
+  ],
+  "platform": "linux",
+  "x-catena": {
+    "app_name": "mautic",
+    "upstream_url": "https://www.mautic.org/",
+    "sso_mode": "none",
+    "domain": {
+      "host": "marketing.{{ cloudflare_zone }}",
+      "service": "mautic_web",
+      "port": 80
+    },
+    "compose_file": "compose/mautic.compose.yml",
+    "env_defaults": [
+      "DOMAIN_HOST=marketing.{{ cloudflare_zone }}",
+      "MAUTIC_HOSTNAME=marketing.{{ cloudflare_zone }}",
+      "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
+      "DB_ROOT_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
+      "SMTP_HOST=",
+      "SMTP_PORT=587",
+      "SMTP_USERNAME=",
+      "SMTP_PASSWORD=",
+      "SMTP_FROM_ADDRESS="
+    ],
+    "bench": {
+      "pack": "mariadb",
+      "hostname_baked": true
+    },
+    "sizing": {
+      "idle_ram_mb": 1500,
+      "peak_ram_mb": 3000,
+      "idle_cpu_pct": 3,
+      "peak_cpu_pct": 75,
+      "disk_baseline_mb": 420,
+      "notes": "Three Apache/PHP containers (web + worker + cron) on top of\nMariaDB. Idle RAM is dominated by the worker and cron sidecars\n(~300 MB each, even at rest). Campaign sends and segment rebuilds\npush peak RAM near 3 GB and CPU above 75% on one vCPU. Plan for\na 6 GB tier if Mautic is co-located with Nextcloud + Rocket.Chat;\notherwise a 4 GB tier holds for low-volume sending.",
+      "notes_fr": "Trois conteneurs Apache/PHP (web + worker + cron) au-dessus de\nMariaDB. La RAM au repos est domin\u00e9e par les sidecars worker et\ncron (~300 Mo chacun, m\u00eame \u00e0 l'arr\u00eat). Les envois de campagne et\nreconstructions de segments poussent le pic RAM vers 3 Go et le\nCPU au-dessus de 75 % sur un vCPU. Pr\u00e9voyez un palier 6 Go si\nMautic cohabite avec Nextcloud + Rocket.Chat ; sinon un palier\n4 Go tient pour de faibles volumes d'envoi."
+    },
+    "en": {
+      "display_name": "Mautic",
+      "what_it_is": "Open-source marketing automation. Contact segments, email campaigns, drip sequences, landing pages, forms, lead scoring. Replaces Mailchimp / ActiveCampaign / HubSpot Marketing.",
+      "replaces": [
+        "Mailchimp",
+        "ActiveCampaign",
+        "HubSpot Marketing",
+        "Brevo (Sendinblue)"
+      ],
+      "compose_description": "Open-source marketing automation. Drip campaigns, segments, landing pages. Replaces Mailchimp / ActiveCampaign.\n\nhttps://docs.catena.run/apps/mautic/\n",
+      "setup_steps": "1. Click **Deploy**. Wait ~2 min for the first boot (database migrations run on first start).\n2. Visit the Mautic domain and complete the first-run wizard:\n   - **Database**: pre-filled (host `db`, name `mautic`, user `mautic`, password from the `DB_PASSWORD` env var).\n   - **Admin user**: create the initial admin account.\n   - **Email settings**: paste the managed-relay SMTP credentials (host, port `587`, username, password, from-address). It can also be set later under **Settings** -> **Configuration** -> **Email Settings**.\n3. Verify the cron + worker containers are running in Portainer (Mautic needs `mautic_cron` for scheduled campaigns + `mautic_worker` for the email queue).\n4. Build a first segment: **Segments** -> **New** -> filter by contact attribute.\n5. Build a first email campaign: **Campaigns** -> **New** -> drag the **Send email** action onto a segment trigger.\n",
+      "extra_notes": "### Authentication\n\nMautic community edition does not ship native OIDC. Local username/password is the default. SAML2 is supported upstream but requires per-deploy config; third-party generic-OAuth2 plugins exist. Single sign-on across the suite is available on request as an oauth2-proxy front layer (Keycloak group `staff` gates access at the Traefik edge before traffic reaches Mautic).\n\n### SMTP and sending reputation\n\nMautic does NOT send email directly. It hands every outbound to the managed SMTP relay (see the [provider accounts guide](/guides/provider-accounts/) for recommended senders). Sending reputation, SPF/DKIM/DMARC, and bounce handling all live at the relay layer. SMTP is configured under **Settings** -> **Configuration** -> **Email Settings** with the relay's credentials before the first campaign goes out.\n\n### Lead-magnet content and drip-campaign copy\n\nThe template ships the engine. Authoring the lead-magnet PDFs, drip-sequence copy and email templates is content work, not deployment work. Mautic itself does not ship pre-built campaigns.\n\n### Resource note\n\nMautic runs as Apache + MariaDB + a worker sidecar + a cron sidecar. Plan for ~1.5 GB RAM at idle (worker + cron eat ~300 MB each), ~3 GB under campaign sends or segment rebuilds. Storage grows with media uploads and email-event history; budget ~10 GB after the first year of regular use.\n"
+    },
+    "fr": {
+      "display_name": "Mautic",
+      "what_it_is": "Automatisation marketing open-source. Segments de contacts, campagnes courriel, s\u00e9quences drip, pages de destination, formulaires, scoring de prospects. Remplace Mailchimp / ActiveCampaign / HubSpot Marketing.",
+      "replaces": [
+        "Mailchimp",
+        "ActiveCampaign",
+        "HubSpot Marketing",
+        "Brevo (Sendinblue)"
+      ],
+      "compose_description": "Automatisation marketing open-source. S\u00e9quences drip, segments, pages de destination. Remplace Mailchimp / ActiveCampaign.\n\nhttps://docs.catena.run/apps/mautic/\n",
+      "setup_steps": "1. Cliquez **Deploy**. Patientez ~2 min pour le premier d\u00e9marrage (les migrations de base s'ex\u00e9cutent au premier lancement).\n2. Visitez le domaine Mautic et compl\u00e9tez l'assistant initial :\n   - **Base de donn\u00e9es** : pr\u00e9-remplie (h\u00f4te `db`, nom `mautic`, utilisateur `mautic`, mot de passe depuis la variable `DB_PASSWORD`).\n   - **Utilisateur admin** : cr\u00e9ez le compte admin initial.\n   - **Param\u00e8tres courriel** : collez les identifiants SMTP du relais g\u00e9r\u00e9 (h\u00f4te, port `587`, nom d'utilisateur, mot de passe, adresse exp\u00e9diteur). Cette \u00e9tape peut aussi \u00eatre faite plus tard sous **Settings** -> **Configuration** -> **Email Settings**.\n3. V\u00e9rifiez que les conteneurs cron + worker tournent dans Portainer (Mautic a besoin de `mautic_cron` pour les campagnes planifi\u00e9es + `mautic_worker` pour la file d'envoi).\n4. Cr\u00e9ez un premier segment : **Segments** -> **New** -> filtrez par attribut de contact.\n5. Cr\u00e9ez une premi\u00e8re campagne : **Campaigns** -> **New** -> glissez l'action **Send email** sur un d\u00e9clencheur de segment.\n",
+      "extra_notes": "### Authentification\n\nMautic \u00e9dition communautaire ne fournit pas d'OIDC natif. Connexion locale par nom d'utilisateur/mot de passe par d\u00e9faut. SAML2 est support\u00e9 en amont mais demande une configuration par d\u00e9ploiement ; des plugins OAuth2 g\u00e9n\u00e9riques tiers existent. Un SSO unifi\u00e9 pour la suite est disponible sur demande sous forme de couche oauth2-proxy en fa\u00e7ade (le groupe Keycloak `staff` filtre l'acc\u00e8s au niveau Traefik avant que le trafic n'atteigne Mautic).\n\n### SMTP et r\u00e9putation d'envoi\n\nMautic n'envoie PAS directement les courriels. Il remet chaque envoi au relais SMTP g\u00e9r\u00e9 (voir le [guide des comptes fournisseurs](/fr/guides/provider-accounts/) pour les exp\u00e9diteurs recommand\u00e9s). R\u00e9putation d'envoi, SPF/DKIM/DMARC, et gestion des rebonds vivent au niveau du relais. SMTP se configure sous **Settings** -> **Configuration** -> **Email Settings** avec les identifiants du relais avant la premi\u00e8re campagne.\n\n### Contenu d'aimant \u00e0 prospects et copie des s\u00e9quences drip\n\nLe template fournit le moteur. La r\u00e9daction des PDF d'aimants, des s\u00e9quences drip et des mod\u00e8les d'envoi rel\u00e8ve du travail de contenu, pas du d\u00e9ploiement. Mautic lui-m\u00eame ne livre aucune campagne pr\u00e9-b\u00e2tie.\n\n### Ressources\n\nMautic tourne en Apache + MariaDB + un worker sidecar + un cron sidecar. Pr\u00e9voyez ~1.5 GB RAM au repos (worker + cron consomment ~300 MB chacun), ~3 GB sous envois de campagne ou reconstruction de segments. Le stockage cro\u00eet avec les uploads de m\u00e9dias et l'historique des \u00e9v\u00e9nements courriel ; budg\u00e9tez ~10 GB apr\u00e8s la premi\u00e8re ann\u00e9e d'usage r\u00e9gulier.\n"
+    },
+    "quiesce": {
+      "pre": "docker exec \"$(docker ps -q -f label=com.docker.compose.service=db -f label=com.docker.compose.project~=mautic | head -1)\" sh -c 'mariadb-dump --single-transaction --quick --routines --triggers --add-drop-table -u root -p\"$MARIADB_ROOT_PASSWORD\" --all-databases > /var/lib/mysql/.catena-dump.sql.new && mv /var/lib/mysql/.catena-dump.sql.new /var/lib/mysql/.catena-dump.sql'",
+      "post": "true",
+      "timeout_seconds": 60
+    }
+  }
+}
