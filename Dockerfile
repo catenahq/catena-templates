@@ -14,7 +14,7 @@
 # Only generated artifacts are copied in: sources/ is the build input and
 # has no business being served.
 
-FROM nginx:1.29-alpine
+FROM nginx:1.31-alpine
 
 COPY templates.json /usr/share/nginx/html/templates.json
 COPY catalog.json /usr/share/nginx/html/catalog.json
