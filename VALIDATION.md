@@ -17,6 +17,7 @@ Parsed from the committed workflow files; every job below runs on each change.
 | --- | --- | --- |
 | build-and-verify | `.github/workflows/build-and-verify.yml` | `render-idempotency`, `schema`, `unicode-hygiene`, `lint-quiesce-tests`, `duplication` |
 | security | `.github/workflows/security.yml` | `scanctl` |
+| seed baseline | `.github/workflows/seed-baseline.yml` | `seed` |
 | Trivy images (catalog) | `.github/workflows/trivy-images.yml` | `list-images`, `trivy-image` |
 
 See [SPEC.md](SPEC.md) for what this repository promises and the machine-checked invariants behind each promise.
