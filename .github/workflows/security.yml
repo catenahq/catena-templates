@@ -59,12 +59,11 @@ jobs:
         run: |
           baseline_ref_flag=""
           if [ -n "$BASELINE_REF" ]; then baseline_ref_flag="--baseline-ref $BASELINE_REF"; fi
-          # No .scanctl/baseline.sarif exists yet (missing file = no-op, so
-          # this is safe today) -- seed one with the command in scanctl's
-          # README ("Regenerating the baseline") and commit
+          # No .scanctl/baseline.sarif exists yet (missing file = no-op,
+          # so this is safe today) -- seed one per scanctl's README
+          # ("Seeding or regenerating a baseline") and commit
           # .scanctl/baseline.sarif + .scanctl/README.md + baseline-drift.yml
-          # (see catenahq/docs for the pattern) to activate suppression +
-          # auto-dismiss.
+          # to activate suppression + auto-dismiss.
           "$(go env GOPATH)/bin/scanctl" run --profile full \
             --baseline .scanctl/baseline.sarif --dismiss-baseline $baseline_ref_flag \
             --out scanctl.sarif --sbom sbom.cdx.json \
