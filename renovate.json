@@ -29,14 +29,14 @@
     },
     {
       "matchManagers": ["docker-compose"],
-      "matchFileNames": ["source/compose/**"],
+      "matchFileNames": ["sources/compose/**"],
       "matchUpdateTypes": ["patch", "minor", "digest"],
       "groupName": "catalog images (patch+minor)",
       "automerge": true
     },
     {
       "matchManagers": ["docker-compose"],
-      "matchFileNames": ["source/compose/**"],
+      "matchFileNames": ["sources/compose/**"],
       "matchUpdateTypes": ["major"],
       "groupName": "catalog images (major)",
       "automerge": false
@@ -44,7 +44,7 @@
     {
       "description": "Traefik feature-set + config schema owned by the catena operator role (roles/traefik); minor/major land via operator converge, not catalog edits.",
       "matchManagers": ["docker-compose"],
-      "matchFileNames": ["source/compose/**"],
+      "matchFileNames": ["sources/compose/**"],
       "matchPackageNames": ["traefik"],
       "matchUpdateTypes": ["major", "minor"],
       "enabled": false
@@ -59,12 +59,12 @@
   "customManagers": [
     {
       "customType": "regex",
-      "description": "Track the central Postgres image (postgres_default_image) in source/catalog.yml. The per-template compose pins follow it (enforced by build/lint_postgres_pins.py); the packageRule above groups this bump with the compose-pin bumps into one PR.",
+      "description": "Track the central Postgres image (postgres_default_image) in sources/_meta.json. The per-template compose pins follow it (enforced by build/lint_postgres_pins.py); the packageRule above groups this bump with the compose-pin bumps into one PR. Was source/catalog.yml (YAML) before the 'one JSON file per template' refactor (1c1f17a) moved this key to sources/_meta.json (JSON) -- this manager pointed at a path that no longer existed and matched nothing since.",
       "managerFilePatterns": [
-        "/^source/catalog\\.yml$/"
+        "/^sources/_meta\\.json$/"
       ],
       "matchStrings": [
-        "postgres_default_image:\\s*(?<depName>postgres):(?<currentValue>[^\\s#\"]+)"
+        "\"postgres_default_image\":\\s*\"(?<depName>postgres):(?<currentValue>[^\"]+)\""
       ],
       "datasourceTemplate": "docker"
     }
