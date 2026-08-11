@@ -8,8 +8,8 @@
 # below is allowed; we restrict to `nextcloud.*` because each catena
 # VPS has at most one Nextcloud and that label is reserved.
 #
-# The UI is iframe-embedded inside Nextcloud; forward-auth MUST be
-# disabled on this route (vps.auth.mode=public) because the iframe
+# The UI is iframe-embedded inside Nextcloud; this route MUST have no
+# auth proxy in front of it (vps.auth.mode=public) because the iframe
 # would otherwise redirect to Keycloak and break the editor. Browser
 # users never visit this domain directly -- they only see it through
 # Nextcloud when they open a document.

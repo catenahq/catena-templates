@@ -3,8 +3,8 @@
 # ONLYOFFICE -> Install -> settings -> enter the domain below + JWT secret).
 #
 # Server-to-server auth is JWT-protected (JWT_ENABLED=true). The UI is
-# iframe-embedded inside Nextcloud; forward-auth MUST be disabled on
-# this route (vps.auth.mode=public) because the iframe would otherwise
+# iframe-embedded inside Nextcloud; this route MUST have no auth proxy in
+# front of it (vps.auth.mode=public) because the iframe would otherwise
 # redirect to Keycloak and break the editor.
 #
 # Don't expose this to end users directly -- they only ever see it
