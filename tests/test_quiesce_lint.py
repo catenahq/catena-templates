@@ -87,6 +87,42 @@ def test_empty_snippet_rejected():
     assert any("empty" in e for e in L.lint_snippet("   \n  ", label="x"))
 
 
+def test_allowed_migrate_commands_lock():
+    """Same reasoning as the quiesce allowlist, one container deeper: a
+    migration runs unattended inside an application after a forward
+    restore, so widening this is a review decision."""
+    assert L.ALLOWED_MIGRATE_COMMANDS == frozenset({
+        "php", "occ", "yarn", "npm", "npx",
+    })
+
+
+def test_migrate_argv_allows_the_declared_shapes():
+    assert L.lint_migrate_argv(["php", "occ", "db:add-missing-indices"], label="x") == []
+    assert L.lint_migrate_argv(
+        ["yarn", "db:migrate", "--env", "production-ssl-disabled"], label="x") == []
+
+
+def test_migrate_argv_rejects_a_foreign_command():
+    errs = L.lint_migrate_argv(["curl", "https://evil.example.com"], label="x")
+    assert any("non-allowlisted" in e and "curl" in e for e in errs)
+
+
+def test_migrate_argv_rejects_shell_operators():
+    """An argv is not a shell line. `&&` written here reaches the
+    application as a literal argument and the second half never runs,
+    which is the silent failure this refuses."""
+    errs = L.lint_migrate_argv(
+        ["php", "occ", "upgrade", "&&", "php", "occ", "maintenance:repair"], label="x")
+    assert any("docker exec with no shell" in e for e in errs)
+
+
+def test_migrate_timeout_cap_lives_in_the_schema():
+    schema = json.loads((ROOT / "sources.schema.json").read_text())
+    migrate = schema["properties"]["x-catena"]["properties"]["post_restore_migrate"]
+    assert migrate["properties"]["timeout_seconds"]["maximum"] == 3600
+    assert migrate["required"] == ["service", "commands", "timeout_seconds"]
+
+
 def test_timeout_cap_lives_in_the_schema():
     """The cap moved into sources.schema.json when sources became JSON.
     One source of truth, enforced on every load rather than only by the

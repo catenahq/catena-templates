@@ -18,7 +18,7 @@ render:
 validate:
 	uv run build/validate.py
 
-## lint: quiesce-hook security lint + central Postgres pin enforcement
+## lint: unattended-hook security lint + central Postgres pin enforcement
 lint:
 	uv run build/lint_quiesce.py
 	uv run build/lint_postgres_pins.py

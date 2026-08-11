@@ -211,6 +211,8 @@ def render_catalog_entry(entry: Entry) -> dict[str, Any]:
         out["pause_during_migrate_cutover"] = cat["pause_during_migrate_cutover"]
     if cat.get("s3_reconcile"):
         out["s3_reconcile"] = cat["s3_reconcile"]
+    if cat.get("post_restore_migrate"):
+        out["post_restore_migrate"] = cat["post_restore_migrate"]
     quiesce = entry.quiesce
     if quiesce:
         out["quiesce_pre"] = quiesce["pre"]

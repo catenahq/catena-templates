@@ -25,6 +25,13 @@
       "OUTLINE_UTILS_SECRET={{ lookup('password', '/dev/null length=64 chars=hexdigits') | lower }}",
       "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
     ],
+    "post_restore_migrate": {
+      "service": "outline",
+      "commands": [
+        ["yarn", "db:migrate", "--env", "production-ssl-disabled"]
+      ],
+      "timeout_seconds": 900
+    },
     "bench": {
       "pack": "postgres",
       "hostname_baked": true

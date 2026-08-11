@@ -29,6 +29,14 @@
       "OIDC_CLIENT_SECRET=",
       "OIDC_ISSUER_URL=https://{{ keycloak_hostname | default('auth.' ~ cloudflare_zone) }}/realms/{{ keycloak_realm | default('vps') }}"
     ],
+    "post_restore_migrate": {
+      "service": "espocrm",
+      "user": "www-data",
+      "commands": [
+        ["php", "rebuild.php"]
+      ],
+      "timeout_seconds": 900
+    },
     "bench": {
       "pack": "mariadb",
       "hostname_baked": true

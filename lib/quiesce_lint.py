@@ -1,15 +1,23 @@
-"""Security lint over the backup quiesce hooks (CI gate).
+"""Security lint over the hooks a client host runs unattended (CI gate).
 
-Schema-level checks (pairing, timeout cap) live in sources.schema.json
-and run on every render. This module adds the checks that are too slow
-or too external for the render path:
+Two families, both declared in `x-catena` and both executed on a client
+box with no operator present: the backup quiesce hooks, and the
+post-restore migration commands.
 
-  - shellcheck (POSIX sh) per snippet when it is on PATH. Missing
-    locally is a warning; CI installs it.
+Schema-level checks (pairing, timeout cap, argv shape) live in
+sources.schema.json and run on every render. This module adds the checks
+that are too slow or too external for the render path:
+
+  - shellcheck (POSIX sh) per quiesce snippet when it is on PATH.
+    Missing locally is a warning; CI installs it.
   - Command allowlist on the head of each pipeline stage, so a template
     cannot smuggle `curl evil.com` into a hook that runs as root on
     every client host before every backup.
   - Path restriction on rm/mv: inside the app's own data path only.
+  - Command allowlist on each migration argv, plus a refusal of shell
+    metacharacters there: migrations run through `docker exec` with no
+    shell, so an `&&` written by someone thinking in shell is passed to
+    the application as a literal argument and does nothing.
 
 Exit codes: 0 clean, 1 lint failures, 2 structural error.
 """
@@ -37,6 +45,20 @@ ALLOWED_COMMANDS = frozenset({
     "mongodump",
     "sqlite3",
 })
+
+# Migration commands are a separate, tighter allowlist. A quiesce hook
+# drives docker from the host; a migration runs inside one application
+# container and has no business being anything but that application's own
+# schema tool.
+ALLOWED_MIGRATE_COMMANDS = frozenset({
+    "php", "occ",           # Nextcloud, EspoCRM
+    "yarn", "npm", "npx",   # the node applications
+})
+
+# Written as shell but executed as argv: these tokens reach the
+# application as literal arguments, so the second half of the line never
+# runs and the failure is silent.
+SHELL_METACHARS = frozenset({"&&", "||", "|", ";", ">", ">>", "<", "&"})
 
 # rm + mv are allowed only against a recognised container data path:
 # /var/lib/<app>/... or /data/... . Anything else fails, which is what
@@ -93,6 +115,24 @@ def lint_snippet(snippet: str, *, label: str) -> list[str]:
     return errors
 
 
+def lint_migrate_argv(argv: list[str], *, label: str) -> list[str]:
+    errors: list[str] = []
+    head = head_command([str(t) for t in argv])
+    if head not in ALLOWED_MIGRATE_COMMANDS:
+        errors.append(
+            f"{label}: starts with non-allowlisted command {head!r}; "
+            f"allowed: {sorted(ALLOWED_MIGRATE_COMMANDS)}"
+        )
+    for tok in argv:
+        if str(tok) in SHELL_METACHARS:
+            errors.append(
+                f"{label}: contains the shell operator {tok!r}, but migrations "
+                f"run through docker exec with no shell. Split it into separate "
+                f"commands, which run in order and stop at the first failure"
+            )
+    return errors
+
+
 def shellcheck_snippet(snippet: str, *, label: str) -> list[str]:
     if shutil.which("shellcheck") is None:
         return ["__SHELLCHECK_MISSING__"]
@@ -120,8 +160,16 @@ def lint_all() -> int:
     all_errors: list[str] = []
     shellcheck_missing = False
     with_hooks = 0
+    with_migrations = 0
 
     for entry in entries:
+        migrate = entry.post_restore_migrate
+        if migrate:
+            with_migrations += 1
+            for idx, argv in enumerate(migrate["commands"]):
+                all_errors.extend(lint_migrate_argv(
+                    argv, label=f"{entry.slug}.post_restore_migrate[{idx}]"))
+
         quiesce = entry.quiesce
         if not quiesce:
             continue
@@ -142,9 +190,12 @@ def lint_all() -> int:
             "CI must install shellcheck for full coverage."
         )
     if all_errors:
-        print("quiesce lint failed:")
+        print("hook lint failed:")
         for err in all_errors:
             print(f"  {err}")
         return 1
-    print(f"quiesce lint OK ({with_hooks} templates with hooks)")
+    print(
+        f"hook lint OK ({with_hooks} templates with quiesce hooks, "
+        f"{with_migrations} with post-restore migrations)"
+    )
     return 0

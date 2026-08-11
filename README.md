@@ -19,15 +19,17 @@ sources/                 # canonical input, hand-edited
   _meta.json             # postgres_default_image + sizing measurement header
   <id>.json              # ONE file per template: the Portainer fields a human
                          # owns, plus x-catena for everything that format
-                         # cannot carry (SSO mode, quiesce hooks, bench
-                         # membership, sizing, EN/FR prose)
+                         # cannot carry (SSO mode, quiesce hooks,
+                         # post-restore migrations, bench membership,
+                         # sizing, EN/FR prose)
   compose/<id>.compose.yml
   assets/<id>/logo.png
 
 lib/                     # the build library
   model.py               # load + validate sources/
   render.py              # sources/ -> every generated artifact
-  quiesce_lint.py        # backup-hook security lint
+  quiesce_lint.py        # security lint over the hooks a host runs
+                         # unattended: quiesce + post-restore migrations
   postgres_pins.py       # central Postgres image enforcement
 
 build/                   # thin entrypoints

@@ -84,6 +84,24 @@
       },
       "hostname_baked": false,
       "id": "nextcloud-s3-oidc",
+      "post_restore_migrate": {
+        "commands": [
+          [
+            "php",
+            "occ",
+            "db:add-missing-indices"
+          ],
+          [
+            "php",
+            "occ",
+            "maintenance:repair",
+            "--include-expensive"
+          ]
+        ],
+        "service": "app",
+        "timeout_seconds": 1800,
+        "user": "www-data"
+      },
       "quiesce_post": "docker exec -u www-data \"$(docker ps -q -f label=com.docker.compose.service=app -f label=com.docker.compose.project~=nextcloud | head -1)\" php occ maintenance:mode --off",
       "quiesce_pre": "docker exec -u www-data \"$(docker ps -q -f label=com.docker.compose.service=app -f label=com.docker.compose.project~=nextcloud | head -1)\" php occ maintenance:mode --on",
       "quiesce_timeout_seconds": 30,
@@ -481,6 +499,18 @@
       },
       "hostname_baked": true,
       "id": "outline",
+      "post_restore_migrate": {
+        "commands": [
+          [
+            "yarn",
+            "db:migrate",
+            "--env",
+            "production-ssl-disabled"
+          ]
+        ],
+        "service": "outline",
+        "timeout_seconds": 900
+      },
       "sizing": {
         "disk_baseline_mb": 110,
         "idle_cpu_pct": 1,
@@ -544,6 +574,17 @@
       },
       "hostname_baked": true,
       "id": "espocrm",
+      "post_restore_migrate": {
+        "commands": [
+          [
+            "php",
+            "rebuild.php"
+          ]
+        ],
+        "service": "espocrm",
+        "timeout_seconds": 900,
+        "user": "www-data"
+      },
       "quiesce_post": "true",
       "quiesce_pre": "docker exec \"$(docker ps -q -f label=com.docker.compose.service=db -f label=com.docker.compose.project~=espocrm | head -1)\" sh -c 'mariadb-dump --single-transaction --quick --routines --triggers --add-drop-table -u root -p\"$MARIADB_ROOT_PASSWORD\" --all-databases > /var/lib/mysql/.catena-dump.sql.new && mv /var/lib/mysql/.catena-dump.sql.new /var/lib/mysql/.catena-dump.sql'",
       "quiesce_timeout_seconds": 60,

@@ -54,8 +54,8 @@ outputs. CI verifies with `git diff --exit-code` over all four.
 3. `Schema.json` -- the generated `templates.json` against the published
    Portainer App Templates format, because that file is what a client's
    Portainer fetches.
-4. `make lint` -- quiesce-hook allowlist + shellcheck, central Postgres
-   pin enforcement.
+4. `make lint` -- quiesce-hook allowlist + shellcheck, post-restore
+   migration argv allowlist, central Postgres pin enforcement.
 
 ## Add a new template
 
@@ -70,9 +70,15 @@ outputs. CI verifies with `git diff --exit-code` over all four.
    `x-catena.quiesce`. Stateless / read-only templates omit it. Real
    examples: `sources/nextcloud-s3-oidc.json`,
    `sources/rocketchat-oidc.json`.
-5. `make` -- render + lint + test. Commit the regenerated artifacts.
-6. Open a PR. CI must pass `build-and-verify.yml` and `check:unicode`.
-7. After merge, `git tag -a vX.Y.Z -m "..." && git push --tags`.
+5. If the application migrates its own schema at container start, add
+   `x-catena.post_restore_migrate`. That start-time migration runs
+   against the pre-replay database and the replay then overwrites it, so
+   after a restore across versions it has effectively not run. Commands
+   are argv arrays -- `docker exec` gives them no shell. Real examples:
+   `sources/outline.json`, `sources/nextcloud-s3-oidc.json`.
+6. `make` -- render + lint + test. Commit the regenerated artifacts.
+7. Open a PR. CI must pass `build-and-verify.yml` and `check:unicode`.
+8. After merge, `git tag -a vX.Y.Z -m "..." && git push --tags`.
 
 ## When to bump the schema
 
@@ -109,5 +115,6 @@ is a major bump and needs coordinated PRs:
 - Every catalog image ref is CVE-scanned (trivy-images workflow);
   quiesce snippets pass the allowlist + path restriction in
   `lib/quiesce_lint.py` (no curl/wget, no rm outside the app's data
-  path).
+  path), and post-restore migration argv pass their own, tighter
+  allowlist in the same module.
 - SPEC.md gate pointers must resolve (ops audit --check-public-specs).

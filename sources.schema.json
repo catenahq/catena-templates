@@ -83,6 +83,23 @@
             "db_service": {"type": "string", "description": "Compose service holding the index the check reads."}
           }
         },
+        "post_restore_migrate": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["service", "commands", "timeout_seconds"],
+          "description": "Schema migration to run after a FORWARD restore, once the database replay has put the snapshot's contents back. Declare it when the application migrates its own schema at container start: that migration runs against the pre-replay database and is then overwritten by the replay, so on a restore across versions it has effectively not run. Commands are argv arrays executed through docker exec, never a shell.",
+          "properties": {
+            "service": {"type": "string", "minLength": 1, "description": "Compose service the migration runs inside."},
+            "user": {"type": "string", "description": "User to exec as. Set it whenever the migration writes into a volume the application later has to write itself, or the files come back owned by root."},
+            "commands": {
+              "type": "array",
+              "minItems": 1,
+              "items": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+              "description": "Run in order, stopping at the first failure."
+            },
+            "timeout_seconds": {"type": "integer", "minimum": 1, "maximum": 3600}
+          }
+        },
         "bench": {
           "type": "object",
           "additionalProperties": false,
