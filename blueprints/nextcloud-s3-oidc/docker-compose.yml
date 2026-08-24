@@ -4,11 +4,11 @@
 # admin password, DB password, OIDC coordinates (auto-injected). The
 # compose itself is not edited per deploy.
 #
-# This is a SWARM stack file (Portainer template type 2). Swarm starts every
-# service at once and has no equivalent of `depends_on`, so the ordering the
-# database gate used to provide is done by `wait_for_db` in the entrypoints
-# below. See the comment on `app` for why a crash-and-retry is not enough
-# here specifically.
+# A SWARM stack file (Portainer template type 2). Swarm starts every service
+# at once and has no equivalent of `depends_on`, so `wait_for_db` in the
+# entrypoints below is what holds the app and cron services back until the
+# database answers. See the comment on `app` for why a crash-and-retry is not
+# enough here specifically.
 
 services:
   app:
