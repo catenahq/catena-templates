@@ -2,14 +2,14 @@
   "id": "mautic",
   "type": 2,
   "title": "Mautic",
-  "name": "mautic",
+  "name": "catena-mautic",
   "categories": [
     "Marketing",
     "Automation"
   ],
   "platform": "linux",
   "x-catena": {
-    "app_name": "mautic",
+    "app_name": "catena-mautic",
     "upstream_url": "https://www.mautic.org/",
     "sso_mode": "none",
     "domain": {
@@ -69,7 +69,7 @@
       "extra_notes": "### Authentification\n\nMautic \u00e9dition communautaire ne fournit pas d'OIDC natif. Connexion locale par nom d'utilisateur/mot de passe par d\u00e9faut. SAML2 est support\u00e9 en amont mais demande une configuration par d\u00e9ploiement ; des plugins OAuth2 g\u00e9n\u00e9riques tiers existent. Un SSO unifi\u00e9 pour la suite est disponible sur demande sous forme de couche oauth2-proxy en fa\u00e7ade (le groupe Keycloak `staff` filtre l'acc\u00e8s au niveau Traefik avant que le trafic n'atteigne Mautic).\n\n### SMTP et r\u00e9putation d'envoi\n\nMautic n'envoie PAS directement les courriels. Il remet chaque envoi au relais SMTP g\u00e9r\u00e9 (voir le [guide des comptes fournisseurs](/fr/guides/provider-accounts/) pour les exp\u00e9diteurs recommand\u00e9s). R\u00e9putation d'envoi, SPF/DKIM/DMARC, et gestion des rebonds vivent au niveau du relais. SMTP se configure sous **Settings** -> **Configuration** -> **Email Settings** avec les identifiants du relais avant la premi\u00e8re campagne.\n\n### Contenu d'aimant \u00e0 prospects et copie des s\u00e9quences drip\n\nLe template fournit le moteur. La r\u00e9daction des PDF d'aimants, des s\u00e9quences drip et des mod\u00e8les d'envoi rel\u00e8ve du travail de contenu, pas du d\u00e9ploiement. Mautic lui-m\u00eame ne livre aucune campagne pr\u00e9-b\u00e2tie.\n\n### Ressources\n\nMautic tourne en Apache + MariaDB + un worker sidecar + un cron sidecar. Pr\u00e9voyez ~1.5 GB RAM au repos (worker + cron consomment ~300 MB chacun), ~3 GB sous envois de campagne ou reconstruction de segments. Le stockage cro\u00eet avec les uploads de m\u00e9dias et l'historique des \u00e9v\u00e9nements courriel ; budg\u00e9tez ~10 GB apr\u00e8s la premi\u00e8re ann\u00e9e d'usage r\u00e9gulier.\n"
     },
     "quiesce": {
-      "pre": "docker exec \"$(docker ps -q -f label=com.docker.compose.service=db -f label=com.docker.compose.project~=mautic | head -1)\" sh -c 'mariadb-dump --single-transaction --quick --routines --triggers --add-drop-table -u root -p\"$MARIADB_ROOT_PASSWORD\" --all-databases > /var/lib/mysql/.catena-dump.sql.new && mv /var/lib/mysql/.catena-dump.sql.new /var/lib/mysql/.catena-dump.sql'",
+      "pre": "docker exec \"$(docker ps -q -f label=vps.app=catena-mautic -f label=vps.component=db | head -1)\" sh -c 'mariadb-dump --single-transaction --quick --routines --triggers --add-drop-table -u root -p\"$MARIADB_ROOT_PASSWORD\" --all-databases > /var/lib/mysql/.catena-dump.sql.new && mv /var/lib/mysql/.catena-dump.sql.new /var/lib/mysql/.catena-dump.sql'",
       "post": "true",
       "timeout_seconds": 60
     }

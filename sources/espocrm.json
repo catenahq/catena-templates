@@ -2,14 +2,14 @@
   "id": "espocrm",
   "type": 2,
   "title": "EspoCRM",
-  "name": "espocrm",
+  "name": "catena-espocrm",
   "categories": [
     "CRM",
     "Business"
   ],
   "platform": "linux",
   "x-catena": {
-    "app_name": "espocrm",
+    "app_name": "catena-espocrm",
     "upstream_url": "https://www.espocrm.com/",
     "sso_mode": "post-deploy-ui",
     "domain": {
@@ -77,7 +77,7 @@
       "extra_notes": "### Pourquoi EspoCRM est le CRM par d\u00e9faut\n\nC'est le seul CRM enti\u00e8rement open-source du catalogue avec OIDC natif en \u00e9dition communautaire (sans palier Pro), des apps mobiles existantes et un historique stable de mises \u00e0 jour. Twenty est l'alternative pour une UI moderne fa\u00e7on Notion ; les deux restent au catalogue pour laisser le choix ouvert.\n\n### Ressources\n\nEspoCRM tourne en PHP-Apache + MariaDB + un cron sidecar. Pr\u00e9voyez ~1 GB RAM au repos, ~2 GB sous import en masse ou envoi mass-email.\n"
     },
     "quiesce": {
-      "pre": "docker exec \"$(docker ps -q -f label=com.docker.compose.service=db -f label=com.docker.compose.project~=espocrm | head -1)\" sh -c 'mariadb-dump --single-transaction --quick --routines --triggers --add-drop-table -u root -p\"$MARIADB_ROOT_PASSWORD\" --all-databases > /var/lib/mysql/.catena-dump.sql.new && mv /var/lib/mysql/.catena-dump.sql.new /var/lib/mysql/.catena-dump.sql'",
+      "pre": "docker exec \"$(docker ps -q -f label=vps.app=catena-espocrm -f label=vps.component=db | head -1)\" sh -c 'mariadb-dump --single-transaction --quick --routines --triggers --add-drop-table -u root -p\"$MARIADB_ROOT_PASSWORD\" --all-databases > /var/lib/mysql/.catena-dump.sql.new && mv /var/lib/mysql/.catena-dump.sql.new /var/lib/mysql/.catena-dump.sql'",
       "post": "true",
       "timeout_seconds": 60
     }

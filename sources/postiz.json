@@ -2,14 +2,14 @@
   "id": "postiz",
   "type": 2,
   "title": "Postiz",
-  "name": "postiz",
+  "name": "catena-postiz",
   "categories": [
     "Marketing",
     "Social"
   ],
   "platform": "linux",
   "x-catena": {
-    "app_name": "postiz",
+    "app_name": "catena-postiz",
     "upstream_url": "https://postiz.com/",
     "sso_mode": "none",
     "domain": {

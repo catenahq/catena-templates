@@ -18,6 +18,14 @@ that are too slow or too external for the render path:
     metacharacters there: migrations run through `docker exec` with no
     shell, so an `&&` written by someone thinking in shell is passed to
     the application as a literal argument and does nothing.
+  - The container the hook targets RESOLVES. A hook selects its container
+    with `docker ps -q -f label=...`; when the filter matches nothing the
+    expansion is empty, `docker exec ""` exits non-zero, and the daily
+    chain records a warning and carries on -- so the backup is taken
+    unquiesced and nothing says so. Two ways in, both of which had
+    happened here: a label filter written with `~=`, which docker parses
+    as a label literally named `<key>~` and therefore never matches, and
+    a component naming a service the compose does not define.
 
 Exit codes: 0 clean, 1 lint failures, 2 structural error.
 """
@@ -26,6 +34,8 @@ from __future__ import annotations
 import re
 import shutil
 import subprocess
+
+import yaml
 
 from .model import SourceError, load_sources
 
@@ -133,6 +143,59 @@ def lint_migrate_argv(argv: list[str], *, label: str) -> list[str]:
     return errors
 
 
+# The one selector shape a hook may use. Anything else is a filter nobody
+# has proved resolves.
+_LABEL_FILTER = re.compile(
+    r"-f label=vps\.app=(?P<app>[\w.-]+) -f label=vps\.component=(?P<component>[\w.-]+)"
+)
+# `docker ps -f label=key~=value` splits on the FIRST `=`, so it looks for a
+# label named `key~` and matches nothing, silently.
+_TILDE_FILTER = re.compile(r"-f label=[\w.-]+~=")
+
+
+def lint_selector(snippet: str, *, label: str, app: str,
+                  services: set[str]) -> list[str]:
+    """The hook targets a container this template actually runs."""
+    errors: list[str] = []
+    if "docker exec" not in snippet:
+        return errors
+    if _TILDE_FILTER.search(snippet):
+        errors.append(
+            f"{label}: uses a `label=<key>~=<value>` filter. docker splits a "
+            f"label filter on the first `=`, so this asks for a label named "
+            f"`<key>~` and matches nothing -- the hook then runs "
+            f"`docker exec \"\"` and the backup is taken unquiesced"
+        )
+    found = _LABEL_FILTER.search(snippet)
+    if not found:
+        errors.append(
+            f"{label}: selects its container with something other than "
+            f"`-f label=vps.app=<app> -f label=vps.component=<service>`. "
+            f"Those two labels are on every service in this catalog and do "
+            f"not change when a client renames the stack"
+        )
+        return errors
+    if found.group("app") != app:
+        errors.append(
+            f"{label}: filters on vps.app={found.group('app')!r} but this "
+            f"template's app_name is {app!r}"
+        )
+    component = found.group("component")
+    if component not in services:
+        errors.append(
+            f"{label}: filters on vps.component={component!r}, which is not a "
+            f"service in this template's compose ({sorted(services)})"
+        )
+    return errors
+
+
+def compose_services(entry) -> set[str]:
+    doc = yaml.safe_load(entry.compose_path.read_text(encoding="utf-8"))
+    if not isinstance(doc, dict) or not isinstance(doc.get("services"), dict):
+        return set()
+    return set(doc["services"])
+
+
 def shellcheck_snippet(snippet: str, *, label: str) -> list[str]:
     if shutil.which("shellcheck") is None:
         return ["__SHELLCHECK_MISSING__"]
@@ -174,10 +237,15 @@ def lint_all() -> int:
         if not quiesce:
             continue
         with_hooks += 1
+        services = compose_services(entry)
         for name in ("pre", "post"):
             label = f"{entry.slug}.quiesce_{name}"
             snippet = str(quiesce[name])
             all_errors.extend(lint_snippet(snippet, label=label))
+            all_errors.extend(lint_selector(
+                snippet, label=label,
+                app=entry.catena["app_name"], services=services,
+            ))
             sh_errs = shellcheck_snippet(snippet, label=label)
             if sh_errs == ["__SHELLCHECK_MISSING__"]:
                 shellcheck_missing = True

@@ -2,14 +2,14 @@
   "id": "erpnext",
   "type": 2,
   "title": "ERPNext",
-  "name": "erpnext",
+  "name": "catena-erpnext",
   "categories": [
     "ERP",
     "Business"
   ],
   "platform": "linux",
   "x-catena": {
-    "app_name": "erpnext",
+    "app_name": "catena-erpnext",
     "upstream_url": "https://erpnext.com/",
     "sso_mode": "post-deploy-ui",
     "domain": {
@@ -62,7 +62,7 @@
       "extra_notes": "**Ressources.** ERPNext est lourd -- 10+ conteneurs, minimum ~3 GB RAM + 2 CPUs recommand\u00e9s. Un VPS d\u00e9di\u00e9 s'impose lorsque Nextcloud + chat + d'autres apps tournent en parall\u00e8le.\n\n**Mont\u00e9es de version.** Les bumps majeurs (v15 -> v16) n\u00e9cessitent `bench migrate`. Le template laisse `vps.auto-update=patch` sur chaque service : les mises \u00e0 jour hebdomadaires automatiques restent en v15.x.x -- les majeurs sont une action op\u00e9rateur d\u00e9lib\u00e9r\u00e9e, pas une auto-update \u00e0 3 h du matin.\n"
     },
     "quiesce": {
-      "pre": "docker exec \"$(docker ps -q -f label=com.docker.compose.service=db -f label=com.docker.compose.project~=erpnext | head -1)\" sh -c 'mariadb-dump --single-transaction --quick --routines --triggers --add-drop-table -u root -p\"$MARIADB_ROOT_PASSWORD\" --all-databases > /var/lib/mysql/.catena-dump.sql.new && mv /var/lib/mysql/.catena-dump.sql.new /var/lib/mysql/.catena-dump.sql'",
+      "pre": "docker exec \"$(docker ps -q -f label=vps.app=catena-erpnext -f label=vps.component=db | head -1)\" sh -c 'mariadb-dump --single-transaction --quick --routines --triggers --add-drop-table -u root -p\"$MARIADB_ROOT_PASSWORD\" --all-databases > /var/lib/mysql/.catena-dump.sql.new && mv /var/lib/mysql/.catena-dump.sql.new /var/lib/mysql/.catena-dump.sql'",
       "post": "true",
       "timeout_seconds": 60
     }

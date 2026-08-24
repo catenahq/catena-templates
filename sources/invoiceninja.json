@@ -2,14 +2,14 @@
   "id": "invoiceninja",
   "type": 2,
   "title": "Invoice Ninja",
-  "name": "invoiceninja",
+  "name": "catena-invoiceninja",
   "categories": [
     "Finance",
     "Invoicing"
   ],
   "platform": "linux",
   "x-catena": {
-    "app_name": "invoiceninja",
+    "app_name": "catena-invoiceninja",
     "upstream_url": "https://www.invoiceninja.com/",
     "sso_mode": "post-deploy-ui",
     "domain": {
@@ -73,7 +73,7 @@
       "extra_notes": "### Facturation dans la suite Catena\n\nInvoice Ninja est le ma\u00eetre de la facturation dans la suite Catena. Les heures depuis Kimai (ma\u00eetre du suivi du temps) alimentent les factures Invoice Ninja via la synchronisation mensuelle, et les factures pay\u00e9es depuis Invoice Ninja alimentent ERPNext (ma\u00eetre de la comptabilit\u00e9) via l'action de fin de mois. Les clients dans Invoice Ninja portent un champ personnalis\u00e9 `espo_account_id` afin que chaque facture soit li\u00e9e au compte EspoCRM correspondant.\n\n### Licence\n\nL'\u00e9dition auto-h\u00e9berg\u00e9e d'Invoice Ninja est sous Elastic License 2.0. Deux implications pratiques :\n- H\u00e9berger Invoice Ninja pour une entreprise sur son propre VPS, et un tiers qui l'h\u00e9berge pour le compte de cette entreprise et facture le service d'h\u00e9bergement, sont explicitement autoris\u00e9s par la licence.\n- Revendre Invoice Ninja comme SaaS, ou l'int\u00e9grer comme partie d'un autre SaaS, requiert une licence commerciale d'Invoice Ninja LLC. Le mod\u00e8le Catena est \"d\u00e9ploy\u00e9 sur un VPS appartenant au client, qui en reste propri\u00e9taire\" -- c'est la voie d'h\u00e9bergement autoris\u00e9e.\n- L'\u00e9dition gratuite affiche un bandeau \"Powered by Invoice Ninja\" sur les surfaces client. Une licence white-label \u00e0 40 USD/an le retire, ce qui vaut la peine d\u00e8s que de vrais clients sont factur\u00e9s.\n\n### Authentification\n\nOIDC natif en auto-h\u00e9bergement est une demande ouverte c\u00f4t\u00e9 upstream. En attendant, Invoice Ninja utilise un identifiant local. Le groupe Keycloak `staff` filtre l'acc\u00e8s au bord Traefik via oauth2-proxy avant que le trafic n'atteigne Invoice Ninja, donc les personnes hors de l'\u00e9quipe ne peuvent pas atteindre la page de connexion.\n\n### Traitement des paiements\n\nInvoice Ninja g\u00e8re le c\u00f4t\u00e9 paiement client. Quand un client paie via le portail, Stripe traite la carte et Invoice Ninja marque la facture pay\u00e9e + enregistre le paiement. Le montant est vers\u00e9 sur le compte Stripe de l'entreprise, \u00e0 son nom et sous son identifiant fiscal ; Catena ne fait transiter aucun paiement par un compte qu'elle contr\u00f4le.\n\n### Ressources\n\nInvoice Ninja tourne en PHP-FPM + nginx + MariaDB + Redis -- quatre conteneurs. Pr\u00e9voyez ~400 Mo de RAM au repos, ~800 Mo en g\u00e9n\u00e9ration de factures en masse ou rattrapage de file. Le rendu PDF utilise Chromium int\u00e9gr\u00e9 et a des pointes br\u00e8ves lors d'exports multi-pages.\n"
     },
     "quiesce": {
-      "pre": "docker exec \"$(docker ps -q -f label=com.docker.compose.service=db -f label=com.docker.compose.project~=invoiceninja | head -1)\" sh -c 'mariadb-dump --single-transaction --quick --routines --triggers --add-drop-table -u root -p\"$MARIADB_ROOT_PASSWORD\" --all-databases > /var/lib/mysql/.catena-dump.sql.new && mv /var/lib/mysql/.catena-dump.sql.new /var/lib/mysql/.catena-dump.sql'",
+      "pre": "docker exec \"$(docker ps -q -f label=vps.app=catena-invoiceninja -f label=vps.component=db | head -1)\" sh -c 'mariadb-dump --single-transaction --quick --routines --triggers --add-drop-table -u root -p\"$MARIADB_ROOT_PASSWORD\" --all-databases > /var/lib/mysql/.catena-dump.sql.new && mv /var/lib/mysql/.catena-dump.sql.new /var/lib/mysql/.catena-dump.sql'",
       "post": "true",
       "timeout_seconds": 60
     }

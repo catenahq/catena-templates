@@ -35,10 +35,12 @@ services:
       - "vps.route.service=postiz"
       - "vps.auth.mode=public"
       - "vps.auto-update=patch"
+      - "vps.app=catena-postiz"
+      - "vps.component=postiz"
     networks:
       catena-network:
         aliases:
-          - postiz
+          - catena-postiz
       default: {}
 
   db:
@@ -63,6 +65,8 @@ services:
       retries: 5
     labels:
       - "vps.auto-update=patch"
+      - "vps.app=catena-postiz"
+      - "vps.component=db"
     networks:
       - default
 
@@ -73,6 +77,8 @@ services:
         condition: any
     labels:
       - "vps.auto-update=patch"
+      - "vps.app=catena-postiz"
+      - "vps.component=redis"
     networks:
       - default
 

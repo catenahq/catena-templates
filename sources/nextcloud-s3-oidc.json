@@ -2,14 +2,14 @@
   "id": "nextcloud-s3-oidc",
   "type": 2,
   "title": "Nextcloud",
-  "name": "nextcloud",
+  "name": "catena-nextcloud",
   "categories": [
     "Files",
     "Collaboration"
   ],
   "platform": "linux",
   "x-catena": {
-    "app_name": "nextcloud",
+    "app_name": "catena-nextcloud",
     "upstream_url": "https://nextcloud.com",
     "sso_mode": "auto",
     "domain": {
@@ -111,8 +111,8 @@
       "timeout_seconds": 1800
     },
     "quiesce": {
-      "pre": "docker exec -u www-data \"$(docker ps -q -f label=com.docker.compose.service=app -f label=com.docker.compose.project~=nextcloud | head -1)\" php occ maintenance:mode --on",
-      "post": "docker exec -u www-data \"$(docker ps -q -f label=com.docker.compose.service=app -f label=com.docker.compose.project~=nextcloud | head -1)\" php occ maintenance:mode --off",
+      "pre": "docker exec -u www-data \"$(docker ps -q -f label=vps.app=catena-nextcloud -f label=vps.component=app | head -1)\" php occ maintenance:mode --on",
+      "post": "docker exec -u www-data \"$(docker ps -q -f label=vps.app=catena-nextcloud -f label=vps.component=app | head -1)\" php occ maintenance:mode --off",
       "timeout_seconds": 30
     }
   }

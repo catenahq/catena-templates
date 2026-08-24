@@ -132,6 +132,50 @@ def test_timeout_cap_lives_in_the_schema():
     assert quiesce["properties"]["timeout_seconds"]["maximum"] == 60
 
 
+# ── the container the hook targets has to resolve ────────────────────
+
+_GOOD = ('docker exec "$(docker ps -q -f label=vps.app=catena-demo '
+         '-f label=vps.component=db | head -1)" mariadb-dump --all-databases')
+
+
+def test_a_resolvable_selector_passes():
+    assert L.lint_selector(
+        _GOOD, label="x", app="catena-demo", services={"db", "app"}) == []
+
+
+def test_a_tilde_label_filter_is_rejected():
+    """docker splits a label filter on the FIRST `=`, so `project~=x` asks
+    for a label named `project~`. It matches nothing, the expansion is
+    empty, `docker exec ""` fails, and the daily chain warns and carries on
+    -- a backup taken unquiesced with nothing saying so."""
+    snippet = ('docker exec "$(docker ps -q '
+               '-f label=com.docker.compose.service=db '
+               '-f label=com.docker.compose.project~=demo | head -1)" true')
+    errs = L.lint_selector(
+        snippet, label="x", app="catena-demo", services={"db"})
+    assert any("matches nothing" in e for e in errs)
+
+
+def test_a_component_the_compose_does_not_define_is_rejected():
+    """The real case: rocketchat's hook named `rocketchat-mongo` while the
+    compose service was `mongodb`, so mongo was never fsyncLocked."""
+    errs = L.lint_selector(
+        _GOOD, label="x", app="catena-demo", services={"mongodb"})
+    assert any("not a service in this template" in e for e in errs)
+
+
+def test_a_selector_for_another_app_is_rejected():
+    errs = L.lint_selector(
+        _GOOD, label="x", app="catena-other", services={"db"})
+    assert any("app_name" in e for e in errs)
+
+
+def test_a_hook_that_does_not_exec_needs_no_selector():
+    """`true` is the honest no-op for an app with nothing to quiesce."""
+    assert L.lint_selector("true", label="x", app="catena-demo",
+                           services=set()) == []
+
+
 def test_lint_all_against_real_sources_passes():
     assert L.lint_all() == 0
 

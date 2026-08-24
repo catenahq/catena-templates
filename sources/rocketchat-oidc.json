@@ -2,14 +2,14 @@
   "id": "rocketchat-oidc",
   "type": 2,
   "title": "Rocket.Chat",
-  "name": "rocketchat",
+  "name": "catena-rocketchat",
   "categories": [
     "Communication",
     "Chat"
   ],
   "platform": "linux",
   "x-catena": {
-    "app_name": "rocketchat",
+    "app_name": "catena-rocketchat",
     "upstream_url": "https://www.rocket.chat/",
     "sso_mode": "pre-wired",
     "domain": {
@@ -78,8 +78,8 @@
       "JITSI_JVB_AUTH_PASSWORD"
     ],
     "quiesce": {
-      "pre": "docker exec \"$(docker ps -q -f label=com.docker.compose.service=rocketchat-mongo -f label=com.docker.compose.project~=rocketchat | head -1)\" mongosh --quiet --eval 'db.fsyncLock()'",
-      "post": "docker exec \"$(docker ps -q -f label=com.docker.compose.service=rocketchat-mongo -f label=com.docker.compose.project~=rocketchat | head -1)\" mongosh --quiet --eval 'db.fsyncUnlock()'",
+      "pre": "docker exec \"$(docker ps -q -f label=vps.app=catena-rocketchat -f label=vps.component=mongodb | head -1)\" mongosh --quiet --eval 'db.fsyncLock()'",
+      "post": "docker exec \"$(docker ps -q -f label=vps.app=catena-rocketchat -f label=vps.component=mongodb | head -1)\" mongosh --quiet --eval 'db.fsyncUnlock()'",
       "timeout_seconds": 60
     }
   }

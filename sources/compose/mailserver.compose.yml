@@ -108,6 +108,8 @@ services:
       # Mail ports -> public-port registry (host reconciler applies ufw).
       - "vps.expose.tcp=25,465,587,993"
       - "vps.auto-update=patch"
+      - "vps.app=catena-mailserver"
+      - "vps.component=dms"
     networks:
       default: {}
       # Shared antivirus: rspamd reaches the ops-managed clamd at
@@ -153,9 +155,12 @@ services:
       - "vps.auth.oidc.redirect_uris=https://${WEBMAIL_HOSTNAME}/index.php/login/oauth"
       - "vps.auth.oidc.scopes=openid email profile groups"
       - "vps.auto-update=patch"
+      - "vps.app=catena-mailserver"
+      - "vps.component=roundcube"
     networks:
       catena-network:
         aliases:
+          - catena-mailserver
           - roundcube
       default: {}
 
@@ -205,6 +210,8 @@ services:
     labels:
       - "vps.auth.mode=public"
       - "vps.auto-update=patch"
+      - "vps.app=catena-mailserver"
+      - "vps.component=mta-sts"
     networks:
       catena-network:
         aliases:

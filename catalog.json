@@ -7,7 +7,7 @@
   },
   "templates": [
     {
-      "app_name": "nextcloud",
+      "app_name": "catena-nextcloud",
       "bench_fixture": "required",
       "bench_pack": "postgres",
       "categories": [
@@ -102,8 +102,8 @@
         "timeout_seconds": 1800,
         "user": "www-data"
       },
-      "quiesce_post": "docker exec -u www-data \"$(docker ps -q -f label=com.docker.compose.service=app -f label=com.docker.compose.project~=nextcloud | head -1)\" php occ maintenance:mode --off",
-      "quiesce_pre": "docker exec -u www-data \"$(docker ps -q -f label=com.docker.compose.service=app -f label=com.docker.compose.project~=nextcloud | head -1)\" php occ maintenance:mode --on",
+      "quiesce_post": "docker exec -u www-data \"$(docker ps -q -f label=vps.app=catena-nextcloud -f label=vps.component=app | head -1)\" php occ maintenance:mode --off",
+      "quiesce_pre": "docker exec -u www-data \"$(docker ps -q -f label=vps.app=catena-nextcloud -f label=vps.component=app | head -1)\" php occ maintenance:mode --on",
       "quiesce_timeout_seconds": 30,
       "s3_reconcile": {
         "check": "nextcloud-objectstore",
@@ -124,7 +124,7 @@
       "upstream_url": "https://nextcloud.com"
     },
     {
-      "app_name": "collabora",
+      "app_name": "catena-collabora",
       "bench_fixture": "skip",
       "bench_pack": "nodb",
       "categories": [
@@ -173,7 +173,7 @@
       "upstream_url": "https://www.collaboraonline.com/"
     },
     {
-      "app_name": "onlyoffice",
+      "app_name": "catena-onlyoffice",
       "bench_fixture": "required",
       "bench_pack": "embedded",
       "categories": [
@@ -223,7 +223,7 @@
       "upstream_url": "https://www.onlyoffice.com/"
     },
     {
-      "app_name": "rocketchat",
+      "app_name": "catena-rocketchat",
       "bench_fixture": "required",
       "bench_pack": "mongo",
       "categories": [
@@ -282,8 +282,8 @@
       },
       "hostname_baked": true,
       "id": "rocketchat-oidc",
-      "quiesce_post": "docker exec \"$(docker ps -q -f label=com.docker.compose.service=rocketchat-mongo -f label=com.docker.compose.project~=rocketchat | head -1)\" mongosh --quiet --eval 'db.fsyncUnlock()'",
-      "quiesce_pre": "docker exec \"$(docker ps -q -f label=com.docker.compose.service=rocketchat-mongo -f label=com.docker.compose.project~=rocketchat | head -1)\" mongosh --quiet --eval 'db.fsyncLock()'",
+      "quiesce_post": "docker exec \"$(docker ps -q -f label=vps.app=catena-rocketchat -f label=vps.component=mongodb | head -1)\" mongosh --quiet --eval 'db.fsyncUnlock()'",
+      "quiesce_pre": "docker exec \"$(docker ps -q -f label=vps.app=catena-rocketchat -f label=vps.component=mongodb | head -1)\" mongosh --quiet --eval 'db.fsyncLock()'",
       "quiesce_timeout_seconds": 60,
       "sizing": {
         "disk_baseline_mb": 180,
@@ -298,7 +298,7 @@
       "upstream_url": "https://www.rocket.chat/"
     },
     {
-      "app_name": "element",
+      "app_name": "catena-element",
       "bench_fixture": "required",
       "bench_pack": "postgres",
       "categories": [
@@ -390,7 +390,7 @@
       "upstream_url": "https://element.io/"
     },
     {
-      "app_name": "docuseal",
+      "app_name": "catena-docuseal",
       "bench_fixture": "required",
       "bench_pack": "postgres",
       "categories": [
@@ -457,7 +457,7 @@
       "upstream_url": "https://www.docuseal.com/"
     },
     {
-      "app_name": "outline",
+      "app_name": "catena-outline",
       "bench_fixture": "required",
       "bench_pack": "postgres",
       "categories": [
@@ -524,7 +524,7 @@
       "upstream_url": "https://www.getoutline.com/"
     },
     {
-      "app_name": "espocrm",
+      "app_name": "catena-espocrm",
       "bench_fixture": "required",
       "bench_pack": "mariadb",
       "categories": [
@@ -586,7 +586,7 @@
         "user": "www-data"
       },
       "quiesce_post": "true",
-      "quiesce_pre": "docker exec \"$(docker ps -q -f label=com.docker.compose.service=db -f label=com.docker.compose.project~=espocrm | head -1)\" sh -c 'mariadb-dump --single-transaction --quick --routines --triggers --add-drop-table -u root -p\"$MARIADB_ROOT_PASSWORD\" --all-databases > /var/lib/mysql/.catena-dump.sql.new && mv /var/lib/mysql/.catena-dump.sql.new /var/lib/mysql/.catena-dump.sql'",
+      "quiesce_pre": "docker exec \"$(docker ps -q -f label=vps.app=catena-espocrm -f label=vps.component=db | head -1)\" sh -c 'mariadb-dump --single-transaction --quick --routines --triggers --add-drop-table -u root -p\"$MARIADB_ROOT_PASSWORD\" --all-databases > /var/lib/mysql/.catena-dump.sql.new && mv /var/lib/mysql/.catena-dump.sql.new /var/lib/mysql/.catena-dump.sql'",
       "quiesce_timeout_seconds": 60,
       "sizing": {
         "disk_baseline_mb": 200,
@@ -601,7 +601,7 @@
       "upstream_url": "https://www.espocrm.com/"
     },
     {
-      "app_name": "twenty",
+      "app_name": "catena-twenty",
       "bench_fixture": "required",
       "bench_pack": "postgres",
       "categories": [
@@ -657,7 +657,7 @@
       "upstream_url": "https://twenty.com/"
     },
     {
-      "app_name": "plane",
+      "app_name": "catena-plane",
       "bench_fixture": "required",
       "bench_pack": "postgres",
       "categories": [
@@ -714,7 +714,7 @@
       "upstream_url": "https://plane.so/"
     },
     {
-      "app_name": "windshift",
+      "app_name": "catena-windshift",
       "bench_fixture": "required",
       "bench_pack": "postgres",
       "categories": [
@@ -772,7 +772,7 @@
       "upstream_url": "https://windshift.sh/"
     },
     {
-      "app_name": "zammad",
+      "app_name": "catena-zammad",
       "bench_fixture": "required",
       "bench_pack": "postgres",
       "categories": [
@@ -827,7 +827,7 @@
       "upstream_url": "https://zammad.com/"
     },
     {
-      "app_name": "chatwoot",
+      "app_name": "catena-chatwoot",
       "bench_fixture": "required",
       "bench_pack": "postgres",
       "categories": [
@@ -883,7 +883,7 @@
       "upstream_url": "https://www.chatwoot.com/"
     },
     {
-      "app_name": "wordpress",
+      "app_name": "catena-wordpress",
       "bench_fixture": "required",
       "bench_pack": "mariadb",
       "categories": [
@@ -932,7 +932,7 @@
       "hostname_baked": true,
       "id": "wordpress",
       "quiesce_post": "true",
-      "quiesce_pre": "docker exec \"$(docker ps -q -f label=com.docker.compose.service=db -f label=com.docker.compose.project~=wordpress | head -1)\" sh -c 'mariadb-dump --single-transaction --quick --routines --triggers --add-drop-table -u root -p\"$MARIADB_ROOT_PASSWORD\" --all-databases > /var/lib/mysql/.catena-dump.sql.new && mv /var/lib/mysql/.catena-dump.sql.new /var/lib/mysql/.catena-dump.sql'",
+      "quiesce_pre": "docker exec \"$(docker ps -q -f label=vps.app=catena-wordpress -f label=vps.component=db | head -1)\" sh -c 'mariadb-dump --single-transaction --quick --routines --triggers --add-drop-table -u root -p\"$MARIADB_ROOT_PASSWORD\" --all-databases > /var/lib/mysql/.catena-dump.sql.new && mv /var/lib/mysql/.catena-dump.sql.new /var/lib/mysql/.catena-dump.sql'",
       "quiesce_timeout_seconds": 60,
       "sizing": {
         "disk_baseline_mb": 180,
@@ -947,7 +947,7 @@
       "upstream_url": "https://wordpress.org/"
     },
     {
-      "app_name": "n8n",
+      "app_name": "catena-n8n",
       "bench_fixture": "required",
       "bench_pack": "postgres",
       "categories": [
@@ -1004,7 +1004,7 @@
       "upstream_url": "https://n8n.io/"
     },
     {
-      "app_name": "erpnext",
+      "app_name": "catena-erpnext",
       "bench_fixture": "required",
       "bench_pack": "mariadb",
       "categories": [
@@ -1048,7 +1048,7 @@
       "hostname_baked": true,
       "id": "erpnext",
       "quiesce_post": "true",
-      "quiesce_pre": "docker exec \"$(docker ps -q -f label=com.docker.compose.service=db -f label=com.docker.compose.project~=erpnext | head -1)\" sh -c 'mariadb-dump --single-transaction --quick --routines --triggers --add-drop-table -u root -p\"$MARIADB_ROOT_PASSWORD\" --all-databases > /var/lib/mysql/.catena-dump.sql.new && mv /var/lib/mysql/.catena-dump.sql.new /var/lib/mysql/.catena-dump.sql'",
+      "quiesce_pre": "docker exec \"$(docker ps -q -f label=vps.app=catena-erpnext -f label=vps.component=db | head -1)\" sh -c 'mariadb-dump --single-transaction --quick --routines --triggers --add-drop-table -u root -p\"$MARIADB_ROOT_PASSWORD\" --all-databases > /var/lib/mysql/.catena-dump.sql.new && mv /var/lib/mysql/.catena-dump.sql.new /var/lib/mysql/.catena-dump.sql'",
       "quiesce_timeout_seconds": 60,
       "sizing": {
         "disk_baseline_mb": 850,
@@ -1063,7 +1063,7 @@
       "upstream_url": "https://erpnext.com/"
     },
     {
-      "app_name": "actualbudget",
+      "app_name": "catena-actualbudget",
       "bench_fixture": "required",
       "bench_pack": "embedded",
       "categories": [
@@ -1103,7 +1103,7 @@
       "hostname_baked": false,
       "id": "actualbudget",
       "quiesce_post": "true",
-      "quiesce_pre": "docker exec \"$(docker ps -q -f label=com.docker.compose.service=actual -f label=com.docker.compose.project~=actualbudget | head -1)\" sh -c 'sqlite3 /data/server-files/account.sqlite \".backup /data/server-files/.catena-snapshot.sqlite.new\" && mv /data/server-files/.catena-snapshot.sqlite.new /data/server-files/.catena-snapshot.sqlite'",
+      "quiesce_pre": "docker exec \"$(docker ps -q -f label=vps.app=catena-actualbudget -f label=vps.component=actual | head -1)\" sh -c 'sqlite3 /data/server-files/account.sqlite \".backup /data/server-files/.catena-snapshot.sqlite.new\" && mv /data/server-files/.catena-snapshot.sqlite.new /data/server-files/.catena-snapshot.sqlite'",
       "quiesce_timeout_seconds": 30,
       "sizing": {
         "disk_baseline_mb": 30,
@@ -1118,7 +1118,7 @@
       "upstream_url": "https://actualbudget.org/"
     },
     {
-      "app_name": "postiz",
+      "app_name": "catena-postiz",
       "bench_fixture": "required",
       "bench_pack": "postgres",
       "categories": [
@@ -1174,7 +1174,7 @@
       "upstream_url": "https://postiz.com/"
     },
     {
-      "app_name": "easyappointments",
+      "app_name": "catena-easyappointments",
       "bench_fixture": "required",
       "bench_pack": "mariadb",
       "categories": [
@@ -1219,7 +1219,7 @@
       "hostname_baked": true,
       "id": "easyappointments",
       "quiesce_post": "true",
-      "quiesce_pre": "docker exec \"$(docker ps -q -f label=com.docker.compose.service=db -f label=com.docker.compose.project~=easyappointments | head -1)\" sh -c 'mariadb-dump --single-transaction --quick --routines --triggers --add-drop-table -u root -p\"$MARIADB_ROOT_PASSWORD\" --all-databases > /var/lib/mysql/.catena-dump.sql.new && mv /var/lib/mysql/.catena-dump.sql.new /var/lib/mysql/.catena-dump.sql'",
+      "quiesce_pre": "docker exec \"$(docker ps -q -f label=vps.app=catena-easyappointments -f label=vps.component=db | head -1)\" sh -c 'mariadb-dump --single-transaction --quick --routines --triggers --add-drop-table -u root -p\"$MARIADB_ROOT_PASSWORD\" --all-databases > /var/lib/mysql/.catena-dump.sql.new && mv /var/lib/mysql/.catena-dump.sql.new /var/lib/mysql/.catena-dump.sql'",
       "quiesce_timeout_seconds": 60,
       "sizing": {
         "disk_baseline_mb": null,
@@ -1234,7 +1234,7 @@
       "upstream_url": "https://easyappointments.org/"
     },
     {
-      "app_name": "mautic",
+      "app_name": "catena-mautic",
       "bench_fixture": "required",
       "bench_pack": "mariadb",
       "categories": [
@@ -1285,7 +1285,7 @@
       "hostname_baked": true,
       "id": "mautic",
       "quiesce_post": "true",
-      "quiesce_pre": "docker exec \"$(docker ps -q -f label=com.docker.compose.service=db -f label=com.docker.compose.project~=mautic | head -1)\" sh -c 'mariadb-dump --single-transaction --quick --routines --triggers --add-drop-table -u root -p\"$MARIADB_ROOT_PASSWORD\" --all-databases > /var/lib/mysql/.catena-dump.sql.new && mv /var/lib/mysql/.catena-dump.sql.new /var/lib/mysql/.catena-dump.sql'",
+      "quiesce_pre": "docker exec \"$(docker ps -q -f label=vps.app=catena-mautic -f label=vps.component=db | head -1)\" sh -c 'mariadb-dump --single-transaction --quick --routines --triggers --add-drop-table -u root -p\"$MARIADB_ROOT_PASSWORD\" --all-databases > /var/lib/mysql/.catena-dump.sql.new && mv /var/lib/mysql/.catena-dump.sql.new /var/lib/mysql/.catena-dump.sql'",
       "quiesce_timeout_seconds": 60,
       "sizing": {
         "disk_baseline_mb": 420,
@@ -1300,7 +1300,7 @@
       "upstream_url": "https://www.mautic.org/"
     },
     {
-      "app_name": "kimai",
+      "app_name": "catena-kimai",
       "bench_fixture": "required",
       "bench_pack": "mariadb",
       "categories": [
@@ -1351,7 +1351,7 @@
       "hostname_baked": true,
       "id": "kimai",
       "quiesce_post": "true",
-      "quiesce_pre": "docker exec \"$(docker ps -q -f label=com.docker.compose.service=db -f label=com.docker.compose.project~=kimai | head -1)\" sh -c 'mariadb-dump --single-transaction --quick --routines --triggers --add-drop-table -u root -p\"$MARIADB_ROOT_PASSWORD\" --all-databases > /var/lib/mysql/.catena-dump.sql.new && mv /var/lib/mysql/.catena-dump.sql.new /var/lib/mysql/.catena-dump.sql'",
+      "quiesce_pre": "docker exec \"$(docker ps -q -f label=vps.app=catena-kimai -f label=vps.component=db | head -1)\" sh -c 'mariadb-dump --single-transaction --quick --routines --triggers --add-drop-table -u root -p\"$MARIADB_ROOT_PASSWORD\" --all-databases > /var/lib/mysql/.catena-dump.sql.new && mv /var/lib/mysql/.catena-dump.sql.new /var/lib/mysql/.catena-dump.sql'",
       "quiesce_timeout_seconds": 60,
       "sizing": {
         "disk_baseline_mb": 180,
@@ -1366,7 +1366,7 @@
       "upstream_url": "https://www.kimai.org/"
     },
     {
-      "app_name": "invoiceninja",
+      "app_name": "catena-invoiceninja",
       "bench_fixture": "required",
       "bench_pack": "mariadb",
       "categories": [
@@ -1421,7 +1421,7 @@
       "hostname_baked": true,
       "id": "invoiceninja",
       "quiesce_post": "true",
-      "quiesce_pre": "docker exec \"$(docker ps -q -f label=com.docker.compose.service=db -f label=com.docker.compose.project~=invoiceninja | head -1)\" sh -c 'mariadb-dump --single-transaction --quick --routines --triggers --add-drop-table -u root -p\"$MARIADB_ROOT_PASSWORD\" --all-databases > /var/lib/mysql/.catena-dump.sql.new && mv /var/lib/mysql/.catena-dump.sql.new /var/lib/mysql/.catena-dump.sql'",
+      "quiesce_pre": "docker exec \"$(docker ps -q -f label=vps.app=catena-invoiceninja -f label=vps.component=db | head -1)\" sh -c 'mariadb-dump --single-transaction --quick --routines --triggers --add-drop-table -u root -p\"$MARIADB_ROOT_PASSWORD\" --all-databases > /var/lib/mysql/.catena-dump.sql.new && mv /var/lib/mysql/.catena-dump.sql.new /var/lib/mysql/.catena-dump.sql'",
       "quiesce_timeout_seconds": 60,
       "sizing": {
         "disk_baseline_mb": 350,
@@ -1436,7 +1436,7 @@
       "upstream_url": "https://www.invoiceninja.com/"
     },
     {
-      "app_name": "mailserver",
+      "app_name": "catena-mailserver",
       "bench_fixture": "required",
       "bench_pack": "nodb",
       "categories": [

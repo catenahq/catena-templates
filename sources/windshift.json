@@ -2,14 +2,14 @@
   "id": "windshift",
   "type": 2,
   "title": "Windshift",
-  "name": "windshift",
+  "name": "catena-windshift",
   "categories": [
     "Project management",
     "Support"
   ],
   "platform": "linux",
   "x-catena": {
-    "app_name": "windshift",
+    "app_name": "catena-windshift",
     "upstream_url": "https://windshift.sh/",
     "sso_mode": "post-deploy-ui",
     "domain": {

@@ -2,13 +2,13 @@
   "id": "plane",
   "type": 2,
   "title": "Plane",
-  "name": "plane",
+  "name": "catena-plane",
   "categories": [
     "Project management"
   ],
   "platform": "linux",
   "x-catena": {
-    "app_name": "plane",
+    "app_name": "catena-plane",
     "upstream_url": "https://plane.so/",
     "sso_mode": "post-deploy-ui",
     "domain": {

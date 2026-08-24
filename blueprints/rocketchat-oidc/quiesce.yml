@@ -2,6 +2,6 @@
 id: rocketchat-oidc
 timeout_seconds: 60
 pre: |
-  docker exec "$(docker ps -q -f label=com.docker.compose.service=rocketchat-mongo -f label=com.docker.compose.project~=rocketchat | head -1)" mongosh --quiet --eval 'db.fsyncLock()'
+  docker exec "$(docker ps -q -f label=vps.app=catena-rocketchat -f label=vps.component=mongodb | head -1)" mongosh --quiet --eval 'db.fsyncLock()'
 post: |
-  docker exec "$(docker ps -q -f label=com.docker.compose.service=rocketchat-mongo -f label=com.docker.compose.project~=rocketchat | head -1)" mongosh --quiet --eval 'db.fsyncUnlock()'
+  docker exec "$(docker ps -q -f label=vps.app=catena-rocketchat -f label=vps.component=mongodb | head -1)" mongosh --quiet --eval 'db.fsyncUnlock()'

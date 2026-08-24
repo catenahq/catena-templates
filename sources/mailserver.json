@@ -2,14 +2,14 @@
   "id": "mailserver",
   "type": 2,
   "title": "Mail server + webmail",
-  "name": "mailserver",
+  "name": "catena-mailserver",
   "categories": [
     "Email",
     "Infrastructure"
   ],
   "platform": "linux",
   "x-catena": {
-    "app_name": "mailserver",
+    "app_name": "catena-mailserver",
     "upstream_url": "https://docker-mailserver.github.io/",
     "sso_mode": "auto",
     "domain": {

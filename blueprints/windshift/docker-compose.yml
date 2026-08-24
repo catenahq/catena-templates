@@ -95,10 +95,12 @@ services:
       - "vps.auth.oidc.redirect_uris=https://${WINDSHIFT_HOSTNAME}/api/sso/callback/keycloak"
       - "vps.auth.oidc.scopes=openid email profile"
       - "vps.auto-update=patch"
+      - "vps.app=catena-windshift"
+      - "vps.component=windshift"
     networks:
       catena-network:
         aliases:
-          - windshift
+          - catena-windshift
       default: {}
 
   db:
@@ -123,6 +125,8 @@ services:
       retries: 5
     labels:
       - "vps.auto-update=patch"
+      - "vps.app=catena-windshift"
+      - "vps.component=db"
     networks:
       - default
 

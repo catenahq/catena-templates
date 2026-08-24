@@ -2,13 +2,13 @@
   "id": "n8n",
   "type": 2,
   "title": "n8n",
-  "name": "n8n",
+  "name": "catena-n8n",
   "categories": [
     "Automation"
   ],
   "platform": "linux",
   "x-catena": {
-    "app_name": "n8n",
+    "app_name": "catena-n8n",
     "upstream_url": "https://n8n.io/",
     "sso_mode": "none",
     "domain": {

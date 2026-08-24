@@ -45,10 +45,12 @@ services:
       - "vps.auth.mode=public"
       - "vps.auth.groups=staff"
       - "vps.auto-update=patch"
+      - "vps.app=catena-kimai"
+      - "vps.component=kimai"
     networks:
       catena-network:
         aliases:
-          - kimai
+          - catena-kimai
       default: {}
 
   db:
@@ -73,6 +75,8 @@ services:
       retries: 10
     labels:
       - "vps.auto-update=patch"
+      - "vps.app=catena-kimai"
+      - "vps.component=db"
     networks:
       - default
 

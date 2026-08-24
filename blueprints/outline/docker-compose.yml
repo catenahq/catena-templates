@@ -49,10 +49,12 @@ services:
       - "vps.auth.oidc.redirect_uris=https://${OUTLINE_HOSTNAME}/auth/oidc.callback"
       - "vps.auth.oidc.scopes=openid email profile"
       - "vps.auto-update=patch"
+      - "vps.app=catena-outline"
+      - "vps.component=outline"
     networks:
       catena-network:
         aliases:
-          - outline
+          - catena-outline
       default: {}
 
   db:
@@ -77,6 +79,8 @@ services:
       retries: 5
     labels:
       - "vps.auto-update=patch"
+      - "vps.app=catena-outline"
+      - "vps.component=db"
     networks:
       - default
 
@@ -87,6 +91,8 @@ services:
         condition: any
     labels:
       - "vps.auto-update=patch"
+      - "vps.app=catena-outline"
+      - "vps.component=redis"
     networks:
       - default
 

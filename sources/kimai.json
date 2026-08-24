@@ -2,14 +2,14 @@
   "id": "kimai",
   "type": 2,
   "title": "Kimai",
-  "name": "kimai",
+  "name": "catena-kimai",
   "categories": [
     "Time tracking",
     "Business"
   ],
   "platform": "linux",
   "x-catena": {
-    "app_name": "kimai",
+    "app_name": "catena-kimai",
     "upstream_url": "https://www.kimai.org/",
     "sso_mode": "post-deploy-ui",
     "domain": {
@@ -69,7 +69,7 @@
       "extra_notes": "### Suivi du temps dans la suite Catena\n\nKimai est le ma\u00eetre du suivi du temps dans la suite Catena. Les heures saisies ici alimentent l'application de facturation (Invoice Ninja) via une synchronisation mensuelle, automatisable sur demande. Les fiches clients dans Kimai portent un champ personnalis\u00e9 `espo_account_id` afin que chaque feuille de temps soit li\u00e9e au compte EspoCRM correspondant.\n\n### Facturation int\u00e9gr\u00e9e\n\nKimai peut g\u00e9n\u00e9rer des factures PDF directement depuis le temps suivi. Cette voie convient \u00e0 un flux \"envoyer un PDF, le client paie par virement Interac ou bancaire\". Les paiements en ligne via Stripe, un portail client ou la facturation r\u00e9currente appellent plut\u00f4t Invoice Ninja, d\u00e9ploy\u00e9 sur demande, et la suite achemine alors les factures \u00e0 travers lui.\n\n### Authentification\n\nTant que SAML n'est pas c\u00e2bl\u00e9 (\u00e9tape 3 ci-dessus), Kimai utilise un identifiant local. M\u00eame apr\u00e8s SAML, la connexion admin locale continue de fonctionner comme issue de secours. Le groupe Keycloak `staff` filtre l'acc\u00e8s au bord Traefik via oauth2-proxy avant que le trafic n'atteigne Kimai, donc les personnes hors de l'\u00e9quipe ne peuvent pas atteindre la page de connexion.\n\n### Ressources\n\nKimai tourne en PHP-Apache + MariaDB. Pr\u00e9voyez ~250 Mo de RAM au repos, ~500 Mo lors d'exports en masse ou de rendu de factures en fin de mois charg\u00e9e.\n"
     },
     "quiesce": {
-      "pre": "docker exec \"$(docker ps -q -f label=com.docker.compose.service=db -f label=com.docker.compose.project~=kimai | head -1)\" sh -c 'mariadb-dump --single-transaction --quick --routines --triggers --add-drop-table -u root -p\"$MARIADB_ROOT_PASSWORD\" --all-databases > /var/lib/mysql/.catena-dump.sql.new && mv /var/lib/mysql/.catena-dump.sql.new /var/lib/mysql/.catena-dump.sql'",
+      "pre": "docker exec \"$(docker ps -q -f label=vps.app=catena-kimai -f label=vps.component=db | head -1)\" sh -c 'mariadb-dump --single-transaction --quick --routines --triggers --add-drop-table -u root -p\"$MARIADB_ROOT_PASSWORD\" --all-databases > /var/lib/mysql/.catena-dump.sql.new && mv /var/lib/mysql/.catena-dump.sql.new /var/lib/mysql/.catena-dump.sql'",
       "post": "true",
       "timeout_seconds": 60
     }

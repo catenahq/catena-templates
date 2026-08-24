@@ -2,14 +2,14 @@
   "id": "chatwoot",
   "type": 2,
   "title": "Chatwoot",
-  "name": "chatwoot",
+  "name": "catena-chatwoot",
   "categories": [
     "Communication",
     "Support"
   ],
   "platform": "linux",
   "x-catena": {
-    "app_name": "chatwoot",
+    "app_name": "catena-chatwoot",
     "upstream_url": "https://www.chatwoot.com/",
     "sso_mode": "none",
     "domain": {

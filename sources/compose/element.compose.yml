@@ -54,6 +54,8 @@ services:
       retries: 5
     labels:
       - "vps.auto-update=patch"
+      - "vps.app=catena-element"
+      - "vps.component=postgres"
     networks:
       default:
         aliases:
@@ -262,6 +264,8 @@ services:
       - "vps.auth.oidc.redirect_uris=https://${MATRIX_HOSTNAME}/_synapse/client/oidc/callback"
       - "vps.auth.oidc.scopes=openid email profile groups"
       - "vps.auto-update=patch"
+      - "vps.app=catena-element"
+      - "vps.component=synapse"
     networks:
       catena-network:
         aliases:
@@ -353,9 +357,12 @@ services:
       - "vps.route.service=element-web"
       - "vps.auth.mode=public"
       - "vps.auto-update=patch"
+      - "vps.app=catena-element"
+      - "vps.component=element-web"
     networks:
       catena-network:
         aliases:
+          - catena-element
           - element-web
       default: {}
 
@@ -373,6 +380,8 @@ services:
       # reach the UI. Mirrors the catena-admin gating posture.
       - "vps.auth.mode=admin"
       - "vps.auto-update=patch"
+      - "vps.app=catena-element"
+      - "vps.component=synapse-admin"
     networks:
       catena-network:
         aliases:
@@ -424,6 +433,8 @@ services:
       TZ: Etc/UTC
     labels:
       - "vps.auto-update=patch"
+      - "vps.app=catena-element"
+      - "vps.component=prosody"
     networks:
       default:
         aliases:
@@ -454,6 +465,8 @@ services:
       TZ: Etc/UTC
     labels:
       - "vps.auto-update=patch"
+      - "vps.app=catena-element"
+      - "vps.component=jicofo"
     networks:
       - default
 
@@ -488,6 +501,8 @@ services:
       TZ: Etc/UTC
     labels:
       - "vps.auto-update=patch"
+      - "vps.app=catena-element"
+      - "vps.component=jvb"
     networks:
       - default
 
@@ -514,6 +529,8 @@ services:
       # account to join (Jitsi rooms are by-URL).
       - "vps.auth.mode=public"
       - "vps.auto-update=patch"
+      - "vps.app=catena-element"
+      - "vps.component=jitsi-web"
     networks:
       catena-network:
         aliases:
@@ -562,6 +579,8 @@ services:
       TZ: Etc/UTC
     labels:
       - "vps.auto-update=patch"
+      - "vps.app=catena-element"
+      - "vps.component=jigasi"
     networks:
       - default
   # === JITSI END ============================================================

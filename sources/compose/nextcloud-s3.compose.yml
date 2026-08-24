@@ -330,10 +330,12 @@ services:
       - "vps.auth.oidc.redirect_uris=https://${NEXTCLOUD_HOSTNAME}/apps/user_oidc/code"
       - "vps.auth.oidc.scopes=openid email profile groups"
       - "vps.auto-update=patch"
+      - "vps.app=catena-nextcloud"
+      - "vps.component=app"
     networks:
       catena-network:
         aliases:
-          - nextcloud
+          - catena-nextcloud
       default: {}
       # Shared antivirus: files_antivirus (Daemon mode) reaches the
       # ops-managed clamd at clamav:3310 over this network. ops wires
@@ -370,6 +372,8 @@ services:
       start_period: 10s
     labels:
       - "vps.auto-update=patch"
+      - "vps.app=catena-nextcloud"
+      - "vps.component=db"
     networks:
       - default
 
@@ -380,6 +384,8 @@ services:
         condition: any
     labels:
       - "vps.auto-update=patch"
+      - "vps.app=catena-nextcloud"
+      - "vps.component=redis"
     networks:
       - default
 
@@ -447,6 +453,9 @@ services:
     # execs /cron.sh, a thin runner for occ background-jobs. The app service
     # writes zz-catena.config.php into the shared nc-config volume on its
     # own startup; cron picks it up via the shared mount.
+    labels:
+      - "vps.app=catena-nextcloud"
+      - "vps.component=cron"
     networks:
       - default
       # Background virus scans (files_antivirus job) run here too, so
@@ -536,6 +545,8 @@ services:
       # by aio-talk's signaling layer; no oauth2-proxy gate.
       - "vps.auth.mode=public"
       - "vps.auto-update=patch"
+      - "vps.app=catena-nextcloud"
+      - "vps.component=talk-hpb"
     networks:
       catena-network:
         aliases:

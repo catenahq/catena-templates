@@ -2,14 +2,14 @@
   "id": "zammad",
   "type": 2,
   "title": "Zammad",
-  "name": "zammad",
+  "name": "catena-zammad",
   "categories": [
     "Support",
     "Helpdesk"
   ],
   "platform": "linux",
   "x-catena": {
-    "app_name": "zammad",
+    "app_name": "catena-zammad",
     "upstream_url": "https://zammad.com/",
     "sso_mode": "post-deploy-ui",
     "domain": {

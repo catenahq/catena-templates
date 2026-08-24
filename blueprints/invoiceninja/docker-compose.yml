@@ -81,6 +81,8 @@ services:
       - app_storage:/var/www/html/storage
     labels:
       - "vps.auto-update=patch"
+      - "vps.app=catena-invoiceninja"
+      - "vps.component=app"
     networks:
       - default
 
@@ -110,10 +112,12 @@ services:
       - "vps.auth.mode=public"
       - "vps.auth.groups=staff"
       - "vps.auto-update=patch"
+      - "vps.app=catena-invoiceninja"
+      - "vps.component=nginx"
     networks:
       catena-network:
         aliases:
-          - invoiceninja
+          - catena-invoiceninja
       default: {}
 
   db:
@@ -138,6 +142,8 @@ services:
       retries: 10
     labels:
       - "vps.auto-update=patch"
+      - "vps.app=catena-invoiceninja"
+      - "vps.component=db"
     networks:
       - default
 
@@ -158,6 +164,8 @@ services:
       retries: 5
     labels:
       - "vps.auto-update=patch"
+      - "vps.app=catena-invoiceninja"
+      - "vps.component=redis"
     networks:
       - default
 

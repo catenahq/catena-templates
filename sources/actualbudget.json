@@ -2,13 +2,13 @@
   "id": "actualbudget",
   "type": 2,
   "title": "Actual Budget",
-  "name": "actualbudget",
+  "name": "catena-actualbudget",
   "categories": [
     "Finance"
   ],
   "platform": "linux",
   "x-catena": {
-    "app_name": "actualbudget",
+    "app_name": "catena-actualbudget",
     "upstream_url": "https://actualbudget.org/",
     "sso_mode": "none",
     "domain": {
@@ -58,7 +58,7 @@
       "extra_notes": "**\u00c0 propos de la connexion.** Actual Budget utilise un mot de passe serveur partag\u00e9 pour d\u00e9verrouiller l'UI, pas des connexions par utilisateur. Le multi-utilisateurs fonctionne au niveau du budget (partage de fichier budget) mais l'auth serveur est un secret unique. C'est la conception upstream : typiquement un foyer par serveur. OIDC/SSO non support\u00e9.\n"
     },
     "quiesce": {
-      "pre": "docker exec \"$(docker ps -q -f label=com.docker.compose.service=actual -f label=com.docker.compose.project~=actualbudget | head -1)\" sh -c 'sqlite3 /data/server-files/account.sqlite \".backup /data/server-files/.catena-snapshot.sqlite.new\" && mv /data/server-files/.catena-snapshot.sqlite.new /data/server-files/.catena-snapshot.sqlite'",
+      "pre": "docker exec \"$(docker ps -q -f label=vps.app=catena-actualbudget -f label=vps.component=actual | head -1)\" sh -c 'sqlite3 /data/server-files/account.sqlite \".backup /data/server-files/.catena-snapshot.sqlite.new\" && mv /data/server-files/.catena-snapshot.sqlite.new /data/server-files/.catena-snapshot.sqlite'",
       "post": "true",
       "timeout_seconds": 30
     }

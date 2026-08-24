@@ -152,7 +152,7 @@
       ],
       "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/nextcloud-s3-oidc/logo.svg",
       "maintainer": "https://github.com/catenahq/catena-templates",
-      "name": "nextcloud",
+      "name": "catena-nextcloud",
       "note": "<p>Self-hosted file sharing and collaboration -- the file hub that other templates plug into.</p><p>Replaces Google Drive, Dropbox, OneDrive for Business.</p>",
       "platform": "linux",
       "repository": {
@@ -177,7 +177,7 @@
       ],
       "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/collabora/logo.svg",
       "maintainer": "https://github.com/catenahq/catena-templates",
-      "name": "collabora",
+      "name": "catena-collabora",
       "note": "<p>Collaborative ODT/DOCX/XLSX/PPTX editing -- bolts into Nextcloud for real-time co-editing. LibreOffice-based; lighter than OnlyOffice; better fidelity for ODF formats.</p><p>Replaces Microsoft Office Online, Google Docs (as embedded editor).</p><p><a href=\"https://docs.catena.run/apps/collabora/\">https://docs.catena.run/apps/collabora/</a></p>",
       "platform": "linux",
       "repository": {
@@ -208,7 +208,7 @@
       ],
       "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/onlyoffice/logo.svg",
       "maintainer": "https://github.com/catenahq/catena-templates",
-      "name": "onlyoffice",
+      "name": "catena-onlyoffice",
       "note": "<p>Collaborative DOCX/XLSX/PPTX editing -- bolts into Nextcloud for real-time co-editing with high MS Office fidelity.</p><p>Replaces Microsoft Office Online, Google Docs (as embedded editor).</p><p><a href=\"https://docs.catena.run/apps/onlyoffice/\">https://docs.catena.run/apps/onlyoffice/</a></p>",
       "platform": "linux",
       "repository": {
@@ -296,7 +296,7 @@
       ],
       "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/rocketchat-oidc/logo.svg",
       "maintainer": "https://github.com/catenahq/catena-templates",
-      "name": "rocketchat",
+      "name": "catena-rocketchat",
       "note": "<p>Team chat -- channels, direct messages, file sharing, mobile apps, and video calls. Keycloak SSO pre-wired.</p><p>Replaces Slack, Microsoft Teams, Discord (for work).</p><p><a href=\"https://docs.catena.run/apps/rocketchat-oidc/\">https://docs.catena.run/apps/rocketchat-oidc/</a></p>",
       "platform": "linux",
       "repository": {
@@ -445,7 +445,7 @@
       ],
       "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/element/logo.svg",
       "maintainer": "https://github.com/catenahq/catena-templates",
-      "name": "element",
+      "name": "catena-element",
       "note": "<p>Self-hosted Element + Matrix homeserver -- federated-capable team chat with end-to-end encryption, voice, group video (bundled Jitsi), and SIP dial-in.</p><p>Replaces Slack, Microsoft Teams, Signal (for team use), Zoom (for small group calls).</p><p><a href=\"https://docs.catena.run/apps/element/\">https://docs.catena.run/apps/element/</a></p>",
       "platform": "linux",
       "repository": {
@@ -533,7 +533,7 @@
       ],
       "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/docuseal/logo.svg",
       "maintainer": "https://github.com/catenahq/catena-templates",
-      "name": "docuseal",
+      "name": "catena-docuseal",
       "note": "<p>Default document-signing app in the stack (replaces Documenso). Upload a PDF, place signature fields, send for signature. Audit trail + signed-PDF generation built-in.</p><p>Replaces DocuSign, HelloSign, PandaDoc, Adobe Sign.</p><p><a href=\"https://docs.catena.run/apps/docuseal/\">https://docs.catena.run/apps/docuseal/</a></p>",
       "platform": "linux",
       "repository": {
@@ -581,7 +581,7 @@
       ],
       "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/outline/logo.svg",
       "maintainer": "https://github.com/catenahq/catena-templates",
-      "name": "outline",
+      "name": "catena-outline",
       "note": "<p>Team wiki / knowledge base. Notion-style pages, collections, nested docs. Keycloak SSO pre-wired.</p><p>Replaces Notion, Confluence, Google Sites.</p><p><a href=\"https://docs.catena.run/apps/outline/\">https://docs.catena.run/apps/outline/</a></p>",
       "platform": "linux",
       "repository": {
@@ -650,7 +650,7 @@
       ],
       "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/espocrm/logo.svg",
       "maintainer": "https://github.com/catenahq/catena-templates",
-      "name": "espocrm",
+      "name": "catena-espocrm",
       "note": "<p>Default CRM in the stack. Contacts, accounts, opportunities, leads, calendar, email integration, mass mail, workflow automation. Native OIDC via post-deploy toggle.</p><p>Replaces Salesforce, HubSpot, Zoho CRM, Pipedrive.</p><p><a href=\"https://docs.catena.run/apps/espocrm/\">https://docs.catena.run/apps/espocrm/</a></p>",
       "platform": "linux",
       "repository": {
@@ -692,7 +692,7 @@
       ],
       "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/twenty/logo.svg",
       "maintainer": "https://github.com/catenahq/catena-templates",
-      "name": "twenty",
+      "name": "catena-twenty",
       "note": "<p>Modern open-source CRM. Contacts, companies, opportunities, email sync, pipelines. Alternative to EspoCRM (the default CRM).</p><p>Replaces Salesforce, HubSpot, Pipedrive.</p><p><a href=\"https://docs.catena.run/apps/twenty/\">https://docs.catena.run/apps/twenty/</a></p>",
       "platform": "linux",
       "repository": {
@@ -745,7 +745,7 @@
       ],
       "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/plane/logo.svg",
       "maintainer": "https://github.com/catenahq/catena-templates",
-      "name": "plane",
+      "name": "catena-plane",
       "note": "<p>Open-source project management -- issues, cycles, modules, pages, workspaces.</p><p>Replaces Jira, Linear, Asana, ClickUp.</p><p><a href=\"https://docs.catena.run/apps/plane/\">https://docs.catena.run/apps/plane/</a></p>",
       "platform": "linux",
       "repository": {
@@ -787,7 +787,7 @@
       ],
       "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/windshift/logo.svg",
       "maintainer": "https://github.com/catenahq/catena-templates",
-      "name": "windshift",
+      "name": "catena-windshift",
       "note": "<p>Work management with test runs, time tracking, and branded customer portals.</p><p>Replaces Jira, Jira Service Management, Tempo, Xray.</p><p><a href=\"https://docs.catena.run/apps/windshift/\">https://docs.catena.run/apps/windshift/</a></p>",
       "platform": "linux",
       "repository": {
@@ -823,7 +823,7 @@
       ],
       "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/zammad/logo.svg",
       "maintainer": "https://github.com/catenahq/catena-templates",
-      "name": "zammad",
+      "name": "catena-zammad",
       "note": "<p>Ticket-first help desk. Email, Telegram, social channels, SLAs, knowledge base. Native OIDC.</p><p>Replaces Zendesk, Freshdesk, Jira Service Desk.</p><p><a href=\"https://docs.catena.run/apps/zammad/\">https://docs.catena.run/apps/zammad/</a></p>",
       "platform": "linux",
       "repository": {
@@ -865,7 +865,7 @@
       ],
       "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/chatwoot/logo.svg",
       "maintainer": "https://github.com/catenahq/catena-templates",
-      "name": "chatwoot",
+      "name": "catena-chatwoot",
       "note": "<p>Conversation-first omnichannel inbox. Email, live-chat widget, WhatsApp, Facebook, Instagram, Twitter/X in one inbox.</p><p>Replaces Intercom, Front, Help Scout (for chat channels).</p><p><a href=\"https://docs.catena.run/apps/chatwoot/\">https://docs.catena.run/apps/chatwoot/</a></p>",
       "platform": "linux",
       "repository": {
@@ -914,7 +914,7 @@
       ],
       "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/wordpress/logo.svg",
       "maintainer": "https://github.com/catenahq/catena-templates",
-      "name": "wordpress",
+      "name": "catena-wordpress",
       "note": "<p>Production-ready public CMS / website platform with FastCGI cache, Redis object cache, and a curated free-tier plugin set pre-installed. The site serves anonymously; admin sign-in runs on /wp-admin and can be wired to Keycloak via a plugin.</p><p>Replaces Wix, Squarespace, self-hosted Drupal.</p><p><a href=\"https://docs.catena.run/apps/wordpress/\">https://docs.catena.run/apps/wordpress/</a></p>",
       "platform": "linux",
       "repository": {
@@ -966,7 +966,7 @@
       ],
       "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/n8n/logo.svg",
       "maintainer": "https://github.com/catenahq/catena-templates",
-      "name": "n8n",
+      "name": "catena-n8n",
       "note": "<p>Workflow automation -- visually chain hundreds of integrations (APIs, apps, databases) into no-code/low-code workflows.</p><p>Replaces Zapier, Make (Integromat), Tray.io.</p><p><a href=\"https://docs.catena.run/apps/n8n/\">https://docs.catena.run/apps/n8n/</a></p>",
       "platform": "linux",
       "repository": {
@@ -1008,7 +1008,7 @@
       ],
       "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/erpnext/logo.svg",
       "maintainer": "https://github.com/catenahq/catena-templates",
-      "name": "erpnext",
+      "name": "catena-erpnext",
       "note": "<p>Full open-source ERP suite -- accounting, inventory, HR/payroll, CRM, manufacturing, projects, and a built-in website/e-commerce module.</p><p>Replaces SAP Business One, Odoo, Oracle NetSuite.</p><p><a href=\"https://docs.catena.run/apps/erpnext/\">https://docs.catena.run/apps/erpnext/</a></p>",
       "platform": "linux",
       "repository": {
@@ -1032,7 +1032,7 @@
       ],
       "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/actualbudget/logo.svg",
       "maintainer": "https://github.com/catenahq/catena-templates",
-      "name": "actualbudget",
+      "name": "catena-actualbudget",
       "note": "<p>Self-hosted personal finance. Envelope budgeting, bank account syncing via SimpleFIN or GoCardless, encrypted end-to-end.</p><p>Replaces YNAB, Mint, EveryDollar.</p><p><a href=\"https://docs.catena.run/apps/actualbudget/\">https://docs.catena.run/apps/actualbudget/</a></p>",
       "platform": "linux",
       "repository": {
@@ -1074,7 +1074,7 @@
       ],
       "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/postiz/logo.svg",
       "maintainer": "https://github.com/catenahq/catena-templates",
-      "name": "postiz",
+      "name": "catena-postiz",
       "note": "<p>Schedule and publish social media posts across Twitter/X, LinkedIn, Facebook, Instagram, YouTube, TikTok, and more.</p><p>Replaces Buffer, Hootsuite, Later.</p><p><a href=\"https://docs.catena.run/apps/postiz/\">https://docs.catena.run/apps/postiz/</a></p>",
       "platform": "linux",
       "repository": {
@@ -1115,7 +1115,7 @@
       ],
       "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/easyappointments/logo.svg",
       "maintainer": "https://github.com/catenahq/catena-templates",
-      "name": "easyappointments",
+      "name": "catena-easyappointments",
       "note": "<p>Customer-facing booking app for one or many providers (clinic, salon, lessons, repair shop). Public booking page; staff calendars; email + SMS reminders; ICS export.</p><p>Replaces Calendly, Acuity, SimplyBook, Setmore.</p><p><a href=\"https://docs.catena.run/apps/easyappointments/\">https://docs.catena.run/apps/easyappointments/</a></p>",
       "platform": "linux",
       "repository": {
@@ -1182,7 +1182,7 @@
       ],
       "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/mautic/logo.svg",
       "maintainer": "https://github.com/catenahq/catena-templates",
-      "name": "mautic",
+      "name": "catena-mautic",
       "note": "<p>Open-source marketing automation. Contact segments, email campaigns, drip sequences, landing pages, forms, lead scoring. Replaces Mailchimp / ActiveCampaign / HubSpot Marketing.</p><p>Replaces Mailchimp, ActiveCampaign, HubSpot Marketing, Brevo (Sendinblue).</p><p><a href=\"https://docs.catena.run/apps/mautic/\">https://docs.catena.run/apps/mautic/</a></p>",
       "platform": "linux",
       "repository": {
@@ -1251,7 +1251,7 @@
       ],
       "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/kimai/logo.svg",
       "maintainer": "https://github.com/catenahq/catena-templates",
-      "name": "kimai",
+      "name": "catena-kimai",
       "note": "<p>Open-source time tracker. Customers, projects, activities, timesheets, multi-user teams, invoice generation from tracked time. SAML federates with Keycloak via the post-deploy admin UI.</p><p>Replaces Toggl, Clockify, Harvest, TimeCamp.</p><p><a href=\"https://docs.catena.run/apps/kimai/\">https://docs.catena.run/apps/kimai/</a></p>",
       "platform": "linux",
       "repository": {
@@ -1339,7 +1339,7 @@
       ],
       "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/invoiceninja/logo.svg",
       "maintainer": "https://github.com/catenahq/catena-templates",
-      "name": "invoiceninja",
+      "name": "catena-invoiceninja",
       "note": "<p>Open-source invoicing with Stripe + PayPal payment gateways, recurring billing, expense tracking, client portal for online payment. Self-hosted gets all Pro + Enterprise features.</p><p>Replaces FreshBooks, QuickBooks (invoicing module), Zoho Invoice, Harvest (invoicing).</p><p><a href=\"https://docs.catena.run/apps/invoiceninja/\">https://docs.catena.run/apps/invoiceninja/</a></p>",
       "platform": "linux",
       "repository": {
@@ -1406,7 +1406,7 @@
       ],
       "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/mailserver/logo.svg",
       "maintainer": "https://github.com/catenahq/catena-templates",
-      "name": "mailserver",
+      "name": "catena-mailserver",
       "note": "<p>Self-hosted email -- inbox storage on the VPS (Postfix + Dovecot + Rspamd) with Roundcube webmail and Keycloak single sign-on. Outbound requires an SMTP relay through a reputable provider (set up before deploy) so messages are not flagged as spam.</p><p>Replaces Google Workspace (Gmail), Microsoft 365 (Exchange Online).</p><p><a href=\"https://docs.catena.run/apps/mailserver/\">https://docs.catena.run/apps/mailserver/</a></p>",
       "platform": "linux",
       "repository": {

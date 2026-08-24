@@ -24,10 +24,12 @@ services:
       - "vps.route.service=actual"
       - "vps.auth.mode=public"
       - "vps.auto-update=patch"
+      - "vps.app=catena-actualbudget"
+      - "vps.component=actual"
     networks:
       catena-network:
         aliases:
-          - actualbudget
+          - catena-actualbudget
       default: {}
 
 volumes:

@@ -2,14 +2,14 @@
   "id": "twenty",
   "type": 2,
   "title": "Twenty",
-  "name": "twenty",
+  "name": "catena-twenty",
   "categories": [
     "CRM",
     "Business"
   ],
   "platform": "linux",
   "x-catena": {
-    "app_name": "twenty",
+    "app_name": "catena-twenty",
     "upstream_url": "https://twenty.com/",
     "sso_mode": "post-deploy-ui",
     "domain": {

@@ -2,14 +2,14 @@
   "id": "outline",
   "type": 2,
   "title": "Outline",
-  "name": "outline",
+  "name": "catena-outline",
   "categories": [
     "Wiki",
     "Documentation"
   ],
   "platform": "linux",
   "x-catena": {
-    "app_name": "outline",
+    "app_name": "catena-outline",
     "upstream_url": "https://www.getoutline.com/",
     "sso_mode": "pre-wired",
     "domain": {

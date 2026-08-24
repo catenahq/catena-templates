@@ -2,6 +2,6 @@
 id: erpnext
 timeout_seconds: 60
 pre: |
-  docker exec "$(docker ps -q -f label=com.docker.compose.service=db -f label=com.docker.compose.project~=erpnext | head -1)" sh -c 'mariadb-dump --single-transaction --quick --routines --triggers --add-drop-table -u root -p"$MARIADB_ROOT_PASSWORD" --all-databases > /var/lib/mysql/.catena-dump.sql.new && mv /var/lib/mysql/.catena-dump.sql.new /var/lib/mysql/.catena-dump.sql'
+  docker exec "$(docker ps -q -f label=vps.app=catena-erpnext -f label=vps.component=db | head -1)" sh -c 'mariadb-dump --single-transaction --quick --routines --triggers --add-drop-table -u root -p"$MARIADB_ROOT_PASSWORD" --all-databases > /var/lib/mysql/.catena-dump.sql.new && mv /var/lib/mysql/.catena-dump.sql.new /var/lib/mysql/.catena-dump.sql'
 post: |
   true

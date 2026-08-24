@@ -49,6 +49,9 @@ services:
 
   # One-shot: create the ERPNext site on first run (idempotent: bench
   # new-site no-ops when the site already exists).
+    labels:
+      - "vps.app=catena-erpnext"
+      - "vps.component=configurator"
   create-site:
     image: frappe/erpnext:v15.107.0
     deploy:
@@ -81,6 +84,9 @@ services:
     volumes:
       - sites:/home/frappe/frappe-bench/sites
       - logs:/home/frappe/frappe-bench/logs
+    labels:
+      - "vps.app=catena-erpnext"
+      - "vps.component=create-site"
 
   backend:
     image: frappe/erpnext:v15.107.0
@@ -96,6 +102,8 @@ services:
       - logs:/home/frappe/frappe-bench/logs
     labels:
       - "vps.auto-update=patch"
+      - "vps.app=catena-erpnext"
+      - "vps.component=backend"
     networks:
       - default
 
@@ -126,10 +134,12 @@ services:
       - "vps.route.service=frontend"
       - "vps.auth.mode=public"
       - "vps.auto-update=patch"
+      - "vps.app=catena-erpnext"
+      - "vps.component=frontend"
     networks:
       catena-network:
         aliases:
-          - erpnext
+          - catena-erpnext
       default: {}
 
   websocket:
@@ -147,6 +157,8 @@ services:
       - logs:/home/frappe/frappe-bench/logs
     labels:
       - "vps.auto-update=patch"
+      - "vps.app=catena-erpnext"
+      - "vps.component=websocket"
     networks:
       - default
 
@@ -165,6 +177,8 @@ services:
       - logs:/home/frappe/frappe-bench/logs
     labels:
       - "vps.auto-update=patch"
+      - "vps.app=catena-erpnext"
+      - "vps.component=queue-default"
     networks:
       - default
 
@@ -183,6 +197,8 @@ services:
       - logs:/home/frappe/frappe-bench/logs
     labels:
       - "vps.auto-update=patch"
+      - "vps.app=catena-erpnext"
+      - "vps.component=queue-short"
     networks:
       - default
 
@@ -201,6 +217,8 @@ services:
       - logs:/home/frappe/frappe-bench/logs
     labels:
       - "vps.auto-update=patch"
+      - "vps.app=catena-erpnext"
+      - "vps.component=queue-long"
     networks:
       - default
 
@@ -219,6 +237,8 @@ services:
       - logs:/home/frappe/frappe-bench/logs
     labels:
       - "vps.auto-update=patch"
+      - "vps.app=catena-erpnext"
+      - "vps.component=scheduler"
     networks:
       - default
 
@@ -247,6 +267,8 @@ services:
       start_period: 30s
     labels:
       - "vps.auto-update=patch"
+      - "vps.app=catena-erpnext"
+      - "vps.component=db"
     networks:
       - default
 
@@ -257,6 +279,8 @@ services:
         condition: any
     labels:
       - "vps.auto-update=patch"
+      - "vps.app=catena-erpnext"
+      - "vps.component=redis-cache"
     networks:
       - default
 
@@ -272,6 +296,8 @@ services:
       - redis-queue-data:/data
     labels:
       - "vps.auto-update=patch"
+      - "vps.app=catena-erpnext"
+      - "vps.component=redis-queue"
     networks:
       - default
 

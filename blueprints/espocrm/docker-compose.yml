@@ -49,10 +49,12 @@ services:
       - "vps.auth.oidc.redirect_uris=https://${ESPOCRM_HOSTNAME}/oauth-callback.php"
       - "vps.auth.oidc.scopes=openid email profile"
       - "vps.auto-update=patch"
+      - "vps.app=catena-espocrm"
+      - "vps.component=espocrm"
     networks:
       catena-network:
         aliases:
-          - espocrm
+          - catena-espocrm
       default: {}
 
   cron:
@@ -75,6 +77,8 @@ services:
       - server-data:/var/www/html/data
     labels:
       - "vps.auto-update=patch"
+      - "vps.app=catena-espocrm"
+      - "vps.component=cron"
     networks:
       - default
 
@@ -100,6 +104,8 @@ services:
       retries: 10
     labels:
       - "vps.auto-update=patch"
+      - "vps.app=catena-espocrm"
+      - "vps.component=db"
     networks:
       - default
 

@@ -37,6 +37,8 @@ services:
       - mongodb-config:/data/configdb
     labels:
       - "vps.auto-update=patch"
+      - "vps.app=catena-rocketchat"
+      - "vps.component=mongodb"
     networks:
       default:
         aliases:
@@ -84,10 +86,12 @@ services:
       - "vps.auth.oidc.redirect_uris=https://${ROCKETCHAT_HOSTNAME}/_oauth/keycloak"
       - "vps.auth.oidc.scopes=openid email profile groups"
       - "vps.auto-update=patch"
+      - "vps.app=catena-rocketchat"
+      - "vps.component=rocketchat"
     networks:
       catena-network:
         aliases:
-          - rocketchat
+          - catena-rocketchat
       default: {}
 
   # === JITSI BEGIN -- bundled on-server video conferencing ================
@@ -133,6 +137,8 @@ services:
       TZ: Etc/UTC
     labels:
       - "vps.auto-update=patch"
+      - "vps.app=catena-rocketchat"
+      - "vps.component=prosody"
     networks:
       default:
         aliases:
@@ -165,6 +171,8 @@ services:
       TZ: Etc/UTC
     labels:
       - "vps.auto-update=patch"
+      - "vps.app=catena-rocketchat"
+      - "vps.component=jicofo"
     networks:
       - default
 
@@ -200,6 +208,8 @@ services:
       TZ: Etc/UTC
     labels:
       - "vps.auto-update=patch"
+      - "vps.app=catena-rocketchat"
+      - "vps.component=jvb"
     networks:
       - default
 
@@ -229,6 +239,8 @@ services:
       # Keycloak-gated for v1).
       - "vps.auth.mode=public"
       - "vps.auto-update=patch"
+      - "vps.app=catena-rocketchat"
+      - "vps.component=jitsi-web"
     networks:
       catena-network:
         aliases:

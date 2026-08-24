@@ -38,10 +38,12 @@ services:
       - "vps.route.service=documentserver"
       - "vps.auth.mode=public"
       - "vps.auto-update=patch"
+      - "vps.app=catena-onlyoffice"
+      - "vps.component=documentserver"
     networks:
       catena-network:
         aliases:
-          - onlyoffice
+          - catena-onlyoffice
       default: {}
 
 volumes:

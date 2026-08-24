@@ -2,14 +2,14 @@
   "id": "onlyoffice",
   "type": 2,
   "title": "OnlyOffice",
-  "name": "onlyoffice",
+  "name": "catena-onlyoffice",
   "categories": [
     "Productivity",
     "Documents"
   ],
   "platform": "linux",
   "x-catena": {
-    "app_name": "onlyoffice",
+    "app_name": "catena-onlyoffice",
     "upstream_url": "https://www.onlyoffice.com/",
     "sso_mode": "n/a",
     "domain": {

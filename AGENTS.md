@@ -75,6 +75,32 @@ stack is deployed from a posted string) or an external object. Config files a
 template needs are written by the service's own entrypoint, and the lint
 offers every inline script to the interpreter it names.
 
+## Naming and identity
+
+`name` and `x-catena.app_name` are the same string and both start with
+`catena-`. That string is the Portainer stack name a client sees, so under
+swarm it prefixes every service (`catena-nextcloud_app`), every task
+container (`catena-nextcloud_app.1.<task-id>`) and every volume
+(`catena-nextcloud_nc-data`). The routed service carries it as its
+`catena-network` alias too, because the Traefik backend and the per-app
+oauth2-proxy upstream both resolve the slugified stack name.
+
+`id` does NOT get the prefix: it is the join key every consumer already uses
+and the blueprint directory name.
+
+Every service also carries two labels:
+
+    vps.app        the app_name above
+    vps.component  this service's key in the compose
+
+They are the stable identity. A container's NAME depends on docker's own
+scheme and on whatever stack name the client typed in Portainer; these do
+not. The quiesce hooks select on them (`docker ps -f label=vps.app=... -f
+label=vps.component=...`) and `make lint` checks that the component named is
+a service the compose actually defines -- because a filter that matches
+nothing produces an empty `docker exec ""`, which the daily chain records as
+a warning and steps over, and the backup is then taken unquiesced.
+
 ## Validation layers
 
 1. `sources.schema.json` -- field shapes, enums, required keys,

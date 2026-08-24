@@ -2,14 +2,14 @@
   "id": "wordpress",
   "type": 2,
   "title": "WordPress",
-  "name": "wordpress",
+  "name": "catena-wordpress",
   "categories": [
     "CMS",
     "Website"
   ],
   "platform": "linux",
   "x-catena": {
-    "app_name": "wordpress",
+    "app_name": "catena-wordpress",
     "upstream_url": "https://wordpress.org/",
     "sso_mode": "post-deploy-ui",
     "domain": {
@@ -67,7 +67,7 @@
       "WPMS_SMTP_PASS"
     ],
     "quiesce": {
-      "pre": "docker exec \"$(docker ps -q -f label=com.docker.compose.service=db -f label=com.docker.compose.project~=wordpress | head -1)\" sh -c 'mariadb-dump --single-transaction --quick --routines --triggers --add-drop-table -u root -p\"$MARIADB_ROOT_PASSWORD\" --all-databases > /var/lib/mysql/.catena-dump.sql.new && mv /var/lib/mysql/.catena-dump.sql.new /var/lib/mysql/.catena-dump.sql'",
+      "pre": "docker exec \"$(docker ps -q -f label=vps.app=catena-wordpress -f label=vps.component=db | head -1)\" sh -c 'mariadb-dump --single-transaction --quick --routines --triggers --add-drop-table -u root -p\"$MARIADB_ROOT_PASSWORD\" --all-databases > /var/lib/mysql/.catena-dump.sql.new && mv /var/lib/mysql/.catena-dump.sql.new /var/lib/mysql/.catena-dump.sql'",
       "post": "true",
       "timeout_seconds": 60
     }

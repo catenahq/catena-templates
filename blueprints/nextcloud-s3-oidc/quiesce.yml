@@ -2,6 +2,6 @@
 id: nextcloud-s3-oidc
 timeout_seconds: 30
 pre: |
-  docker exec -u www-data "$(docker ps -q -f label=com.docker.compose.service=app -f label=com.docker.compose.project~=nextcloud | head -1)" php occ maintenance:mode --on
+  docker exec -u www-data "$(docker ps -q -f label=vps.app=catena-nextcloud -f label=vps.component=app | head -1)" php occ maintenance:mode --on
 post: |
-  docker exec -u www-data "$(docker ps -q -f label=com.docker.compose.service=app -f label=com.docker.compose.project~=nextcloud | head -1)" php occ maintenance:mode --off
+  docker exec -u www-data "$(docker ps -q -f label=vps.app=catena-nextcloud -f label=vps.component=app | head -1)" php occ maintenance:mode --off

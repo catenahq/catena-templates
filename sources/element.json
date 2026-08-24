@@ -2,14 +2,14 @@
   "id": "element",
   "type": 2,
   "title": "Element / Matrix",
-  "name": "element",
+  "name": "catena-element",
   "categories": [
     "Communication",
     "Chat"
   ],
   "platform": "linux",
   "x-catena": {
-    "app_name": "element",
+    "app_name": "catena-element",
     "upstream_url": "https://element.io/",
     "sso_mode": "pre-wired",
     "domain": {

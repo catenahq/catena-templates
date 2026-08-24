@@ -36,10 +36,12 @@ services:
       - "vps.route.service=rails"
       - "vps.auth.mode=public"
       - "vps.auto-update=patch"
+      - "vps.app=catena-chatwoot"
+      - "vps.component=rails"
     networks:
       catena-network:
         aliases:
-          - chatwoot
+          - catena-chatwoot
       default: {}
 
   sidekiq:
@@ -66,6 +68,8 @@ services:
       - storage-data:/app/storage
     labels:
       - "vps.auto-update=patch"
+      - "vps.app=catena-chatwoot"
+      - "vps.component=sidekiq"
     networks:
       - default
 
@@ -91,6 +95,8 @@ services:
       retries: 5
     labels:
       - "vps.auto-update=patch"
+      - "vps.app=catena-chatwoot"
+      - "vps.component=db"
     networks:
       - default
 
@@ -101,6 +107,8 @@ services:
         condition: any
     labels:
       - "vps.auto-update=patch"
+      - "vps.app=catena-chatwoot"
+      - "vps.component=redis"
     networks:
       - default
 

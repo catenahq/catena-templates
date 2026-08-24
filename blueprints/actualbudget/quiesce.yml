@@ -2,6 +2,6 @@
 id: actualbudget
 timeout_seconds: 30
 pre: |
-  docker exec "$(docker ps -q -f label=com.docker.compose.service=actual -f label=com.docker.compose.project~=actualbudget | head -1)" sh -c 'sqlite3 /data/server-files/account.sqlite ".backup /data/server-files/.catena-snapshot.sqlite.new" && mv /data/server-files/.catena-snapshot.sqlite.new /data/server-files/.catena-snapshot.sqlite'
+  docker exec "$(docker ps -q -f label=vps.app=catena-actualbudget -f label=vps.component=actual | head -1)" sh -c 'sqlite3 /data/server-files/account.sqlite ".backup /data/server-files/.catena-snapshot.sqlite.new" && mv /data/server-files/.catena-snapshot.sqlite.new /data/server-files/.catena-snapshot.sqlite'
 post: |
   true

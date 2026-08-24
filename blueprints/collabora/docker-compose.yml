@@ -36,10 +36,12 @@ services:
       - "vps.route.service=collabora"
       - "vps.auth.mode=public"
       - "vps.auto-update=patch"
+      - "vps.app=catena-collabora"
+      - "vps.component=collabora"
     networks:
       catena-network:
         aliases:
-          - collabora
+          - catena-collabora
       default: {}
 
 networks:

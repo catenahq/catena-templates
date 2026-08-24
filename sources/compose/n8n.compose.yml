@@ -37,10 +37,12 @@ services:
       - "vps.route.service=n8n"
       - "vps.auth.mode=public"
       - "vps.auto-update=patch"
+      - "vps.app=catena-n8n"
+      - "vps.component=n8n"
     networks:
       catena-network:
         aliases:
-          - n8n
+          - catena-n8n
       default: {}
 
   db:
@@ -65,6 +67,8 @@ services:
       retries: 5
     labels:
       - "vps.auto-update=patch"
+      - "vps.app=catena-n8n"
+      - "vps.component=db"
     networks:
       - default
 

@@ -2,14 +2,14 @@
   "id": "collabora",
   "type": 2,
   "title": "Collabora Online (CODE)",
-  "name": "collabora",
+  "name": "catena-collabora",
   "categories": [
     "Productivity",
     "Documents"
   ],
   "platform": "linux",
   "x-catena": {
-    "app_name": "collabora",
+    "app_name": "catena-collabora",
     "upstream_url": "https://www.collaboraonline.com/",
     "sso_mode": "n/a",
     "domain": {
