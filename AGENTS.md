@@ -69,11 +69,15 @@ differ in ways that are not symmetric. Three rules follow, all enforced by
   the packet arrives. Every port in this catalog belongs to a service that
   needs the real peer address.
 
-`configs:` has no inline form here either: a swarm stack file accepts
-`configs.file` (read from beside the compose, which does not exist when a
-stack is deployed from a posted string) or an external object. Config files a
-template needs are written by the service's own entrypoint, and the lint
-offers every inline script to the interpreter it names.
+`configs:` is refused outright unless the object is `external`. A swarm stack
+file has no inline content form, and its `configs.file` reads a path beside
+the compose that neither deploy path has: `build/render.py` puts only the
+compose, the logo and the quiesce hooks into `blueprints/<id>/`, and a stack
+created from a posted `StackFileContent` string has no directory at all.
+`docker stack config` cannot see either problem, because it resolves the path
+against this repository, where the file does sit next to the compose. Config
+files a template needs are written by the service's own entrypoint, and the
+lint offers every inline script to the interpreter it names.
 
 ## Naming and identity
 

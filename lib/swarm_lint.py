@@ -233,6 +233,44 @@ def lint_entrypoint(argv, *, label: str) -> list[str]:
     return [f"{label}: does not parse as {checker}: {line}" for line in detail]
 
 
+def lint_configs(doc: dict, *, label: str) -> list[str]:
+    """A top-level `configs:` entry may only be `external`.
+
+    `file:` reads a path beside the compose, and neither deploy path has one.
+    Portainer's App Templates entry points at `blueprints/<id>/
+    docker-compose.yml` and `build/render.py` emits exactly the compose, the
+    logo and the quiesce hooks into that directory -- never a sibling asset.
+    The API path is worse: a stack created from `StackFileContent` is a posted
+    STRING with no directory at all, and that is the path the bench and the
+    provisioner both use.
+
+    Neither failure is visible from here. `docker stack config` resolves the
+    path against THIS repository, where the file does sit next to the compose,
+    so the file lints clean and fails at deploy with `no such file or
+    directory` on a host. Content a service needs is written by its own
+    entrypoint, which is the form every other template already uses.
+    """
+    configs = doc.get("configs")
+    if not isinstance(configs, dict):
+        return []
+    errors: list[str] = []
+    for name, spec in configs.items():
+        if not isinstance(spec, dict):
+            errors.append(f"{label}: configs.{name} is not a mapping")
+            continue
+        if spec.get("external") is True:
+            continue
+        source = spec.get("file") or spec.get("content")
+        errors.append(
+            f"{label}: configs.{name} declares {'file' if spec.get('file') else 'content'}"
+            f"={source!r}, which no deploy path can resolve -- the blueprint "
+            f"directory carries no sibling assets and a stack posted as a "
+            f"string has no directory. Write the file from the service's "
+            f"entrypoint instead"
+        )
+    return errors
+
+
 def lint_compose(body: str, *, label: str) -> list[str]:
     try:
         doc = yaml.safe_load(body)
@@ -241,10 +279,10 @@ def lint_compose(body: str, *, label: str) -> list[str]:
     if not isinstance(doc, dict):
         return [f"{label}: top level is not a mapping"]
 
-    errors: list[str] = []
+    errors: list[str] = lint_configs(doc, label=label)
     services = doc.get("services")
     if not isinstance(services, dict) or not services:
-        return [f"{label}: declares no services"]
+        return errors + [f"{label}: declares no services"]
     for name, service in services.items():
         if not isinstance(service, dict):
             errors.append(f"{label}:{name}: service is not a mapping")

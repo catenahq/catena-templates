@@ -85,6 +85,17 @@ services:
     # Add www-data uid 82 (matches php-fpm-alpine) before starting nginx
     # so workers can read/write the FastCGI cache that NPP unlinks from
     # php-fpm. Ensure the cache dir is owned by www-data on first boot.
+    #
+    # The whole nginx.conf is written here rather than declared as a
+    # `configs:` entry: a swarm stack file's `configs.file` reads a path
+    # beside the compose, and neither deploy path has one -- the blueprint
+    # directory carries only the compose, and a stack created from a posted
+    # string has no directory at all. It replaces the distro default rather
+    # than adding a server snippet because the `user` directive that aligns
+    # the worker UID lives in the main context.
+    #
+    # `$$` is compose's escape for a literal `$`: every variable below is
+    # nginx's, and must reach nginx rather than be interpolated at deploy.
     command:
       - /bin/sh
       - -c
@@ -93,13 +104,136 @@ services:
         adduser -u 82 -D -S -G www-data www-data 2>/dev/null || true
         mkdir -p /var/cache/nginx/fastcgi /var/log/nginx
         chown -R www-data:www-data /var/cache/nginx/fastcgi /var/log/nginx
+        cat > /etc/nginx/nginx.conf <<'NGINX'
+        user www-data;
+        worker_processes auto;
+        pid /var/run/nginx.pid;
+        error_log /var/log/nginx/error.log warn;
+
+        events {
+            worker_connections 1024;
+            use epoll;
+            multi_accept on;
+        }
+
+        http {
+            include       /etc/nginx/mime.types;
+            default_type  application/octet-stream;
+
+            log_format main '$$remote_addr - $$remote_user [$$time_local] "$$request" '
+                            '$$status $$body_bytes_sent "$$http_referer" '
+                            '"$$http_user_agent" "$$http_x_forwarded_for" '
+                            'cache=$$upstream_cache_status';
+            access_log /var/log/nginx/access.log main;
+
+            sendfile on;
+            tcp_nopush on;
+            tcp_nodelay on;
+            keepalive_timeout 65;
+            types_hash_max_size 2048;
+            server_tokens off;
+
+            gzip on;
+            gzip_vary on;
+            gzip_proxied any;
+            gzip_comp_level 6;
+            gzip_types text/plain text/css text/xml application/json application/javascript application/xml+rss application/atom+xml image/svg+xml;
+
+            fastcgi_cache_path /var/cache/nginx/fastcgi
+                levels=1:2
+                keys_zone=WORDPRESS:100m
+                inactive=60m
+                max_size=512m
+                use_temp_path=off;
+            # The hostname in the cache key below is intentional: it scopes the key
+            # per hostname so a spoofed-Host response cannot be served to a
+            # legitimate-Host visitor (cache-poisoning guard). Only the configured
+            # domain reaches this nginx (Traefik host-routing behind a Cloudflare
+            # tunnel), so the Host header is constrained upstream and cannot be used
+            # to flood the cache zone.
+            # nosemgrep: generic.nginx.security.request-host-used.request-host-used
+            fastcgi_cache_key "$$scheme$$request_method$$host$$request_uri";
+
+            map $$http_cookie $$skip_cache_cookie {
+                default                       0;
+                ~*comment_author              1;
+                ~*wordpress_logged_in         1;
+                ~*wp-postpass                 1;
+                ~*woocommerce_items_in_cart   1;
+                ~*woocommerce_cart_hash       1;
+                ~*wp_woocommerce_session      1;
+            }
+
+            map $$request_uri $$skip_cache_uri {
+                default                       0;
+                ~*/wp-admin/                  1;
+                ~*/wp-[^/]+\.php$$             1;
+                ~*/xmlrpc\.php                1;
+                ~*/feed/                      1;
+                ~*\?.+                        1;
+            }
+
+            server {
+                listen 80 default_server;
+                listen [::]:80 default_server;
+                server_name _;
+
+                root /var/www/html;
+                index index.php index.html;
+
+                client_max_body_size 64M;
+
+                set $$skip_cache 0;
+                if ($$skip_cache_cookie)     { set $$skip_cache 1; }
+                if ($$skip_cache_uri)        { set $$skip_cache 1; }
+                if ($$request_method = POST) { set $$skip_cache 1; }
+
+                location = /favicon.ico { log_not_found off; access_log off; }
+                location = /robots.txt  { log_not_found off; access_log off; allow all; }
+
+                location ~* \.(jpg|jpeg|png|gif|ico|svg|webp|avif|css|js|woff|woff2|ttf|eot|mp4|webm|pdf)$$ {
+                    expires 30d;
+                    add_header Cache-Control "public, immutable";
+                    access_log off;
+                    try_files $$uri =404;
+                }
+
+                location / {
+                    try_files $$uri $$uri/ /index.php?$$args;
+                }
+
+                location ~ \.php$$ {
+                    try_files $$uri =404;
+                    include fastcgi_params;
+                    fastcgi_split_path_info ^(.+\.php)(/.+)$$;
+                    fastcgi_pass wp:9000;
+                    fastcgi_index index.php;
+                    fastcgi_param SCRIPT_FILENAME $$document_root$$fastcgi_script_name;
+                    fastcgi_param PATH_INFO       $$fastcgi_path_info;
+                    fastcgi_read_timeout 300;
+
+                    fastcgi_cache WORDPRESS;
+                    fastcgi_cache_valid 200 60m;
+                    fastcgi_cache_valid 301 302 60m;
+                    fastcgi_cache_valid 404 5m;
+                    fastcgi_cache_use_stale error timeout invalid_header updating http_500 http_503;
+                    fastcgi_cache_background_update on;
+                    fastcgi_cache_lock on;
+                    fastcgi_cache_bypass $$skip_cache;
+                    fastcgi_no_cache    $$skip_cache;
+
+                    add_header X-FastCGI-Cache $$upstream_cache_status;
+                }
+
+                location ~ /\.ht                                                  { deny all; }
+                location ~* /(?:wp-config\.php|\.env|\.git|composer\.(json|lock))$$ { deny all; }
+            }
+        }
+        NGINX
         exec nginx -g 'daemon off;'
     volumes:
       - wp-files:/var/www/html:ro
       - wp-cache:/var/cache/nginx/fastcgi
-    configs:
-      - source: wp_nginx_conf
-        target: /etc/nginx/nginx.conf
     healthcheck:
       test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost/ || exit 1"]
       interval: 10s
@@ -167,10 +301,6 @@ volumes:
   wp-files:
   wp-cache:
   db-data:
-
-configs:
-  wp_nginx_conf:
-    file: ./wordpress-nginx.conf
 
 networks:
   catena-network:

@@ -168,6 +168,43 @@ def test_a_placeholder_is_a_word_not_an_empty_string():
     assert "PLACEHOLDER" in L.as_compose_writes_it("[${WHITELIST}]")
 
 
+def test_a_configs_entry_reading_a_sibling_file_is_rejected():
+    """`configs.file` lints clean here and fails on a host.
+
+    `docker stack config` resolves the path against THIS repository, where
+    the file does sit next to the compose. Neither deploy path has it:
+    build/render.py emits only the compose, the logo and the quiesce hooks
+    into blueprints/<id>/, and a stack created from a posted string has no
+    directory at all."""
+    body = _body() + (
+        "configs:\n"
+        "  app_conf:\n"
+        "    file: ./app-nginx.conf\n"
+    )
+    errs = L.lint_compose(body, label="x")
+    assert any("configs.app_conf" in e and "no deploy path" in e for e in errs)
+
+
+def test_an_external_config_object_is_allowed():
+    """An external object is created out of band and referenced by name, so
+    there is no path to resolve."""
+    body = _body() + (
+        "configs:\n"
+        "  app_conf:\n"
+        "    external: true\n"
+    )
+    assert L.lint_compose(body, label="x") == []
+
+
+def test_a_compose_with_no_services_still_reports_its_config_error():
+    """The no-services check used to return early and drop whatever
+    lint_configs had already found."""
+    errs = L.lint_compose(
+        "configs:\n  app_conf:\n    file: ./x.conf\n", label="x")
+    assert any("configs.app_conf" in e for e in errs)
+    assert any("declares no services" in e for e in errs)
+
+
 # ── end to end over the real catalog ─────────────────────────────────
 
 
