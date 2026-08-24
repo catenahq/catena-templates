@@ -160,7 +160,7 @@
         "url": "https://github.com/catenahq/catena-templates"
       },
       "title": "Nextcloud",
-      "type": 3
+      "type": 2
     },
     {
       "categories": [
@@ -185,7 +185,7 @@
         "url": "https://github.com/catenahq/catena-templates"
       },
       "title": "Collabora Online (CODE)",
-      "type": 3
+      "type": 2
     },
     {
       "categories": [
@@ -216,7 +216,7 @@
         "url": "https://github.com/catenahq/catena-templates"
       },
       "title": "OnlyOffice",
-      "type": 3
+      "type": 2
     },
     {
       "categories": [
@@ -304,7 +304,7 @@
         "url": "https://github.com/catenahq/catena-templates"
       },
       "title": "Rocket.Chat",
-      "type": 3
+      "type": 2
     },
     {
       "categories": [
@@ -453,7 +453,7 @@
         "url": "https://github.com/catenahq/catena-templates"
       },
       "title": "Element / Matrix",
-      "type": 3
+      "type": 2
     },
     {
       "categories": [
@@ -541,7 +541,7 @@
         "url": "https://github.com/catenahq/catena-templates"
       },
       "title": "DocuSeal",
-      "type": 3
+      "type": 2
     },
     {
       "categories": [
@@ -589,7 +589,7 @@
         "url": "https://github.com/catenahq/catena-templates"
       },
       "title": "Outline",
-      "type": 3
+      "type": 2
     },
     {
       "categories": [
@@ -658,7 +658,7 @@
         "url": "https://github.com/catenahq/catena-templates"
       },
       "title": "EspoCRM",
-      "type": 3
+      "type": 2
     },
     {
       "categories": [
@@ -700,7 +700,7 @@
         "url": "https://github.com/catenahq/catena-templates"
       },
       "title": "Twenty",
-      "type": 3
+      "type": 2
     },
     {
       "categories": [
@@ -753,7 +753,7 @@
         "url": "https://github.com/catenahq/catena-templates"
       },
       "title": "Plane",
-      "type": 3
+      "type": 2
     },
     {
       "categories": [
@@ -795,7 +795,7 @@
         "url": "https://github.com/catenahq/catena-templates"
       },
       "title": "Windshift",
-      "type": 3
+      "type": 2
     },
     {
       "categories": [
@@ -831,7 +831,7 @@
         "url": "https://github.com/catenahq/catena-templates"
       },
       "title": "Zammad",
-      "type": 3
+      "type": 2
     },
     {
       "categories": [
@@ -873,7 +873,7 @@
         "url": "https://github.com/catenahq/catena-templates"
       },
       "title": "Chatwoot",
-      "type": 3
+      "type": 2
     },
     {
       "categories": [
@@ -922,7 +922,7 @@
         "url": "https://github.com/catenahq/catena-templates"
       },
       "title": "WordPress",
-      "type": 3
+      "type": 2
     },
     {
       "categories": [
@@ -974,7 +974,7 @@
         "url": "https://github.com/catenahq/catena-templates"
       },
       "title": "n8n",
-      "type": 3
+      "type": 2
     },
     {
       "categories": [
@@ -1016,7 +1016,7 @@
         "url": "https://github.com/catenahq/catena-templates"
       },
       "title": "ERPNext",
-      "type": 3
+      "type": 2
     },
     {
       "categories": [
@@ -1040,7 +1040,7 @@
         "url": "https://github.com/catenahq/catena-templates"
       },
       "title": "Actual Budget",
-      "type": 3
+      "type": 2
     },
     {
       "categories": [
@@ -1082,7 +1082,7 @@
         "url": "https://github.com/catenahq/catena-templates"
       },
       "title": "Postiz",
-      "type": 3
+      "type": 2
     },
     {
       "categories": [
@@ -1123,7 +1123,7 @@
         "url": "https://github.com/catenahq/catena-templates"
       },
       "title": "Easy!Appointments",
-      "type": 3
+      "type": 2
     },
     {
       "categories": [
@@ -1190,7 +1190,7 @@
         "url": "https://github.com/catenahq/catena-templates"
       },
       "title": "Mautic",
-      "type": 3
+      "type": 2
     },
     {
       "categories": [
@@ -1259,7 +1259,7 @@
         "url": "https://github.com/catenahq/catena-templates"
       },
       "title": "Kimai",
-      "type": 3
+      "type": 2
     },
     {
       "categories": [
@@ -1347,7 +1347,7 @@
         "url": "https://github.com/catenahq/catena-templates"
       },
       "title": "Invoice Ninja",
-      "type": 3
+      "type": 2
     },
     {
       "categories": [
@@ -1414,7 +1414,7 @@
         "url": "https://github.com/catenahq/catena-templates"
       },
       "title": "Mail server + webmail",
-      "type": 3
+      "type": 2
     }
   ],
   "version": "3"

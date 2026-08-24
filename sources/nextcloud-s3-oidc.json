@@ -1,6 +1,6 @@
 {
   "id": "nextcloud-s3-oidc",
-  "type": 3,
+  "type": 2,
   "title": "Nextcloud",
   "name": "nextcloud",
   "categories": [

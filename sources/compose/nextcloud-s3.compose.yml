@@ -3,11 +3,24 @@
 # All values come from the Environment tab: hostname, S3 credentials,
 # admin password, DB password, OIDC coordinates (auto-injected). The
 # compose itself is not edited per deploy.
+#
+# This is a SWARM stack file (Portainer template type 2). Swarm starts every
+# service at once and has no equivalent of `depends_on`, so the ordering the
+# database gate used to provide is done by `wait_for_db` in the entrypoints
+# below. See the comment on `app` for why a crash-and-retry is not enough
+# here specifically.
 
 services:
   app:
     image: nextcloud:34.0.0-apache
-    restart: unless-stopped
+    deploy:
+      restart_policy:
+        condition: any
+      placement:
+        constraints:
+          # nc-config / nc-apps / nc-data are node-local named volumes. Off
+          # this node swarm would create them empty rather than fail.
+          - node.labels.catena.role==data
     # Two-stage delivery for the loglevel override:
     #
     #   1. The entrypoint wrapper writes a `before-starting` hook
@@ -161,6 +174,40 @@ services:
         # version so the same key is not declared twice.
         rm -f /docker-entrypoint-hooks.d/before-starting/zz-loglevel.sh \
               /var/www/html/config/zz-loglevel.config.php
+        # Wait for postgres before handing over to the upstream entrypoint.
+        #
+        # Swarm has no start ordering, and letting this container crash-loop
+        # until the database answers is NOT safe here. Upstream's entrypoint
+        # retries `occ maintenance:install` ten times at ten seconds and then
+        # exits 1 -- but by then populate.sh has already written
+        # /var/www/html/version.php, so the next start takes the UPGRADE
+        # branch instead, finds nothing to upgrade, and Nextcloud settles
+        # permanently on installed=false. The failure is silent and the fix
+        # is to wipe the volume, so the wait happens BEFORE the install can
+        # start.
+        #
+        # The probe is a real connection through pdo_pgsql, not a TCP
+        # accept: postgres accepts connections while it is still starting up
+        # and answers "the database system is starting up", which a port
+        # check reads as ready. Proving the credentials and the database
+        # name resolve is exactly the precondition the installer has.
+        wait_for_db() {
+          php -r 'try { new PDO(
+            "pgsql:host=".getenv("POSTGRES_HOST").";dbname=".getenv("POSTGRES_DB"),
+            getenv("POSTGRES_USER"), getenv("POSTGRES_PASSWORD")
+          ); } catch (Throwable $$e) { exit(1); } exit(0);' 2>/dev/null
+        }
+        waited=0
+        until wait_for_db; do
+          waited=$$((waited + 2))
+          if [ "$$waited" -ge 300 ]; then
+            echo "catena: postgres did not accept a connection in $${waited}s;" \
+                 "exiting so swarm restarts this task rather than installing" \
+                 "against a database that is not there" >&2
+            exit 1
+          fi
+          sleep 2
+        done
         exec /entrypoint.sh "$$@"
       - --
     command: ["apache2-foreground"]
@@ -293,18 +340,17 @@ services:
       # the app config (nextcloud_antivirus.yml); the same clamd serves
       # the mail server. External so it spans composes.
       catena-clamav: {}
-    # Gate Nextcloud's first-boot install on postgres being ready to
-    # accept connections. See the db service's healthcheck block for
-    # the failure mode this prevents.
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_started
+    # Redis needs no gate: Nextcloud treats a missing cache as a cache miss
+    # and the connection is retried per request.
 
   db:
     image: postgres:18.4-alpine
-    restart: unless-stopped
+    deploy:
+      restart_policy:
+        condition: any
+      placement:
+        constraints:
+          - node.labels.catena.role==data
     environment:
       POSTGRES_DB: nextcloud
       POSTGRES_USER: nextcloud
@@ -312,15 +358,10 @@ services:
       PGDATA: /var/lib/postgresql/data/pgdata
     volumes:
       - db-data:/var/lib/postgresql/data
-    # pg_isready health-check is what `app` and `cron` gate on via
-    # `depends_on: { db: { condition: service_healthy } }`. Without
-    # it, both services launch in parallel with the db, the upstream
-    # nextcloud entrypoint runs `occ maintenance:install` before
-    # postgres has accepted its first connection, install retries 10x
-    # 10s, exhausts the budget, container exits rc=1, Docker auto-
-    # restarts. The restart finds /var/www/html/version.php already
-    # written by the previous populate.sh run -> entrypoint takes the
-    # UPGRADE path -> no-op -> NC stuck reporting installed=false.
+    # The health state swarm reports for this task, and what `docker stack
+    # deploy --detach=false` waits on before it returns. `app` and `cron` do
+    # not read it -- swarm gives one service no way to read another's health
+    # -- so they run their own wait_for_db probe instead.
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U nextcloud -d nextcloud"]
       interval: 5s
@@ -334,7 +375,9 @@ services:
 
   redis:
     image: redis:7.4.9-alpine
-    restart: unless-stopped
+    deploy:
+      restart_policy:
+        condition: any
     labels:
       - "vps.auto-update=patch"
     networks:
@@ -342,8 +385,37 @@ services:
 
   cron:
     image: nextcloud:34.0.0-apache
-    restart: unless-stopped
-    entrypoint: /cron.sh
+    deploy:
+      restart_policy:
+        condition: any
+      placement:
+        constraints:
+          # Shares nc-config / nc-apps / nc-data with `app`, so it has to
+          # land on the node those volumes live on.
+          - node.labels.catena.role==data
+    # Same wait as `app`, for a narrower reason: background jobs run against
+    # the same database and the first tick fires as soon as the container is
+    # up. `$$X` -> `$X` after compose interpolation.
+    entrypoint:
+      - /bin/sh
+      - -ec
+      - |
+        wait_for_db() {
+          php -r 'try { new PDO(
+            "pgsql:host=".getenv("POSTGRES_HOST").";dbname=".getenv("POSTGRES_DB"),
+            getenv("POSTGRES_USER"), getenv("POSTGRES_PASSWORD")
+          ); } catch (Throwable $$e) { exit(1); } exit(0);' 2>/dev/null
+        }
+        waited=0
+        until wait_for_db; do
+          waited=$$((waited + 2))
+          if [ "$$waited" -ge 300 ]; then
+            echo "catena: postgres did not accept a connection in $${waited}s" >&2
+            exit 1
+          fi
+          sleep 2
+        done
+        exec /cron.sh
     environment:
       POSTGRES_HOST: db
       POSTGRES_DB: nextcloud
@@ -371,22 +443,15 @@ services:
       # (file scanning, preview generation, etc.) write to the same
       # /var/www/html/data tree the app reads from.
       - nc-data:/var/www/html/data
-    # No command override on cron: it runs /cron.sh as its entrypoint,
-    # which is a thin runner for occ background-jobs. The app service
-    # writes zz-loglevel.config.php into the shared nc-config volume
-    # on its own startup; cron picks it up via the shared mount.
+    # No command override on cron: the entrypoint above waits and then
+    # execs /cron.sh, a thin runner for occ background-jobs. The app service
+    # writes zz-catena.config.php into the shared nc-config volume on its
+    # own startup; cron picks it up via the shared mount.
     networks:
       - default
       # Background virus scans (files_antivirus job) run here too, so
       # cron also needs to reach the shared clamd.
       - catena-clamav
-    # Cron is also a Nextcloud entrypoint variant (runs /cron.sh) so
-    # it gates on postgres readiness for the same reason `app` does.
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_started
 
   # === HPB BEGIN -- Talk High-Performance Backend ==========================
   # Comment out this single service to disable Talk + HPB. The wire
@@ -430,7 +495,9 @@ services:
   talk-hpb:
     image: ghcr.io/nextcloud-releases/aio-talk:20260409_094910
     init: true
-    restart: unless-stopped
+    deploy:
+      restart_policy:
+        condition: any
     environment:
       # NEXTCLOUD_HOSTNAME owns the public Nextcloud URL; aio-talk
       # advertises this to clients as the parent app's identity.

@@ -30,7 +30,12 @@ services:
   dms:
     image: ghcr.io/docker-mailserver/docker-mailserver:15.1.0
     hostname: ${MAIL_HOSTNAME}
-    restart: unless-stopped
+    deploy:
+      restart_policy:
+        condition: any
+      placement:
+        constraints:
+          - node.labels.catena.role==data
     environment:
       # Inbound + storage on this host; outbound relayed.
       POSTMASTER_ADDRESS: postmaster@${MAIL_DOMAIN}
@@ -59,11 +64,31 @@ services:
       RELAY_USER: ${RELAY_USER}
       RELAY_PASSWORD: ${RELAY_PASSWORD}
     # Mail plane published directly on the host; opened via the registry.
+    #
+    # mode: host on every one of them, and this is not a style choice. The
+    # swarm default is the ingress routing mesh, which replaces the client
+    # address with a mesh address before the packet reaches the container.
+    # Everything this container does with a peer address then breaks at once:
+    # rspamd scores every message as if it came from the local network,
+    # fail2ban bans the mesh gateway instead of the attacker, and postfix's
+    # own network checks see one client for all of the internet.
     ports:
-      - "25:25"
-      - "465:465"
-      - "587:587"
-      - "993:993"
+      - target: 25
+        published: 25
+        protocol: tcp
+        mode: host
+      - target: 465
+        published: 465
+        protocol: tcp
+        mode: host
+      - target: 587
+        published: 587
+        protocol: tcp
+        mode: host
+      - target: 993
+        published: 993
+        protocol: tcp
+        mode: host
     volumes:
       - mail-data:/var/mail
       - mail-state:/var/mail-state
@@ -92,7 +117,12 @@ services:
 
   roundcube:
     image: roundcube/roundcubemail:1.7.1-apache
-    restart: unless-stopped
+    deploy:
+      restart_policy:
+        condition: any
+      placement:
+        constraints:
+          - node.labels.catena.role==data
     environment:
       # IMAP/SMTP target = the dms service (implicit TLS).
       ROUNDCUBEMAIL_DEFAULT_HOST: ssl://dms
@@ -106,8 +136,6 @@ services:
       - roundcube-db:/var/roundcube/db
       # ops drops oauth.inc.php (Keycloak oauth_provider config) here.
       - roundcube-config:/var/roundcube/config
-    depends_on:
-      - dms
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://localhost/ >/dev/null || exit 1"]
       interval: 30s
@@ -138,7 +166,9 @@ services:
   # The policy is baked from MAIL_HOSTNAME at container start.
   mta-sts:
     image: nginx:1.27-alpine
-    restart: unless-stopped
+    deploy:
+      restart_policy:
+        condition: any
     entrypoint:
       - /bin/sh
       - -ec

@@ -143,7 +143,7 @@ def test_lint_all_rejects_a_bad_snippet(monkeypatch, tmp_path):
     (tmp_path / "compose" / "bad.compose.yml").write_text("services: {}\n")
     doc = {
         "id": "synthetic-bad",
-        "type": 3,
+        "type": 2,
         "title": "Synthetic",
         "name": "synthetic-bad",
         "categories": ["Testing"],

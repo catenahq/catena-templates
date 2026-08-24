@@ -26,11 +26,11 @@ for layout, consumer model, and BASE URL setup.
 transforms `sources/` into:
 
 - `blueprints/<id>/docker-compose.yml` -- the compose file copied
-  verbatim; it IS the Portainer type-3 stackfile. Jinja stays in place;
+  verbatim; it IS the Portainer type-2 stackfile. Jinja stays in place;
   the converge reconciles env + routing post-deploy.
 - `blueprints/<id>/quiesce.yml` -- when the entry declares
   `x-catena.quiesce`.
-- `templates.json` -- one Portainer App Template per source: type 3,
+- `templates.json` -- one Portainer App Template per source: type 2,
   title/name/description/note/categories/logo, `repository{url,
   stackfile}` pointing at `blueprints/<id>/`, and `env` with human
   labels. Three classes of value render to the sentinel: declared
@@ -44,6 +44,37 @@ transforms `sources/` into:
 The render must be idempotent: running it twice produces byte-identical
 outputs. CI verifies with `git diff --exit-code` over all four.
 
+## Every compose here is a SWARM stack file
+
+The client host runs a single-node swarm carrying the catena services, and
+every template deploys onto it (Portainer template type 2). `docker stack
+deploy` reads these files, not `docker compose up`, and the two loaders
+differ in ways that are not symmetric. Three rules follow, all enforced by
+`make lint` (`lib/swarm_lint.py`):
+
+- **There is no start ordering.** `depends_on` is accepted by the loader,
+  dropped by the deploy, and reported by nothing -- so it is banned outright
+  rather than left to read as if it worked. A service that starts before its
+  database is expected to exit; `deploy.restart_policy` brings it back. Where
+  a crash-restart would be destructive (an installer that half-writes its
+  state and then takes the upgrade branch on the retry) the service waits for
+  its dependency ITSELF, in its entrypoint. Nextcloud is the worked example.
+- **A service that mounts state declares where it lives.** Named volume or
+  host path means `deploy.placement.constraints:
+  [node.labels.catena.role==data]`. At one node the constraint does nothing;
+  the moment a second node joins, swarm may schedule the service onto it and
+  CREATE the missing volume there, empty and without an error.
+- **A published port is `mode: host`.** The swarm default is the ingress
+  routing mesh, which replaces the client address with a mesh address before
+  the packet arrives. Every port in this catalog belongs to a service that
+  needs the real peer address.
+
+`configs:` has no inline form here either: a swarm stack file accepts
+`configs.file` (read from beside the compose, which does not exist when a
+stack is deployed from a posted string) or an external object. Config files a
+template needs are written by the service's own entrypoint, and the lint
+offers every inline script to the interpreter it names.
+
 ## Validation layers
 
 1. `sources.schema.json` -- field shapes, enums, required keys,
@@ -55,7 +86,10 @@ outputs. CI verifies with `git diff --exit-code` over all four.
    Portainer App Templates format, because that file is what a client's
    Portainer fetches.
 4. `make lint` -- quiesce-hook allowlist + shellcheck, post-restore
-   migration argv allowlist, central Postgres pin enforcement.
+   migration argv allowlist, central Postgres pin enforcement, and the
+   swarm-compatibility gate above (which also offers each file to the real
+   `docker stack config` loader when docker is on PATH, because the ban list
+   was written against one docker version and the loader is the authority).
 
 ## Add a new template
 

@@ -38,7 +38,7 @@ build/                   # thin entrypoints
 sources.schema.json      # schema for a sources/<id>.json
 Schema.json              # schema for the generated templates.json
 
-blueprints/              # generated; the type-3 stackfiles Portainer clones
+blueprints/              # generated; the type-2 stackfiles Portainer clones
   <id>/
     docker-compose.yml
     logo.svg             # placeholder or copied source asset
@@ -73,8 +73,9 @@ Pin a release tag to freeze the catalog:
 https://raw.githubusercontent.com/catenahq/catena-templates/tags/v0.2.0/templates.json
 ```
 
-Each entry is a type-3 (compose git-repo) stack: Portainer clones this
-repo and deploys `blueprints/<id>/docker-compose.yml`.
+Each entry is a type-2 (swarm git-repo) stack: Portainer clones this
+repo and deploys `blueprints/<id>/docker-compose.yml` onto the host's
+swarm.
 
 ### 2. ops/ Ansible reconciliation (catalog.json)
 

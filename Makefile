@@ -18,14 +18,15 @@ render:
 validate:
 	uv run build/validate.py
 
-## lint: unattended-hook security lint + central Postgres pin enforcement
+## lint: unattended-hook security lint + Postgres pins + swarm compatibility
 lint:
 	uv run build/lint_quiesce.py
 	uv run build/lint_postgres_pins.py
+	uv run build/lint_swarm.py
 
 ## test: unit tests over the build library
 test:
-	uv run --with pytest --with jsonschema pytest tests/ -q
+	uv run --with pytest --with jsonschema --with pyyaml pytest tests/ -q
 
 ## verify: what CI runs -- render must be idempotent against the commit
 verify: render

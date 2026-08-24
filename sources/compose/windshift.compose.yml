@@ -21,7 +21,20 @@
 services:
   windshift:
     image: ghcr.io/windshiftapp/windshift:v0.8.4
-    restart: unless-stopped
+    deploy:
+      # Swarm starts every service at once, and this image has no shell to
+      # wait for postgres with, so the ordering is the restart policy: the
+      # binary exits when it cannot reach the database and swarm brings it
+      # back until it can. Safe here because the schema migrations run in a
+      # transaction, so a half-connected start leaves nothing behind.
+      restart_policy:
+        condition: any
+      placement:
+        constraints:
+          - node.labels.catena.role==data
+      resources:
+        limits:
+          memory: 2G
     environment:
       BASE_URL: https://${WINDSHIFT_HOSTNAME}
       PORT: "8080"
@@ -46,33 +59,32 @@ services:
       PLUGIN_DIR: /data/plugins
       LOG_LEVEL: info
       LOG_FORMAT: json
-      # Process budget. Keep mem_limit below in step with it.
+      # Process budget. Keep deploy.resources.limits.memory in step with it.
       WINDSHIFT_MEMORY_LIMIT_MB: "2048"
-      # Scratch has no /tmp of its own; the tmpfs below supplies it.
+      # Scratch has no /tmp of its own; the windshift-tmp volume supplies it.
       TMPDIR: /tmp
       SQLITE_TMPDIR: /tmp
     volumes:
       - windshift-data:/data
-    # exec is required: the temp dir backs SQLite WAL scratch files even
-    # in postgres mode.
-    tmpfs:
-      - /tmp:exec,size=64M
+      # /tmp needs exec: the temp dir backs SQLite WAL scratch files even in
+      # postgres mode. A swarm tmpfs mount is always noexec and swarm offers
+      # no way to ask otherwise, so this is a named volume rather than a
+      # tmpfs. It holds scratch, so nothing here needs to survive -- but it
+      # does, which is why the app's own TMPDIR cleanup is what keeps it
+      # bounded.
+      - windshift-tmp:/tmp
     # Every open item-detail view holds an SSE connection; the default
     # 1024 fd ceiling is the failure point near ~1000 concurrent streams.
     ulimits:
       nofile:
         soft: 65536
         hard: 65536
-    mem_limit: 2g
     healthcheck:
       test: ["CMD", "/windshift", "healthcheck"]
       interval: 15s
       timeout: 5s
       retries: 5
       start_period: 30s
-    depends_on:
-      db:
-        condition: service_healthy
     labels:
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=8080"
@@ -91,7 +103,12 @@ services:
 
   db:
     image: postgres:18.4-alpine
-    restart: unless-stopped
+    deploy:
+      restart_policy:
+        condition: any
+      placement:
+        constraints:
+          - node.labels.catena.role==data
     environment:
       POSTGRES_USER: windshift
       POSTGRES_PASSWORD: ${DB_PASSWORD}
@@ -111,6 +128,7 @@ services:
 
 volumes:
   windshift-data:
+  windshift-tmp:
   db-data:
 
 networks:

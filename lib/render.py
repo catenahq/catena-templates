@@ -2,7 +2,7 @@
 
 Outputs (all overwritten on each run, all committed, all drift-gated):
 
-  blueprints/<id>/docker-compose.yml  the type-3 stackfile Portainer clones
+  blueprints/<id>/docker-compose.yml  the type-2 stackfile Portainer clones
   blueprints/<id>/logo.svg|png        source asset or a deterministic placeholder
   blueprints/<id>/quiesce.yml         when the entry declares backup hooks
   templates.json                      Portainer App Templates v3 index

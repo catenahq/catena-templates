@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://raw.githubusercontent.com/catenahq/catena-templates/main/Schema.json",
   "title": "Portainer App Templates (v3)",
-  "description": "Output schema for the generated templates.json, per https://docs.portainer.io/advanced/app-templates/format. Catena ships type-3 (git-repo compose stack) entries only, so the container-only fields (image, ports, volumes, restart_policy, privileged, interactive, network, command, hostname) are absent by construction rather than merely unused.",
+  "description": "Output schema for the generated templates.json, per https://docs.portainer.io/advanced/app-templates/format. Catena ships type-2 (git-repo swarm stack) entries only, so the container-only fields (image, ports, volumes, restart_policy, privileged, interactive, network, command, hostname) are absent by construction rather than merely unused.",
   "type": "object",
   "additionalProperties": false,
   "required": ["version", "templates"],
@@ -20,7 +20,7 @@
       "additionalProperties": false,
       "required": ["type", "title", "description", "repository"],
       "properties": {
-        "type": {"const": 3},
+        "type": {"const": 2},
         "title": {"type": "string", "minLength": 1},
         "name": {"type": "string", "minLength": 1},
         "description": {"type": "string", "minLength": 1},

@@ -65,7 +65,7 @@ def test_rendered_templates_json_matches_the_published_schema():
 def test_every_template_is_a_git_repo_stack_pointing_at_its_blueprint():
     doc = json.loads((ROOT / "templates.json").read_text())
     for tmpl in doc["templates"]:
-        assert tmpl["type"] == 3
+        assert tmpl["type"] == 2
         stackfile = tmpl["repository"]["stackfile"]
         assert stackfile.startswith("blueprints/")
         assert (ROOT / stackfile).exists(), stackfile

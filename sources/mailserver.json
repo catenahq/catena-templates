@@ -1,6 +1,6 @@
 {
   "id": "mailserver",
-  "type": 3,
+  "type": 2,
   "title": "Mail server + webmail",
   "name": "mailserver",
   "categories": [

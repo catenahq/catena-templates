@@ -16,7 +16,12 @@
 services:
   easyappointments:
     image: alextselegidis/easyappointments:1.5.2
-    restart: unless-stopped
+    deploy:
+      restart_policy:
+        condition: any
+      placement:
+        constraints:
+          - node.labels.catena.role==data
     environment:
       BASE_URL: https://${EASYAPPOINTMENTS_HOSTNAME}
       DB_HOST: db
@@ -26,9 +31,6 @@ services:
       DEBUG_MODE: "FALSE"
     volumes:
       - server-data:/var/www/html/storage
-    depends_on:
-      db:
-        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://localhost/ >/dev/null || exit 1"]
       interval: 15s
@@ -49,7 +51,12 @@ services:
 
   db:
     image: mariadb:11.8.6
-    restart: unless-stopped
+    deploy:
+      restart_policy:
+        condition: any
+      placement:
+        constraints:
+          - node.labels.catena.role==data
     environment:
       MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
       MARIADB_DATABASE: easyappointments

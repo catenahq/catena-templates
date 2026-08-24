@@ -7,7 +7,12 @@
 services:
   server:
     image: twentycrm/twenty:v2.3.2
-    restart: unless-stopped
+    deploy:
+      restart_policy:
+        condition: any
+      placement:
+        constraints:
+          - node.labels.catena.role==data
     environment:
       NODE_ENV: production
       PG_DATABASE_URL: postgres://postgres:${DB_PASSWORD}@db:5432/default
@@ -23,11 +28,6 @@ services:
       OIDC_ISSUER_URL: ${OIDC_ISSUER_URL}
     volumes:
       - server-data:/app/.local-storage
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_started
     labels:
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=3000"
@@ -46,7 +46,12 @@ services:
 
   worker:
     image: twentycrm/twenty:v2.3.2
-    restart: unless-stopped
+    deploy:
+      restart_policy:
+        condition: any
+      placement:
+        constraints:
+          - node.labels.catena.role==data
     command: ["yarn", "worker:prod"]
     environment:
       NODE_ENV: production
@@ -58,8 +63,6 @@ services:
       APP_SECRET: ${TWENTY_APP_SECRET}
     volumes:
       - server-data:/app/.local-storage
-    depends_on:
-      - server
     labels:
       - "vps.auto-update=patch"
     networks:
@@ -67,7 +70,12 @@ services:
 
   db:
     image: postgres:18.4-alpine
-    restart: unless-stopped
+    deploy:
+      restart_policy:
+        condition: any
+      placement:
+        constraints:
+          - node.labels.catena.role==data
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${DB_PASSWORD}
@@ -87,7 +95,9 @@ services:
 
   redis:
     image: redis:8.6.3-alpine3.23
-    restart: unless-stopped
+    deploy:
+      restart_policy:
+        condition: any
     labels:
       - "vps.auto-update=patch"
     networks:

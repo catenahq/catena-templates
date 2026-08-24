@@ -1,6 +1,6 @@
 {
   "id": "rocketchat-oidc",
-  "type": 3,
+  "type": 2,
   "title": "Rocket.Chat",
   "name": "rocketchat",
   "categories": [

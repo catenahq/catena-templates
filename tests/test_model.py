@@ -18,7 +18,7 @@ from lib import model  # noqa: E402
 def _valid_doc(slug: str = "example") -> dict:
     return {
         "id": slug,
-        "type": 3,
+        "type": 2,
         "title": "Example",
         "name": slug,
         "categories": ["Testing"],

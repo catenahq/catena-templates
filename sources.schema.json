@@ -13,8 +13,8 @@
       "description": "Stable slug. MUST equal the filename stem. Used as the blueprint directory, the sentinel key, and the id every consumer joins on."
     },
     "type": {
-      "const": 3,
-      "description": "Portainer template type. 3 = compose stack deployed from a git repository. Catena ships only type 3."
+      "const": 2,
+      "description": "Portainer template type. 2 = swarm stack deployed from a git repository. Every Catena template is a swarm stack: the client host already runs a single-node swarm carrying the catena services, so a compose stack would be a second runtime beside it with none of the placement or restart policy the rest of the box is held to."
     },
     "title": {"type": "string", "minLength": 1},
     "name": {
