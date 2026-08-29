@@ -1472,6 +1472,9 @@
       "env_managed_keys": [
         "RELAY_PASSWORD"
       ],
+      "env_required_when": {
+        "RELAY_PASSWORD": "RELAY_HOST"
+      },
       "fr": {
         "compose_description": "Bo\u00eetes auto-h\u00e9berg\u00e9es + webmail Roundcube, SSO Keycloak. Un relais SMTP est requis pour l'envoi. Remplace Gmail / Exchange Online.\n\nhttps://docs.catena.run/apps/mailserver/\n",
         "display_name": "Serveur de courriel + webmail",

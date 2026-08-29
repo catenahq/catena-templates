@@ -211,6 +211,8 @@ def render_catalog_entry(entry: Entry) -> dict[str, Any]:
     }
     if cat.get("env_managed_keys"):
         out["env_managed_keys"] = list(cat["env_managed_keys"])
+    if cat.get("env_required_when"):
+        out["env_required_when"] = dict(cat["env_required_when"])
     if cat.get("postgres_image_override"):
         out["postgres_image_override"] = cat["postgres_image_override"]
     if cat.get("pg_replay_depends_on"):

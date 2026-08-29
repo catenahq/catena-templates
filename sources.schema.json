@@ -5,7 +5,15 @@
   "description": "One hand-edited template definition: the Portainer App Template fields a human owns, plus the x-catena extension block carrying everything the Portainer format has no slot for (SSO wiring, backup quiesce hooks, bench membership, sizing, bilingual prose). sources/<id>.json is canonical; templates.json, catalog.json, blueprints/ and index.html are generated from it.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["id", "type", "title", "name", "categories", "platform", "x-catena"],
+  "required": [
+    "id",
+    "type",
+    "title",
+    "name",
+    "categories",
+    "platform",
+    "x-catena"
+  ],
   "properties": {
     "id": {
       "type": "string",
@@ -16,7 +24,10 @@
       "const": 2,
       "description": "Portainer template type. 2 = swarm stack deployed from a git repository. Every Catena template is a swarm stack: the client host already runs a single-node swarm carrying the catena services, so a compose stack would be a second runtime beside it with none of the placement or restart policy the rest of the box is held to."
     },
-    "title": {"type": "string", "minLength": 1},
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
     "name": {
       "type": "string",
       "pattern": "^[a-z0-9][a-z0-9-]*$",
@@ -25,41 +36,93 @@
     "categories": {
       "type": "array",
       "minItems": 1,
-      "items": {"type": "string", "minLength": 1},
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
       "description": "Filter chips in the Portainer catalog. Descriptive app categories, never internal enums."
     },
-    "platform": {"enum": ["linux", "windows"]},
+    "platform": {
+      "enum": [
+        "linux",
+        "windows"
+      ]
+    },
     "x-catena": {
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "app_name", "upstream_url", "sso_mode", "domain",
-        "compose_file", "env_defaults", "bench", "sizing", "en", "fr"
+        "app_name",
+        "upstream_url",
+        "sso_mode",
+        "domain",
+        "compose_file",
+        "env_defaults",
+        "bench",
+        "sizing",
+        "en",
+        "fr"
       ],
       "properties": {
-        "app_name": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$"},
-        "upstream_url": {"type": "string", "format": "uri"},
+        "app_name": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]*$"
+        },
+        "upstream_url": {
+          "type": "string",
+          "format": "uri"
+        },
         "sso_mode": {
-          "enum": ["pre-wired", "post-deploy-ui", "jackson-curl", "auto", "none", "n/a"]
+          "enum": [
+            "pre-wired",
+            "post-deploy-ui",
+            "jackson-curl",
+            "auto",
+            "none",
+            "n/a"
+          ]
         },
         "domain": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["host", "service", "port"],
+          "required": [
+            "host",
+            "service",
+            "port"
+          ],
           "properties": {
-            "host": {"type": "string", "minLength": 1},
-            "service": {"type": "string", "minLength": 1},
-            "port": {"type": "integer", "minimum": 1, "maximum": 65535}
+            "host": {
+              "type": "string",
+              "minLength": 1
+            },
+            "service": {
+              "type": "string",
+              "minLength": 1
+            },
+            "port": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65535
+            }
           }
         },
-        "compose_file": {"type": "string", "pattern": "^compose/.+\\.ya?ml$"},
+        "compose_file": {
+          "type": "string",
+          "pattern": "^compose/.+\\.ya?ml$"
+        },
         "env_defaults": {
           "type": "array",
-          "items": {"type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*="}
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z_][A-Za-z0-9_]*="
+          }
         },
         "env_managed_keys": {
           "type": "array",
-          "items": {"type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"},
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+          },
           "description": "Keys the converge re-injects on every pass. They render to the operator-wired sentinel, never to a real value."
         },
         "postgres_image_override": {
@@ -68,78 +131,200 @@
         },
         "pg_replay_depends_on": {
           "type": "array",
-          "items": {"type": "string"}
+          "items": {
+            "type": "string"
+          }
         },
-        "pause_during_migrate_cutover": {"type": "boolean"},
+        "pause_during_migrate_cutover": {
+          "type": "boolean"
+        },
         "s3_reconcile": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["service", "check"],
+          "required": [
+            "service",
+            "check"
+          ],
           "description": "Post-restore object-store consistency check. Report-only: it names the orphan rows, it never deletes them, because a bucket that is misconfigured looks exactly like a bucket that is empty.",
           "properties": {
-            "service": {"type": "string", "description": "Compose service the check runs inside."},
-            "user": {"type": "string", "description": "User to exec as, when the app refuses to run its CLI as root."},
-            "check": {"type": "string", "description": "Named check the ops side implements."},
-            "db_service": {"type": "string", "description": "Compose service holding the index the check reads."}
+            "service": {
+              "type": "string",
+              "description": "Compose service the check runs inside."
+            },
+            "user": {
+              "type": "string",
+              "description": "User to exec as, when the app refuses to run its CLI as root."
+            },
+            "check": {
+              "type": "string",
+              "description": "Named check the ops side implements."
+            },
+            "db_service": {
+              "type": "string",
+              "description": "Compose service holding the index the check reads."
+            }
           }
         },
         "post_restore_migrate": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["service", "commands", "timeout_seconds"],
+          "required": [
+            "service",
+            "commands",
+            "timeout_seconds"
+          ],
           "description": "Schema migration to run after a FORWARD restore, once the database replay has put the snapshot's contents back. Declare it when the application migrates its own schema at container start: that migration runs against the pre-replay database and is then overwritten by the replay, so on a restore across versions it has effectively not run. Commands are argv arrays executed through docker exec, never a shell.",
           "properties": {
-            "service": {"type": "string", "minLength": 1, "description": "Compose service the migration runs inside."},
-            "user": {"type": "string", "description": "User to exec as. Set it whenever the migration writes into a volume the application later has to write itself, or the files come back owned by root."},
+            "service": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Compose service the migration runs inside."
+            },
+            "user": {
+              "type": "string",
+              "description": "User to exec as. Set it whenever the migration writes into a volume the application later has to write itself, or the files come back owned by root."
+            },
             "commands": {
               "type": "array",
               "minItems": 1,
-              "items": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+              "items": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "string"
+                }
+              },
               "description": "Run in order, stopping at the first failure."
             },
-            "timeout_seconds": {"type": "integer", "minimum": 1, "maximum": 3600}
+            "timeout_seconds": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 3600
+            }
           }
         },
         "bench": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["pack"],
+          "required": [
+            "pack"
+          ],
           "properties": {
-            "pack": {"enum": ["postgres", "mariadb", "mongo", "nodb", "embedded"]},
-            "fixture": {"enum": ["required", "skip"]},
-            "hostname_baked": {"type": "boolean"}
+            "pack": {
+              "enum": [
+                "postgres",
+                "mariadb",
+                "mongo",
+                "nodb",
+                "embedded"
+              ]
+            },
+            "fixture": {
+              "enum": [
+                "required",
+                "skip"
+              ]
+            },
+            "hostname_baked": {
+              "type": "boolean"
+            }
           }
         },
         "quiesce": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["pre", "post", "timeout_seconds"],
+          "required": [
+            "pre",
+            "post",
+            "timeout_seconds"
+          ],
           "properties": {
-            "pre": {"type": "string", "minLength": 1},
-            "post": {"type": "string", "minLength": 1},
-            "timeout_seconds": {"type": "integer", "minimum": 1, "maximum": 60}
+            "pre": {
+              "type": "string",
+              "minLength": 1
+            },
+            "post": {
+              "type": "string",
+              "minLength": 1
+            },
+            "timeout_seconds": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 60
+            }
           }
         },
         "sizing": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["peak_ram_mb"],
+          "required": [
+            "peak_ram_mb"
+          ],
           "properties": {
-            "idle_ram_mb": {"type": ["integer", "null"], "minimum": 1},
+            "idle_ram_mb": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1
+            },
             "peak_ram_mb": {
               "type": "integer",
               "minimum": 1,
               "description": "Required. The bench scheduler multiplies it by 1.15 to gate slot acquisition."
             },
-            "idle_cpu_pct": {"type": ["number", "null"], "minimum": 0},
-            "peak_cpu_pct": {"type": ["number", "null"], "minimum": 0},
-            "disk_baseline_mb": {"type": ["integer", "null"], "minimum": 1},
-            "notes": {"type": ["string", "null"]},
-            "notes_fr": {"type": ["string", "null"]}
+            "idle_cpu_pct": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "peak_cpu_pct": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "disk_baseline_mb": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1
+            },
+            "notes": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "notes_fr": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
           }
         },
-        "en": {"$ref": "#/$defs/prose"},
-        "fr": {"$ref": "#/$defs/prose"}
+        "en": {
+          "$ref": "#/$defs/prose"
+        },
+        "fr": {
+          "$ref": "#/$defs/prose"
+        },
+        "env_required_when": {
+          "type": "object",
+          "description": "Gates an env key on a SIBLING key being non-empty: {\"RELAY_PASSWORD\": \"RELAY_HOST\"} reads \"the relay password is required only when a relay host is configured\". Without it every optional credential is mandatory and the host's marketplace drops the whole template over a value nothing would read. The gate must name a key this template also defines.",
+          "additionalProperties": {
+            "type": "string",
+            "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+          },
+          "propertyNames": {
+            "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+          }
+        }
       }
     }
   },
@@ -147,14 +332,38 @@
     "prose": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["display_name", "what_it_is", "replaces", "compose_description", "setup_steps"],
+      "required": [
+        "display_name",
+        "what_it_is",
+        "replaces",
+        "compose_description",
+        "setup_steps"
+      ],
       "properties": {
-        "display_name": {"type": "string", "minLength": 1},
-        "what_it_is": {"type": "string", "minLength": 1},
-        "replaces": {"type": "array", "items": {"type": "string"}},
-        "compose_description": {"type": "string", "minLength": 1},
-        "setup_steps": {"type": "string"},
-        "extra_notes": {"type": "string"}
+        "display_name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "what_it_is": {
+          "type": "string",
+          "minLength": 1
+        },
+        "replaces": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "compose_description": {
+          "type": "string",
+          "minLength": 1
+        },
+        "setup_steps": {
+          "type": "string"
+        },
+        "extra_notes": {
+          "type": "string"
+        }
       }
     }
   }

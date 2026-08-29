@@ -66,6 +66,9 @@
     },
     "env_managed_keys": [
       "RELAY_PASSWORD"
-    ]
+    ],
+    "env_required_when": {
+      "RELAY_PASSWORD": "RELAY_HOST"
+    }
   }
 }
