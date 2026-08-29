@@ -80,9 +80,9 @@ swarm.
 ### 2. ops/ Ansible reconciliation (catalog.json)
 
 catenahq/ops reads `catalog.json` -- one fetch, every template, with the
-fields Portainer's format has no slot for. The converge reconciles each
-managed VPS (env + routing) and owns `env_managed_keys` drift-healing;
-the marketplace UI path does not.
+fields Portainer's format has no slot for. A managed VPS also reads it to
+render its OWN copy of `templates.json`, which is what its Portainer
+actually serves (see the sentinel section below).
 
 Why two artifacts rather than one: Portainer's format defines what it
 defines. Squeezing `sso_mode`, quiesce hooks, bench packs, sizing and
@@ -102,9 +102,22 @@ OIDC_CLIENT_SECRET=__CATENA_OPERATOR_WIRED__
 Portainer has no per-deploy secret generator and no template engine, so
 three classes of value collapse to the sentinel: declared
 `env_managed_keys`, Ansible `lookup('password', ...)` expressions, and
-any value still carrying Jinja after render. The converge overwrites
-them post-deploy. Marketplace-deployed templates need a converge pass
-before they are functional.
+any value still carrying Jinja after render.
+
+**Nothing resolves the sentinel in THIS file, and nothing is meant to.**
+This repository is public: one `templates.json` serves every client, so
+it cannot hold a value that differs per host. A client's Portainer does
+not read this copy. It reads its own host's, which catena-admin renders
+from `catalog.json` with every expression resolved against that host --
+its zone, its Keycloak, its store, and per-deploy passwords minted on the
+box (`catena-admin shell/marketplace`). That render is why the values
+have to be correct BEFORE the client clicks Deploy: an app that boots
+against the wrong database password has already initialised its database
+with it.
+
+So deploying this file directly -- pointing a Portainer at the raw URL --
+gives an app the literal sentinel as its secret. It is the render's
+input, not a catalog to deploy from.
 
 ## How to add a template
 
@@ -143,8 +156,11 @@ a vendored-tarball-bump PR on its next daily run.
 ## What does NOT live here
 
 - Vault values, OIDC client secrets, any actual secret. Sentinels only.
-- Operator-side wiring (which `env_managed_keys` overwrite which values,
-  how OIDC clients get minted). Lives in catenahq/ops.
+- The per-host render that resolves the sentinels, and the on-box minting
+  of per-deploy app passwords. Lives in catenahq/catena-admin
+  (`shell/marketplace`), served to that host's Portainer.
+- Operator-side wiring (how OIDC clients get minted). Lives in
+  catenahq/ops and catenahq/catena-ce.
 - Client-facing documentation. Lives in catenahq/docs (generated from
   `catalog.json` by ops/automation/operator-tools/generate-template-docs.py).
 - Per-VPS state (installed templates, CVE queue, SBOM). Lives at

@@ -51,7 +51,11 @@ def test_managed_keys_render_as_sentinel_with_a_description():
     assert env["DOMAIN_HOST"]["default"] == "x.example.com"
     assert "description" not in env["DOMAIN_HOST"]
     assert env["OIDC_CLIENT_SECRET"]["default"] == render.SENTINEL_MANAGED
-    assert "converge" in env["OIDC_CLIENT_SECRET"]["description"]
+    # The description says where the real value comes from. It must not promise
+    # that something resolves this file in place: nothing does, and a reader
+    # who deployed it expecting one would get the placeholder as their secret.
+    assert "Placeholder" in env["OIDC_CLIENT_SECRET"]["description"]
+    assert "converge" not in env["OIDC_CLIENT_SECRET"]["description"]
 
 
 def test_rendered_templates_json_matches_the_published_schema():

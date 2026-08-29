@@ -18,7 +18,12 @@ for layout, consumer model, and BASE URL setup.
 - Bilingual prose (the `x-catena.en` / `x-catena.fr` blocks): both
   required, no EN-only or FR-only templates.
 - No secrets, ever. Sentinel placeholders (`__CATENA_OPERATOR_WIRED__`)
-  in templates.json for env vars the converge owns.
+  in templates.json. This repo is public and one file serves every
+  client, so it cannot hold a per-host value; a client's Portainer reads
+  its OWN host's render of it instead (catena-admin
+  `shell/marketplace`, from `catalog.json`). Nothing resolves the
+  sentinel in this repo, and the published templates.json is the
+  render's INPUT rather than a catalog to deploy from.
 
 ## The render contract
 
@@ -26,8 +31,10 @@ for layout, consumer model, and BASE URL setup.
 transforms `sources/` into:
 
 - `blueprints/<id>/docker-compose.yml` -- the compose file copied
-  verbatim; it IS the Portainer type-2 stackfile. Jinja stays in place;
-  the converge reconciles env + routing post-deploy.
+  verbatim; it IS the Portainer type-2 stackfile, cloned from this public
+  repo by Portainer itself. Jinja stays in place; the env it reads is
+  resolved by the host's own catalog render before the deploy, and
+  routing is reconciled post-deploy by dashboard-sync.
 - `blueprints/<id>/quiesce.yml` -- when the entry declares
   `x-catena.quiesce`.
 - `templates.json` -- one Portainer App Template per source: type 2,
@@ -157,12 +164,18 @@ is a major bump and needs coordinated PRs:
 3. Update `generate-template-docs.py` + `generate-sizing-doc.py`.
 4. Update the Ansible loader in catena-ce
    (`roles/infrastructure/tasks/_templates_catalog_load.yml`).
-5. Bump the vendored tarball in catenahq/ops via the bump workflow.
+5. Update the per-host render in catena-admin (`shell/marketplace`) --
+   it reads `catalog.json` and rewrites `templates.json` for one host,
+   so a shape change breaks a client's marketplace, not just a report.
+6. Bump the vendored tarball in catenahq/ops via the bump workflow.
 
 ## What does NOT live here
 
+- The per-host render that resolves the sentinels, and the on-box
+  minting of per-deploy app passwords. catenahq/catena-admin
+  (`shell/marketplace`).
 - Operator-side wiring (on-box config key names, OIDC client minting
-  flow, `env_managed_keys` re-injection logic). All in catenahq/ops.
+  flow). catenahq/ops and catenahq/catena-ce.
 - Per-VPS runtime state. All under `/var/lib/catena/` on each VPS.
 - Docs site copy. catenahq/docs generates the per-template pages from
   `catalog.json` via a sibling-write generator.

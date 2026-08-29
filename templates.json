@@ -24,13 +24,13 @@
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "Nextcloud admin password",
           "name": "NEXTCLOUD_ADMIN_PASSWORD"
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "Database password",
           "name": "DB_PASSWORD"
         },
@@ -91,61 +91,61 @@
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "OIDC client ID",
           "name": "OIDC_CLIENT_ID"
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "OIDC client secret",
           "name": "OIDC_CLIENT_SECRET"
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "OIDC discovery URL",
           "name": "OIDC_DISCOVERY_URL"
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "OIDC issuer URL",
           "name": "OIDC_ISSUER_URL"
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "OIDC redirect URL",
           "name": "OIDC_REDIRECT_URL"
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "Signaling hostname",
           "name": "SIGNALING_HOSTNAME"
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "Signaling secret",
           "name": "SIGNALING_SECRET"
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "Talk internal secret",
           "name": "TALK_INTERNAL_SECRET"
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "TURN hostname",
           "name": "TURN_HOSTNAME"
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "TURN static auth secret",
           "name": "TURN_STATIC_AUTH_SECRET"
         }
@@ -201,7 +201,7 @@
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "JWT secret",
           "name": "JWT_SECRET"
         }
@@ -242,7 +242,7 @@
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "OIDC base URL",
           "name": "OIDC_BASE_URL"
         },
@@ -253,43 +253,43 @@
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "Admin pass",
           "name": "ADMIN_PASS"
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "Vps public IP",
           "name": "VPS_PUBLIC_IP"
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "TURN static auth secret",
           "name": "TURN_STATIC_AUTH_SECRET"
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "Jitsi prosody password",
           "name": "JITSI_PROSODY_PASSWORD"
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "Jitsi jicofo auth password",
           "name": "JITSI_JICOFO_AUTH_PASSWORD"
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "Jitsi jicofo component secret",
           "name": "JITSI_JICOFO_COMPONENT_SECRET"
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "Jitsi jvb auth password",
           "name": "JITSI_JVB_AUTH_PASSWORD"
         }
@@ -335,25 +335,25 @@
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "Database password",
           "name": "DB_PASSWORD"
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "Synapse registration shared secret",
           "name": "SYNAPSE_REGISTRATION_SHARED_SECRET"
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "Synapse macaroon secret",
           "name": "SYNAPSE_MACAROON_SECRET"
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "Synapse form secret",
           "name": "SYNAPSE_FORM_SECRET"
         },
@@ -369,61 +369,61 @@
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "OIDC base URL",
           "name": "OIDC_BASE_URL"
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "OIDC client ID",
           "name": "OIDC_CLIENT_ID"
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "OIDC client secret",
           "name": "OIDC_CLIENT_SECRET"
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "Vps public IP",
           "name": "VPS_PUBLIC_IP"
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "TURN hostname",
           "name": "TURN_HOSTNAME"
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "TURN static auth secret",
           "name": "TURN_STATIC_AUTH_SECRET"
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "Jitsi jicofo auth password",
           "name": "JITSI_JICOFO_AUTH_PASSWORD"
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "Jitsi jicofo component secret",
           "name": "JITSI_JICOFO_COMPONENT_SECRET"
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "Jitsi jvb auth password",
           "name": "JITSI_JVB_AUTH_PASSWORD"
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "Jigasi xmpp password",
           "name": "JIGASI_XMPP_PASSWORD"
         },
@@ -474,13 +474,13 @@
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "Application secret",
           "name": "SECRET_KEY_BASE"
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "Database password",
           "name": "DB_PASSWORD"
         },
@@ -526,7 +526,7 @@
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "OIDC issuer URL",
           "name": "OIDC_ISSUER_URL"
         }
@@ -562,19 +562,19 @@
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "Outline secret key",
           "name": "OUTLINE_SECRET_KEY"
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "Outline utils secret",
           "name": "OUTLINE_UTILS_SECRET"
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "Database password",
           "name": "DB_PASSWORD"
         }
@@ -615,19 +615,19 @@
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "Espocrm admin password",
           "name": "ESPOCRM_ADMIN_PASSWORD"
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "Database password",
           "name": "DB_PASSWORD"
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "Database root password",
           "name": "DB_ROOT_PASSWORD"
         },
@@ -643,7 +643,7 @@
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "OIDC issuer URL",
           "name": "OIDC_ISSUER_URL"
         }
@@ -679,13 +679,13 @@
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "Twenty app secret",
           "name": "TWENTY_APP_SECRET"
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "Database password",
           "name": "DB_PASSWORD"
         }
@@ -720,25 +720,25 @@
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "Plane secret key",
           "name": "PLANE_SECRET_KEY"
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "Database password",
           "name": "DB_PASSWORD"
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "Plane minio access key",
           "name": "PLANE_MINIO_ACCESS_KEY"
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "Plane minio secret key",
           "name": "PLANE_MINIO_SECRET_KEY"
         }
@@ -774,13 +774,13 @@
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "Session signing secret",
           "name": "SSO_SECRET"
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "Database password",
           "name": "DB_PASSWORD"
         }
@@ -816,7 +816,7 @@
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "Database password",
           "name": "DB_PASSWORD"
         }
@@ -852,13 +852,13 @@
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "Application secret",
           "name": "SECRET_KEY_BASE"
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "Database password",
           "name": "DB_PASSWORD"
         }
@@ -889,25 +889,25 @@
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "Wordpress hostname",
           "name": "WORDPRESS_HOSTNAME"
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "Wpms SMTP pass",
           "name": "WPMS_SMTP_PASS"
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "Database password",
           "name": "DB_PASSWORD"
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "Database root password",
           "name": "DB_ROOT_PASSWORD"
         }
@@ -947,19 +947,19 @@
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "N8n encryption key",
           "name": "N8N_ENCRYPTION_KEY"
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "N8n JWT secret",
           "name": "N8N_JWT_SECRET"
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "Database password",
           "name": "DB_PASSWORD"
         }
@@ -995,13 +995,13 @@
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "Erpnext admin password",
           "name": "ERPNEXT_ADMIN_PASSWORD"
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "Database root password",
           "name": "DB_ROOT_PASSWORD"
         }
@@ -1061,13 +1061,13 @@
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "JWT secret",
           "name": "JWT_SECRET"
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "Database password",
           "name": "DB_PASSWORD"
         }
@@ -1102,13 +1102,13 @@
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "Database password",
           "name": "DB_PASSWORD"
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "Database root password",
           "name": "DB_ROOT_PASSWORD"
         }
@@ -1144,13 +1144,13 @@
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "Database password",
           "name": "DB_PASSWORD"
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "Database root password",
           "name": "DB_ROOT_PASSWORD"
         },
@@ -1216,25 +1216,25 @@
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "Kimai admin password",
           "name": "KIMAI_ADMIN_PASSWORD"
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "Kimai app secret",
           "name": "KIMAI_APP_SECRET"
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "Database password",
           "name": "DB_PASSWORD"
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "Database root password",
           "name": "DB_ROOT_PASSWORD"
         },
@@ -1290,19 +1290,19 @@
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "Invoiceninja admin password",
           "name": "INVOICENINJA_ADMIN_PASSWORD"
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "Database password",
           "name": "DB_PASSWORD"
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "Database root password",
           "name": "DB_ROOT_PASSWORD"
         },
@@ -1378,7 +1378,7 @@
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "OIDC introspection URL",
           "name": "OIDC_INTROSPECTION_URL"
         },
@@ -1399,7 +1399,7 @@
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Managed value. Left as a placeholder here and set on the first converge after deploy.",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "Relay password",
           "name": "RELAY_PASSWORD"
         }

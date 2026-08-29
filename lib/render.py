@@ -81,9 +81,17 @@ ENV_LABEL_ACRONYMS = frozenset({
     "tls", "turn", "url", "uri", "uid", "gid", "vapid",
 })
 
+# What a reader of the PUBLIC catalog is looking at. Nothing resolves the
+# sentinel in this file: a client's Portainer reads its App Templates from its
+# own host (catena-admin serves the catalog with every value substituted for
+# that host), and this copy exists to be that render's input.
+#
+# The description used to promise the value was "set on the first converge
+# after deploy". Nothing did that, and saying so told anyone deploying from
+# this file directly to expect a correction that was never coming.
 MANAGED_ENV_DESCRIPTION = (
-    "Managed value. Left as a placeholder here and set on the first "
-    "converge after deploy."
+    "Placeholder. The copy of this catalog served by a Catena host carries "
+    "the real value; deploying this file directly does not."
 )
 
 
