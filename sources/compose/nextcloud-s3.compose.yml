@@ -308,6 +308,25 @@ services:
       TURN_HOSTNAME: ${TURN_HOSTNAME}
       TURN_STATIC_AUTH_SECRET: ${TURN_STATIC_AUTH_SECRET}
     volumes:
+      # THE CODE TREE MUST SURVIVE THE CONTAINER. The entrypoint reads
+      # /var/www/html/version.php to decide what it is looking at: absent
+      # means installed_version=0.0.0.0, which is the "New nextcloud
+      # instance" branch and a run of `occ maintenance:install`. On a
+      # recreated container -- an image bump, a node reboot, a service
+      # update, a rollback, any swarm task replacement -- that file is gone
+      # with the old writable layer while nc-config still says
+      # 'installed' => true, so occ has already dropped maintenance:install
+      # from its command list and the install cannot succeed:
+      #
+      #   Command "maintenance:install" is not defined.
+      #   Retrying install...
+      #   Installing of nextcloud failed!
+      #
+      # then exit 1, forever, with the service flapping. Observed on bench
+      # run 2026-08-30T17-54-21-d421, where it held a whole host below its
+      # convergence streak. Persisting the tree is the upstream layout and
+      # makes a recreated container take the UPGRADE branch instead.
+      - nc-html:/var/www/html
       - nc-config:/var/www/html/config
       - nc-apps:/var/www/html/custom_apps
       # Even with S3 primary storage, /var/www/html/data still holds
@@ -443,6 +462,10 @@ services:
       OBJECTSTORE_S3_KEY: ${S3_ACCESS_KEY}
       OBJECTSTORE_S3_SECRET: ${S3_SECRET_KEY}
     volumes:
+      # Same tree the app service runs from, for the same reason: cron execs
+      # occ, which needs the code, and a cron container that populates its
+      # own empty /var/www/html would diverge from the app's.
+      - nc-html:/var/www/html
       - nc-config:/var/www/html/config
       - nc-apps:/var/www/html/custom_apps
       # Cron and app must share the data volume -- background jobs
@@ -558,6 +581,9 @@ services:
   # === HPB END =============================================================
 
 volumes:
+  # The Nextcloud code tree. Persisted so a recreated container is an
+  # UPGRADE rather than a fresh install -- see the app service's volumes.
+  nc-html:
   nc-config:
   nc-apps:
   nc-data:
