@@ -309,23 +309,15 @@ services:
       TURN_STATIC_AUTH_SECRET: ${TURN_STATIC_AUTH_SECRET}
     volumes:
       # THE CODE TREE MUST SURVIVE THE CONTAINER. The entrypoint reads
-      # /var/www/html/version.php to decide what it is looking at: absent
-      # means installed_version=0.0.0.0, which is the "New nextcloud
-      # instance" branch and a run of `occ maintenance:install`. On a
-      # recreated container -- an image bump, a node reboot, a service
-      # update, a rollback, any swarm task replacement -- that file is gone
-      # with the old writable layer while nc-config still says
-      # 'installed' => true, so occ has already dropped maintenance:install
-      # from its command list and the install cannot succeed:
-      #
-      #   Command "maintenance:install" is not defined.
-      #   Retrying install...
-      #   Installing of nextcloud failed!
-      #
-      # then exit 1, forever, with the service flapping. Observed on bench
-      # run 2026-08-30T17-54-21-d421, where it held a whole host below its
-      # convergence streak. Persisting the tree is the upstream layout and
-      # makes a recreated container take the UPGRADE branch instead.
+      # /var/www/html/version.php to tell an existing installation from a
+      # new one. On a recreated container -- an image bump, a node reboot,
+      # a service update, a rollback -- that file goes with the old
+      # writable layer, while the config volume still records the
+      # installation. The entrypoint then runs its fresh-install path
+      # against an instance that is already installed, which cannot
+      # succeed, and the container restarts into the same state.
+      # Persisting the code tree is the upstream layout: a recreated
+      # container is recognised as an existing installation.
       - nc-html:/var/www/html
       - nc-config:/var/www/html/config
       - nc-apps:/var/www/html/custom_apps
