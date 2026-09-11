@@ -56,6 +56,19 @@ jobs:
             echo "::error::Install on the self-hosted runner: sudo apt-get install -y git -- see catenahq/ops internal_docs/tools/ci-runner-provisioning.md"
             exit 1
           fi
+      # scripts/check-unicode.mjs is generated from catenahq/contracts.
+      # The checkout lands in an untracked subdirectory, so it is invisible
+      # to the `git ls-files` scan the gate itself runs.
+      - name: Check out contracts (shared-script source)
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          repository: catenahq/contracts
+          path: _contracts
+          persist-credentials: false
+      - name: Shared scripts match catenahq/contracts
+        env:
+          CATENAHQ_TEMPLATES_ROOT: ${{ github.workspace }}
+        run: node _contracts/scripts/sync-shared.mjs --check
       - name: check:unicode
         run: node scripts/check-unicode.mjs
 
