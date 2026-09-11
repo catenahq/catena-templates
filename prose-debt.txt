@@ -12,8 +12,19 @@
 # The advisory rules (NoComparison, NoNegation) never reach this file:
 # they are warnings and do not block.
 
+.github/workflows/security.yml -- 1 finding(s): NoHistory
+blueprints/docuseal/docker-compose.yml -- 1 finding(s): NoHistory
+blueprints/easyappointments/docker-compose.yml -- 1 finding(s): NoHistory
+blueprints/element/docker-compose.yml -- 1 finding(s): NoHistory
+blueprints/espocrm/docker-compose.yml -- 1 finding(s): NoHistory
+blueprints/mailserver/docker-compose.yml -- 1 finding(s): NoContrastSpec
 lib/model.py -- 1 finding(s): NoHistory
 lib/render.py -- 2 finding(s): NoHistory, NoHistoryWeak
 lib/swarm_lint.py -- 2 finding(s): NoHistory, NoHistoryWeak
+sources/compose/docuseal.compose.yml -- 1 finding(s): NoHistory
+sources/compose/easyappointments.compose.yml -- 1 finding(s): NoHistory
+sources/compose/element.compose.yml -- 1 finding(s): NoHistory
+sources/compose/espocrm.compose.yml -- 1 finding(s): NoHistory
+sources/compose/mailserver.compose.yml -- 1 finding(s): NoContrastSpec
 tests/test_quiesce_lint.py -- 2 finding(s): NoHistory, NoHistoryWeak
 tests/test_swarm_lint.py -- 1 finding(s): NoHistory
