@@ -184,6 +184,13 @@ services:
     # Media UDP MUST be host-published. mode: host bypasses Swarm's
     # routing mesh so packets carry the real public source IP and
     # JVB's ICE candidates point at a routable address.
+    #
+    # A swarm host-mode publish is DNAT'd past ufw's INPUT chain, so
+    # this port is open because Docker opened it and closes when the
+    # service stops. The vps.expose.udp label below does not open it:
+    # it DECLARES it, so the host's public-port registry lists it in
+    # /etc/catena/public-ports.effective.json and validation can see
+    # the port rather than discovering it with a scanner.
     ports:
       - target: 10000
         published: 10000
@@ -207,6 +214,7 @@ services:
       JVB_TURN_SECRET: ${TURN_STATIC_AUTH_SECRET}
       TZ: Etc/UTC
     labels:
+      - "vps.expose.udp=10000"
       - "vps.auto-update=patch"
       - "vps.app=catena-rocketchat"
       - "vps.component=jvb"

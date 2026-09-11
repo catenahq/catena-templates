@@ -480,6 +480,13 @@ services:
     # JVB's ICE candidates point at a routable address. Uses port
     # 10010 (not 10000) to avoid collision with the Rocket.Chat
     # bundled JVB on the same host.
+    #
+    # A swarm host-mode publish is DNAT'd past ufw's INPUT chain, so
+    # this port is open because Docker opened it and closes when the
+    # service stops. The vps.expose.udp label below does not open it:
+    # it DECLARES it, so the host's public-port registry lists it in
+    # /etc/catena/public-ports.effective.json and validation can see
+    # the port rather than discovering it with a scanner.
     ports:
       - target: 10010
         published: 10010
@@ -500,6 +507,7 @@ services:
       JVB_TURN_SECRET: ${TURN_STATIC_AUTH_SECRET}
       TZ: Etc/UTC
     labels:
+      - "vps.expose.udp=10010"
       - "vps.auto-update=patch"
       - "vps.app=catena-element"
       - "vps.component=jvb"
