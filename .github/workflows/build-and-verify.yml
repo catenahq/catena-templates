@@ -38,11 +38,22 @@ jobs:
       - name: Validate sources/ and templates.json against their schemas
         run: uv run build/validate.py
 
+  # The hygiene gates live in catenahq/contracts and are run from there,
+  # so this repo holds no copy of them. Both checkouts use an explicit
+  # path to put contracts alongside this repo, the same layout local dev
+  # uses.
   unicode-hygiene:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
+          path: catena-templates
+          persist-credentials: false
+      - name: Check out sibling contracts
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          repository: catenahq/contracts
+          path: contracts
           persist-credentials: false
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
@@ -56,21 +67,22 @@ jobs:
             echo "::error::Install on the self-hosted runner: sudo apt-get install -y git -- see catenahq/ops internal_docs/tools/ci-runner-provisioning.md"
             exit 1
           fi
-      # scripts/check-unicode.mjs is generated from catenahq/contracts.
-      # The checkout lands in an untracked subdirectory, so it is invisible
-      # to the `git ls-files` scan the gate itself runs.
-      - name: Check out contracts (shared-script source)
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
-        with:
-          repository: catenahq/contracts
-          path: _contracts
-          persist-credentials: false
-      - name: Shared scripts match catenahq/contracts
-        env:
-          CATENAHQ_TEMPLATES_ROOT: ${{ github.workspace }}
-        run: node _contracts/scripts/sync-shared.mjs --check
       - name: check:unicode
-        run: node scripts/check-unicode.mjs
+        working-directory: ./catena-templates
+        run: node ../contracts/scripts/check-unicode.mjs
+      # Pinned in contracts/.vale-version, which check-prose.mjs also
+      # reads and enforces: the grammars decide which comments are
+      # visible, so a different version is a different gate.
+      - name: Install vale
+        run: |
+          version="$(cat contracts/.vale-version)"
+          mkdir -p "$RUNNER_TEMP/bin"
+          curl -fsSL "https://github.com/errata-ai/vale/releases/download/v${version}/vale_${version}_Linux_64-bit.tar.gz" \
+            | tar -xz -C "$RUNNER_TEMP/bin" vale
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+      - name: check:prose
+        working-directory: ./catena-templates
+        run: node ../contracts/scripts/check-prose.mjs
 
   lint-quiesce-tests:
     runs-on: ubuntu-latest

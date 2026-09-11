@@ -1,0 +1,19 @@
+# Files exempt from the comment-prose gate in
+# contracts/scripts/check-prose.mjs.
+# Format: <path relative to the repo root> -- <reason>
+#
+# Every entry is a file whose comments carry history, a plan reference,
+# or a definition by contrast. The list is a measured backlog, seeded on
+# 2026-09-11 when the gate first ran, and it is meant to shrink.
+#
+# A listed file with no finding fails the gate. Delete the entry when the
+# file is fixed, or the gate stops gating that file.
+#
+# The advisory rules (NoComparison, NoNegation) never reach this file:
+# they are warnings and do not block.
+
+lib/model.py -- 1 finding(s): NoHistory
+lib/render.py -- 2 finding(s): NoHistory, NoHistoryWeak
+lib/swarm_lint.py -- 2 finding(s): NoHistory, NoHistoryWeak
+tests/test_quiesce_lint.py -- 2 finding(s): NoHistory, NoHistoryWeak
+tests/test_swarm_lint.py -- 1 finding(s): NoHistory

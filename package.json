@@ -11,7 +11,8 @@
     "render": "uv run build/render.py",
     "validate": "uv run build/validate.py",
     "verify": "uv run build/render.py && git diff --exit-code blueprints templates.json catalog.json index.html",
-    "check:unicode": "node scripts/check-unicode.mjs"
+    "check:unicode": "node ../contracts/scripts/check-unicode.mjs",
+    "check:prose": "node ../contracts/scripts/check-prose.mjs"
   },
   "repository": {
     "type": "git",
