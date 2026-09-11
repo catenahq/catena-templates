@@ -86,9 +86,10 @@ ENV_LABEL_ACRONYMS = frozenset({
 # own host (catena-admin serves the catalog with every value substituted for
 # that host), and this copy exists to be that render's input.
 #
-# The description used to promise the value was "set on the first converge
-# after deploy". Nothing did that, and saying so told anyone deploying from
-# this file directly to expect a correction that was never coming.
+# The description must not promise that the value is "set on the first
+# converge after deploy". Nothing does that, and the promise tells anyone
+# deploying from this file directly to wait for a correction that never
+# arrives.
 MANAGED_ENV_DESCRIPTION = (
     "Placeholder. The copy of this catalog served by a Catena host carries "
     "the real value; deploying this file directly does not."

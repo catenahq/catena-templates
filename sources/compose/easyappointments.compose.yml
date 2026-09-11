@@ -1,6 +1,6 @@
-# Easy!Appointments -- open-source customer-facing booking app. Sole
-# shipped scheduler in the Catena catalog as of 2026-05-22; covers
-# Branch A (multi-provider) and the solo-provider branch.
+# Easy!Appointments -- open-source customer-facing booking app, and the
+# only scheduler the Catena catalog ships (2026-05-22). It covers both
+# the multi-provider and the solo-provider branch.
 #
 # Auth: Easy!Appointments v1.5.2 has no native OIDC. Login is local
 # email/password (or optional Google OAuth at the EA level). The booking

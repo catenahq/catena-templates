@@ -140,7 +140,7 @@ input, not a catalog to deploy from.
 6. `make` -- renders, lints, and runs the tests. Commit the regenerated
    `blueprints/<id>/`, `templates.json`, `catalog.json` and `index.html`
    with the source change.
-7. Open a PR. CI runs `build-and-verify.yml` and `check:unicode`.
+7. Open a PR. CI runs `build-and-verify.yml`, `check:unicode` and `check:prose`.
 8. After merge, tag a `vX.Y.Z` release.
 
 ## How to bump

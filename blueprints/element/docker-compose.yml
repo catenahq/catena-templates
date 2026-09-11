@@ -15,7 +15,7 @@
 #   - Keycloak at auth.<base> -- OIDC IdP for Synapse + Element.
 #
 # E2EE: encryption is on-by-default in Element for DMs and private
-# rooms (Synapse default since 1.0). Cross-signing + key backup work
+# rooms (the Synapse default from 1.0 onward). Cross-signing + key backup work
 # out of the box; users opt in to key backup at first login.
 #
 # Federation: disabled by default

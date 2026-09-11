@@ -124,9 +124,8 @@ def test_migrate_timeout_cap_lives_in_the_schema():
 
 
 def test_timeout_cap_lives_in_the_schema():
-    """The cap moved into sources.schema.json when sources became JSON.
-    One source of truth, enforced on every load rather than only by the
-    lint entrypoint."""
+    """The cap lives in sources.schema.json and nowhere else, so it is
+    enforced on every load rather than only by the lint entrypoint."""
     schema = json.loads((ROOT / "sources.schema.json").read_text())
     quiesce = schema["properties"]["x-catena"]["properties"]["quiesce"]
     assert quiesce["properties"]["timeout_seconds"]["maximum"] == 60
@@ -157,8 +156,9 @@ def test_a_tilde_label_filter_is_rejected():
 
 
 def test_a_component_the_compose_does_not_define_is_rejected():
-    """The real case: rocketchat's hook named `rocketchat-mongo` while the
-    compose service was `mongodb`, so mongo was never fsyncLocked."""
+    """A hook naming a service the compose does not define selects
+    nothing, and the container it meant to quiesce is backed up live.
+    The shape: a `rocketchat-mongo` hook against a `mongodb` service."""
     errs = L.lint_selector(
         _GOOD, label="x", app="catena-demo", services={"mongodb"})
     assert any("not a service in this template" in e for e in errs)

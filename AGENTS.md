@@ -14,7 +14,14 @@ for layout, consumer model, and BASE URL setup.
 - Every change is a deliberate version bump. Tag a `vX.Y.Z` release on
   every merge to main; catenahq/ops pulls via that tag.
 - No emojis or em-dashes in any artifact. Plain hyphens + straight
-  quotes only. `npm run check:unicode` enforces.
+  quotes only. `npm run check:unicode` enforces, and also scans for the
+  names of systems Catena stopped shipping.
+- Code comments describe the template pipeline as it stands, not what it
+  used to do. `npm run check:prose` enforces, over the Python and the
+  YAML comments alike. Both gates live in catenahq/contracts and run
+  from the sibling checkout; this repo holds no copy, only its own
+  `prose-debt.txt`. A debt entry that has become clean FAILS the gate
+  and must be deleted.
 - Bilingual prose (the `x-catena.en` / `x-catena.fr` blocks): both
   required, no EN-only or FR-only templates.
 - No secrets, ever. Sentinel placeholders (`__CATENA_OPERATOR_WIRED__`)
@@ -148,7 +155,7 @@ a warning and steps over, and the backup is then taken unquiesced.
    are argv arrays -- `docker exec` gives them no shell. Real examples:
    `sources/outline.json`, `sources/nextcloud-s3-oidc.json`.
 6. `make` -- render + lint + test. Commit the regenerated artifacts.
-7. Open a PR. CI must pass `build-and-verify.yml` and `check:unicode`.
+7. Open a PR. CI must pass `build-and-verify.yml`, `check:unicode` and `check:prose`.
 8. After merge, `git tag -a vX.Y.Z -m "..." && git push --tags`.
 
 ## When to bump the schema

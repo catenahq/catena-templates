@@ -11,8 +11,8 @@ Validation runs in two layers:
      Catches the mechanical mistakes at the field level.
   2. Cross-file invariants below -- id/filename agreement, compose file
      present, duplicate slugs, unknown env_managed_keys. A schema cannot
-     see across files, and these are exactly the failures that used to
-     reach a client's Portainer as a broken template.
+     see across files, and these are exactly the failures that reach a
+     client's Portainer as a broken template when nothing checks them.
 """
 from __future__ import annotations
 

@@ -1,5 +1,5 @@
-# EspoCRM -- open-source CRM. Default CRM in this stack as of 2026-04-29
-# (D8 decision). Twenty stays in catalog as alternative.
+# EspoCRM -- open-source CRM, and the default one in this stack (D8
+# decision, 2026-04-29). Twenty stays in the catalog as the alternative.
 #
 # Auth: EspoCRM has native OIDC in the community edition. Enable from
 # Administration -> Authentication -> set Method to OIDC -> paste OIDC_*

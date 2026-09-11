@@ -197,8 +197,8 @@ def test_an_external_config_object_is_allowed():
 
 
 def test_a_compose_with_no_services_still_reports_its_config_error():
-    """The no-services check used to return early and drop whatever
-    lint_configs had already found."""
+    """The no-services check must not return early: doing so drops
+    whatever lint_configs has already found."""
     errs = L.lint_compose(
         "configs:\n  app_conf:\n    file: ./x.conf\n", label="x")
     assert any("configs.app_conf" in e for e in errs)

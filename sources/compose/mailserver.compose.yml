@@ -65,7 +65,7 @@ services:
       RELAY_PASSWORD: ${RELAY_PASSWORD}
     # Mail plane published directly on the host; opened via the registry.
     #
-    # mode: host on every one of them, and this is not a style choice. The
+    # mode: host on every one of them, and it is load-bearing. The
     # swarm default is the ingress routing mesh, which replaces the client
     # address with a mesh address before the packet reaches the container.
     # Everything this container does with a peer address then breaks at once:

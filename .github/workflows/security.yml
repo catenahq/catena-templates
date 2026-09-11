@@ -53,7 +53,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           # PR runs diff-gate against the merge-base with the target branch:
           # only findings the PR introduces gate; pre-existing repo findings
-          # stay visible but no longer block unrelated PRs. push/cron runs
+          # stay visible without blocking unrelated PRs. push/cron runs
           # keep the full gate, so they still fail on the default branch.
           BASELINE_REF: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || '' }}
         run: |

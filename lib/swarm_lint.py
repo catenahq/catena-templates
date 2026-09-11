@@ -46,7 +46,7 @@ One more check rides along, because the swarm move is what created the need
 for it. A swarm stack file has no inline `configs` content -- `configs`
 accepts a file read from beside the compose (which does not exist when
 Portainer deploys a posted string) or an external object -- so config files
-that used to be declared are now written by the service's own entrypoint.
+a template needs are written by the service's own entrypoint.
 Those scripts live inside a YAML block scalar inside a file that is then
 interpolated, which puts them out of reach of every editor and every other
 check. `lint_entrypoints` reconstructs each one the way compose will and
