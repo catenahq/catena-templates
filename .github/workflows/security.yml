@@ -3,9 +3,8 @@ name: security
 # Bundled FOSS security scan via catenahq/scanctl (profile full): detects the
 # repo's ecosystems and runs the matching scanners -- gitleaks, osv-scanner,
 # trivy fs+license, semgrep, zizmor, guarddog -- merges SARIF to code scanning,
-# and emits a CycloneDX SBOM artifact. Replaces the former per-tool security
-# workflows once verified green in CI. trivy-images.yml is NOT replaced -- it
-# scans every catalog image via a dynamically enumerated matrix, which scanctl's
+# and emits a CycloneDX SBOM artifact. trivy-images.yml is separate: it scans
+# every catalog image via a dynamically enumerated matrix, which scanctl's
 # static images: list cannot reproduce.
 #
 # Inline caller, NOT the catenahq/scanctl reusable workflow: the reusable

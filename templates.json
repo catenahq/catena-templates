@@ -534,7 +534,7 @@
       "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/docuseal/logo.svg",
       "maintainer": "https://github.com/catenahq/catena-templates",
       "name": "catena-docuseal",
-      "note": "<p>Default document-signing app in the stack (replaces Documenso). Upload a PDF, place signature fields, send for signature. Audit trail + signed-PDF generation built-in.</p><p>Replaces DocuSign, HelloSign, PandaDoc, Adobe Sign.</p><p><a href=\"https://docs.catena.run/apps/docuseal/\">https://docs.catena.run/apps/docuseal/</a></p>",
+      "note": "<p>Default document-signing app in the stack. Upload a PDF, place signature fields, send for signature. Audit trail + signed-PDF generation built-in.</p><p>Replaces DocuSign, HelloSign, PandaDoc, Adobe Sign.</p><p><a href=\"https://docs.catena.run/apps/docuseal/\">https://docs.catena.run/apps/docuseal/</a></p>",
       "platform": "linux",
       "repository": {
         "stackfile": "blueprints/docuseal/docker-compose.yml",
