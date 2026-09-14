@@ -19,9 +19,9 @@ for layout, consumer model, and BASE URL setup.
 - Code comments describe the template pipeline as it stands, not what it
   used to do. `npm run check:prose` enforces, over the Python and the
   YAML comments alike. Both gates live in catenahq/contracts and run
-  from the sibling checkout; this repo holds no copy, only its own
-  `prose-debt.txt`. A debt entry that has become clean FAILS the gate
-  and must be deleted.
+  from the sibling checkout; this repo holds no copy. A debt entry in
+  `.github/prose-debt.txt` that has become clean FAILS the gate and must
+  be deleted.
 - Bilingual prose (the `x-catena.en` / `x-catena.fr` blocks): both
   required, no EN-only or FR-only templates.
 - No secrets, ever. Sentinel placeholders (`__CATENA_OPERATOR_WIRED__`)
