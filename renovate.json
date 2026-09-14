@@ -1,6 +1,12 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["github>catenahq/renovate-config"],
+  "docker-compose": {
+    "description": "The catalog's compose files are named <id>.compose.yml, which Renovate's default docker-compose pattern does not match -- it wants docker-compose*.y*ml or compose*.y*ml. The only files in this repo that DO match are the generated blueprints/<id>/docker-compose.yml copies, and those are in ignorePaths, so the manager ran over nothing: 23 compose files, zero dependencies extracted, and not one catalog image was ever proposed for a bump. Every packageRule below that matches docker-compose was dead config until this pattern existed. Pointed at sources/ because that is canonical; blueprints/ stays ignored, or each image would be tracked twice.",
+    "managerFilePatterns": [
+      "/^sources/compose/[^/]+\\.compose\\.yml$/"
+    ]
+  },
   "packageRules": [
     {
       "matchManagers": ["npm"],
@@ -50,7 +56,7 @@
       "enabled": false
     },
     {
-      "description": "Postgres is centrally governed: the per-template compose pins must equal the top-level postgres_default_image in source/catalog.yml (build/lint_postgres_pins.py fails the build otherwise). Group EVERY postgres bump -- the docker-compose pins AND the catalog central-default customManager below -- into one reviewed PR so they move together and the lint stays green. A split bump (pins without the default, or vice versa) would redden the PR. automerge off: a Postgres major/minor is a coordinated, reviewed change.",
+      "description": "Postgres is centrally governed: the per-template compose pins must equal postgres_default_image in sources/_meta.json (build/lint_postgres_pins.py fails the build otherwise). Group EVERY postgres bump -- the docker-compose pins AND the central-default customManager below -- into one reviewed PR so they move together and the lint stays green. A split bump (pins without the default, or vice versa) reddens the PR, which is what happened while the docker-compose manager matched no files: the customManager moved _meta.json alone and the lint named all eleven unmoved pins. automerge off: a Postgres major/minor is a coordinated, reviewed change.",
       "matchPackageNames": ["postgres"],
       "groupName": "postgres central bump",
       "automerge": false
@@ -59,7 +65,7 @@
   "customManagers": [
     {
       "customType": "regex",
-      "description": "Track the central Postgres image (postgres_default_image) in sources/_meta.json. The per-template compose pins follow it (enforced by build/lint_postgres_pins.py); the packageRule above groups this bump with the compose-pin bumps into one PR. Was source/catalog.yml (YAML) before the 'one JSON file per template' refactor (1c1f17a) moved this key to sources/_meta.json (JSON) -- this manager pointed at a path that no longer existed and matched nothing since.",
+      "description": "Track the central Postgres image (postgres_default_image) in sources/_meta.json. The per-template compose pins follow it (enforced by build/lint_postgres_pins.py); the packageRule above groups this bump with the compose-pin bumps into one PR. Note that _meta.json is a SOURCE file, so a bump here leaves catalog.json and the other rendered artifacts behind and the render-idempotency job fails until `make render` runs -- the same is true of any compose-pin bump.",
       "managerFilePatterns": [
         "/^sources/_meta\\.json$/"
       ],
