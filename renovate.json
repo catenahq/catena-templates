@@ -7,6 +7,17 @@
       "/^sources/compose/[^/]+\\.compose\\.yml$/"
     ]
   },
+  "postUpgradeTasks": {
+    "description": "Re-render after every bump, so the PR Renovate opens is complete. sources/ is canonical and blueprints/, templates.json, catalog.json and index.html are generated from it; Renovate edits the first and cannot run make, so without this the generated artifacts still describe the old pin and render-idempotency fails the PR. Every catalog bump was red for that reason. build/render-ci.sh is the uv-optional entrypoint, because the Renovate container is not this repo's dev environment. Requires the runner to allow the command (RENOVATE_ALLOWED_COMMANDS in catenahq/renovate).",
+    "commands": ["bash build/render-ci.sh"],
+    "fileFilters": [
+      "blueprints/**",
+      "templates.json",
+      "catalog.json",
+      "index.html"
+    ],
+    "executionMode": "branch"
+  },
   "packageRules": [
     {
       "matchManagers": ["npm"],
