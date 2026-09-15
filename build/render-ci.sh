@@ -10,10 +10,17 @@
 # it opens is complete.
 #
 # The renovate container is not this repo's dev environment: it carries node and
-# a python, not necessarily uv. render.py needs exactly one third-party module,
-# so the fallback is cheap and does not need uv's resolver. uv is still
-# preferred where it exists, because that is what `make render` uses and the two
-# must not be able to disagree.
+# a python3, no uv and NO PIP --
+#
+#     Command failed: bash build/render-ci.sh
+#     /usr/bin/python3: No module named pip
+#
+# which is what this script tried first and why PR 28's artifacts still
+# described the old pins. So it installs nothing: lib/model.py treats jsonschema
+# as optional and skips the JSON Schema layer without it, and the
+# render-idempotency job re-renders under uv and compares. uv is still preferred
+# where it exists, because that is what `make render` uses and the two must not
+# be able to disagree.
 set -euo pipefail
 
 # Bash's own expansion rather than dirname: this runs in whatever container
@@ -37,14 +44,6 @@ done
 if [ -z "$python" ]; then
     echo "render-ci: no uv and no python on PATH; cannot render" >&2
     exit 1
-fi
-
-# Only import-check rather than install unconditionally: a container that
-# already has it should not need the network, and a pip that cannot reach the
-# index should fail loudly here rather than inside the render.
-if ! "$python" -c "import jsonschema" >/dev/null 2>&1; then
-    echo "render-ci: installing jsonschema for $python"
-    "$python" -m pip install --quiet --disable-pip-version-check jsonschema
 fi
 
 echo "render-ci: rendering with $python"

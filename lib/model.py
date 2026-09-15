@@ -17,11 +17,15 @@ Validation runs in two layers:
 from __future__ import annotations
 
 import json
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-import jsonschema
+try:
+    import jsonschema
+except ModuleNotFoundError:  # see _validate_schema
+    jsonschema = None
 
 ROOT = Path(__file__).resolve().parent.parent
 SOURCES = ROOT / "sources"
@@ -85,6 +89,24 @@ def _schema(path: Path) -> dict[str, Any]:
 
 
 def _validate_schema(doc: dict[str, Any], schema: dict[str, Any], label: str) -> list[str]:
+    """Layer 1, and NOT REQUIRED to render.
+
+    Renovate's container has a python3 and no pip, so a bump that re-renders
+    through build/render-ci.sh cannot install jsonschema -- and the render
+    aborting on the import left every catalog bump's generated artifacts
+    describing the old pin, which is the render-idempotency red this skip
+    exists to stop. Rendering needs the sources to BE valid, not to be proven
+    valid here.
+
+    Nothing is lost: build/validate.py imports jsonschema directly and cannot
+    run degraded, and the render-idempotency job re-renders under uv and
+    compares, so a Renovate render that skipped layer 1 is still checked by one
+    that did not.
+
+    The callers announce the skip, once each, rather than this returning an
+    empty list per document with nothing said."""
+    if jsonschema is None:
+        return []
     validator = jsonschema.Draft202012Validator(schema)
     errors = []
     for err in sorted(validator.iter_errors(doc), key=lambda e: list(e.path)):
@@ -105,6 +127,13 @@ def load_sources() -> list[Entry]:
     if not SOURCES.is_dir():
         raise SourceError(f"missing sources directory: {SOURCES}")
 
+    if jsonschema is None:
+        print(
+            "sources: jsonschema is not installed, so the JSON Schema layer is "
+            "skipped. Field shapes and enums are NOT checked; the cross-file "
+            "invariants are.",
+            file=sys.stderr,
+        )
     schema = _schema(SOURCE_SCHEMA)
     errors: list[str] = []
     entries: list[Entry] = []
@@ -175,4 +204,10 @@ def validate_output(doc: dict[str, Any]) -> list[str]:
     Portainer-format schema. The generated artifact is what a client's
     Portainer actually fetches, so it gets checked as strictly as the
     input."""
+    if jsonschema is None:
+        print(
+            "templates.json: jsonschema is not installed, so the rendered "
+            "artifact is NOT checked against Schema.json here.",
+            file=sys.stderr,
+        )
     return _validate_schema(doc, _schema(OUTPUT_SCHEMA), "templates.json")

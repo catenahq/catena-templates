@@ -176,3 +176,22 @@ def test_real_sources_load():
     entries = model.load_sources()
     assert len(entries) >= 20
     assert len({e.slug for e in entries}) == len(entries)
+
+
+def test_the_cross_file_invariants_still_run_without_jsonschema(sources, monkeypatch,
+                                                               capsys):
+    """Renovate's container has a python3 and no pip, so the render has to work
+    without jsonschema. Layer 1 is skipped and SAYS so; layer 2 is not."""
+    monkeypatch.setattr(model, "jsonschema", None)
+    doc = _valid_doc()
+    doc["x-catena"]["env_managed_keys"] = ["NOT_IN_DEFAULTS"]
+    _write(sources, doc)
+    with pytest.raises(model.SourceError, match="env_managed_keys"):
+        model.load_sources()
+    assert "the JSON Schema layer is skipped" in capsys.readouterr().err
+
+
+def test_the_real_catalog_renders_without_jsonschema(monkeypatch):
+    """The Renovate path end to end: no monkeypatched sources, no jsonschema."""
+    monkeypatch.setattr(model, "jsonschema", None)
+    assert len(model.load_sources()) >= 20
