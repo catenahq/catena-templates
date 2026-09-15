@@ -48,6 +48,8 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
           path: catena-templates
+          # Needed for the merge-base the prose scope is measured against.
+          fetch-depth: 0
           persist-credentials: false
       - name: Check out sibling contracts
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
@@ -82,7 +84,20 @@ jobs:
           echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
       - name: check:prose
         working-directory: ./catena-templates
-        run: node ../contracts/scripts/check-prose.mjs
+        # On a pull request, gate only on the files the change touches. A
+        # prose finding that landed on the base branch is not this change's
+        # doing, and failing every open dependency PR on it blames the wrong
+        # commit. The whole tree is still scanned and anything carried is still
+        # printed; the push and cron runs of the default branch keep the
+        # absolute gate.
+        env:
+          PROSE_BASE: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || '' }}
+        run: |
+          if [ -n "$PROSE_BASE" ]; then
+            node ../contracts/scripts/check-prose.mjs --changed-since "$PROSE_BASE"
+          else
+            node ../contracts/scripts/check-prose.mjs
+          fi
 
   lint-quiesce-tests:
     runs-on: ubuntu-latest
