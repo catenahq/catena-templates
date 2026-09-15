@@ -4,7 +4,7 @@
 
 services:
   rails:
-    image: chatwoot/chatwoot:v4.13.0-ce
+    image: chatwoot/chatwoot:v4.17.1-ce
     deploy:
       restart_policy:
         condition: any
@@ -45,7 +45,7 @@ services:
       default: {}
 
   sidekiq:
-    image: chatwoot/chatwoot:v4.13.0-ce
+    image: chatwoot/chatwoot:v4.17.1-ce
     deploy:
       restart_policy:
         condition: any

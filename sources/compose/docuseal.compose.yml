@@ -12,7 +12,7 @@
 
 services:
   docuseal:
-    image: docuseal/docuseal:2.5.2
+    image: docuseal/docuseal:2.5.3
     deploy:
       restart_policy:
         condition: any

@@ -6,7 +6,7 @@
 
 services:
   server:
-    image: twentycrm/twenty:v2.3.2
+    image: twentycrm/twenty:v2.39.1
     deploy:
       restart_policy:
         condition: any
@@ -47,7 +47,7 @@ services:
       default: {}
 
   worker:
-    image: twentycrm/twenty:v2.3.2
+    image: twentycrm/twenty:v2.39.1
     deploy:
       restart_policy:
         condition: any
