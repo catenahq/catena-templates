@@ -54,7 +54,7 @@ services:
       default: {}
 
   db:
-    image: mariadb:11.8.8
+    image: mariadb:12.3.2
     deploy:
       restart_policy:
         condition: any
