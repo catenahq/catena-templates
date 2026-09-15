@@ -13,7 +13,7 @@
 
 services:
   espocrm:
-    image: espocrm/espocrm:9.3.6
+    image: espocrm/espocrm:9.3.10
     deploy:
       restart_policy:
         condition: any
@@ -58,7 +58,7 @@ services:
       default: {}
 
   cron:
-    image: espocrm/espocrm:9.3.6
+    image: espocrm/espocrm:9.3.10
     deploy:
       restart_policy:
         condition: any
@@ -83,7 +83,7 @@ services:
       - default
 
   db:
-    image: mariadb:11.8.6
+    image: mariadb:11.8.8
     deploy:
       restart_policy:
         condition: any

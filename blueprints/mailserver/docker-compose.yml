@@ -118,7 +118,7 @@ services:
       catena-clamav: {}
 
   roundcube:
-    image: roundcube/roundcubemail:1.7.1-apache
+    image: roundcube/roundcubemail:1.7.3-apache
     deploy:
       restart_policy:
         condition: any
