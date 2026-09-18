@@ -17,7 +17,6 @@
       "service": "documentserver",
       "port": 80
     },
-    "compose_file": "compose/onlyoffice.compose.yml",
     "env_defaults": [
       "DOMAIN_HOST=office.{{ cloudflare_zone }}",
       "JWT_SECRET={{ lookup('password', '/dev/null length=48 chars=ascii_letters,digits') }}"
@@ -42,7 +41,7 @@
         "Microsoft Office Online",
         "Google Docs (as embedded editor)"
       ],
-      "compose_description": "Collaborative DOCX/XLSX/PPTX editor. Embedded in Nextcloud. Replaces Office 365 / Google Docs as the embedded editor.\n\nhttps://docs.catena.run/apps/onlyoffice/\n",
+      "compose_description": "Collaborative DOCX/XLSX/PPTX editor. Embedded in Nextcloud. Replaces Office 365 / Google Docs as the embedded editor.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/onlyoffice/README.md\n",
       "setup_steps": "1. Click **Deploy**. Wait ~1 min for the document server to boot.\n2. From the operator dashboard, click the **Wire Nextcloud OnlyOffice** button. The button installs the Nextcloud OnlyOffice app, reads the JWT secret from this template, points the app at this server, and -- where Collabora was previously wired -- removes the Collabora Nextcloud app cleanly.\n3. Open any DOCX/XLSX/PPTX file in Nextcloud. It opens in the embedded OnlyOffice editor.\n\nSwitching to Collabora later is one click: stop this OnlyOffice compose, deploy `collabora`, then click the **Wire Nextcloud Collabora** button.\n\nDon't visit the OnlyOffice domain directly in a browser -- it has no UI of its own. Users only ever see it through Nextcloud when they open a document.\n"
     },
     "fr": {
@@ -52,7 +51,7 @@
         "Microsoft Office Online",
         "Google Docs (\u00e9diteur embarqu\u00e9)"
       ],
-      "compose_description": "\u00c9diteur collaboratif DOCX/XLSX/PPTX. Embarqu\u00e9 dans Nextcloud. Remplace Office 365 / Google Docs comme \u00e9diteur.\n\nhttps://docs.catena.run/apps/onlyoffice/\n",
+      "compose_description": "\u00c9diteur collaboratif DOCX/XLSX/PPTX. Embarqu\u00e9 dans Nextcloud. Remplace Office 365 / Google Docs comme \u00e9diteur.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/onlyoffice/README.md\n",
       "setup_steps": "1. Cliquez **Deploy**. Patientez ~1 min le d\u00e9marrage du Document Server.\n2. Depuis le tableau de bord op\u00e9rateur, cliquez le bouton **Wire Nextcloud OnlyOffice**. Le bouton installe l'application Nextcloud OnlyOffice, lit la cl\u00e9 JWT depuis ce template, pointe l'application vers ce serveur, et -- si Collabora \u00e9tait pr\u00e9c\u00e9demment c\u00e2bl\u00e9 -- retire proprement l'application Nextcloud Collabora.\n3. Ouvrez n'importe quel fichier DOCX/XLSX/PPTX dans Nextcloud. Il s'ouvre dans l'\u00e9diteur OnlyOffice embarqu\u00e9.\n\nPour passer \u00e0 Collabora plus tard : arr\u00eatez ce conteneur OnlyOffice, d\u00e9ployez `collabora`, puis cliquez le bouton **Wire Nextcloud Collabora**.\n\nN'acc\u00e9dez pas au domaine OnlyOffice directement dans un navigateur -- il n'a pas d'interface utilisateur. Les utilisateurs ne le voient qu'\u00e0 travers Nextcloud.\n"
     }
   }

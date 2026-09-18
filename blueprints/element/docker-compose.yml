@@ -1,29 +1,3 @@
-# Element / Matrix (Synapse) -- chat, voice, video, SIP, E2EE.
-#
-# What's in the box:
-#   - synapse       : Matrix homeserver (chat + voice signalling + E2EE).
-#   - element-web   : Element web client.
-#   - synapse-admin : admin UI for Synapse (user mgmt, room mgmt).
-#   - postgres      : Synapse's DB.
-#   - prosody / jicofo / jvb / jitsi-web : bundled Jitsi for group video.
-#   - jigasi        : SIP <-> Jitsi gateway (dial-in from a SIP phone).
-#
-# Shared infrastructure consumed (not in this compose):
-#   - coturn at turn.<base>:5349 -- shared TURN/STUN for Matrix-native
-#     1:1 voice + Jitsi restrictive-network fallback. Same vault secret
-#     as Nextcloud Talk + Rocket.Chat / Jitsi (see roles/coturn).
-#   - Keycloak at auth.<base> -- OIDC IdP for Synapse + Element.
-#
-# E2EE: encryption is on-by-default in Element for DMs and private
-# rooms (the Synapse default from 1.0 onward). Cross-signing + key backup work
-# out of the box; users opt in to key backup at first login.
-#
-# Federation: disabled by default
-# (federation_domain_whitelist=[]) so the homeserver does not talk
-# to the public Matrix network without an explicit operator decision.
-# To open federation, edit /etc/synapse-template.yaml on the host or
-# set FEDERATION_DOMAIN_WHITELIST in the Environment tab.
-
 x-synapse-image: &synapse_image
   image: matrixdotorg/synapse:v1.153.0
 

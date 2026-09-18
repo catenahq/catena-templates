@@ -1,7 +1,7 @@
 """Swarm-compatibility gate over the catalog's compose sources (CI gate).
 
 Every template in this catalog is a Portainer type-2 (swarm stack) entry, so
-each `sources/compose/<id>.compose.yml` is read by `docker stack deploy`, not
+each `blueprints/<id>/docker-compose.yml` is read by `docker stack deploy`, not
 by `docker compose up`. The two loaders accept overlapping but different
 files, and the ways they differ are not symmetric:
 
@@ -336,7 +336,7 @@ def lint_all() -> int:
     services_seen = 0
 
     for entry in entries:
-        label = entry.catena["compose_file"]
+        label = entry.compose_file
         body = entry.compose_path.read_text(encoding="utf-8")
         errors = lint_compose(body, label=label)
         all_errors.extend(errors)

@@ -17,7 +17,6 @@
       "service": "outline",
       "port": 3000
     },
-    "compose_file": "compose/outline.compose.yml",
     "env_defaults": [
       "DOMAIN_HOST=wiki.{{ cloudflare_zone }}",
       "OUTLINE_HOSTNAME=wiki.{{ cloudflare_zone }}",
@@ -53,7 +52,7 @@
         "Confluence",
         "Google Sites"
       ],
-      "compose_description": "Team wiki + knowledge base. Keycloak SSO pre-wired. Replaces Notion / Confluence.\n\nhttps://docs.catena.run/apps/outline/\n",
+      "compose_description": "Team wiki + knowledge base. Keycloak SSO pre-wired. Replaces Notion / Confluence.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/outline/README.md\n",
       "setup_steps": "1. Click **Deploy**. Environment defaults are all pre-filled.\n2. Wait ~1 min for the first boot.\n3. Visit the Outline domain -> click **Sign in with Keycloak**. The first user to sign in becomes the workspace admin.\n"
     },
     "fr": {
@@ -64,7 +63,7 @@
         "Confluence",
         "Google Sites"
       ],
-      "compose_description": "Wiki d'\u00e9quipe + base de connaissances. Keycloak SSO pr\u00e9-c\u00e2bl\u00e9. Remplace Notion / Confluence.\n\nhttps://docs.catena.run/apps/outline/\n",
+      "compose_description": "Wiki d'\u00e9quipe + base de connaissances. Keycloak SSO pr\u00e9-c\u00e2bl\u00e9. Remplace Notion / Confluence.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/outline/README.md\n",
       "setup_steps": "1. Cliquez **Deploy**. Les valeurs par d\u00e9faut de l'Environment sont pr\u00e9-remplies.\n2. Patientez ~1 min pour le premier d\u00e9marrage.\n3. Visitez le domaine Outline -> cliquez **Se connecter avec Keycloak**. Le premier utilisateur devient l'admin du workspace.\n"
     }
   }

@@ -1,11 +1,3 @@
-# Zammad -- ticket-first help desk / omnichannel support. Native OIDC
-# support (configured in Settings -> Security -> Third-party
-# authentication -> OIDC after first admin sign-in).
-#
-# Heavier than Chatwoot: bundles Elasticsearch (needs ~1.5 GB RAM), a
-# dedicated scheduler, websocket process, nginx front-end, + the usual
-# postgres/redis/memcached. Plan for a 4+ GB VPS tier.
-
 x-zammad-env: &zammad-env
   POSTGRESQL_HOST: db
   POSTGRESQL_PORT: "5432"

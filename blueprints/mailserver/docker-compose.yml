@@ -1,31 +1,3 @@
-# Self-hosted mailserver -- docker-mailserver (Postfix + Dovecot + Rspamd)
-# + standalone Roundcube webmail, with Keycloak SSO (OAuth2 / XOAUTH2) and
-# NO password store.
-#
-# Mail plane (25/465/587/993) cannot ride the Cloudflare HTTP tunnel, so it
-# binds directly to the VPS public IP. Those ports are declared through the
-# Catena public-port registry via the `vps.expose.tcp` label -- the host
-# reconciler opens them on deploy and closes them on teardown. Roundcube is
-# HTTP and rides Traefik + the tunnel like every other app.
-#
-# Outbound leaves via a RELAY smarthost (operator pastes creds), so the VPS
-# IP only RECEIVES on 25 and send-reputation is the relay's job. This relay
-# is SEPARATE from the transactional SMTP_* used by Keycloak/Healthchecks.
-#
-# OPERATOR-WIRED (the ops/ converge owns these; sentinels until then):
-#   - OIDC_CLIENT_SECRET + the introspection service-client come from the
-#     Keycloak realm (roles/keycloak realm-roundcube.yaml.j2). ENABLE_OAUTH2
-#     + OAUTH2_INTROSPECTION_URL point Dovecot/Postfix at Keycloak. The
-#     introspection endpoint needs client auth (RFC 7662), so ops drops a
-#     dovecot-oauth2.conf.ext into the dms-config volume.
-#   - Roundcube's OAuth2 (oauth_*) config is dropped into roundcube-config
-#     by ops (the official image has no oauth_* env). Roundcube does its own
-#     Keycloak auth-code login and XOAUTH2s to dms -- no password stored.
-#   - RELAY_* outbound smarthost creds: operator pastes in the Environment
-#     tab.
-#   - Mailboxes must pre-exist (OAuth2 only authenticates); dashboard-sync
-#     provisions them from Keycloak /staff + /client membership.
-
 services:
   dms:
     image: ghcr.io/docker-mailserver/docker-mailserver:15.1.0

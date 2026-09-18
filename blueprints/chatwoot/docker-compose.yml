@@ -1,7 +1,3 @@
-# Chatwoot -- customer support / omnichannel inbox (email, live chat,
-# WhatsApp, Facebook, Instagram, Twitter, ...). Community edition uses
-# email/password for agent login; SAML/OIDC SSO is enterprise-only.
-
 services:
   rails:
     image: chatwoot/chatwoot:v4.17.1-ce

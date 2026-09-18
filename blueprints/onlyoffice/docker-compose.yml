@@ -1,15 +1,3 @@
-# OnlyOffice Document Server -- collaborative DOCX/XLSX/PPTX editing,
-# bolted into Nextcloud via the "ONLYOFFICE" app (admin -> Apps -> search
-# ONLYOFFICE -> Install -> settings -> enter the domain below + JWT secret).
-#
-# Server-to-server auth is JWT-protected (JWT_ENABLED=true). The UI is
-# iframe-embedded inside Nextcloud; this route MUST have no auth proxy in
-# front of it (vps.auth.mode=public) because the iframe would otherwise
-# redirect to Keycloak and break the editor.
-#
-# Don't expose this to end users directly -- they only ever see it
-# through Nextcloud.
-
 services:
   documentserver:
     image: onlyoffice/documentserver:9.4.0
@@ -20,6 +8,10 @@ services:
         constraints:
           - node.labels.catena.role==data
     environment:
+      # Nextcloud authenticates to the document server with a JWT, so
+      # the route carries no auth proxy (vps.auth.mode=public below):
+      # the editor loads in an iframe, and an auth redirect inside that
+      # iframe lands on the Keycloak login page instead of the document.
       JWT_ENABLED: "true"
       JWT_SECRET: ${JWT_SECRET}
       JWT_HEADER: Authorization

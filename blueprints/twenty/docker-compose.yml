@@ -1,9 +1,3 @@
-# Twenty -- modern open-source CRM. Email/password login out of the box;
-# to enable Keycloak SSO, go to Settings -> Security -> Single sign-on
-# (OIDC) after first deploy and paste the OIDC_* values from
-# the Environment tab. Workspace-level config -- not env-driven in the
-# community edition.
-
 services:
   server:
     image: twentycrm/twenty:v2.39.5

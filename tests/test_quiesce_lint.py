@@ -183,8 +183,11 @@ def test_lint_all_against_real_sources_passes():
 def test_lint_all_rejects_a_bad_snippet(monkeypatch, tmp_path):
     """A synthetic sources/ tree with a hostile hook must fail. Proves
     the gate is reading sources, not a cached artifact."""
-    (tmp_path / "compose").mkdir()
-    (tmp_path / "compose" / "bad.compose.yml").write_text("services: {}\n")
+    sources = tmp_path / "sources"
+    sources.mkdir()
+    blueprint = tmp_path / "blueprints" / "synthetic-bad"
+    blueprint.mkdir(parents=True)
+    (blueprint / model.COMPOSE_NAME).write_text("services: {}\n")
     doc = {
         "id": "synthetic-bad",
         "type": 2,
@@ -197,7 +200,6 @@ def test_lint_all_rejects_a_bad_snippet(monkeypatch, tmp_path):
             "upstream_url": "https://example.com",
             "sso_mode": "none",
             "domain": {"host": "x.example.com", "service": "app", "port": 80},
-            "compose_file": "compose/bad.compose.yml",
             "env_defaults": ["DOMAIN_HOST=x.example.com"],
             "bench": {"pack": "nodb"},
             "quiesce": {
@@ -222,9 +224,10 @@ def test_lint_all_rejects_a_bad_snippet(monkeypatch, tmp_path):
             },
         },
     }
-    (tmp_path / "synthetic-bad.json").write_text(json.dumps(doc))
-    (tmp_path / model.META_NAME).write_text(
+    (sources / "synthetic-bad.json").write_text(json.dumps(doc))
+    (sources / model.META_NAME).write_text(
         json.dumps({"order": ["synthetic-bad"], "postgres_default_image": "postgres:18.4-alpine"})
     )
-    monkeypatch.setattr(model, "SOURCES", tmp_path)
+    monkeypatch.setattr(model, "SOURCES", sources)
+    monkeypatch.setattr(model, "BLUEPRINTS", tmp_path / "blueprints")
     assert L.lint_all() == 1

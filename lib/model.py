@@ -1,9 +1,13 @@
-"""Load + validate the canonical sources/ tree.
+"""Load + validate the hand-edited inputs.
 
-One file per template (`sources/<id>.json`), plus `sources/_meta.json`
-for the values that are catalog-wide rather than per-template. Every
-consumer of this repo reads a GENERATED artifact; this module is the
-only thing that reads the hand-edited form.
+A template is two hand-edited files: its metadata at
+`sources/<id>.json`, and its compose at `blueprints/<id>/docker-compose.yml`.
+`sources/_meta.json` holds the values that are catalog-wide rather than
+per-template. Everything else in the repo is rendered from these.
+
+The compose sits in the blueprint directory because that directory is
+what Portainer clones and deploys: one file, in the place that serves
+it, with the app's README and logo beside it.
 
 Validation runs in two layers:
 
@@ -29,8 +33,8 @@ except ModuleNotFoundError:  # see _validate_schema
 
 ROOT = Path(__file__).resolve().parent.parent
 SOURCES = ROOT / "sources"
-COMPOSE_DIR = SOURCES / "compose"
-ASSETS_DIR = SOURCES / "assets"
+BLUEPRINTS = ROOT / "blueprints"
+COMPOSE_NAME = "docker-compose.yml"
 META_NAME = "_meta.json"
 SOURCE_SCHEMA = ROOT / "sources.schema.json"
 OUTPUT_SCHEMA = ROOT / "Schema.json"
@@ -58,8 +62,21 @@ class Entry:
         return self.raw["x-catena"]
 
     @property
+    def app_dir(self) -> Path:
+        """The directory Portainer clones: the compose, the README, the
+        logo, and the quiesce hooks for this one template."""
+        return BLUEPRINTS / self.slug
+
+    @property
     def compose_path(self) -> Path:
-        return SOURCES / self.catena["compose_file"]
+        return self.app_dir / COMPOSE_NAME
+
+    @property
+    def compose_file(self) -> str:
+        """Repo-relative path to the compose, as catalog.json publishes
+        it. Derived from the id, so it cannot disagree with where the
+        file is."""
+        return f"{BLUEPRINTS.name}/{self.slug}/{COMPOSE_NAME}"
 
     @property
     def quiesce(self) -> dict[str, Any] | None:
@@ -167,8 +184,8 @@ def load_sources() -> list[Entry]:
         entry = Entry(doc)
         if not entry.compose_path.exists():
             errors.append(
-                f"{label}: compose_file {entry.catena['compose_file']!r} "
-                f"does not exist at {entry.compose_path}"
+                f"{label}: {entry.compose_file} does not exist -- every "
+                f"template needs its compose in its own blueprint directory"
             )
 
         declared = {kv.split("=", 1)[0] for kv in entry.catena["env_defaults"]}

@@ -17,7 +17,6 @@
       "service": "rocketchat",
       "port": 3000
     },
-    "compose_file": "compose/rocketchat.compose.yml",
     "env_defaults": [
       "DOMAIN_HOST=chat.{{ cloudflare_zone }}",
       "ROCKETCHAT_HOSTNAME=chat.{{ cloudflare_zone }}",
@@ -53,7 +52,7 @@
         "Microsoft Teams",
         "Discord (for work)"
       ],
-      "compose_description": "Team chat + video. Keycloak SSO pre-wired. Replaces Slack / Microsoft Teams.\n\nhttps://docs.catena.run/apps/rocketchat-oidc/\n",
+      "compose_description": "Team chat + video. Keycloak SSO pre-wired. Replaces Slack / Microsoft Teams.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/rocketchat-oidc/README.md\n",
       "setup_steps": "1. Click **Deploy**. Nothing to fill in the Environment tab except a different hostname, where one is wanted.\n2. Wait ~5 minutes for the first sync. The login page will show **Sign in with Keycloak**.\n3. Sign in. The first user becomes the workspace admin.\n4. *(Optional, ~30 s)* Attach Nextcloud files in chats: Administration -> Apps -> Marketplace -> search `Nextcloud` -> install -> set the Nextcloud domain in the app settings. Users can then type `/nextcloud` in any chat to browse and attach files.\n",
       "extra_notes": "### Mobile apps\n\nRocket.Chat's iOS and Android apps connect straight to the server. Users paste `https://chat.<your-domain>` into the app on first launch and sign in via Keycloak.\n"
     },
@@ -65,7 +64,7 @@
         "Microsoft Teams",
         "Discord (en usage pro)"
       ],
-      "compose_description": "Messagerie d'\u00e9quipe + vid\u00e9o. Keycloak SSO pr\u00e9-c\u00e2bl\u00e9. Remplace Slack / Microsoft Teams.\n\nhttps://docs.catena.run/apps/rocketchat-oidc/\n",
+      "compose_description": "Messagerie d'\u00e9quipe + vid\u00e9o. Keycloak SSO pr\u00e9-c\u00e2bl\u00e9. Remplace Slack / Microsoft Teams.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/rocketchat-oidc/README.md\n",
       "setup_steps": "1. Cliquez **Deploy**. Rien \u00e0 remplir dans l'onglet Environment, sauf un autre nom de domaine le cas \u00e9ch\u00e9ant.\n2. Patientez ~5 min pour la synchro initiale. La page de connexion affichera **Se connecter avec Keycloak**.\n3. Connexion. Le premier utilisateur devient l'admin du workspace.\n4. *(Optionnel, ~30 s)* Joindre des fichiers Nextcloud : Administration -> Apps -> Marketplace -> cherchez `Nextcloud` -> installez -> indiquez le domaine Nextcloud. Les utilisateurs tapent ensuite `/nextcloud` dans un chat pour parcourir et joindre des fichiers.\n",
       "extra_notes": "### Applications mobiles\n\nLes apps iOS et Android de Rocket.Chat se connectent directement au serveur. Les utilisateurs collent `https://chat.<votre-domaine>` au premier lancement et se connectent via Keycloak.\n"
     },

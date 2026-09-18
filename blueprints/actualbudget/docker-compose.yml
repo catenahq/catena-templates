@@ -1,8 +1,3 @@
-# Actual Budget -- self-hosted personal finance (YNAB / Mint alternative).
-# Single-container app with a local SQLite database + file storage.
-# Server uses its own password login (set on first visit) -- no OIDC
-# support in the upstream project.
-
 services:
   actual:
     image: actualbudget/actual-server:26.5.1-alpine

@@ -1,15 +1,3 @@
-# DocuSeal -- open-source document signing, the one this stack ships.
-#
-# Auth: DocuSeal community edition has admin-UI SSO config (Settings ->
-# SSO). Marked sso_mode=post-deploy-ui in the catalog -- after first
-# deploy, an admin pastes OIDC_* values from the Environment tab into
-# the SSO settings page. The local admin login keeps working as a
-# break-glass.
-#
-# Storage: docuseal-data holds uploaded PDFs, signature images, and
-# generated signed PDFs. Picked up by restic via /var/lib/docker/volumes.
-# Postgres holds metadata + audit trail.
-
 services:
   docuseal:
     image: docuseal/docuseal:3.2.4

@@ -1,15 +1,3 @@
-# Nextcloud -- S3 primary storage + Keycloak SSO.
-#
-# All values come from the Environment tab: hostname, S3 credentials,
-# admin password, DB password, OIDC coordinates (auto-injected). The
-# compose itself is not edited per deploy.
-#
-# A SWARM stack file (Portainer template type 2). Swarm starts every service
-# at once and has no equivalent of `depends_on`, so `wait_for_db` in the
-# entrypoints below is what holds the app and cron services back until the
-# database answers. See the comment on `app` for why a crash-and-retry is not
-# enough here specifically.
-
 services:
   app:
     image: nextcloud:34.0.0-apache

@@ -17,7 +17,6 @@
       "service": "zammad-nginx",
       "port": 8080
     },
-    "compose_file": "compose/zammad.compose.yml",
     "env_defaults": [
       "DOMAIN_HOST=help.{{ cloudflare_zone }}",
       "ZAMMAD_HOSTNAME=help.{{ cloudflare_zone }}",
@@ -44,7 +43,7 @@
         "Freshdesk",
         "Jira Service Desk"
       ],
-      "compose_description": "Ticket-first help desk. Replaces Zendesk / Freshdesk.\n\nhttps://docs.catena.run/apps/zammad/\n",
+      "compose_description": "Ticket-first help desk. Replaces Zendesk / Freshdesk.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/zammad/README.md\n",
       "setup_steps": "1. Click **Deploy**. First boot is slow (2-3 min) -- Elasticsearch and Rails migrations run on startup.\n2. Visit the Zammad domain. Complete the setup wizard (admin account, organization name).\n3. *(Optional)* Enable Keycloak SSO: **Settings** -> **Security** -> **Third-party authentication** -> **OpenID Connect** -> paste `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_ISSUER_URL` from the Environment tab. Save.\n",
       "extra_notes": "**Resource note:** Zammad bundles Elasticsearch which reserves ~1.5 GB RAM. Zammad alongside other apps needs a \u22654 GB VPS.\n"
     },
@@ -56,7 +55,7 @@
         "Freshdesk",
         "Jira Service Desk"
       ],
-      "compose_description": "Helpdesk orient\u00e9 tickets. Remplace Zendesk / Freshdesk.\n\nhttps://docs.catena.run/apps/zammad/\n",
+      "compose_description": "Helpdesk orient\u00e9 tickets. Remplace Zendesk / Freshdesk.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/zammad/README.md\n",
       "setup_steps": "1. Cliquez **Deploy**. Le premier d\u00e9marrage est lent (2-3 min) -- Elasticsearch et les migrations Rails se lancent au d\u00e9marrage.\n2. Visitez le domaine Zammad. Compl\u00e9tez l'assistant de configuration (compte admin, nom d'organisation).\n3. *(Optionnel)* Activez Keycloak SSO : **Settings** -> **Security** -> **Third-party authentication** -> **OpenID Connect** -> collez `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_ISSUER_URL` depuis l'onglet Environment. Validez.\n",
       "extra_notes": "**Ressources :** Zammad int\u00e8gre Elasticsearch qui r\u00e9serve ~1,5 GB de RAM. Zammad avec d'autres apps demande un VPS \u22654 GB.\n"
     }

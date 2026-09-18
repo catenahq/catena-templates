@@ -28,7 +28,6 @@ def _valid_doc(slug: str = "example") -> dict:
             "upstream_url": "https://example.com",
             "sso_mode": "none",
             "domain": {"host": "x.example.com", "service": "app", "port": 80},
-            "compose_file": "compose/example.compose.yml",
             "env_defaults": ["DOMAIN_HOST=x.example.com", "DB_PASSWORD=secret"],
             "bench": {"pack": "nodb"},
             "sizing": {"peak_ram_mb": 256},
@@ -52,11 +51,23 @@ def _valid_doc(slug: str = "example") -> dict:
 
 @pytest.fixture
 def sources(tmp_path, monkeypatch):
-    (tmp_path / "compose").mkdir()
-    (tmp_path / "compose" / "example.compose.yml").write_text("services: {}\n")
-    _meta(tmp_path, ["example"])
-    monkeypatch.setattr(model, "SOURCES", tmp_path)
-    return tmp_path
+    """A sources/ tree plus the blueprint tree beside it. A template is
+    two hand-edited files and the loader reads both, so a fixture that
+    redirects only one of them tests a layout that cannot exist."""
+    src = tmp_path / "sources"
+    src.mkdir()
+    blueprints = tmp_path / "blueprints"
+    _blueprint(blueprints, "example")
+    _meta(src, ["example"])
+    monkeypatch.setattr(model, "SOURCES", src)
+    monkeypatch.setattr(model, "BLUEPRINTS", blueprints)
+    return src
+
+
+def _blueprint(blueprints: Path, slug: str) -> None:
+    app_dir = blueprints / slug
+    app_dir.mkdir(parents=True, exist_ok=True)
+    (app_dir / model.COMPOSE_NAME).write_text("services: {}\n")
 
 
 def _meta(sources: Path, order: list[str]) -> None:
@@ -94,8 +105,8 @@ def test_order_drives_the_returned_sequence(sources):
     """The order is curated (hubs first), not alphabetical: it is what
     the Portainer gallery and the generated docs index show."""
     for slug in ("alpha", "omega", "middle"):
-        doc = _valid_doc(slug)
-        _write(sources, doc)
+        _write(sources, _valid_doc(slug))
+        _blueprint(model.BLUEPRINTS, slug)
     _meta(sources, ["omega", "alpha", "middle"])
     assert [e.slug for e in model.load_sources()] == ["omega", "alpha", "middle"]
 
@@ -103,6 +114,7 @@ def test_order_drives_the_returned_sequence(sources):
 def test_template_missing_from_order_is_an_error(sources):
     _write(sources, _valid_doc("example"))
     _write(sources, _valid_doc("unlisted"))
+    _blueprint(model.BLUEPRINTS, "unlisted")
     with pytest.raises(model.SourceError, match="not listed in _meta.json order"):
         model.load_sources()
 
@@ -114,12 +126,20 @@ def test_order_naming_an_absent_template_is_an_error(sources):
         model.load_sources()
 
 
-def test_missing_compose_file_is_an_error(sources):
-    doc = _valid_doc()
-    doc["x-catena"]["compose_file"] = "compose/absent.compose.yml"
-    _write(sources, doc)
+def test_a_template_without_a_compose_in_its_blueprint_is_an_error(sources):
+    """The compose is not named by the source file any more: it is found
+    at blueprints/<id>/docker-compose.yml or the template has none."""
+    (model.BLUEPRINTS / "example" / model.COMPOSE_NAME).unlink()
+    _write(sources, _valid_doc())
     with pytest.raises(model.SourceError, match="does not exist"):
         model.load_sources()
+
+
+def test_compose_file_is_derived_from_the_id(sources):
+    _write(sources, _valid_doc())
+    entry = model.load_sources()[0]
+    assert entry.compose_file == "blueprints/example/docker-compose.yml"
+    assert entry.compose_path == model.BLUEPRINTS / "example" / "docker-compose.yml"
 
 
 def test_env_managed_key_must_exist_in_env_defaults(sources):

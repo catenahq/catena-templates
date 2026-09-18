@@ -14,12 +14,12 @@
         "Files",
         "Collaboration"
       ],
-      "compose_file": "compose/nextcloud-s3.compose.yml",
+      "compose_file": "blueprints/nextcloud-s3-oidc/docker-compose.yml",
       "domain_host": "nextcloud.{{ cloudflare_zone }}",
       "domain_port": 80,
       "domain_service": "app",
       "en": {
-        "compose_description": "Self-hosted file sharing + collaboration. Replaces Google Drive / Dropbox / OneDrive.\n\nFirst-time setup:\n1. Fill the S3_* variables in the Environment tab.\n2. Click Deploy.\n3. Open the actions dashboard and click \"Wire Nextcloud OIDC\" -- registers Keycloak SSO inside Nextcloud (idempotent, safe to re-click).\n4. Sign in with \"Log in with keycloak\" at the Nextcloud domain.\n\nFull docs: https://docs.catena.run/apps/nextcloud-s3-oidc/\n",
+        "compose_description": "Self-hosted file sharing + collaboration. Replaces Google Drive / Dropbox / OneDrive.\n\nFirst-time setup:\n1. Fill the S3_* variables in the Environment tab.\n2. Click Deploy.\n3. Open the actions dashboard and click \"Wire Nextcloud OIDC\" -- registers Keycloak SSO inside Nextcloud (idempotent, safe to re-click).\n4. Sign in with \"Log in with keycloak\" at the Nextcloud domain.\n\nFull docs: https://github.com/catenahq/catena-templates/blob/main/blueprints/nextcloud-s3-oidc/README.md\n",
         "display_name": "Nextcloud",
         "extra_notes": "### Sign-in with Keycloak -- wired by a catena-admin action\n\nAfter Nextcloud's first deploy, the **Wire Nextcloud OIDC**\nbutton on the **Actions** tab at `dash.<your-domain>` enables\nNextcloud's `user_oidc` app and registers a `keycloak`\nprovider with the OIDC fields from the Environment tab. The\nNextcloud login page then shows **Log in with keycloak** on\nthe next visit. Local admin login (`NEXTCLOUD_ADMIN_USER`\n/ `NEXTCLOUD_ADMIN_PASSWORD`) keeps working alongside SSO as\na break-glass.\n\nRe-run the action any time the OIDC configuration drifts\n(after a secret rotation, a destructive redeploy, etc.). It\nis idempotent -- re-running just refreshes the provider\nrecord.\n\n### Sharing files by email link still works\n\nKeycloak SSO governs **user login** to Nextcloud. It does\n**not** restrict anonymous public share links --\n`/s/<token>` URLs generated from inside Nextcloud stay\nreachable by recipients who have no Keycloak account.\n\nSo the common workflow stays intact:\n\n1. A signed-in team member creates a share link in\n   Nextcloud, optionally with a password and expiry date.\n2. Nextcloud emails the link to the recipient.\n3. The recipient clicks the link. Cloudflare Tunnel routes\n   the request straight to Nextcloud; Nextcloud serves the\n   public share page (or the password prompt, where one was\n   set). No Keycloak redirect, no login required.\n\nThis works because Nextcloud is reached via Nextcloud's own\nauth code, with no SSO proxy in front. The `user_oidc` plugin\nonly handles the login flow for *team members*; the\npublic-share endpoints remain anonymous-by-design.\n\nLocking down public shares entirely is a control inside\nNextcloud (Settings -> Sharing -> \"Allow share via public\nlink\"), not at the network layer.\n",
         "replaces": [
@@ -71,7 +71,7 @@
         "TURN_STATIC_AUTH_SECRET"
       ],
       "fr": {
-        "compose_description": "Partage de fichiers + collaboration auto-h\u00e9berg\u00e9s. Remplace Google Drive / Dropbox / OneDrive.\n\nConfiguration initiale :\n1. Remplissez les variables S3_* dans l'onglet Environment.\n2. Cliquez sur Deploy.\n3. Ouvrez le tableau de bord des actions et cliquez \"C\u00e2bler l'OIDC pour Nextcloud\" -- enregistre le SSO Keycloak dans Nextcloud (idempotent, peut \u00eatre recliqu\u00e9).\n4. Connexion avec \"Se connecter avec keycloak\" sur le domaine Nextcloud.\n\nDoc compl\u00e8te : https://docs.catena.run/apps/nextcloud-s3-oidc/\n",
+        "compose_description": "Partage de fichiers + collaboration auto-h\u00e9berg\u00e9s. Remplace Google Drive / Dropbox / OneDrive.\n\nConfiguration initiale :\n1. Remplissez les variables S3_* dans l'onglet Environment.\n2. Cliquez sur Deploy.\n3. Ouvrez le tableau de bord des actions et cliquez \"C\u00e2bler l'OIDC pour Nextcloud\" -- enregistre le SSO Keycloak dans Nextcloud (idempotent, peut \u00eatre recliqu\u00e9).\n4. Connexion avec \"Se connecter avec keycloak\" sur le domaine Nextcloud.\n\nDoc compl\u00e8te : https://github.com/catenahq/catena-templates/blob/main/blueprints/nextcloud-s3-oidc/README.md\n",
         "display_name": "Nextcloud",
         "extra_notes": "### Connexion avec Keycloak -- c\u00e2bl\u00e9e par une action catena-admin\n\nApr\u00e8s le premier d\u00e9ploiement de Nextcloud, le bouton\n**C\u00e2bler l'OIDC pour Nextcloud** de l'onglet **Actions** sur\n`dash.<votre-domaine>` active l'application\n`user_oidc` de Nextcloud et enregistre un fournisseur\n`keycloak` avec les valeurs OIDC de l'onglet Environment. La\npage de connexion Nextcloud affiche alors **Se connecter\navec keycloak** \u00e0 la visite suivante. La connexion admin\nlocale (`NEXTCLOUD_ADMIN_USER` / `NEXTCLOUD_ADMIN_PASSWORD`)\ncontinue de fonctionner en parall\u00e8le comme issue de secours.\n\nRelancez l'action chaque fois que la configuration OIDC\nd\u00e9rive (apr\u00e8s une rotation de secret, un red\u00e9ploiement\ndestructif, etc.). Elle est idempotente -- relancer ne fait que\nrafra\u00eechir l'enregistrement du fournisseur.\n\n### Le partage de fichiers par lien courriel fonctionne toujours\n\nL'authentification Keycloak gouverne la **connexion des\nutilisateurs** \u00e0 Nextcloud. Elle ne restreint **pas** les\nliens de partage publics anonymes -- les URL\n`/s/<jeton>` g\u00e9n\u00e9r\u00e9es depuis Nextcloud\nrestent accessibles aux destinataires qui n'ont pas de\ncompte Keycloak.\n\nLe flux courant fonctionne donc tel quel :\n\n1. Un membre de l'\u00e9quipe (utilisateur connect\u00e9) cr\u00e9e un\n   lien de partage dans Nextcloud, avec un mot de passe et\n   une date d'expiration s'il le souhaite.\n2. Nextcloud envoie le lien par courriel au destinataire.\n3. Le destinataire clique le lien. Cloudflare Tunnel\n   achemine la requ\u00eate directement \u00e0 Nextcloud ; Nextcloud\n   sert la page de partage publique (ou l'invite de mot de\n   passe, lorsqu'un mot de passe a \u00e9t\u00e9 d\u00e9fini). Pas de\n   redirection Keycloak, pas de connexion requise.\n\nCela fonctionne parce que Nextcloud est atteint via son\npropre code d'authentification, sans proxy SSO\ndevant lui. Le module `user_oidc` ne g\u00e8re que le flux de\nconnexion pour *les membres de l'\u00e9quipe* ; les points\nd'acc\u00e8s des partages publics restent anonymes par\nconception.\n\nLe verrouillage complet des partages publics est un\ncontr\u00f4le interne \u00e0 Nextcloud (Param\u00e8tres -> Partage ->\n\"Autoriser le partage par lien public\"), pas au niveau\nr\u00e9seau.\n",
         "replaces": [
@@ -131,12 +131,12 @@
         "Productivity",
         "Documents"
       ],
-      "compose_file": "compose/collabora.compose.yml",
+      "compose_file": "blueprints/collabora/docker-compose.yml",
       "domain_host": "office.{{ cloudflare_zone }}",
       "domain_port": 9980,
       "domain_service": "collabora",
       "en": {
-        "compose_description": "LibreOffice-based collaborative editor. Embedded in Nextcloud. Lighter alternative to OnlyOffice; better ODF fidelity.\n\nhttps://docs.catena.run/apps/collabora/\n",
+        "compose_description": "LibreOffice-based collaborative editor. Embedded in Nextcloud. Lighter alternative to OnlyOffice; better ODF fidelity.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/collabora/README.md\n",
         "display_name": "Collabora Online (CODE)",
         "replaces": [
           "Microsoft Office Online",
@@ -149,7 +149,7 @@
         "DOMAIN_HOST=office.{{ cloudflare_zone }}"
       ],
       "fr": {
-        "compose_description": "\u00c9diteur collaboratif bas\u00e9 sur LibreOffice. Embarqu\u00e9 dans Nextcloud. Alternative l\u00e9g\u00e8re \u00e0 OnlyOffice ; meilleure fid\u00e9lit\u00e9 ODF.\n\nhttps://docs.catena.run/apps/collabora/\n",
+        "compose_description": "\u00c9diteur collaboratif bas\u00e9 sur LibreOffice. Embarqu\u00e9 dans Nextcloud. Alternative l\u00e9g\u00e8re \u00e0 OnlyOffice ; meilleure fid\u00e9lit\u00e9 ODF.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/collabora/README.md\n",
         "display_name": "Collabora Online (CODE)",
         "replaces": [
           "Microsoft Office Online",
@@ -180,12 +180,12 @@
         "Productivity",
         "Documents"
       ],
-      "compose_file": "compose/onlyoffice.compose.yml",
+      "compose_file": "blueprints/onlyoffice/docker-compose.yml",
       "domain_host": "office.{{ cloudflare_zone }}",
       "domain_port": 80,
       "domain_service": "documentserver",
       "en": {
-        "compose_description": "Collaborative DOCX/XLSX/PPTX editor. Embedded in Nextcloud. Replaces Office 365 / Google Docs as the embedded editor.\n\nhttps://docs.catena.run/apps/onlyoffice/\n",
+        "compose_description": "Collaborative DOCX/XLSX/PPTX editor. Embedded in Nextcloud. Replaces Office 365 / Google Docs as the embedded editor.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/onlyoffice/README.md\n",
         "display_name": "OnlyOffice",
         "replaces": [
           "Microsoft Office Online",
@@ -199,7 +199,7 @@
         "JWT_SECRET={{ lookup('password', '/dev/null length=48 chars=ascii_letters,digits') }}"
       ],
       "fr": {
-        "compose_description": "\u00c9diteur collaboratif DOCX/XLSX/PPTX. Embarqu\u00e9 dans Nextcloud. Remplace Office 365 / Google Docs comme \u00e9diteur.\n\nhttps://docs.catena.run/apps/onlyoffice/\n",
+        "compose_description": "\u00c9diteur collaboratif DOCX/XLSX/PPTX. Embarqu\u00e9 dans Nextcloud. Remplace Office 365 / Google Docs comme \u00e9diteur.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/onlyoffice/README.md\n",
         "display_name": "OnlyOffice",
         "replaces": [
           "Microsoft Office Online",
@@ -230,12 +230,12 @@
         "Communication",
         "Chat"
       ],
-      "compose_file": "compose/rocketchat.compose.yml",
+      "compose_file": "blueprints/rocketchat-oidc/docker-compose.yml",
       "domain_host": "chat.{{ cloudflare_zone }}",
       "domain_port": 3000,
       "domain_service": "rocketchat",
       "en": {
-        "compose_description": "Team chat + video. Keycloak SSO pre-wired. Replaces Slack / Microsoft Teams.\n\nhttps://docs.catena.run/apps/rocketchat-oidc/\n",
+        "compose_description": "Team chat + video. Keycloak SSO pre-wired. Replaces Slack / Microsoft Teams.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/rocketchat-oidc/README.md\n",
         "display_name": "Rocket.Chat",
         "extra_notes": "### Mobile apps\n\nRocket.Chat's iOS and Android apps connect straight to the server. Users paste `https://chat.<your-domain>` into the app on first launch and sign in via Keycloak.\n",
         "replaces": [
@@ -269,7 +269,7 @@
         "JITSI_JVB_AUTH_PASSWORD"
       ],
       "fr": {
-        "compose_description": "Messagerie d'\u00e9quipe + vid\u00e9o. Keycloak SSO pr\u00e9-c\u00e2bl\u00e9. Remplace Slack / Microsoft Teams.\n\nhttps://docs.catena.run/apps/rocketchat-oidc/\n",
+        "compose_description": "Messagerie d'\u00e9quipe + vid\u00e9o. Keycloak SSO pr\u00e9-c\u00e2bl\u00e9. Remplace Slack / Microsoft Teams.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/rocketchat-oidc/README.md\n",
         "display_name": "Rocket.Chat",
         "extra_notes": "### Applications mobiles\n\nLes apps iOS et Android de Rocket.Chat se connectent directement au serveur. Les utilisateurs collent `https://chat.<votre-domaine>` au premier lancement et se connectent via Keycloak.\n",
         "replaces": [
@@ -305,12 +305,12 @@
         "Communication",
         "Chat"
       ],
-      "compose_file": "compose/element.compose.yml",
+      "compose_file": "blueprints/element/docker-compose.yml",
       "domain_host": "element.{{ cloudflare_zone }}",
       "domain_port": 80,
       "domain_service": "element-web",
       "en": {
-        "compose_description": "Element + Matrix homeserver. Chat (E2EE), voice, group video, SIP dial-in. Keycloak SSO pre-wired. Federation off by default.\n\nhttps://docs.catena.run/apps/element/\n",
+        "compose_description": "Element + Matrix homeserver. Chat (E2EE), voice, group video, SIP dial-in. Keycloak SSO pre-wired. Federation off by default.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/element/README.md\n",
         "display_name": "Element / Matrix",
         "extra_notes": "### End-to-end encryption\n\nNew direct messages and new invite-only rooms are encrypted by default. Public rooms stay unencrypted (E2EE in large public rooms hurts mobile sync UX). Each user is prompted to set up **Secure Backup** the first time they log in -- this is a 24-character recovery key that lets them read encrypted history from a new device. Losing the key locks the user out of old encrypted messages, so it deserves the same care as a password-manager vault key.\n\n### Voice and video\n\n- **1:1 calls** use the bundled Element/Matrix call stack and the shared TURN/STUN server at `turn.<your-domain>` for restrictive-network media relay.\n- **Group video calls** open in an embedded Jitsi widget at `elementmeet.<your-domain>` (the bundled Jitsi instance). Calls never leave the server -- there is no fallback to `meet.jit.si`.\n- **SIP dial-in** (jigasi) lets a regular phone dial a SIP number to join a Jitsi room. Enable by filling the `JIGASI_SIP_*` env vars (see step 4 above).\n\n### Mobile apps\n\nElement's iOS and Android apps connect straight to the homeserver. Users tap **Use custom server** at first launch and enter `matrix.<your-domain>`. SSO via Keycloak works in-app.\n",
         "replaces": [
@@ -360,7 +360,7 @@
         "JIGASI_XMPP_PASSWORD"
       ],
       "fr": {
-        "compose_description": "Element + serveur Matrix. Chat (E2EE), voix, visio de groupe, entr\u00e9e SIP. SSO Keycloak pr\u00e9-c\u00e2bl\u00e9. F\u00e9d\u00e9ration d\u00e9sactiv\u00e9e par d\u00e9faut.\n\nhttps://docs.catena.run/apps/element/\n",
+        "compose_description": "Element + serveur Matrix. Chat (E2EE), voix, visio de groupe, entr\u00e9e SIP. SSO Keycloak pr\u00e9-c\u00e2bl\u00e9. F\u00e9d\u00e9ration d\u00e9sactiv\u00e9e par d\u00e9faut.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/element/README.md\n",
         "display_name": "Element / Matrix",
         "extra_notes": "### Chiffrement de bout en bout\n\nLes nouveaux messages directs et les nouveaux salons sur invitation sont chiffr\u00e9s par d\u00e9faut. Les salons publics restent en clair (le E2EE dans des salons publics nombreux d\u00e9grade la synchro mobile). Chaque utilisateur est invit\u00e9 \u00e0 configurer le **Coffre-fort de r\u00e9cup\u00e9ration** lors de sa premi\u00e8re connexion -- une cl\u00e9 de 24 caract\u00e8res qui lui permet de lire l'historique chiffr\u00e9 depuis un nouvel appareil. Perdre la cl\u00e9 verrouille l'utilisateur hors de ses anciens messages chiffr\u00e9s ; sauvegardez-la comme un mot de passe ma\u00eetre.\n\n### Voix et vid\u00e9o\n\n- **Appels 1:1** utilisent le moteur d'appel Element/Matrix et le serveur TURN/STUN partag\u00e9 `turn.<votre-domaine>` pour relayer les m\u00e9dias en r\u00e9seau restrictif.\n- **Appels de groupe** s'ouvrent dans un widget Jitsi embarqu\u00e9 sur `elementmeet.<votre-domaine>` (l'instance Jitsi embarqu\u00e9e). Les appels ne quittent jamais le serveur -- pas de repli sur `meet.jit.si`.\n- **Entr\u00e9e SIP** (jigasi) permet \u00e0 un t\u00e9l\u00e9phone classique d'appeler un num\u00e9ro SIP pour rejoindre un salon Jitsi. Activez en remplissant les variables d'environnement `JIGASI_SIP_*` (voir \u00e9tape 4 ci-dessus).\n\n### Applications mobiles\n\nLes apps iOS et Android d'Element se connectent directement au homeserver. Les utilisateurs touchent **Utiliser un serveur personnalis\u00e9** au premier lancement et saisissent `matrix.<votre-domaine>`. La connexion via Keycloak fonctionne dans l'app.\n",
         "replaces": [
@@ -397,12 +397,12 @@
         "Documents",
         "Signing"
       ],
-      "compose_file": "compose/docuseal.compose.yml",
+      "compose_file": "blueprints/docuseal/docker-compose.yml",
       "domain_host": "sign.{{ cloudflare_zone }}",
       "domain_port": 3000,
       "domain_service": "docuseal",
       "en": {
-        "compose_description": "Open-source document signing (default). Replaces DocuSign / HelloSign.\n\nhttps://docs.catena.run/apps/docuseal/\n",
+        "compose_description": "Open-source document signing (default). Replaces DocuSign / HelloSign.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/docuseal/README.md\n",
         "display_name": "DocuSeal",
         "extra_notes": "### Signing certificate\n\nDocuSeal generates signed PDFs out of the box without a separate signing-cert mint step. Adobe Acrobat shows the signature as cryptographically valid but with a \"self-signed root\" warning by default. Legally-binding signatures need a CA-issued cert, installed on request via DocuSeal's admin UI (Settings -> Signature -> Certificates).\n\n### SMTP\n\nWithout SMTP configured, signature-request emails are not delivered. Recipients still see pending requests in their dashboard. To enable email, fill the `SMTP_*` env vars in the Environment tab.\n",
         "replaces": [
@@ -430,7 +430,7 @@
         "OIDC_ISSUER_URL=https://{{ keycloak_hostname | default('auth.' ~ cloudflare_zone) }}/realms/{{ keycloak_realm | default('vps') }}"
       ],
       "fr": {
-        "compose_description": "Signature \u00e9lectronique open-source (par d\u00e9faut). Remplace DocuSign / HelloSign.\n\nhttps://docs.catena.run/apps/docuseal/\n",
+        "compose_description": "Signature \u00e9lectronique open-source (par d\u00e9faut). Remplace DocuSign / HelloSign.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/docuseal/README.md\n",
         "display_name": "DocuSeal",
         "extra_notes": "### Certificat de signature\n\nDocuSeal g\u00e9n\u00e8re des PDF sign\u00e9s d'embl\u00e9e sans \u00e9tape de g\u00e9n\u00e9ration de certificat. Adobe Acrobat affiche la signature comme cryptographiquement valide mais avec un avertissement \"racine auto-sign\u00e9e\" par d\u00e9faut. Les signatures \u00e0 valeur l\u00e9gale demandent un certificat \u00e9mis par une AC, install\u00e9 sur demande via l'UI admin DocuSeal (Settings -> Signature -> Certificates).\n\n### SMTP\n\nSans SMTP configur\u00e9, les e-mails de demande de signature ne sont pas envoy\u00e9s. Les destinataires voient les demandes en attente dans leur tableau de bord. Pour activer les e-mails, renseignez les variables `SMTP_*` dans l'onglet Environment.\n",
         "replaces": [
@@ -464,12 +464,12 @@
         "Wiki",
         "Documentation"
       ],
-      "compose_file": "compose/outline.compose.yml",
+      "compose_file": "blueprints/outline/docker-compose.yml",
       "domain_host": "wiki.{{ cloudflare_zone }}",
       "domain_port": 3000,
       "domain_service": "outline",
       "en": {
-        "compose_description": "Team wiki + knowledge base. Keycloak SSO pre-wired. Replaces Notion / Confluence.\n\nhttps://docs.catena.run/apps/outline/\n",
+        "compose_description": "Team wiki + knowledge base. Keycloak SSO pre-wired. Replaces Notion / Confluence.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/outline/README.md\n",
         "display_name": "Outline",
         "replaces": [
           "Notion",
@@ -487,7 +487,7 @@
         "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
       ],
       "fr": {
-        "compose_description": "Wiki d'\u00e9quipe + base de connaissances. Keycloak SSO pr\u00e9-c\u00e2bl\u00e9. Remplace Notion / Confluence.\n\nhttps://docs.catena.run/apps/outline/\n",
+        "compose_description": "Wiki d'\u00e9quipe + base de connaissances. Keycloak SSO pr\u00e9-c\u00e2bl\u00e9. Remplace Notion / Confluence.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/outline/README.md\n",
         "display_name": "Outline",
         "replaces": [
           "Notion",
@@ -531,12 +531,12 @@
         "CRM",
         "Business"
       ],
-      "compose_file": "compose/espocrm.compose.yml",
+      "compose_file": "blueprints/espocrm/docker-compose.yml",
       "domain_host": "crm.{{ cloudflare_zone }}",
       "domain_port": 80,
       "domain_service": "espocrm",
       "en": {
-        "compose_description": "Open-source CRM (default). Replaces Salesforce / HubSpot / Zoho.\n\nhttps://docs.catena.run/apps/espocrm/\n",
+        "compose_description": "Open-source CRM (default). Replaces Salesforce / HubSpot / Zoho.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/espocrm/README.md\n",
         "display_name": "EspoCRM",
         "extra_notes": "### Why EspoCRM is the default\n\nIt is the only fully open-source CRM in this catalog with native OIDC in the community edition (no Pro tier upgrade), pre-built mobile apps, and an established record of stable upgrades. Twenty is the alternative for a modern Notion-like UI; both are kept in the catalog so the choice stays open.\n\n### Resource note\n\nEspoCRM runs as PHP-Apache + MariaDB + a cron sidecar. Plan for ~1 GB RAM at idle, ~2 GB under bulk-import or mass-email workloads.\n",
         "replaces": [
@@ -560,7 +560,7 @@
         "OIDC_ISSUER_URL=https://{{ keycloak_hostname | default('auth.' ~ cloudflare_zone) }}/realms/{{ keycloak_realm | default('vps') }}"
       ],
       "fr": {
-        "compose_description": "CRM open-source (par d\u00e9faut). Remplace Salesforce / HubSpot / Zoho.\n\nhttps://docs.catena.run/apps/espocrm/\n",
+        "compose_description": "CRM open-source (par d\u00e9faut). Remplace Salesforce / HubSpot / Zoho.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/espocrm/README.md\n",
         "display_name": "EspoCRM",
         "extra_notes": "### Pourquoi EspoCRM est le CRM par d\u00e9faut\n\nC'est le seul CRM enti\u00e8rement open-source du catalogue avec OIDC natif en \u00e9dition communautaire (sans palier Pro), des apps mobiles existantes et un historique stable de mises \u00e0 jour. Twenty est l'alternative pour une UI moderne fa\u00e7on Notion ; les deux restent au catalogue pour laisser le choix ouvert.\n\n### Ressources\n\nEspoCRM tourne en PHP-Apache + MariaDB + un cron sidecar. Pr\u00e9voyez ~1 GB RAM au repos, ~2 GB sous import en masse ou envoi mass-email.\n",
         "replaces": [
@@ -608,12 +608,12 @@
         "CRM",
         "Business"
       ],
-      "compose_file": "compose/twenty.compose.yml",
+      "compose_file": "blueprints/twenty/docker-compose.yml",
       "domain_host": "twenty.{{ cloudflare_zone }}",
       "domain_port": 3000,
       "domain_service": "server",
       "en": {
-        "compose_description": "Modern open-source CRM (alternative to EspoCRM). Replaces Salesforce / HubSpot.\n\nhttps://docs.catena.run/apps/twenty/\n",
+        "compose_description": "Modern open-source CRM (alternative to EspoCRM). Replaces Salesforce / HubSpot.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/twenty/README.md\n",
         "display_name": "Twenty",
         "extra_notes": "**EspoCRM vs Twenty.** EspoCRM is this stack's default CRM (mature, native OIDC, mobile apps). Twenty is offered as an alternative for clients who prefer its Notion-style UI; both can be deployed side-by-side. The default `crm.<your-domain>` host is reserved for EspoCRM -- Twenty defaults to `twenty.<your-domain>`.\n",
         "replaces": [
@@ -631,7 +631,7 @@
         "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
       ],
       "fr": {
-        "compose_description": "CRM moderne open-source (alternative \u00e0 EspoCRM). Remplace Salesforce / HubSpot.\n\nhttps://docs.catena.run/apps/twenty/\n",
+        "compose_description": "CRM moderne open-source (alternative \u00e0 EspoCRM). Remplace Salesforce / HubSpot.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/twenty/README.md\n",
         "display_name": "Twenty",
         "extra_notes": "**EspoCRM vs Twenty.** EspoCRM est le CRM par d\u00e9faut de cette stack (mature, OIDC natif, apps mobiles). Twenty est offert comme alternative pour les clients qui pr\u00e9f\u00e8rent son UI fa\u00e7on Notion ; les deux peuvent cohabiter. Le domaine par d\u00e9faut `crm.<votre-domaine>` est r\u00e9serv\u00e9 \u00e0 EspoCRM -- Twenty utilise par d\u00e9faut `twenty.<votre-domaine>`.\n",
         "replaces": [
@@ -663,12 +663,12 @@
       "categories": [
         "Project management"
       ],
-      "compose_file": "compose/plane.compose.yml",
+      "compose_file": "blueprints/plane/docker-compose.yml",
       "domain_host": "projects.{{ cloudflare_zone }}",
       "domain_port": 80,
       "domain_service": "proxy",
       "en": {
-        "compose_description": "Open-source project management. Replaces Jira / Linear / Asana.\n\nhttps://docs.catena.run/apps/plane/\n",
+        "compose_description": "Open-source project management. Replaces Jira / Linear / Asana.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/plane/README.md\n",
         "display_name": "Plane",
         "replaces": [
           "Jira",
@@ -688,7 +688,7 @@
         "PLANE_MINIO_SECRET_KEY={{ lookup('password', '/dev/null length=40 chars=ascii_letters,digits') }}"
       ],
       "fr": {
-        "compose_description": "Gestion de projet open-source. Remplace Jira / Linear / Asana.\n\nhttps://docs.catena.run/apps/plane/\n",
+        "compose_description": "Gestion de projet open-source. Remplace Jira / Linear / Asana.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/plane/README.md\n",
         "display_name": "Plane",
         "replaces": [
           "Jira",
@@ -721,12 +721,12 @@
         "Project management",
         "Support"
       ],
-      "compose_file": "compose/windshift.compose.yml",
+      "compose_file": "blueprints/windshift/docker-compose.yml",
       "domain_host": "work.{{ cloudflare_zone }}",
       "domain_port": 8080,
       "domain_service": "windshift",
       "en": {
-        "compose_description": "Work management with test runs, time tracking, and customer portals. Replaces Jira / Jira Service Management.\n\nhttps://docs.catena.run/apps/windshift/\n",
+        "compose_description": "Work management with test runs, time tracking, and customer portals. Replaces Jira / Jira Service Management.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/windshift/README.md\n",
         "display_name": "Windshift",
         "extra_notes": "**Interface language:** Windshift ships English, German, Spanish, Portuguese, Arabic, and Chinese. There is no French interface upstream as of v0.8.4.\n\n**Edition:** the self-hosted edition is AGPL-3.0 with no user or workspace cap. SAML 2.0, LDAP, and audit logging are announced for the paid Windshift Pro edition; OpenID Connect and passkeys are in this one.\n",
         "replaces": [
@@ -745,7 +745,7 @@
         "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
       ],
       "fr": {
-        "compose_description": "Gestion du travail avec suites de tests, feuilles de temps et portails clients. Remplace Jira / Jira Service Management.\n\nhttps://docs.catena.run/apps/windshift/\n",
+        "compose_description": "Gestion du travail avec suites de tests, feuilles de temps et portails clients. Remplace Jira / Jira Service Management.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/windshift/README.md\n",
         "display_name": "Windshift",
         "extra_notes": "**Langue de l'interface :** Windshift est livr\u00e9 en anglais, allemand, espagnol, portugais, arabe et chinois. Aucune traduction fran\u00e7aise n'existe en amont \u00e0 la version v0.8.4.\n\n**\u00c9dition :** l'\u00e9dition auto-h\u00e9berg\u00e9e est sous AGPL-3.0, sans limite d'utilisateurs ni d'espaces de travail. SAML 2.0, LDAP et le journal d'audit sont annonc\u00e9s pour l'\u00e9dition payante Windshift Pro ; OpenID Connect et les cl\u00e9s d'acc\u00e8s sont inclus ici.\n",
         "replaces": [
@@ -779,12 +779,12 @@
         "Support",
         "Helpdesk"
       ],
-      "compose_file": "compose/zammad.compose.yml",
+      "compose_file": "blueprints/zammad/docker-compose.yml",
       "domain_host": "help.{{ cloudflare_zone }}",
       "domain_port": 8080,
       "domain_service": "zammad-nginx",
       "en": {
-        "compose_description": "Ticket-first help desk. Replaces Zendesk / Freshdesk.\n\nhttps://docs.catena.run/apps/zammad/\n",
+        "compose_description": "Ticket-first help desk. Replaces Zendesk / Freshdesk.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/zammad/README.md\n",
         "display_name": "Zammad",
         "extra_notes": "**Resource note:** Zammad bundles Elasticsearch which reserves ~1.5 GB RAM. Zammad alongside other apps needs a \u22654 GB VPS.\n",
         "replaces": [
@@ -801,7 +801,7 @@
         "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
       ],
       "fr": {
-        "compose_description": "Helpdesk orient\u00e9 tickets. Remplace Zendesk / Freshdesk.\n\nhttps://docs.catena.run/apps/zammad/\n",
+        "compose_description": "Helpdesk orient\u00e9 tickets. Remplace Zendesk / Freshdesk.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/zammad/README.md\n",
         "display_name": "Zammad",
         "extra_notes": "**Ressources :** Zammad int\u00e8gre Elasticsearch qui r\u00e9serve ~1,5 GB de RAM. Zammad avec d'autres apps demande un VPS \u22654 GB.\n",
         "replaces": [
@@ -834,12 +834,12 @@
         "Communication",
         "Support"
       ],
-      "compose_file": "compose/chatwoot.compose.yml",
+      "compose_file": "blueprints/chatwoot/docker-compose.yml",
       "domain_host": "support.{{ cloudflare_zone }}",
       "domain_port": 3000,
       "domain_service": "rails",
       "en": {
-        "compose_description": "Conversation-first omnichannel inbox. Replaces Intercom / Front.\n\nhttps://docs.catena.run/apps/chatwoot/\n",
+        "compose_description": "Conversation-first omnichannel inbox. Replaces Intercom / Front.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/chatwoot/README.md\n",
         "display_name": "Chatwoot",
         "extra_notes": "**Note on sign-in:** Chatwoot's community edition doesn't support OIDC/SSO -- agents keep per-app email/password logins. SAML/OIDC is enterprise-only. If SSO matters, consider Zammad instead (trade-off: ticket-first workflow vs Chatwoot's conversation-first inbox).\n",
         "replaces": [
@@ -857,7 +857,7 @@
         "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
       ],
       "fr": {
-        "compose_description": "Bo\u00eete omnicanale orient\u00e9e conversation. Remplace Intercom / Front.\n\nhttps://docs.catena.run/apps/chatwoot/\n",
+        "compose_description": "Bo\u00eete omnicanale orient\u00e9e conversation. Remplace Intercom / Front.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/chatwoot/README.md\n",
         "display_name": "Chatwoot",
         "extra_notes": "**\u00c0 propos de la connexion :** l'\u00e9dition communautaire de Chatwoot ne supporte pas OIDC/SSO -- chaque agent garde un email/mot de passe sp\u00e9cifique \u00e0 l'app. Le SSO SAML/OIDC est enterprise uniquement. Si le SSO est important, envisagez Zammad (compromis : flux orient\u00e9 ticket au lieu de l'inbox orient\u00e9 conversation de Chatwoot).\n",
         "replaces": [
@@ -890,12 +890,12 @@
         "CMS",
         "Website"
       ],
-      "compose_file": "compose/wordpress.compose.yml",
+      "compose_file": "blueprints/wordpress/docker-compose.yml",
       "domain_host": "www.{{ cloudflare_zone }}",
       "domain_port": 80,
       "domain_service": "nginx",
       "en": {
-        "compose_description": "Production-ready website / CMS with FastCGI cache + Redis. Replaces Wix / Squarespace.\n\nhttps://docs.catena.run/apps/wordpress/\n",
+        "compose_description": "Production-ready website / CMS with FastCGI cache + Redis. Replaces Wix / Squarespace.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/wordpress/README.md\n",
         "display_name": "WordPress",
         "extra_notes": "**Stack.** WordPress runs as nginx + php-fpm + MariaDB + Redis. Nginx serves static assets directly, caches PHP responses with FastCGI cache (purged automatically by NPP on edit/publish, then re-warmed via the sitemap), and proxies the rest to php-fpm. Redis backs the WordPress object cache. Sized for a single-VPS deploy; for traffic spikes scale vertically.\n\n**Split-auth note.** Public pages (the website itself) are served anonymously -- search engines crawl normally, visitors don't see Keycloak. Only `/wp-admin` goes through the optional OIDC plugin for admin/editor logins. That's what makes WordPress on this stack a hybrid: reader-facing but SSO-managed for staff.\n",
         "replaces": [
@@ -918,7 +918,7 @@
         "WPMS_SMTP_PASS"
       ],
       "fr": {
-        "compose_description": "Site web / CMS pr\u00eat pour la production avec cache FastCGI + Redis. Remplace Wix / Squarespace.\n\nhttps://docs.catena.run/apps/wordpress/\n",
+        "compose_description": "Site web / CMS pr\u00eat pour la production avec cache FastCGI + Redis. Remplace Wix / Squarespace.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/wordpress/README.md\n",
         "display_name": "WordPress",
         "extra_notes": "**Stack.** WordPress tourne en nginx + php-fpm + MariaDB + Redis. Nginx sert directement les ressources statiques, met en cache les r\u00e9ponses PHP avec son cache FastCGI (purg\u00e9 automatiquement par NPP \u00e0 chaque \u00e9dition / publication, puis r\u00e9chauff\u00e9 via le sitemap), et d\u00e9l\u00e8gue le reste \u00e0 php-fpm. Redis sert de cache d'objets WordPress. Dimensionn\u00e9 pour un VPS unique ; pour absorber un pic de trafic, scaler verticalement.\n\n**Auth mixte.** Les pages publiques du site sont servies anonymement -- les moteurs de recherche crawlent normalement, les visiteurs ne voient pas Keycloak. Seul `/wp-admin` passe par le plugin OIDC optionnel pour les connexions admin/\u00e9diteur. C'est ce qui rend WordPress sur cette stack hybride : tourn\u00e9 vers les lecteurs mais administr\u00e9 en SSO.\n",
         "replaces": [
@@ -953,12 +953,12 @@
       "categories": [
         "Automation"
       ],
-      "compose_file": "compose/n8n.compose.yml",
+      "compose_file": "blueprints/n8n/docker-compose.yml",
       "domain_host": "automate.{{ cloudflare_zone }}",
       "domain_port": 5678,
       "domain_service": "n8n",
       "en": {
-        "compose_description": "Workflow automation (400+ integrations). Replaces Zapier / Make.\n\nhttps://docs.catena.run/apps/n8n/\n",
+        "compose_description": "Workflow automation (400+ integrations). Replaces Zapier / Make.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/n8n/README.md\n",
         "display_name": "n8n",
         "extra_notes": "**Note on sign-in.** n8n's community edition uses email/password user management with invite flows. OIDC and SAML are enterprise-gated, so SSO isn't available here -- each user maintains a per-app login. Fine for an automation team of 1-5 people.\n",
         "replaces": [
@@ -978,7 +978,7 @@
         "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
       ],
       "fr": {
-        "compose_description": "Automatisation de workflows (400+ int\u00e9grations). Remplace Zapier / Make.\n\nhttps://docs.catena.run/apps/n8n/\n",
+        "compose_description": "Automatisation de workflows (400+ int\u00e9grations). Remplace Zapier / Make.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/n8n/README.md\n",
         "display_name": "n8n",
         "extra_notes": "**\u00c0 propos de la connexion.** L'\u00e9dition communautaire de n8n utilise email/mot de passe avec des invitations. OIDC et SAML sont enterprise, donc le SSO n'est pas disponible ici -- chaque utilisateur garde une connexion sp\u00e9cifique. Convient \u00e0 une \u00e9quipe d'automatisation de 1-5 personnes.\n",
         "replaces": [
@@ -1011,12 +1011,12 @@
         "ERP",
         "Business"
       ],
-      "compose_file": "compose/erpnext.compose.yml",
+      "compose_file": "blueprints/erpnext/docker-compose.yml",
       "domain_host": "erp.{{ cloudflare_zone }}",
       "domain_port": 8080,
       "domain_service": "frontend",
       "en": {
-        "compose_description": "Open-source ERP (accounting/inventory/HR/CRM/manufacturing). Replaces SAP / Odoo / NetSuite.\n\nhttps://docs.catena.run/apps/erpnext/\n",
+        "compose_description": "Open-source ERP (accounting/inventory/HR/CRM/manufacturing). Replaces SAP / Odoo / NetSuite.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/erpnext/README.md\n",
         "display_name": "ERPNext",
         "extra_notes": "**Resource note.** ERPNext is heavy -- 10+ containers, ~3 GB RAM + 2 CPUs recommended minimum. A dedicated VPS tier is the right home when Nextcloud + chat + other apps run alongside.\n\n**Upgrade path.** Major version bumps (v15 -> v16) require `bench migrate`. The compose template leaves `vps.auto-update=patch` on every service so weekly automated updates stay within v15.x.x -- majors are a deliberate operator action, not a 3 a.m. auto-update.\n",
         "replaces": [
@@ -1034,7 +1034,7 @@
         "DB_ROOT_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
       ],
       "fr": {
-        "compose_description": "ERP open-source (compta/stock/RH/CRM/prod). Remplace SAP / Odoo / NetSuite.\n\nhttps://docs.catena.run/apps/erpnext/\n",
+        "compose_description": "ERP open-source (compta/stock/RH/CRM/prod). Remplace SAP / Odoo / NetSuite.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/erpnext/README.md\n",
         "display_name": "ERPNext",
         "extra_notes": "**Ressources.** ERPNext est lourd -- 10+ conteneurs, minimum ~3 GB RAM + 2 CPUs recommand\u00e9s. Un VPS d\u00e9di\u00e9 s'impose lorsque Nextcloud + chat + d'autres apps tournent en parall\u00e8le.\n\n**Mont\u00e9es de version.** Les bumps majeurs (v15 -> v16) n\u00e9cessitent `bench migrate`. Le template laisse `vps.auto-update=patch` sur chaque service : les mises \u00e0 jour hebdomadaires automatiques restent en v15.x.x -- les majeurs sont une action op\u00e9rateur d\u00e9lib\u00e9r\u00e9e, pas une auto-update \u00e0 3 h du matin.\n",
         "replaces": [
@@ -1069,12 +1069,12 @@
       "categories": [
         "Finance"
       ],
-      "compose_file": "compose/actualbudget.compose.yml",
+      "compose_file": "blueprints/actualbudget/docker-compose.yml",
       "domain_host": "budget.{{ cloudflare_zone }}",
       "domain_port": 5006,
       "domain_service": "actual",
       "en": {
-        "compose_description": "Self-hosted personal finance + envelope budgeting. Replaces YNAB / Mint.\n\nhttps://docs.catena.run/apps/actualbudget/\n",
+        "compose_description": "Self-hosted personal finance + envelope budgeting. Replaces YNAB / Mint.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/actualbudget/README.md\n",
         "display_name": "Actual Budget",
         "extra_notes": "**Note on sign-in.** Actual Budget uses a single shared server password to unlock the UI, not per-user logins. Multi-user is supported at the budget level (share the budget file) but the server auth is a single secret. This matches how the upstream project is designed: typically one household per server. OIDC/SSO isn't supported.\n",
         "replaces": [
@@ -1089,7 +1089,7 @@
         "DOMAIN_HOST=budget.{{ cloudflare_zone }}"
       ],
       "fr": {
-        "compose_description": "Finances personnelles + budg\u00e9tisation par enveloppes auto-h\u00e9berg\u00e9es. Remplace YNAB / Mint.\n\nhttps://docs.catena.run/apps/actualbudget/\n",
+        "compose_description": "Finances personnelles + budg\u00e9tisation par enveloppes auto-h\u00e9berg\u00e9es. Remplace YNAB / Mint.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/actualbudget/README.md\n",
         "display_name": "Actual Budget",
         "extra_notes": "**\u00c0 propos de la connexion.** Actual Budget utilise un mot de passe serveur partag\u00e9 pour d\u00e9verrouiller l'UI, pas des connexions par utilisateur. Le multi-utilisateurs fonctionne au niveau du budget (partage de fichier budget) mais l'auth serveur est un secret unique. C'est la conception upstream : typiquement un foyer par serveur. OIDC/SSO non support\u00e9.\n",
         "replaces": [
@@ -1125,12 +1125,12 @@
         "Marketing",
         "Social"
       ],
-      "compose_file": "compose/postiz.compose.yml",
+      "compose_file": "blueprints/postiz/docker-compose.yml",
       "domain_host": "social.{{ cloudflare_zone }}",
       "domain_port": 5000,
       "domain_service": "postiz",
       "en": {
-        "compose_description": "Social media scheduling (Twitter/X, LinkedIn, FB, IG, YouTube, TikTok). Replaces Buffer / Hootsuite.\n\nhttps://docs.catena.run/apps/postiz/\n",
+        "compose_description": "Social media scheduling (Twitter/X, LinkedIn, FB, IG, YouTube, TikTok). Replaces Buffer / Hootsuite.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/postiz/README.md\n",
         "display_name": "Postiz",
         "extra_notes": "**Note on sign-in:** Postiz uses local email/password login. No native OIDC in the current community release. The user count for this tool is typically 1-3 marketing people, so the SSO gap is less impactful than for chat / helpdesk tools.\n",
         "replaces": [
@@ -1148,7 +1148,7 @@
         "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
       ],
       "fr": {
-        "compose_description": "Planification de publications sociales (Twitter/X, LinkedIn, FB, IG, YouTube, TikTok). Remplace Buffer / Hootsuite.\n\nhttps://docs.catena.run/apps/postiz/\n",
+        "compose_description": "Planification de publications sociales (Twitter/X, LinkedIn, FB, IG, YouTube, TikTok). Remplace Buffer / Hootsuite.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/postiz/README.md\n",
         "display_name": "Postiz",
         "extra_notes": "**\u00c0 propos de la connexion :** Postiz utilise un email/mot de passe local. Pas d'OIDC natif dans la version communautaire actuelle. Le nombre d'utilisateurs pour cet outil est typiquement de 1 \u00e0 3 personnes en marketing, donc l'absence de SSO est moins impactante que pour les outils de chat / helpdesk.\n",
         "replaces": [
@@ -1180,12 +1180,12 @@
       "categories": [
         "Scheduling"
       ],
-      "compose_file": "compose/easyappointments.compose.yml",
+      "compose_file": "blueprints/easyappointments/docker-compose.yml",
       "domain_host": "book.{{ cloudflare_zone }}",
       "domain_port": 80,
       "domain_service": "easyappointments",
       "en": {
-        "compose_description": "Open-source customer booking app. One or many providers, public booking page, ICS sync. Replaces Calendly / Acuity.\n\nhttps://docs.catena.run/apps/easyappointments/\n",
+        "compose_description": "Open-source customer booking app. One or many providers, public booking page, ICS sync. Replaces Calendly / Acuity.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/easyappointments/README.md\n",
         "display_name": "Easy!Appointments",
         "extra_notes": "### Authentication\n\nEasy!Appointments v1.5.2 uses local email/password sign-in for staff. No native OIDC in the upstream release. The customer-facing booking page is public by design -- visitors book a slot without creating an account, only providing name, email, and phone. The SSO gap therefore only affects staff sign-in and is typically manageable for the small teams (1-10 staff) the app targets.\n\nSingle sign-on for staff is available on request as an oauth2-proxy front layer; the default deployment ships with local accounts.\n\n### Email + SMS reminders\n\nEmail reminders work as soon as SMTP is configured. SMS reminders require a Twilio account (configured under **Settings** -> **Notifications** -> **SMS**). SMS is opt-in per customer at booking time.\n\n### Public booking URL\n\nThe default public URL is `https://book.<your-domain>/`. It can be shared directly with customers, embedded as a button on a business website, or listed on a Google Business Profile.\n",
         "replaces": [
@@ -1204,7 +1204,7 @@
         "DB_ROOT_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
       ],
       "fr": {
-        "compose_description": "Application de r\u00e9servation client open-source. Un ou plusieurs prestataires, page publique, synchronisation ICS. Remplace Calendly / Acuity.\n\nhttps://docs.catena.run/apps/easyappointments/\n",
+        "compose_description": "Application de r\u00e9servation client open-source. Un ou plusieurs prestataires, page publique, synchronisation ICS. Remplace Calendly / Acuity.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/easyappointments/README.md\n",
         "display_name": "Easy!Appointments",
         "extra_notes": "### Authentification\n\nEasy!Appointments v1.5.2 utilise une connexion locale par courriel/mot de passe pour le personnel. Pas d'OIDC natif dans la version upstream. La page de r\u00e9servation c\u00f4t\u00e9 client est publique par conception -- les visiteurs r\u00e9servent un cr\u00e9neau sans compte, en fournissant seulement leur nom, courriel et t\u00e9l\u00e9phone. L'absence de SSO ne touche donc que la connexion du personnel et reste g\u00e9rable pour les petites \u00e9quipes (1 \u00e0 10 personnes) cibl\u00e9es par l'application.\n\nUn SSO unifi\u00e9 pour le personnel est disponible sur demande sous forme de proxy oauth2 en fa\u00e7ade ; le d\u00e9ploiement par d\u00e9faut utilise des comptes locaux.\n\n### Rappels courriel + SMS\n\nLes rappels par courriel fonctionnent d\u00e8s que SMTP est configur\u00e9. Les rappels SMS n\u00e9cessitent un compte Twilio (configur\u00e9 sous **Settings** -> **Notifications** -> **SMS**). Les SMS sont consentis par le client au moment de la r\u00e9servation.\n\n### URL de r\u00e9servation publique\n\nL'URL publique par d\u00e9faut est `https://book.<votre-domaine>/`. Elle peut \u00eatre partag\u00e9e directement avec les clients, int\u00e9gr\u00e9e comme bouton sur un site web, ou list\u00e9e sur une fiche Google Business.\n",
         "replaces": [
@@ -1241,14 +1241,14 @@
         "Marketing",
         "Automation"
       ],
-      "compose_file": "compose/mautic.compose.yml",
+      "compose_file": "blueprints/mautic/docker-compose.yml",
       "domain_host": "marketing.{{ cloudflare_zone }}",
       "domain_port": 80,
       "domain_service": "mautic_web",
       "en": {
-        "compose_description": "Open-source marketing automation. Drip campaigns, segments, landing pages. Replaces Mailchimp / ActiveCampaign.\n\nhttps://docs.catena.run/apps/mautic/\n",
+        "compose_description": "Open-source marketing automation. Drip campaigns, segments, landing pages. Replaces Mailchimp / ActiveCampaign.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/mautic/README.md\n",
         "display_name": "Mautic",
-        "extra_notes": "### Authentication\n\nMautic community edition does not ship native OIDC. Local username/password is the default. SAML2 is supported upstream but requires per-deploy config; third-party generic-OAuth2 plugins exist. Single sign-on across the suite is available on request as an oauth2-proxy front layer (Keycloak group `staff` gates access at the Traefik edge before traffic reaches Mautic).\n\n### SMTP and sending reputation\n\nMautic does NOT send email directly. It hands every outbound to the managed SMTP relay (see the [provider accounts guide](/guides/provider-accounts/) for recommended senders). Sending reputation, SPF/DKIM/DMARC, and bounce handling all live at the relay layer. SMTP is configured under **Settings** -> **Configuration** -> **Email Settings** with the relay's credentials before the first campaign goes out.\n\n### Lead-magnet content and drip-campaign copy\n\nThe template ships the engine. Authoring the lead-magnet PDFs, drip-sequence copy and email templates is content work, not deployment work. Mautic itself does not ship pre-built campaigns.\n\n### Resource note\n\nMautic runs as Apache + MariaDB + a worker sidecar + a cron sidecar. Plan for ~1.5 GB RAM at idle (worker + cron eat ~300 MB each), ~3 GB under campaign sends or segment rebuilds. Storage grows with media uploads and email-event history; budget ~10 GB after the first year of regular use.\n",
+        "extra_notes": "### Authentication\n\nMautic community edition does not ship native OIDC. Local username/password is the default. SAML2 is supported upstream but requires per-deploy config; third-party generic-OAuth2 plugins exist. Single sign-on across the suite is available on request as an oauth2-proxy front layer (Keycloak group `staff` gates access at the Traefik edge before traffic reaches Mautic).\n\n### SMTP and sending reputation\n\nMautic does NOT send email directly. It hands every outbound to the managed SMTP relay (see the [provider accounts guide](/en/guides/provider-accounts/) for recommended senders). Sending reputation, SPF/DKIM/DMARC, and bounce handling all live at the relay layer. SMTP is configured under **Settings** -> **Configuration** -> **Email Settings** with the relay's credentials before the first campaign goes out.\n\n### Lead-magnet content and drip-campaign copy\n\nThe template ships the engine. Authoring the lead-magnet PDFs, drip-sequence copy and email templates is content work, not deployment work. Mautic itself does not ship pre-built campaigns.\n\n### Resource note\n\nMautic runs as Apache + MariaDB + a worker sidecar + a cron sidecar. Plan for ~1.5 GB RAM at idle (worker + cron eat ~300 MB each), ~3 GB under campaign sends or segment rebuilds. Storage grows with media uploads and email-event history; budget ~10 GB after the first year of regular use.\n",
         "replaces": [
           "Mailchimp",
           "ActiveCampaign",
@@ -1270,7 +1270,7 @@
         "SMTP_FROM_ADDRESS="
       ],
       "fr": {
-        "compose_description": "Automatisation marketing open-source. S\u00e9quences drip, segments, pages de destination. Remplace Mailchimp / ActiveCampaign.\n\nhttps://docs.catena.run/apps/mautic/\n",
+        "compose_description": "Automatisation marketing open-source. S\u00e9quences drip, segments, pages de destination. Remplace Mailchimp / ActiveCampaign.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/mautic/README.md\n",
         "display_name": "Mautic",
         "extra_notes": "### Authentification\n\nMautic \u00e9dition communautaire ne fournit pas d'OIDC natif. Connexion locale par nom d'utilisateur/mot de passe par d\u00e9faut. SAML2 est support\u00e9 en amont mais demande une configuration par d\u00e9ploiement ; des plugins OAuth2 g\u00e9n\u00e9riques tiers existent. Un SSO unifi\u00e9 pour la suite est disponible sur demande sous forme de couche oauth2-proxy en fa\u00e7ade (le groupe Keycloak `staff` filtre l'acc\u00e8s au niveau Traefik avant que le trafic n'atteigne Mautic).\n\n### SMTP et r\u00e9putation d'envoi\n\nMautic n'envoie PAS directement les courriels. Il remet chaque envoi au relais SMTP g\u00e9r\u00e9 (voir le [guide des comptes fournisseurs](/fr/guides/provider-accounts/) pour les exp\u00e9diteurs recommand\u00e9s). R\u00e9putation d'envoi, SPF/DKIM/DMARC, et gestion des rebonds vivent au niveau du relais. SMTP se configure sous **Settings** -> **Configuration** -> **Email Settings** avec les identifiants du relais avant la premi\u00e8re campagne.\n\n### Contenu d'aimant \u00e0 prospects et copie des s\u00e9quences drip\n\nLe template fournit le moteur. La r\u00e9daction des PDF d'aimants, des s\u00e9quences drip et des mod\u00e8les d'envoi rel\u00e8ve du travail de contenu, pas du d\u00e9ploiement. Mautic lui-m\u00eame ne livre aucune campagne pr\u00e9-b\u00e2tie.\n\n### Ressources\n\nMautic tourne en Apache + MariaDB + un worker sidecar + un cron sidecar. Pr\u00e9voyez ~1.5 GB RAM au repos (worker + cron consomment ~300 MB chacun), ~3 GB sous envois de campagne ou reconstruction de segments. Le stockage cro\u00eet avec les uploads de m\u00e9dias et l'historique des \u00e9v\u00e9nements courriel ; budg\u00e9tez ~10 GB apr\u00e8s la premi\u00e8re ann\u00e9e d'usage r\u00e9gulier.\n",
         "replaces": [
@@ -1307,12 +1307,12 @@
         "Time tracking",
         "Business"
       ],
-      "compose_file": "compose/kimai.compose.yml",
+      "compose_file": "blueprints/kimai/docker-compose.yml",
       "domain_host": "time.{{ cloudflare_zone }}",
       "domain_port": 8001,
       "domain_service": "kimai",
       "en": {
-        "compose_description": "Open-source time tracker. Customers, projects, timesheets, invoices. Replaces Toggl / Clockify / Harvest.\n\nhttps://docs.catena.run/apps/kimai/\n",
+        "compose_description": "Open-source time tracker. Customers, projects, timesheets, invoices. Replaces Toggl / Clockify / Harvest.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/kimai/README.md\n",
         "display_name": "Kimai",
         "extra_notes": "### Time tracking in the Catena suite\n\nKimai is the time-tracking master in the Catena suite. Hours tracked here flow downstream to the invoicing app (Invoice Ninja) via a monthly sync, which can be automated on request. Customer records in Kimai carry an `espo_account_id` custom field so each timesheet ties back to the EspoCRM Account.\n\n### Invoicing built in\n\nKimai can generate PDF invoices directly from tracked time. That suits a billing flow of \"email a PDF; the client pays by e-transfer or wire\". Stripe-driven online payment, a client portal or recurring billing call for Invoice Ninja instead, deployed on request, and the suite then routes invoices through it.\n\n### Authentication\n\nUntil SAML is wired (step 3 above), Kimai uses local username/password. Even after SAML is wired, local admin login keeps working as a break-glass path. The Keycloak `staff` group gates access at the Traefik edge via oauth2-proxy before traffic reaches Kimai, so people outside the staff group cannot reach the login page.\n\n### Resource note\n\nKimai runs as PHP-Apache + MariaDB. Plan for ~250 MB RAM at idle, ~500 MB under bulk export or invoice rendering on busy month-end.\n",
         "replaces": [
@@ -1336,7 +1336,7 @@
         "KIMAI_MAIL_URL=null://localhost"
       ],
       "fr": {
-        "compose_description": "Suivi du temps open-source. Clients, projets, feuilles de temps, factures. Remplace Toggl / Clockify / Harvest.\n\nhttps://docs.catena.run/apps/kimai/\n",
+        "compose_description": "Suivi du temps open-source. Clients, projets, feuilles de temps, factures. Remplace Toggl / Clockify / Harvest.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/kimai/README.md\n",
         "display_name": "Kimai",
         "extra_notes": "### Suivi du temps dans la suite Catena\n\nKimai est le ma\u00eetre du suivi du temps dans la suite Catena. Les heures saisies ici alimentent l'application de facturation (Invoice Ninja) via une synchronisation mensuelle, automatisable sur demande. Les fiches clients dans Kimai portent un champ personnalis\u00e9 `espo_account_id` afin que chaque feuille de temps soit li\u00e9e au compte EspoCRM correspondant.\n\n### Facturation int\u00e9gr\u00e9e\n\nKimai peut g\u00e9n\u00e9rer des factures PDF directement depuis le temps suivi. Cette voie convient \u00e0 un flux \"envoyer un PDF, le client paie par virement Interac ou bancaire\". Les paiements en ligne via Stripe, un portail client ou la facturation r\u00e9currente appellent plut\u00f4t Invoice Ninja, d\u00e9ploy\u00e9 sur demande, et la suite achemine alors les factures \u00e0 travers lui.\n\n### Authentification\n\nTant que SAML n'est pas c\u00e2bl\u00e9 (\u00e9tape 3 ci-dessus), Kimai utilise un identifiant local. M\u00eame apr\u00e8s SAML, la connexion admin locale continue de fonctionner comme issue de secours. Le groupe Keycloak `staff` filtre l'acc\u00e8s au bord Traefik via oauth2-proxy avant que le trafic n'atteigne Kimai, donc les personnes hors de l'\u00e9quipe ne peuvent pas atteindre la page de connexion.\n\n### Ressources\n\nKimai tourne en PHP-Apache + MariaDB. Pr\u00e9voyez ~250 Mo de RAM au repos, ~500 Mo lors d'exports en masse ou de rendu de factures en fin de mois charg\u00e9e.\n",
         "replaces": [
@@ -1373,12 +1373,12 @@
         "Finance",
         "Invoicing"
       ],
-      "compose_file": "compose/invoiceninja.compose.yml",
+      "compose_file": "blueprints/invoiceninja/docker-compose.yml",
       "domain_host": "invoice.{{ cloudflare_zone }}",
       "domain_port": 80,
       "domain_service": "nginx",
       "en": {
-        "compose_description": "Invoicing + Stripe payments + recurring + client portal. Replaces FreshBooks / Zoho Invoice / QuickBooks invoicing.\n\nhttps://docs.catena.run/apps/invoiceninja/\n",
+        "compose_description": "Invoicing + Stripe payments + recurring + client portal. Replaces FreshBooks / Zoho Invoice / QuickBooks invoicing.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/invoiceninja/README.md\n",
         "display_name": "Invoice Ninja",
         "extra_notes": "### Invoicing in the Catena suite\n\nInvoice Ninja is the invoicing master in the Catena suite. Hours from Kimai (the time-tracking master) flow into Invoice Ninja invoices via the operator's monthly sync, and paid invoices from Invoice Ninja flow into ERPNext (the accounting master) via the operator's month-end close action. Clients in Invoice Ninja carry an `espo_account_id` custom field so each invoice ties back to the EspoCRM Account.\n\n### License\n\nInvoice Ninja's self-hosted edition ships under the Elastic License 2.0. Two practical implications:\n- Hosting Invoice Ninja for a business on its own VPS, and a third party hosting it on that business's behalf and billing for the hosting service, are both explicitly within the license terms.\n- Reselling Invoice Ninja as a SaaS product, or bundling it into another SaaS, requires a commercial license from Invoice Ninja LLC. Catena's deployment model is \"deployed onto a client-owned VPS, owned by that client\" -- the licensed-and-permitted hosting path.\n- The free self-hosted edition shows \"Powered by Invoice Ninja\" branding on client-facing surfaces. A US$40/year white-label license removes it, which is worth doing once real clients are being invoiced.\n\n### Authentication\n\nNative OIDC for self-hosted is an open feature request upstream. Until it ships, Invoice Ninja uses local username/password. The Keycloak `staff` group gates access at the Traefik edge via oauth2-proxy before traffic reaches Invoice Ninja, so people outside the staff group cannot reach the login page.\n\n### Payment processing\n\nInvoice Ninja handles the client-payment side. When a client pays via the portal, Stripe processes the card and Invoice Ninja marks the invoice paid + records the payment. The amount settles into the business's own Stripe account, under its own name and tax ID; Catena routes no payment through any account it controls.\n\n### Resource note\n\nInvoice Ninja runs as PHP-FPM + nginx + MariaDB + Redis -- four containers. Plan for ~400 MB RAM at idle, ~800 MB under bulk-invoice generation or queue backlog catch-up. PDF rendering for invoices uses bundled Chromium and spikes briefly during multi-page exports.\n",
         "replaces": [
@@ -1406,7 +1406,7 @@
         "INVOICENINJA_MAIL_FROM_NAME=Invoicing"
       ],
       "fr": {
-        "compose_description": "Facturation + paiements Stripe + r\u00e9currence + portail client. Remplace FreshBooks / Zoho Invoice / la facturation QuickBooks.\n\nhttps://docs.catena.run/apps/invoiceninja/\n",
+        "compose_description": "Facturation + paiements Stripe + r\u00e9currence + portail client. Remplace FreshBooks / Zoho Invoice / la facturation QuickBooks.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/invoiceninja/README.md\n",
         "display_name": "Invoice Ninja",
         "extra_notes": "### Facturation dans la suite Catena\n\nInvoice Ninja est le ma\u00eetre de la facturation dans la suite Catena. Les heures depuis Kimai (ma\u00eetre du suivi du temps) alimentent les factures Invoice Ninja via la synchronisation mensuelle, et les factures pay\u00e9es depuis Invoice Ninja alimentent ERPNext (ma\u00eetre de la comptabilit\u00e9) via l'action de fin de mois. Les clients dans Invoice Ninja portent un champ personnalis\u00e9 `espo_account_id` afin que chaque facture soit li\u00e9e au compte EspoCRM correspondant.\n\n### Licence\n\nL'\u00e9dition auto-h\u00e9berg\u00e9e d'Invoice Ninja est sous Elastic License 2.0. Deux implications pratiques :\n- H\u00e9berger Invoice Ninja pour une entreprise sur son propre VPS, et un tiers qui l'h\u00e9berge pour le compte de cette entreprise et facture le service d'h\u00e9bergement, sont explicitement autoris\u00e9s par la licence.\n- Revendre Invoice Ninja comme SaaS, ou l'int\u00e9grer comme partie d'un autre SaaS, requiert une licence commerciale d'Invoice Ninja LLC. Le mod\u00e8le Catena est \"d\u00e9ploy\u00e9 sur un VPS appartenant au client, qui en reste propri\u00e9taire\" -- c'est la voie d'h\u00e9bergement autoris\u00e9e.\n- L'\u00e9dition gratuite affiche un bandeau \"Powered by Invoice Ninja\" sur les surfaces client. Une licence white-label \u00e0 40 USD/an le retire, ce qui vaut la peine d\u00e8s que de vrais clients sont factur\u00e9s.\n\n### Authentification\n\nOIDC natif en auto-h\u00e9bergement est une demande ouverte c\u00f4t\u00e9 upstream. En attendant, Invoice Ninja utilise un identifiant local. Le groupe Keycloak `staff` filtre l'acc\u00e8s au bord Traefik via oauth2-proxy avant que le trafic n'atteigne Invoice Ninja, donc les personnes hors de l'\u00e9quipe ne peuvent pas atteindre la page de connexion.\n\n### Traitement des paiements\n\nInvoice Ninja g\u00e8re le c\u00f4t\u00e9 paiement client. Quand un client paie via le portail, Stripe traite la carte et Invoice Ninja marque la facture pay\u00e9e + enregistre le paiement. Le montant est vers\u00e9 sur le compte Stripe de l'entreprise, \u00e0 son nom et sous son identifiant fiscal ; Catena ne fait transiter aucun paiement par un compte qu'elle contr\u00f4le.\n\n### Ressources\n\nInvoice Ninja tourne en PHP-FPM + nginx + MariaDB + Redis -- quatre conteneurs. Pr\u00e9voyez ~400 Mo de RAM au repos, ~800 Mo en g\u00e9n\u00e9ration de factures en masse ou rattrapage de file. Le rendu PDF utilise Chromium int\u00e9gr\u00e9 et a des pointes br\u00e8ves lors d'exports multi-pages.\n",
         "replaces": [
@@ -1443,12 +1443,12 @@
         "Email",
         "Infrastructure"
       ],
-      "compose_file": "compose/mailserver.compose.yml",
+      "compose_file": "blueprints/mailserver/docker-compose.yml",
       "domain_host": "webmail.{{ cloudflare_zone }}",
       "domain_port": 80,
       "domain_service": "roundcube",
       "en": {
-        "compose_description": "Self-hosted mailboxes + Roundcube webmail, Keycloak SSO. Outbound requires an SMTP relay. Replaces Gmail / Exchange Online.\n\nhttps://docs.catena.run/apps/mailserver/\n",
+        "compose_description": "Self-hosted mailboxes + Roundcube webmail, Keycloak SSO. Outbound requires an SMTP relay. Replaces Gmail / Exchange Online.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/mailserver/README.md\n",
         "display_name": "Mail server + webmail",
         "extra_notes": "### How sign-in works\n\nRoundcube redirects to Keycloak for login, then connects to the mailbox on the signed-in user's behalf with a single-sign-on token. No separate email password is ever typed, and none is stored. Because this needs a normal browser tab, webmail opens in its own tab from the suite menu rather than embedded inside another app.\n\n### Desktop and phone mail apps\n\nThis template targets **webmail**. Standard desktop clients (Thunderbird, Apple Mail) and phone Mail apps cannot use Keycloak single sign-on with a self-hosted server, so they are not supported here -- use Roundcube in the browser.\n\n### Why outbound goes through a relay\n\nSending mail straight from a VPS lands in spam: large providers distrust new server IPs. Outbound is relayed through a reputable provider so messages are delivered, while the inbox and its data stay on the VPS. This relay is separate from the suite's notification email.\n\n### Spam and virus scanning\n\nIncoming mail is checked for spam (sender reputation, content scoring) and every attachment is scanned for viruses before it reaches the inbox -- the same protection a hosted suite provides. The virus scanner is shared with Nextcloud when both are deployed, so files uploaded there are scanned by the same engine.\n",
         "replaces": [
@@ -1476,7 +1476,7 @@
         "RELAY_PASSWORD": "RELAY_HOST"
       },
       "fr": {
-        "compose_description": "Bo\u00eetes auto-h\u00e9berg\u00e9es + webmail Roundcube, SSO Keycloak. Un relais SMTP est requis pour l'envoi. Remplace Gmail / Exchange Online.\n\nhttps://docs.catena.run/apps/mailserver/\n",
+        "compose_description": "Bo\u00eetes auto-h\u00e9berg\u00e9es + webmail Roundcube, SSO Keycloak. Un relais SMTP est requis pour l'envoi. Remplace Gmail / Exchange Online.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/mailserver/README.md\n",
         "display_name": "Serveur de courriel + webmail",
         "extra_notes": "### Fonctionnement de la connexion\n\nRoundcube redirige vers Keycloak pour la connexion, puis acc\u00e8de \u00e0 la bo\u00eete au nom de l'utilisateur connect\u00e9 \u00e0 l'aide d'un jeton d'authentification unique. Aucun mot de passe de courriel distinct n'est saisi, et aucun n'est stock\u00e9. Comme cela exige un onglet de navigateur standard, le webmail s'ouvre dans son propre onglet depuis le menu de la suite plut\u00f4t qu'int\u00e9gr\u00e9 dans une autre application.\n\n### Applications de bureau et mobiles\n\nCe mod\u00e8le vise le **webmail**. Les clients de bureau classiques (Thunderbird, Apple Mail) et les apps Mail des t\u00e9l\u00e9phones ne peuvent pas utiliser l'authentification unique Keycloak avec un serveur auto-h\u00e9berg\u00e9 ; ils ne sont donc pas pris en charge ici -- utilisez Roundcube dans le navigateur.\n\n### Pourquoi l'envoi passe par un relais\n\nEnvoyer du courriel directement depuis un VPS finit en pourriel : les grands fournisseurs se m\u00e9fient des nouvelles IP de serveur. L'envoi passe par un fournisseur r\u00e9put\u00e9 pour que les messages soient livr\u00e9s, tandis que la bo\u00eete et ses donn\u00e9es restent sur le VPS. Ce relais est distinct du courriel de notification de la suite.\n\n### Analyse antipourriel et antivirus\n\nLe courriel entrant est v\u00e9rifi\u00e9 contre le pourriel (r\u00e9putation de l'exp\u00e9diteur, pointage du contenu) et chaque pi\u00e8ce jointe est analys\u00e9e contre les virus avant d'atteindre la bo\u00eete -- la m\u00eame protection qu'une suite h\u00e9berg\u00e9e. L'antivirus est partag\u00e9 avec Nextcloud lorsque les deux sont d\u00e9ploy\u00e9s, donc les fichiers t\u00e9l\u00e9vers\u00e9s l\u00e0 sont analys\u00e9s par le m\u00eame moteur.\n",
         "replaces": [

@@ -1,18 +1,3 @@
-# Easy!Appointments -- open-source customer-facing booking app, and the
-# only scheduler the Catena catalog ships (2026-05-22). It covers both
-# the multi-provider and the solo-provider branch.
-#
-# Auth: Easy!Appointments v1.5.2 has no native OIDC. Login is local
-# email/password (or optional Google OAuth at the EA level). The booking
-# page itself is public-by-design (customers book without an account),
-# so the SSO gap only affects staff/provider sign-in. Marked
-# sso_mode=none in the catalog for honesty; revisit once upstream
-# adds OIDC support.
-#
-# Storage: server-data volume holds EA's storage/ dir (uploaded
-# avatars + generated ICS files + cache). db-data holds MariaDB.
-# Both restic-backed via /var/lib/docker/volumes.
-
 services:
   easyappointments:
     image: alextselegidis/easyappointments:1.6.0

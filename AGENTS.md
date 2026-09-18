@@ -5,12 +5,19 @@ for layout, consumer model, and BASE URL setup.
 
 ## Edit rules
 
-- `sources/` is canonical. `blueprints/`, `templates.json`,
-  `catalog.json` and `index.html` are generated. Never hand-edit a
-  generated file -- the change is overwritten on the next render, and CI
-  rejects the PR.
-- One template is one file: `sources/<id>.json`. The `id` MUST equal the
-  filename stem; the loader fails the build otherwise.
+- A template is TWO hand-edited files: `sources/<id>.json` and
+  `blueprints/<id>/docker-compose.yml`. The `id` MUST equal the source
+  filename stem AND the blueprint directory name; the loader fails the
+  build otherwise.
+- Everything else is generated: the per-app `README.md`, `quiesce.yml`
+  and placeholder `logo.svg`, plus `templates.json`, `catalog.json` and
+  `index.html`. Never hand-edit a generated file -- the change is
+  overwritten on the next render, and CI rejects the PR.
+- A compose file carries no descriptive header. What the template is,
+  what it replaces, how sign-in works and what each env var means live
+  in `sources/<id>.json` and reach the reader through the generated
+  README. Comments inside the compose explain a construct that does not
+  read as written, beside that construct.
 - Every change is a deliberate version bump. Tag a `vX.Y.Z` release on
   every merge to main; catenahq/ops pulls via that tag.
 - No emojis or em-dashes in any artifact. Plain hyphens + straight
@@ -37,13 +44,22 @@ for layout, consumer model, and BASE URL setup.
 `make render` (thin entrypoint: `build/render.py`, logic in `lib/`)
 transforms `sources/` into:
 
-- `blueprints/<id>/docker-compose.yml` -- the compose file copied
-  verbatim; it IS the Portainer type-2 stackfile, cloned from this public
-  repo by Portainer itself. Jinja stays in place; the env it reads is
-  resolved by the host's own catalog render before the deploy, and
-  routing is reconciled post-deploy by dashboard-sync.
+- `blueprints/<id>/README.md` -- the template's own page: what it is,
+  what it replaces, how sign-in works, the setup steps and the env
+  table, EN then FR. Rendered from the `x-catena` prose, with every
+  Jinja expression resolved to a placeholder first.
 - `blueprints/<id>/quiesce.yml` -- when the entry declares
   `x-catena.quiesce`.
+- `blueprints/<id>/logo.svg` -- a deterministic placeholder, unless a
+  hand-placed `logo.png` sits beside it.
+
+`blueprints/<id>/docker-compose.yml` is NOT rendered: it is the
+hand-edited input and Portainer clones it from this public repo as the
+type-2 stackfile. Jinja stays in place; the env it reads is resolved by
+the host's own catalog render before the deploy, and routing is
+reconciled post-deploy by dashboard-sync. The render never writes into
+that file, and it deletes a blueprint directory only when no source file
+claims it any more.
 - `templates.json` -- one Portainer App Template per source: type 2,
   title/name/description/note/categories/logo, `repository{url,
   stackfile}` pointing at `blueprints/<id>/`, and `env` with human
@@ -86,7 +102,7 @@ differ in ways that are not symmetric. Three rules follow, all enforced by
 `configs:` is refused outright unless the object is `external`. A swarm stack
 file has no inline content form, and its `configs.file` reads a path beside
 the compose that neither deploy path has: `build/render.py` puts only the
-compose, the logo and the quiesce hooks into `blueprints/<id>/`, and a stack
+README, the logo and the quiesce hooks beside the compose, and a stack
 created from a posted `StackFileContent` string has no directory at all.
 `docker stack config` cannot see either problem, because it resolves the path
 against this repository, where the file does sit next to the compose. Config
@@ -168,7 +184,7 @@ is a major bump and needs coordinated PRs:
 1. Land the new shape here behind a major version bump.
 2. Update `automation/helpers/templates_catalog.py` in catenahq/ops in
    the same merge window.
-3. Update `generate-template-docs.py` + `generate-sizing-doc.py`.
+3. Update `generate-sizing-doc.py` in catenahq/ops.
 4. Update the Ansible loader in catena-ce
    (`roles/infrastructure/tasks/_templates_catalog_load.yml`).
 5. Update the per-host render in catena-admin (`shell/marketplace`) --
@@ -184,8 +200,8 @@ is a major bump and needs coordinated PRs:
 - Operator-side wiring (on-box config key names, OIDC client minting
   flow). catenahq/ops and catenahq/catena-ce.
 - Per-VPS runtime state. All under `/var/lib/catena/` on each VPS.
-- Docs site copy. catenahq/docs generates the per-template pages from
-  `catalog.json` via a sibling-write generator.
+- The client docs site. catenahq/docs is hand-written and reads nothing
+  from this repo; a template's own documentation is its README here.
 
 ## Security invariants (machine-enforced -- do not weaken silently)
 

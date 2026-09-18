@@ -1,24 +1,28 @@
-"""Render sources/ into every generated artifact.
+"""Render the hand-edited inputs into every generated artifact.
 
-Outputs (all overwritten on each run, all committed, all drift-gated):
+A blueprint directory mixes the two on purpose, because it is the unit
+Portainer clones and a reader opens:
 
-  blueprints/<id>/docker-compose.yml  the type-2 stackfile Portainer clones
-  blueprints/<id>/logo.svg|png        source asset or a deterministic placeholder
-  blueprints/<id>/quiesce.yml         when the entry declares backup hooks
+  blueprints/<id>/docker-compose.yml  HAND-EDITED; the type-2 stackfile
+  blueprints/<id>/logo.png            HAND-PLACED; optional
+  blueprints/<id>/README.md           generated from the source prose
+  blueprints/<id>/logo.svg            generated placeholder, absent a logo.png
+  blueprints/<id>/quiesce.yml         generated when the entry declares hooks
+
+At the repo root, everything is generated:
+
   templates.json                      Portainer App Templates v3 index
   catalog.json                        the machine view every Catena consumer reads
   index.html                          static catalog preview
 
 Two consumers, two artifacts, on purpose. Portainer reads
 `templates.json` and can only carry what its format defines; catenahq/ops
-(installer prompts, doc generators, the bench scheduler) reads
-`catalog.json`, which carries the SSO mode, quiesce hooks, bench
-membership, sizing, and the bilingual prose alongside the same ids.
-Neither file is hand-edited.
+(installer prompts, the bench scheduler) reads `catalog.json`, which
+carries the SSO mode, quiesce hooks, bench membership, sizing, and the
+bilingual prose alongside the same ids. Neither file is hand-edited.
 
 Idempotency is the contract: rendering twice produces byte-identical
-output, and CI fails the PR when the committed artifacts drift from
-sources/.
+output, and CI fails the PR when the committed artifacts drift.
 """
 from __future__ import annotations
 
@@ -30,9 +34,8 @@ import shutil
 from pathlib import Path
 from typing import Any
 
-from .model import ASSETS_DIR, ROOT, Entry, load_meta, load_sources, validate_output
-
-BLUEPRINTS = ROOT / "blueprints"
+from .model import BLUEPRINTS, ROOT, Entry, load_meta, load_sources, validate_output
+from .readme import render_readme
 TEMPLATES_JSON = ROOT / "templates.json"
 CATALOG_JSON = ROOT / "catalog.json"
 INDEX_HTML = ROOT / "index.html"
@@ -200,7 +203,7 @@ def render_catalog_entry(entry: Entry) -> dict[str, Any]:
         "domain_host": cat["domain"]["host"],
         "domain_service": cat["domain"]["service"],
         "domain_port": cat["domain"]["port"],
-        "compose_file": cat["compose_file"],
+        "compose_file": entry.compose_file,
         "env_defaults": list(cat["env_defaults"]),
         "bench_pack": bench["pack"],
         "bench_fixture": bench.get("fixture", "required"),
@@ -260,17 +263,19 @@ def placeholder_logo_svg(slug: str, label: str) -> str:
     )
 
 
-def resolve_logo(entry: Entry, out_dir: Path) -> str:
-    """Place the logo under `out_dir` and return its filename.
-    sources/assets/<id>/logo.png wins, then .svg, then a placeholder."""
-    asset_dir = ASSETS_DIR / entry.slug
-    for name in ("logo.png", "logo.svg"):
-        src = asset_dir / name
-        if src.exists():
-            shutil.copyfile(src, out_dir / name)
-            return name
+def resolve_logo(entry: Entry) -> str:
+    """Return the logo filename inside the blueprint directory.
+
+    A hand-placed `logo.png` wins and is left alone. Without one the
+    render writes a deterministic `logo.svg` placeholder, and drops a
+    placeholder left over from before a real logo arrived."""
+    out_dir = entry.app_dir
+    placeholder = out_dir / "logo.svg"
+    if (out_dir / "logo.png").exists():
+        placeholder.unlink(missing_ok=True)
+        return "logo.png"
     label = entry.prose("en")["display_name"]
-    (out_dir / "logo.svg").write_text(placeholder_logo_svg(entry.slug, label))
+    placeholder.write_text(placeholder_logo_svg(entry.slug, label))
     return "logo.svg"
 
 
@@ -344,23 +349,43 @@ def render_index_html(entries: list[Entry], meta: dict[str, Any]) -> str:
     )
 
 
+def _prune_orphan_blueprints(entries: list[Entry]) -> list[str]:
+    """Drop blueprint directories no source file claims any more.
+
+    The render cannot simply wipe `blueprints/` and rebuild it: the
+    compose in each directory is hand-edited, and so is any logo.png
+    beside it. Deleting a whole directory is therefore the one
+    destructive act here, and it happens only when the template's source
+    file is gone."""
+    if not BLUEPRINTS.is_dir():
+        return []
+    live = {entry.slug for entry in entries}
+    dropped = []
+    for path in sorted(BLUEPRINTS.iterdir()):
+        if path.is_dir() and path.name not in live:
+            shutil.rmtree(path)
+            dropped.append(path.name)
+    return dropped
+
+
 def render_all() -> int:
     entries = load_sources()
     meta = load_meta()
 
-    if BLUEPRINTS.exists():
-        shutil.rmtree(BLUEPRINTS)
-    BLUEPRINTS.mkdir(parents=True)
+    BLUEPRINTS.mkdir(parents=True, exist_ok=True)
+    dropped = _prune_orphan_blueprints(entries)
 
     templates: list[dict[str, Any]] = []
     catalog_entries: list[dict[str, Any]] = []
     for entry in entries:
-        out_dir = BLUEPRINTS / entry.slug
-        out_dir.mkdir()
-        (out_dir / "docker-compose.yml").write_bytes(entry.compose_path.read_bytes())
+        out_dir = entry.app_dir
+        (out_dir / "README.md").write_text(render_readme(entry))
+        quiesce_path = out_dir / "quiesce.yml"
         if entry.quiesce:
-            (out_dir / "quiesce.yml").write_text(render_quiesce_yaml(entry))
-        logo_filename = resolve_logo(entry, out_dir)
+            quiesce_path.write_text(render_quiesce_yaml(entry))
+        else:
+            quiesce_path.unlink(missing_ok=True)
+        logo_filename = resolve_logo(entry)
         templates.append(render_portainer_template(entry, logo_filename))
         catalog_entries.append(render_catalog_entry(entry))
 
@@ -389,7 +414,11 @@ def render_all() -> int:
     INDEX_HTML.write_text(render_index_html(entries, meta))
 
     print(
-        f"rendered {len(entries)} templates into blueprints/ + "
-        f"templates.json + catalog.json + index.html"
+        f"rendered {len(entries)} templates: a README, a logo and any "
+        f"quiesce hooks per blueprint, plus templates.json + catalog.json "
+        f"+ index.html"
     )
+    if dropped:
+        print(f"dropped {len(dropped)} blueprint(s) with no source file: "
+              f"{', '.join(dropped)}")
     return 0

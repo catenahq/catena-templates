@@ -1,16 +1,3 @@
-# EspoCRM -- open-source CRM, the default one in this stack. Twenty stays
-# in the catalog as the alternative.
-#
-# Auth: EspoCRM has native OIDC in the community edition. Enable from
-# Administration -> Authentication -> set Method to OIDC -> paste OIDC_*
-# values from the Environment tab. Marked sso_mode=post-deploy-ui in the
-# catalog because the toggle is in the admin UI, not env-driven on first
-# boot.
-#
-# Storage: server-data volume holds EspoCRM's data/ dir (config + uploaded
-# attachments + cron state). db-data holds MariaDB. Both are picked up by
-# restic via the standard /var/lib/docker/volumes path.
-
 services:
   espocrm:
     image: espocrm/espocrm:10.0.8

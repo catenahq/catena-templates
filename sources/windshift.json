@@ -17,7 +17,6 @@
       "service": "windshift",
       "port": 8080
     },
-    "compose_file": "compose/windshift.compose.yml",
     "env_defaults": [
       "DOMAIN_HOST=work.{{ cloudflare_zone }}",
       "WINDSHIFT_HOSTNAME=work.{{ cloudflare_zone }}",
@@ -46,7 +45,7 @@
         "Tempo",
         "Xray"
       ],
-      "compose_description": "Work management with test runs, time tracking, and customer portals. Replaces Jira / Jira Service Management.\n\nhttps://docs.catena.run/apps/windshift/\n",
+      "compose_description": "Work management with test runs, time tracking, and customer portals. Replaces Jira / Jira Service Management.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/windshift/README.md\n",
       "setup_steps": "1. Click **Deploy**. Wait ~1 min (one binary plus its database).\n2. Visit the Windshift domain and create the first administrator account.\n3. *(Optional)* Enable Keycloak SSO: **Admin** -> **Single Sign-On** -> add an **OpenID Connect** provider. Name it `keycloak` so the pre-registered redirect URI matches, paste `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET` and `OIDC_ISSUER_URL` from the Environment tab, and set the scopes to `openid email profile`. If a different provider name is used, copy the **Callback URL** shown in the dialog into the identity provider's redirect URIs.\n4. *(Optional)* Add a customer portal from the admin area. Portal accounts are separate from internal accounts, and each portal carries its own name, branding, request types, and access rules.\n",
       "extra_notes": "**Interface language:** Windshift ships English, German, Spanish, Portuguese, Arabic, and Chinese. There is no French interface upstream as of v0.8.4.\n\n**Edition:** the self-hosted edition is AGPL-3.0 with no user or workspace cap. SAML 2.0, LDAP, and audit logging are announced for the paid Windshift Pro edition; OpenID Connect and passkeys are in this one.\n"
     },
@@ -59,7 +58,7 @@
         "Tempo",
         "Xray"
       ],
-      "compose_description": "Gestion du travail avec suites de tests, feuilles de temps et portails clients. Remplace Jira / Jira Service Management.\n\nhttps://docs.catena.run/apps/windshift/\n",
+      "compose_description": "Gestion du travail avec suites de tests, feuilles de temps et portails clients. Remplace Jira / Jira Service Management.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/windshift/README.md\n",
       "setup_steps": "1. Cliquez **Deploy**. Patientez ~1 min (un binaire et sa base de donn\u00e9es).\n2. Visitez le domaine Windshift et cr\u00e9ez le premier compte administrateur.\n3. *(Optionnel)* Activez Keycloak SSO : **Admin** -> **Single Sign-On** -> ajoutez un fournisseur **OpenID Connect**. Nommez-le `keycloak` pour que l'URI de redirection pr\u00e9-enregistr\u00e9e corresponde, collez `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET` et `OIDC_ISSUER_URL` depuis l'onglet Environment, puis indiquez les scopes `openid email profile`. Avec un autre nom de fournisseur, copiez la **Callback URL** affich\u00e9e dans la fen\u00eatre vers les URI de redirection du fournisseur d'identit\u00e9.\n4. *(Optionnel)* Ajoutez un portail client depuis la zone d'administration. Les comptes de portail sont distincts des comptes internes, et chaque portail a son nom, son habillage, ses types de demandes et ses r\u00e8gles d'acc\u00e8s.\n",
       "extra_notes": "**Langue de l'interface :** Windshift est livr\u00e9 en anglais, allemand, espagnol, portugais, arabe et chinois. Aucune traduction fran\u00e7aise n'existe en amont \u00e0 la version v0.8.4.\n\n**\u00c9dition :** l'\u00e9dition auto-h\u00e9berg\u00e9e est sous AGPL-3.0, sans limite d'utilisateurs ni d'espaces de travail. SAML 2.0, LDAP et le journal d'audit sont annonc\u00e9s pour l'\u00e9dition payante Windshift Pro ; OpenID Connect et les cl\u00e9s d'acc\u00e8s sont inclus ici.\n"
     }

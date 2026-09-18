@@ -1,8 +1,3 @@
-# Postiz -- social media scheduling / posting across networks (Twitter/X,
-# LinkedIn, Facebook, Instagram, YouTube, TikTok, ...). Login is local
-# (email/password) + optional social OAuth buttons configured per-
-# network. No native OIDC in the current community release.
-
 services:
   postiz:
     image: ghcr.io/gitroomhq/postiz-app:v2.21.7

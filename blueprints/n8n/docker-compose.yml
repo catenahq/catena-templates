@@ -1,7 +1,3 @@
-# n8n -- workflow automation (Zapier / Make alternative). Community
-# edition uses local email/password user management. OIDC/SAML are
-# enterprise-only, so per-user app-local logins here.
-
 services:
   n8n:
     image: n8nio/n8n:2.19.5

@@ -1,15 +1,3 @@
-# ERPNext -- full ERP suite (accounting, inventory, HR, CRM, manufacturing,
-# website). Multi-service stack based on the Frappe framework: web
-# frontend (nginx) + Python backend + websocket + celery workers +
-# scheduler + MariaDB + two Redis instances. Plus two one-shot init
-# containers that bootstrap the site on first deploy.
-#
-# SSO via admin UI post-deploy: sign in as Administrator ->
-# Integrations -> Social Login Keys -> Add -> OpenID Connect -> paste the
-# OIDC_* values from the Environment tab.
-#
-# Heavy: plan for ≥4 GB VPS RAM and 2 CPUs.
-
 x-common: &frappe-env
   SITE_NAME: ${ERPNEXT_HOSTNAME}
   DB_HOST: db

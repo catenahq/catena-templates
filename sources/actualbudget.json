@@ -16,7 +16,6 @@
       "service": "actual",
       "port": 5006
     },
-    "compose_file": "compose/actualbudget.compose.yml",
     "env_defaults": [
       "DOMAIN_HOST=budget.{{ cloudflare_zone }}"
     ],
@@ -41,7 +40,7 @@
         "Mint",
         "EveryDollar"
       ],
-      "compose_description": "Self-hosted personal finance + envelope budgeting. Replaces YNAB / Mint.\n\nhttps://docs.catena.run/apps/actualbudget/\n",
+      "compose_description": "Self-hosted personal finance + envelope budgeting. Replaces YNAB / Mint.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/actualbudget/README.md\n",
       "setup_steps": "1. Click **Deploy**. Wait ~30 s.\n2. Visit the Actual Budget domain. Set a server password on first visit (it's stored locally; remember it -- no recovery).\n3. Create a new budget or import an existing one (file menu -> Import from YNAB4 / YNAB5 / nYNAB).\n4. *(Optional)* Connect bank accounts via **Settings** -> **Connected Accounts** -> SimpleFIN (USD/CAD, paid) or GoCardless (EUR/GBP, free).\n",
       "extra_notes": "**Note on sign-in.** Actual Budget uses a single shared server password to unlock the UI, not per-user logins. Multi-user is supported at the budget level (share the budget file) but the server auth is a single secret. This matches how the upstream project is designed: typically one household per server. OIDC/SSO isn't supported.\n"
     },
@@ -53,7 +52,7 @@
         "Mint",
         "EveryDollar"
       ],
-      "compose_description": "Finances personnelles + budg\u00e9tisation par enveloppes auto-h\u00e9berg\u00e9es. Remplace YNAB / Mint.\n\nhttps://docs.catena.run/apps/actualbudget/\n",
+      "compose_description": "Finances personnelles + budg\u00e9tisation par enveloppes auto-h\u00e9berg\u00e9es. Remplace YNAB / Mint.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/actualbudget/README.md\n",
       "setup_steps": "1. Cliquez **Deploy**. Patientez ~30 s.\n2. Visitez le domaine Actual Budget. D\u00e9finissez un mot de passe serveur au premier acc\u00e8s (stock\u00e9 localement ; retenez-le -- pas de r\u00e9cup\u00e9ration).\n3. Cr\u00e9ez un nouveau budget ou importez-en un existant (menu fichier -> Importer depuis YNAB4 / YNAB5 / nYNAB).\n4. *(Optionnel)* Connectez des comptes bancaires via **Settings** -> **Connected Accounts** -> SimpleFIN (USD/CAD, payant) ou GoCardless (EUR/GBP, gratuit).\n",
       "extra_notes": "**\u00c0 propos de la connexion.** Actual Budget utilise un mot de passe serveur partag\u00e9 pour d\u00e9verrouiller l'UI, pas des connexions par utilisateur. Le multi-utilisateurs fonctionne au niveau du budget (partage de fichier budget) mais l'auth serveur est un secret unique. C'est la conception upstream : typiquement un foyer par serveur. OIDC/SSO non support\u00e9.\n"
     },

@@ -1,24 +1,3 @@
-# WordPress -- production-ready stack with FastCGI cache + Redis object
-# cache. Public site serves anonymously; admin sign-in (/wp-admin) runs
-# through WordPress own login. To add Keycloak SSO on the admin backend,
-# install the OpenID Connect Generic plugin post-deploy and paste the
-# OIDC values from the Environment tab (see catalog setup_steps).
-#
-# Stack:
-#   nginx (front door, FastCGI cache)
-#     -> wp (php-fpm-alpine)
-#     -> db (mariadb) + redis (object cache)
-#
-# Plugin curation runs post-deploy via your operator's automation
-# (idempotent; safe to re-converge). The plugin set is opinionated;
-# contact your operator if you want to add or drop one.
-#
-# UID alignment: nginx workers + php-fpm workers BOTH run as www-data
-# (uid 82). The wp image already does that; the nginx entrypoint below
-# adds www-data:82 before nginx starts so its workers also drop to 82.
-# Result: NPP cache-purge under php-fpm can unlink files written by
-# nginx workers.
-
 services:
   wp:
     image: wordpress:6.9.4-fpm-alpine

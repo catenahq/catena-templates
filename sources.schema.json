@@ -56,7 +56,6 @@
         "upstream_url",
         "sso_mode",
         "domain",
-        "compose_file",
         "env_defaults",
         "bench",
         "sizing",
@@ -105,10 +104,6 @@
               "maximum": 65535
             }
           }
-        },
-        "compose_file": {
-          "type": "string",
-          "pattern": "^compose/.+\\.ya?ml$"
         },
         "env_defaults": {
           "type": "array",

@@ -1,22 +1,3 @@
-# Kimai -- open-source time tracker. Picked 2026-05-21 as the time-
-# tracking master in the Path E composition (Kimai -> Invoice Ninja
-# -> ERPNext, anchored on EspoCRM as customer master).
-#
-# Auth: Kimai 2.x supports SAML in self-hosted (LDAP + database too).
-# Marked sso_mode=post-deploy-ui in the catalog -- the operator wires
-# Keycloak SAML federation from the Kimai admin UI after first deploy.
-# Until SAML is wired, oauth2-proxy at the Traefik edge gates access
-# via the Keycloak `staff` group; local Kimai auth still works
-# as a break-glass.
-#
-# Storage: kimai-data volume holds /opt/kimai/var (Symfony var/ dir
-# including user uploads, exports, generated invoice PDFs, and
-# cache). db-data holds MariaDB. Both are picked up by restic via
-# /var/lib/docker/volumes.
-#
-# Image: kimai/kimai2:stable (the `:apache` tag is deprecated upstream
-# in favour of `:stable`; see https://www.kimai.org/documentation/docker.html).
-
 services:
   kimai:
     image: kimai/kimai2:stable

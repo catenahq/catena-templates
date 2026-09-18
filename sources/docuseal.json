@@ -17,7 +17,6 @@
       "service": "docuseal",
       "port": 3000
     },
-    "compose_file": "compose/docuseal.compose.yml",
     "env_defaults": [
       "DOMAIN_HOST=sign.{{ cloudflare_zone }}",
       "DOCUSEAL_HOSTNAME=sign.{{ cloudflare_zone }}",
@@ -55,7 +54,7 @@
         "PandaDoc",
         "Adobe Sign"
       ],
-      "compose_description": "Open-source document signing (default). Replaces DocuSign / HelloSign.\n\nhttps://docs.catena.run/apps/docuseal/\n",
+      "compose_description": "Open-source document signing (default). Replaces DocuSign / HelloSign.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/docuseal/README.md\n",
       "setup_steps": "1. Click **Deploy**. Wait ~1 min for the first boot.\n2. Visit the DocuSeal domain and complete the first-run wizard (creates the initial admin account).\n3. *(Optional)* Enable Keycloak SSO: **Settings** -> **SSO** -> choose **OpenID Connect** -> paste:\n   - **Client ID:** `OIDC_CLIENT_ID` from Environment (`docuseal`)\n   - **Client Secret:** `OIDC_CLIENT_SECRET` from Environment (minted in Keycloak on request when blank)\n   - **Issuer URL:** `OIDC_ISSUER_URL`\n   - Save. The login page gains a **Sign in with Keycloak** button. Local admin login keeps working as a break-glass.\n4. *(Optional)* Configure SMTP for signature-request emails: fill `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM_ADDRESS` in the Environment tab and redeploy. Without SMTP, recipients only see pending requests in their DocuSeal dashboard.\n",
       "extra_notes": "### Signing certificate\n\nDocuSeal generates signed PDFs out of the box without a separate signing-cert mint step. Adobe Acrobat shows the signature as cryptographically valid but with a \"self-signed root\" warning by default. Legally-binding signatures need a CA-issued cert, installed on request via DocuSeal's admin UI (Settings -> Signature -> Certificates).\n\n### SMTP\n\nWithout SMTP configured, signature-request emails are not delivered. Recipients still see pending requests in their dashboard. To enable email, fill the `SMTP_*` env vars in the Environment tab.\n"
     },
@@ -68,7 +67,7 @@
         "PandaDoc",
         "Adobe Sign"
       ],
-      "compose_description": "Signature \u00e9lectronique open-source (par d\u00e9faut). Remplace DocuSign / HelloSign.\n\nhttps://docs.catena.run/apps/docuseal/\n",
+      "compose_description": "Signature \u00e9lectronique open-source (par d\u00e9faut). Remplace DocuSign / HelloSign.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/docuseal/README.md\n",
       "setup_steps": "1. Cliquez **Deploy**. Patientez ~1 min pour le premier d\u00e9marrage.\n2. Visitez le domaine DocuSeal et compl\u00e9tez l'assistant initial (cr\u00e9ation du compte admin).\n3. *(Optionnel)* Activez Keycloak SSO : **Settings** -> **SSO** -> choisissez **OpenID Connect** -> collez :\n   - **Client ID :** `OIDC_CLIENT_ID` depuis Environment (`docuseal`)\n   - **Client Secret :** `OIDC_CLIENT_SECRET` depuis Environment (g\u00e9n\u00e9r\u00e9 c\u00f4t\u00e9 Keycloak sur demande lorsqu'il est vide)\n   - **Issuer URL :** `OIDC_ISSUER_URL`\n   - Validez. La page de connexion affiche **Sign in with Keycloak**. La connexion admin locale continue de fonctionner comme issue de secours.\n4. *(Optionnel)* Configurez SMTP pour les e-mails de demande de signature : remplissez `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM_ADDRESS` dans l'onglet Environment puis red\u00e9ployez. Sans SMTP, les destinataires ne voient que les demandes en attente dans leur tableau de bord.\n",
       "extra_notes": "### Certificat de signature\n\nDocuSeal g\u00e9n\u00e8re des PDF sign\u00e9s d'embl\u00e9e sans \u00e9tape de g\u00e9n\u00e9ration de certificat. Adobe Acrobat affiche la signature comme cryptographiquement valide mais avec un avertissement \"racine auto-sign\u00e9e\" par d\u00e9faut. Les signatures \u00e0 valeur l\u00e9gale demandent un certificat \u00e9mis par une AC, install\u00e9 sur demande via l'UI admin DocuSeal (Settings -> Signature -> Certificates).\n\n### SMTP\n\nSans SMTP configur\u00e9, les e-mails de demande de signature ne sont pas envoy\u00e9s. Les destinataires voient les demandes en attente dans leur tableau de bord. Pour activer les e-mails, renseignez les variables `SMTP_*` dans l'onglet Environment.\n"
     }

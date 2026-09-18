@@ -6,18 +6,25 @@ resolves each pointer on every change.
 
 ## Intent
 
-The canonical application catalog for Catena: one hand-edited source of
-truth (`sources/<id>.json` plus its `sources/compose/<id>.compose.yml`)
-from which everything else is rendered -- the per-app blueprints, the
-Portainer App Templates v3 `templates.json`, the machine catalog
-`catalog.json`, and the client-facing per-app documentation pages.
+The canonical application catalog for Catena. A template is two
+hand-edited files -- its metadata at `sources/<id>.json` and its compose
+at `blueprints/<id>/docker-compose.yml` -- from which everything else is
+rendered: the per-app README, the Portainer App Templates v3
+`templates.json`, and the machine catalog `catalog.json`.
 
 ## Boundaries
 
-- **Hand-edited vs rendered.** Only `sources/` is hand-edited.
-  `blueprints/`, `templates.json`, `catalog.json` and `index.html` are
-  build outputs, committed and drift-gated; editing them directly fails
+- **Hand-edited vs rendered.** The hand-edited files are
+  `sources/<id>.json`, `blueprints/<id>/docker-compose.yml` and an
+  optional `blueprints/<id>/logo.png`. Everything else is a build
+  output, committed and drift-gated: the per-app `README.md`,
+  `quiesce.yml` and placeholder logo, plus `templates.json`,
+  `catalog.json` and `index.html`. Editing one of those directly fails
   CI.
+- **One directory per template.** `blueprints/<id>/` is the unit
+  Portainer clones and deploys, so it is also where that template's
+  compose, README and logo live. Nothing about a template is duplicated
+  elsewhere in the repository.
 - **Two output formats, one input.** `templates.json` is the Portainer
   App Templates index and carries only what that format defines;
   `catalog.json` carries the rest (SSO mode, backup quiesce hooks, bench

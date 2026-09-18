@@ -4,7 +4,7 @@
 # dependencies = ["pyyaml>=6.0"]
 # ///
 """
-Enumerate unique container image refs across source/compose/*.compose.yml.
+Enumerate unique container image refs across blueprints/*/docker-compose.yml.
 
 Walks every services.*.image value, dedupes, prints one ref per line on
 stdout in stable (sorted) order. Used by .github/workflows/trivy-images.yml
@@ -12,7 +12,7 @@ to drive a per-image matrix of trivy image scans.
 
 Exit codes:
   0 -- one or more image refs printed
-  2 -- source/compose/ missing or contained no parseable compose files
+  2 -- blueprints/ missing or contained no parseable compose files
 """
 
 from __future__ import annotations
@@ -23,12 +23,12 @@ from pathlib import Path
 import yaml
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-COMPOSE_DIR = REPO_ROOT / "source" / "compose"
+BLUEPRINTS = REPO_ROOT / "blueprints"
 
 
-def collect_images(compose_dir: Path) -> set[str]:
+def collect_images(blueprints: Path) -> set[str]:
     images: set[str] = set()
-    for path in sorted(compose_dir.glob("*.compose.yml")):
+    for path in sorted(blueprints.glob("*/docker-compose.yml")):
         with path.open() as fh:
             doc = yaml.safe_load(fh)
         if not isinstance(doc, dict):
@@ -46,10 +46,10 @@ def collect_images(compose_dir: Path) -> set[str]:
 
 
 def main() -> int:
-    if not COMPOSE_DIR.is_dir():
-        print(f"source/compose/ not found at {COMPOSE_DIR}", file=sys.stderr)
+    if not BLUEPRINTS.is_dir():
+        print(f"blueprints/ not found at {BLUEPRINTS}", file=sys.stderr)
         return 2
-    images = collect_images(COMPOSE_DIR)
+    images = collect_images(BLUEPRINTS)
     if not images:
         print("no image refs found", file=sys.stderr)
         return 2

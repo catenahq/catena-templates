@@ -1,6 +1,6 @@
 name: Trivy images (catalog)
 
-# Image-CVE scan against every container ref in source/compose/*.compose.yml.
+# Image-CVE scan against every container ref in blueprints/*/docker-compose.yml.
 # Complements the existing trivy.yml (which scans the rendered blueprints as
 # IaC config -- privileged/host-net/etc. -- and does NOT touch base-image
 # OS package CVEs).
@@ -36,7 +36,7 @@ jobs:
         with:
           persist-credentials: false
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
-      - name: List images from source/compose/
+      - name: List images from blueprints/
         id: list
         run: |
           set -euo pipefail

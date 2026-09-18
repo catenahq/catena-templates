@@ -4,6 +4,7 @@ client's Portainer shows, and what catenahq/ops reads back.
 from __future__ import annotations
 
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -136,3 +137,68 @@ def test_post_restore_migrate_reaches_the_catalog_unchanged():
             declared += 1
             assert spec["commands"], entry.slug
     assert declared > 0
+
+
+def test_every_blueprint_carries_its_compose_and_its_readme():
+    """The blueprint directory is the unit Portainer clones. Whoever
+    opens it gets the stack file and the description of what it deploys
+    in the same place."""
+    for entry in model.load_sources():
+        app_dir = ROOT / "blueprints" / entry.slug
+        assert (app_dir / "docker-compose.yml").is_file(), entry.slug
+        assert (app_dir / "README.md").is_file(), entry.slug
+
+
+def test_the_catalog_points_at_the_blueprint_compose():
+    catalog = json.loads((ROOT / "catalog.json").read_text())["templates"]
+    for e in catalog:
+        assert e["compose_file"] == f"blueprints/{e['id']}/docker-compose.yml"
+        assert (ROOT / e["compose_file"]).is_file(), e["id"]
+
+
+def test_a_readme_carries_both_languages_and_no_jinja():
+    """The README ships in a public repo. An unresolved expression there
+    reads as the literal value a client is meant to type.
+
+    Matched on `{{ ` with the space: the catalog's Jinja is spaced, and
+    the setup steps legitimately quote Go templates (`{{.Names}}`) in
+    the docker commands they tell a reader to run."""
+    jinja = re.compile(r"\{\{\s")
+    for entry in model.load_sources():
+        body = (ROOT / "blueprints" / entry.slug / "README.md").read_text()
+        assert "## English" in body, entry.slug
+        assert "## Français" in body, entry.slug
+        assert not jinja.search(body), entry.slug
+
+
+def test_a_readme_has_no_root_relative_link():
+    """GitHub resolves a root-relative link against github.com, not the
+    docs site, so every one of them has to leave here absolute."""
+    for entry in model.load_sources():
+        body = (ROOT / "blueprints" / entry.slug / "README.md").read_text()
+        assert "](/" not in body, entry.slug
+
+
+def test_rendering_does_not_touch_the_hand_edited_compose():
+    """blueprints/ mixes generated files with hand-edited ones, so the
+    render cannot wipe and rebuild it."""
+    entry = model.load_sources()[0]
+    compose = ROOT / "blueprints" / entry.slug / "docker-compose.yml"
+    before = compose.read_bytes()
+    render.render_all()
+    assert compose.read_bytes() == before
+
+
+def test_a_blueprint_with_no_source_file_is_dropped(tmp_path, monkeypatch):
+    """A template deleted from sources/ leaves a directory Portainer
+    would still clone and deploy."""
+    blueprints = tmp_path / "blueprints"
+    for slug in ("kept", "orphan"):
+        (blueprints / slug).mkdir(parents=True)
+        (blueprints / slug / "docker-compose.yml").write_text("services: {}\n")
+    monkeypatch.setattr(render, "BLUEPRINTS", blueprints)
+
+    kept = model.Entry({"id": "kept", "x-catena": {}})
+    assert render._prune_orphan_blueprints([kept]) == ["orphan"]
+    assert (blueprints / "kept").is_dir()
+    assert not (blueprints / "orphan").exists()
