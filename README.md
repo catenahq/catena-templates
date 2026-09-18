@@ -8,9 +8,9 @@ vendored tarball, contracts-pattern) and by Portainer itself (its App
 Templates URL field pointing at this repo's raw `templates.json`).
 
 **What this repo promises and how that is enforced:** [SPEC.md](SPEC.md)
-(hand-written intent + machine-checked invariants) and
-[VALIDATION.md](VALIDATION.md) (generated CI-gate sheet; drift fails the
-maintainers' CI).
+-- hand-written intent plus machine-checked invariants, each citing the
+gate that holds it. The maintainers' CI fails on a pointer that does not
+resolve.
 
 ## Layout
 

@@ -2,8 +2,7 @@
 
 This file states what this repository promises. Every claim in the
 invariants table points at a machine-checked gate; the maintainers' CI
-resolves each pointer on every change. The generated companion sheet
-[VALIDATION.md](VALIDATION.md) lists the CI gates in force.
+resolves each pointer on every change.
 
 ## Intent
 
