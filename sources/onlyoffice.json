@@ -21,6 +21,9 @@
       "DOMAIN_HOST=office.{{ cloudflare_zone }}",
       "JWT_SECRET={{ lookup('password', '/dev/null length=48 chars=ascii_letters,digits') }}"
     ],
+    "env_managed_keys": [
+      "DOMAIN_HOST"
+    ],
     "bench": {
       "pack": "embedded",
       "hostname_baked": false

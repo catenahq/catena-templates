@@ -19,6 +19,9 @@
     "env_defaults": [
       "DOMAIN_HOST=budget.{{ cloudflare_zone }}"
     ],
+    "env_managed_keys": [
+      "DOMAIN_HOST"
+    ],
     "bench": {
       "pack": "embedded",
       "hostname_baked": false

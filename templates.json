@@ -8,12 +8,14 @@
       "description": "Self-hosted file sharing + collaboration. Replaces Google Drive / Dropbox / OneDrive.",
       "env": [
         {
-          "default": "nextcloud.",
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "Domain",
           "name": "DOMAIN_HOST"
         },
         {
-          "default": "nextcloud.",
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "Nextcloud hostname",
           "name": "NEXTCLOUD_HOSTNAME"
         },
@@ -170,7 +172,8 @@
       "description": "LibreOffice-based collaborative editor. Embedded in Nextcloud. Lighter alternative to OnlyOffice; better ODF fidelity.",
       "env": [
         {
-          "default": "office.",
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "Domain",
           "name": "DOMAIN_HOST"
         }
@@ -195,7 +198,8 @@
       "description": "Collaborative DOCX/XLSX/PPTX editor. Embedded in Nextcloud. Replaces Office 365 / Google Docs as the embedded editor.",
       "env": [
         {
-          "default": "office.",
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "Domain",
           "name": "DOMAIN_HOST"
         },
@@ -763,12 +767,14 @@
       "description": "Work management with test runs, time tracking, and customer portals. Replaces Jira / Jira Service Management.",
       "env": [
         {
-          "default": "work.",
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "Domain",
           "name": "DOMAIN_HOST"
         },
         {
-          "default": "work.",
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "Windshift hostname",
           "name": "WINDSHIFT_HOSTNAME"
         },
@@ -1025,7 +1031,8 @@
       "description": "Self-hosted personal finance + envelope budgeting. Replaces YNAB / Mint.",
       "env": [
         {
-          "default": "budget.",
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "Domain",
           "name": "DOMAIN_HOST"
         }

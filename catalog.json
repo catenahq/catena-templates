@@ -59,6 +59,8 @@
         "TURN_STATIC_AUTH_SECRET={{ turn_static_auth_secret }}"
       ],
       "env_managed_keys": [
+        "DOMAIN_HOST",
+        "NEXTCLOUD_HOSTNAME",
         "OIDC_CLIENT_ID",
         "OIDC_CLIENT_SECRET",
         "OIDC_DISCOVERY_URL",
@@ -148,6 +150,9 @@
       "env_defaults": [
         "DOMAIN_HOST=office.{{ cloudflare_zone }}"
       ],
+      "env_managed_keys": [
+        "DOMAIN_HOST"
+      ],
       "fr": {
         "compose_description": "\u00c9diteur collaboratif bas\u00e9 sur LibreOffice. Embarqu\u00e9 dans Nextcloud. Alternative l\u00e9g\u00e8re \u00e0 OnlyOffice ; meilleure fid\u00e9lit\u00e9 ODF.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/collabora/README.md\n",
         "display_name": "Collabora Online (CODE)",
@@ -197,6 +202,9 @@
       "env_defaults": [
         "DOMAIN_HOST=office.{{ cloudflare_zone }}",
         "JWT_SECRET={{ lookup('password', '/dev/null length=48 chars=ascii_letters,digits') }}"
+      ],
+      "env_managed_keys": [
+        "DOMAIN_HOST"
       ],
       "fr": {
         "compose_description": "\u00c9diteur collaboratif DOCX/XLSX/PPTX. Embarqu\u00e9 dans Nextcloud. Remplace Office 365 / Google Docs comme \u00e9diteur.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/onlyoffice/README.md\n",
@@ -744,6 +752,10 @@
         "SSO_SECRET={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}",
         "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
       ],
+      "env_managed_keys": [
+        "DOMAIN_HOST",
+        "WINDSHIFT_HOSTNAME"
+      ],
       "fr": {
         "compose_description": "Gestion du travail avec suites de tests, feuilles de temps et portails clients. Remplace Jira / Jira Service Management.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/windshift/README.md\n",
         "display_name": "Windshift",
@@ -1087,6 +1099,9 @@
       },
       "env_defaults": [
         "DOMAIN_HOST=budget.{{ cloudflare_zone }}"
+      ],
+      "env_managed_keys": [
+        "DOMAIN_HOST"
       ],
       "fr": {
         "compose_description": "Finances personnelles + budg\u00e9tisation par enveloppes auto-h\u00e9berg\u00e9es. Remplace YNAB / Mint.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/actualbudget/README.md\n",

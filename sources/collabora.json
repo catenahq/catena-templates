@@ -20,6 +20,9 @@
     "env_defaults": [
       "DOMAIN_HOST=office.{{ cloudflare_zone }}"
     ],
+    "env_managed_keys": [
+      "DOMAIN_HOST"
+    ],
     "bench": {
       "pack": "nodb",
       "fixture": "skip",
