@@ -313,7 +313,7 @@ services:
       # appdata_<instance>/ residue, nextcloud.log, audit.log, .ocdata,
       # sqlite caches for some apps -- everything Nextcloud writes
       # outside the objectstore driver. Explicit named volume so the
-      # path lives at /mnt/data/docker/volumes/<compose>_nc-data/_data
+      # path lives at /srv/catena/docker/volumes/<compose>_nc-data/_data
       # (predictable, visible in `docker volume ls`, captured by
       # restic's docker/volumes/ rule). Without this mount, Docker
       # creates an anonymous volume from the image's VOLUME directive
