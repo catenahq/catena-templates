@@ -166,6 +166,63 @@
     },
     {
       "categories": [
+        "Photos",
+        "Files"
+      ],
+      "description": "Photo and video library with phone backup. Replaces Google Photos / iCloud Photos.",
+      "env": [
+        {
+          "default": "photos.",
+          "label": "Domain",
+          "name": "DOMAIN_HOST"
+        },
+        {
+          "default": "photos.",
+          "label": "Immich hostname",
+          "name": "IMMICH_HOSTNAME"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
+          "label": "Database password",
+          "name": "DB_PASSWORD"
+        },
+        {
+          "default": "immich-library",
+          "label": "Upload location",
+          "name": "UPLOAD_LOCATION"
+        },
+        {
+          "default": "immich",
+          "label": "OIDC client ID",
+          "name": "OIDC_CLIENT_ID"
+        },
+        {
+          "default": "",
+          "label": "OIDC client secret",
+          "name": "OIDC_CLIENT_SECRET"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
+          "label": "OIDC issuer URL",
+          "name": "OIDC_ISSUER_URL"
+        }
+      ],
+      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/immich/logo.svg",
+      "maintainer": "https://github.com/catenahq/catena-templates",
+      "name": "catena-immich",
+      "note": "<p>Photo and video library with automatic backup from phones, albums, sharing, face recognition and search by content.</p><p>Replaces Google Photos, iCloud Photos, Amazon Photos.</p><p><a href=\"https://github.com/catenahq/catena-templates/blob/main/blueprints/immich/README.md\">https://github.com/catenahq/catena-templates/blob/main/blueprints/immich/README.md</a></p>",
+      "platform": "linux",
+      "repository": {
+        "stackfile": "blueprints/immich/docker-compose.yml",
+        "url": "https://github.com/catenahq/catena-templates"
+      },
+      "title": "Immich",
+      "type": 2
+    },
+    {
+      "categories": [
         "Productivity",
         "Documents"
       ],

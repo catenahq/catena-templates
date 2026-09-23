@@ -1,0 +1,67 @@
+{
+  "id": "immich",
+  "type": 2,
+  "title": "Immich",
+  "name": "catena-immich",
+  "categories": [
+    "Photos",
+    "Files"
+  ],
+  "platform": "linux",
+  "x-catena": {
+    "app_name": "catena-immich",
+    "upstream_url": "https://immich.app",
+    "sso_mode": "post-deploy-ui",
+    "domain": {
+      "host": "photos.{{ cloudflare_zone }}",
+      "service": "immich-server",
+      "port": 2283
+    },
+    "env_defaults": [
+      "DOMAIN_HOST=photos.{{ cloudflare_zone }}",
+      "IMMICH_HOSTNAME=photos.{{ cloudflare_zone }}",
+      "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
+      "UPLOAD_LOCATION=immich-library",
+      "OIDC_CLIENT_ID=immich",
+      "OIDC_CLIENT_SECRET=",
+      "OIDC_ISSUER_URL=https://{{ keycloak_hostname | default('auth.' ~ cloudflare_zone) }}/realms/{{ keycloak_realm | default('vps') }}"
+    ],
+    "bench": {
+      "pack": "postgres",
+      "hostname_baked": false
+    },
+    "sizing": {
+      "idle_ram_mb": null,
+      "peak_ram_mb": 2800,
+      "idle_cpu_pct": null,
+      "peak_cpu_pct": null,
+      "disk_baseline_mb": null,
+      "notes": "Not yet measured. The peak is an estimate: the machine-learning\nservice loads its search and face models on first use and holds\n1.5 to 2 GB while they are resident, and unloads them after five\nidle minutes. The library grows with the photos and videos\nuploaded, plus roughly 10% for thumbnails and transcodes.",
+      "notes_fr": "Pas encore mesur\u00e9. Le pic est une estimation : le service\nd'apprentissage automatique charge ses mod\u00e8les de recherche et de\nvisages \u00e0 la premi\u00e8re utilisation et occupe 1,5 \u00e0 2 Go tant\nqu'ils sont en m\u00e9moire, puis les d\u00e9charge apr\u00e8s cinq minutes\nd'inactivit\u00e9. La biblioth\u00e8que grandit avec les photos et vid\u00e9os\nt\u00e9l\u00e9vers\u00e9es, plus environ 10 % pour les vignettes et transcodages."
+    },
+    "en": {
+      "display_name": "Immich",
+      "what_it_is": "Photo and video library with automatic backup from phones, albums, sharing, face recognition and search by content.",
+      "replaces": [
+        "Google Photos",
+        "iCloud Photos",
+        "Amazon Photos"
+      ],
+      "compose_description": "Photo and video library with phone backup. Replaces Google Photos / iCloud Photos.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/immich/README.md\n",
+      "setup_steps": "1. *(Optional)* Keep the library on a separate disk: mount the disk on the server, create a directory on it (for example `/mnt/photos/immich`), and set `UPLOAD_LOCATION` to that path in the **Environment** tab. The directory has to exist before the deploy. Then add the same path under **Settings** -> **Backup** -> extra paths in catena-admin, so the nightly backup includes it.\n2. Click **Deploy**. The first boot takes 2 to 3 minutes while the database initialises.\n3. Visit the Immich domain and create the first account, which becomes the administrator.\n4. *(Optional)* Enable Keycloak SSO: **Administration** -> **Settings** -> **Authentication Settings** -> **OAuth**, then enter:\n   - **Issuer URL:** `OIDC_ISSUER_URL` from Environment\n   - **Client ID:** `OIDC_CLIENT_ID` from Environment (`immich`)\n   - **Client Secret:** `OIDC_CLIENT_SECRET` from Environment (minted in Keycloak on request when blank)\n   - Save. The login page gains a **Login with OAuth** button. The local administrator keeps working as a break-glass.\n5. Install the Immich app on each phone, enter the Immich domain as the server address, and turn on backup.\n",
+      "extra_notes": "### Where the library lives\n\nBy default the library is a named volume under `/srv/catena`, which the nightly backup already covers. Setting `UPLOAD_LOCATION` to an absolute path moves it to that directory instead, which is the way to use a larger disk mounted on the server. A path outside `/srv/catena` is backed up only once it is declared in catena-admin under **Settings** -> **Backup** -> extra paths; until then the nightly coverage check reports it as data outside the backup set.\n\n### Machine learning\n\nSearch by content, face recognition and duplicate detection run in the `immich-machine-learning` service. It downloads its models on first use and holds them in memory while they are in use. On a server with little memory, the features can be turned off under **Administration** -> **Settings** -> **Machine Learning Settings**.\n"
+    },
+    "fr": {
+      "display_name": "Immich",
+      "what_it_is": "Biblioth\u00e8que de photos et vid\u00e9os avec sauvegarde automatique depuis les t\u00e9l\u00e9phones, albums, partage, reconnaissance des visages et recherche par contenu.",
+      "replaces": [
+        "Google Photos",
+        "Photos iCloud",
+        "Amazon Photos"
+      ],
+      "compose_description": "Biblioth\u00e8que de photos et vid\u00e9os avec sauvegarde des t\u00e9l\u00e9phones. Remplace Google Photos / Photos iCloud.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/immich/README.md\n",
+      "setup_steps": "1. *(Optionnel)* Placez la biblioth\u00e8que sur un disque s\u00e9par\u00e9 : montez le disque sur le serveur, cr\u00e9ez-y un r\u00e9pertoire (par exemple `/mnt/photos/immich`) et indiquez ce chemin dans `UPLOAD_LOCATION` dans l'onglet **Environment**. Le r\u00e9pertoire doit exister avant le d\u00e9ploiement. Ajoutez ensuite le m\u00eame chemin dans catena-admin sous **Settings** -> **Backup** -> chemins suppl\u00e9mentaires, pour que la sauvegarde nocturne l'inclue.\n2. Cliquez **Deploy**. Le premier d\u00e9marrage prend 2 \u00e0 3 minutes, le temps d'initialiser la base de donn\u00e9es.\n3. Visitez le domaine Immich et cr\u00e9ez le premier compte, qui devient l'administrateur.\n4. *(Optionnel)* Activez Keycloak SSO : **Administration** -> **Settings** -> **Authentication Settings** -> **OAuth**, puis renseignez :\n   - **Issuer URL :** `OIDC_ISSUER_URL` depuis Environment\n   - **Client ID :** `OIDC_CLIENT_ID` depuis Environment (`immich`)\n   - **Client Secret :** `OIDC_CLIENT_SECRET` depuis Environment (g\u00e9n\u00e9r\u00e9 c\u00f4t\u00e9 Keycloak sur demande lorsqu'il est vide)\n   - Validez. La page de connexion affiche **Login with OAuth**. L'administrateur local continue de fonctionner comme issue de secours.\n5. Installez l'application Immich sur chaque t\u00e9l\u00e9phone, indiquez le domaine Immich comme adresse du serveur et activez la sauvegarde.\n",
+      "extra_notes": "### Emplacement de la biblioth\u00e8que\n\nPar d\u00e9faut, la biblioth\u00e8que est un volume nomm\u00e9 sous `/srv/catena`, d\u00e9j\u00e0 couvert par la sauvegarde nocturne. Indiquer un chemin absolu dans `UPLOAD_LOCATION` la place dans ce r\u00e9pertoire, ce qui permet d'utiliser un disque plus grand mont\u00e9 sur le serveur. Un chemin hors de `/srv/catena` n'est sauvegard\u00e9 qu'une fois d\u00e9clar\u00e9 dans catena-admin sous **Settings** -> **Backup** -> chemins suppl\u00e9mentaires ; d'ici l\u00e0, la v\u00e9rification nocturne de couverture le signale comme donn\u00e9es hors de la sauvegarde.\n\n### Apprentissage automatique\n\nLa recherche par contenu, la reconnaissance des visages et la d\u00e9tection des doublons tournent dans le service `immich-machine-learning`. Il t\u00e9l\u00e9charge ses mod\u00e8les \u00e0 la premi\u00e8re utilisation et les garde en m\u00e9moire pendant leur usage. Sur un serveur avec peu de m\u00e9moire, ces fonctions se d\u00e9sactivent sous **Administration** -> **Settings** -> **Machine Learning Settings**.\n"
+    }
+  }
+}

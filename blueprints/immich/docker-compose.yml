@@ -1,0 +1,109 @@
+services:
+  immich-server:
+    image: ghcr.io/immich-app/immich-server:v3.2.2
+    deploy:
+      restart_policy:
+        condition: any
+      placement:
+        constraints:
+          - node.labels.catena.role==data
+    environment:
+      DB_HOSTNAME: db
+      DB_USERNAME: immich
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_DATABASE_NAME: immich
+      REDIS_HOSTNAME: redis
+
+      # Exposed for reference in Administration -> Settings -> OAuth.
+      # Immich reads its OAuth settings from its own database, not from env.
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID}
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET}
+      OIDC_ISSUER_URL: ${OIDC_ISSUER_URL}
+    volumes:
+      # A volume name or an absolute host path. A path is a bind mount, so a
+      # library on a separately mounted disk is one Environment value.
+      - ${UPLOAD_LOCATION}:/data
+    labels:
+      - "vps.route.host=${DOMAIN_HOST}"
+      - "vps.route.port=2283"
+      - "vps.route.service=immich-server"
+      - "vps.auth.mode=public"
+      - "vps.auth.oidc=true"
+      - "vps.auth.groups=staff"
+      - "vps.auth.oidc.redirect_uris=https://${IMMICH_HOSTNAME}/auth/login,https://${IMMICH_HOSTNAME}/user-settings,app.immich:///oauth-callback"
+      - "vps.auth.oidc.scopes=openid email profile"
+      - "vps.auto-update=patch"
+      - "vps.app=catena-immich"
+      - "vps.component=immich-server"
+    networks:
+      catena-network:
+        aliases:
+          - catena-immich
+      default: {}
+
+  # The service name is the address Immich's default machine-learning URL
+  # (http://immich-machine-learning:3003) points at.
+  immich-machine-learning:
+    image: ghcr.io/immich-app/immich-machine-learning:v3.2.2
+    deploy:
+      restart_policy:
+        condition: any
+      placement:
+        constraints:
+          - node.labels.catena.role==data
+    volumes:
+      - model-cache:/cache
+    labels:
+      - "vps.auto-update=patch"
+      - "vps.app=catena-immich"
+      - "vps.component=immich-machine-learning"
+    networks:
+      - default
+
+  db:
+    image: ghcr.io/immich-app/postgres:14-vectorchord0.4.3-pgvectors0.2.0
+    deploy:
+      restart_policy:
+        condition: any
+      placement:
+        constraints:
+          - node.labels.catena.role==data
+    environment:
+      POSTGRES_USER: immich
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: immich
+      POSTGRES_INITDB_ARGS: "--data-checksums"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      # shm_size does not reach a swarm service; a tmpfs mount at /dev/shm is
+      # the form that does.
+      - type: tmpfs
+        target: /dev/shm
+        tmpfs:
+          size: 134217728
+    labels:
+      - "vps.app=catena-immich"
+      - "vps.component=db"
+    networks:
+      - default
+
+  redis:
+    image: redis:8.6.3-alpine3.23
+    deploy:
+      restart_policy:
+        condition: any
+    labels:
+      - "vps.auto-update=patch"
+      - "vps.app=catena-immich"
+      - "vps.component=redis"
+    networks:
+      - default
+
+volumes:
+  immich-library:
+  model-cache:
+  db-data:
+
+networks:
+  catena-network:
+    external: true

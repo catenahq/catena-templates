@@ -1,6 +1,7 @@
 {
   "order": [
     "nextcloud-s3-oidc",
+    "immich",
     "collabora",
     "onlyoffice",
     "rocketchat-oidc",
