@@ -157,9 +157,9 @@ a warning and steps over, and the backup is then taken unquiesced.
    `categories`, `platform`, and the `x-catena` block (`app_name`,
    `upstream_url`, `sso_mode`, `domain`, `compose_file`, `env_defaults`,
    `bench.pack`, `sizing.peak_ram_mb`, `en`, `fr`).
-2. `sources/compose/<id>.compose.yml` (existing Jinja-templated form is
-   fine -- render copies it verbatim).
-3. `sources/assets/<id>/logo.png` (512x512 PNG, max 100KB). Optional.
+2. `blueprints/<id>/docker-compose.yml` (Jinja stays in place; the
+   render never writes into it).
+3. `blueprints/<id>/logo.png` (512x512 PNG, max 100KB). Optional.
 4. If the template has write traffic during backup, add
    `x-catena.quiesce`. Stateless / read-only templates omit it. Real
    examples: `sources/nextcloud-s3-oidc.json`,
