@@ -1,26 +1,18 @@
 #!/usr/bin/env bash
-# Render sources/ into the committed artifacts, from an environment that may not
-# have uv.
+# Render the committed artifacts from an environment that may not have uv.
 #
-# WHY THIS EXISTS. Renovate edits sources/ -- a compose pin, the central
-# postgres default -- and cannot run `make render`, so it opens a PR whose
-# generated artifacts still describe the old pin and render-idempotency fails.
-# Every catalog bump was red for that reason and none of them for anything
-# wrong with the bump. Renovate's postUpgradeTasks runs this instead, so the PR
-# it opens is complete.
+# Renovate edits the render's inputs -- a compose pin in blueprints/<id>/, the
+# central postgres default in sources/_meta.json -- and cannot run
+# `make render`. Its postUpgradeTasks runs this after each bump, so the
+# generated artifacts in the PR it opens match the inputs and render-idempotency
+# passes.
 #
 # The renovate container is not this repo's dev environment: it carries node and
-# a python3, no uv and NO PIP --
-#
-#     Command failed: bash build/render-ci.sh
-#     /usr/bin/python3: No module named pip
-#
-# which is what this script tried first and why PR 28's artifacts still
-# described the old pins. So it installs nothing: lib/model.py treats jsonschema
-# as optional and skips the JSON Schema layer without it, and the
-# render-idempotency job re-renders under uv and compares. uv is still preferred
-# where it exists, because that is what `make render` uses and the two must not
-# be able to disagree.
+# a python3, with no uv and no pip. So this installs nothing: lib/model.py treats
+# jsonschema as optional and skips the JSON Schema layer without it, and the
+# render-idempotency job re-renders under uv and compares. uv is preferred where
+# it exists, because that is what `make render` uses and the two must not be
+# able to disagree.
 set -euo pipefail
 
 # Bash's own expansion rather than dirname: this runs in whatever container

@@ -2,13 +2,13 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["github>catenahq/renovate-config"],
   "docker-compose": {
-    "description": "The catalog's compose files are named <id>.compose.yml, which Renovate's default docker-compose pattern does not match -- it wants docker-compose*.y*ml or compose*.y*ml. The only files in this repo that DO match are the generated blueprints/<id>/docker-compose.yml copies, and those are in ignorePaths, so the manager ran over nothing: 23 compose files, zero dependencies extracted, and not one catalog image was ever proposed for a bump. Every packageRule below that matches docker-compose was dead config until this pattern existed. Pointed at sources/ because that is canonical; blueprints/ stays ignored, or each image would be tracked twice.",
+    "description": "The catalog's compose files: one per template, hand-edited at blueprints/<id>/docker-compose.yml. If this pattern stops matching them, Renovate extracts zero catalog images and reports nothing, so the Dependency Dashboard's docker-compose section is the check that it still works.",
     "managerFilePatterns": [
-      "/^sources/compose/[^/]+\\.compose\\.yml$/"
+      "/^blueprints/[^/]+/docker-compose\\.yml$/"
     ]
   },
   "postUpgradeTasks": {
-    "description": "Re-render after every bump, so the PR Renovate opens is complete. sources/ is canonical and blueprints/, templates.json, catalog.json and index.html are generated from it; Renovate edits the first and cannot run make, so without this the generated artifacts still describe the old pin and render-idempotency fails the PR. Every catalog bump was red for that reason. build/render-ci.sh is the uv-optional entrypoint, because the Renovate container is not this repo's dev environment. Requires the runner to allow the command (RENOVATE_ALLOWED_COMMANDS in catenahq/renovate).",
+    "description": "Re-render after every bump, so the PR Renovate opens is complete. The per-template README, templates.json, catalog.json and index.html are generated from sources/ and the compose files; Renovate edits an input and cannot run make, so without this the generated artifacts can lag the input and render-idempotency fails the PR. build/render-ci.sh is the uv-optional entrypoint, because the Renovate container is not this repo's dev environment. Requires the runner to allow the command (RENOVATE_ALLOWED_COMMANDS in catenahq/renovate).",
     "commands": ["bash build/render-ci.sh"],
     "fileFilters": [
       "blueprints/**",
@@ -46,28 +46,20 @@
     },
     {
       "matchManagers": ["docker-compose"],
-      "matchFileNames": ["sources/compose/**"],
+      "matchFileNames": ["blueprints/**"],
       "matchUpdateTypes": ["patch", "minor", "digest"],
       "groupName": "catalog images (patch+minor)",
       "automerge": true
     },
     {
       "matchManagers": ["docker-compose"],
-      "matchFileNames": ["sources/compose/**"],
+      "matchFileNames": ["blueprints/**"],
       "matchUpdateTypes": ["major"],
       "groupName": "catalog images (major)",
       "automerge": false
     },
     {
-      "description": "Traefik feature-set + config schema owned by the catena operator role (roles/traefik); minor/major land via operator converge, not catalog edits.",
-      "matchManagers": ["docker-compose"],
-      "matchFileNames": ["sources/compose/**"],
-      "matchPackageNames": ["traefik"],
-      "matchUpdateTypes": ["major", "minor"],
-      "enabled": false
-    },
-    {
-      "description": "Postgres is centrally governed: the per-template compose pins must equal postgres_default_image in sources/_meta.json (build/lint_postgres_pins.py fails the build otherwise). Group EVERY postgres bump -- the docker-compose pins AND the central-default customManager below -- into one reviewed PR so they move together and the lint stays green. A split bump (pins without the default, or vice versa) reddens the PR, which is what happened while the docker-compose manager matched no files: the customManager moved _meta.json alone and the lint named all eleven unmoved pins. automerge off: a Postgres major/minor is a coordinated, reviewed change.",
+      "description": "Postgres is centrally governed: the per-template compose pins must equal postgres_default_image in sources/_meta.json (build/lint_postgres_pins.py fails the build otherwise). Group EVERY postgres bump -- the docker-compose pins AND the central-default customManager below -- into one reviewed PR so they move together and the lint stays green; a split bump (pins without the default, or vice versa) fails the lint. automerge off: a Postgres major/minor is a coordinated, reviewed change.",
       "matchPackageNames": ["postgres"],
       "groupName": "postgres central bump",
       "automerge": false
@@ -76,7 +68,7 @@
   "customManagers": [
     {
       "customType": "regex",
-      "description": "Track the central Postgres image (postgres_default_image) in sources/_meta.json. The per-template compose pins follow it (enforced by build/lint_postgres_pins.py); the packageRule above groups this bump with the compose-pin bumps into one PR. Note that _meta.json is a SOURCE file, so a bump here leaves catalog.json and the other rendered artifacts behind and the render-idempotency job fails until `make render` runs -- the same is true of any compose-pin bump.",
+      "description": "Track the central Postgres image (postgres_default_image) in sources/_meta.json. The per-template compose pins follow it (enforced by build/lint_postgres_pins.py); the packageRule above groups this bump with the compose-pin bumps into one PR.",
       "managerFilePatterns": [
         "/^sources/_meta\\.json$/"
       ],
@@ -87,7 +79,6 @@
     }
   ],
   "ignorePaths": [
-    "**/node_modules/**",
-    "blueprints/**"
+    "**/node_modules/**"
   ]
 }
