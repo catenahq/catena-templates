@@ -1,19 +1,25 @@
 name: Trivy images (catalog)
 
-# Image-CVE scan against every container ref in blueprints/*/docker-compose.yml.
-# Complements the existing trivy.yml (which scans the rendered blueprints as
-# IaC config -- privileged/host-net/etc. -- and does NOT touch base-image
-# OS package CVEs).
+# CVE scan of the container images the blueprints pin. security.yml's scanctl
+# run scans the repository itself; the images need this separate, dynamically
+# enumerated matrix.
 #
-# Triggers:
-#   - pull_request: gate any catalog image bump on CVE delta before merge
-#   - push main: post-merge baseline
-#   - schedule daily 06:23 UTC: catch CVEs disclosed between PRs.
-#     Offsets from trivy.yml's `43 6 * * 1` so the two crons don't queue
-#     head-to-head.
+#   pull_request   scans only the images the change moves
+#                  (build/changed_images.py), each graded against the image it
+#                  replaces by the shared verdict script
+#                  (catenahq/contracts scripts/trivy_gate.py): the change fails
+#                  only on HIGH/CRITICAL fixable findings it ADDS. A new image
+#                  has nothing to replace and is graded on its own.
+#   push main,     scans every catalog image, report-only. The absolute level
+#   schedule       is upstream's to fix and the update engine's to move past;
+#                  the per-image JSON is uploaded as an artifact.
 #
-# Severity floor: HIGH+CRITICAL with ignore-unfixed so unpatched upstream
-# CVEs do not block until a fix exists. Tune via .trivyignore at repo root.
+# trivy-images-gate is the one check the branch ruleset requires (renovate
+# scripts/apply-rulesets.sh): the per-image jobs are a matrix whose names move
+# with the catalog, and a required check that never reports blocks auto-merge.
+#
+# Severity floor: HIGH+CRITICAL with ignore-unfixed. Tune via .trivyignore at
+# the repo root.
 
 on:
   pull_request:
@@ -31,13 +37,16 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       images: ${{ steps.list.outputs.images }}
+      changes: ${{ steps.changes.outputs.changes }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
+          fetch-depth: 0 # need origin/<base> to read the replaced pins
           persist-credentials: false
       - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
-      - name: List images from blueprints/
+      - name: List every image (push, schedule)
         id: list
+        if: github.event_name != 'pull_request'
         run: |
           set -euo pipefail
           mapfile -t imgs < <(uv run build/list_images.py)
@@ -45,16 +54,27 @@ jobs:
           echo "images=$json" >> "$GITHUB_OUTPUT"
           echo "Scanning ${#imgs[@]} unique images:"
           printf '  %s\n' "${imgs[@]}"
+      - name: List the images this change moves (pull request)
+        id: changes
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          set -euo pipefail
+          changes=$(uv run build/changed_images.py "origin/$BASE_REF")
+          echo "changes=$changes" >> "$GITHUB_OUTPUT"
+          echo "Images this change moves:"
+          echo "$changes" | jq -r '.[] | "  \(if .base_image == "" then "(new)" else .base_image end) -> \(.image)"'
 
   trivy-image:
     name: Trivy ${{ matrix.image }}
     needs: list-images
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     env:
       # Optional: set DOCKERHUB_USERNAME + DOCKERHUB_TOKEN repo secrets to
-      # authenticate pulls and lift Docker Hub's anonymous rate limit (the
-      # cause of the intermittent i/o-timeout scan failures). Absent ->
-      # anonymous pulls, same as before.
+      # authenticate pulls and lift Docker Hub's anonymous rate limit.
+      # Absent -> anonymous pulls.
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
     strategy:
       fail-fast: false
@@ -63,7 +83,7 @@ jobs:
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
-          persist-credentials: false
+          persist-credentials: false # .trivyignore lives at the repo root
       - name: Docker Hub login (lifts the pull rate limit; skipped if no secret)
         if: env.DOCKERHUB_USERNAME != ''
         env:
@@ -80,27 +100,17 @@ jobs:
           slug=$(echo "$IMAGE" | tr '/:.' '___')
           echo "slug=$slug" >> "$GITHUB_OUTPUT"
       - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
-        # Report-only matrix: a transient scan/pull error (e.g. Docker Hub
-        # i/o timeout or anonymous rate-limit) must NOT fail the gate -- only
-        # exit-code:0 below suppresses FINDING-based failures, not trivy's own
-        # FATAL on image init. continue-on-error makes the 'never fails'
-        # posture actually hold; the per-image JSON artifact still uploads.
+        # Report-only: a transient pull error (a Docker Hub timeout or rate
+        # limit) must not fail the sweep either, which exit-code 0 alone does
+        # not cover -- it suppresses finding-based failures, not trivy's own
+        # FATAL on image init.
         continue-on-error: true
         with:
           image-ref: ${{ matrix.image }}
           severity: HIGH,CRITICAL
           ignore-unfixed: true
-          # REPORT-ONLY for catalog images. Upstream maintainers (nextcloud,
-          # rocketchat, frappe, etc.) own the base-layer rebuild cadence;
-          # findings here are almost always vendored libssl / glibc / Go
-          # stdlib / Java stdlib CVEs we cannot patch from this repo
-          # without bumping the entire tag -- and aggressive bumps break
-          # compose compatibility (postgres major, mongo replica-set, etc).
-          # Daily cron still uploads the report + opens a GitHub issue on
-          # delta; operator triages on cadence + Renovate proposes bumps.
-          # For images we OWN (catena-admin) the gate stays at exit-code:1
-          # in ops/.github/workflows/trivy.yml.
           exit-code: '0'
+          scanners: vuln
           format: 'json'
           output: 'trivy-${{ steps.slug.outputs.slug }}.json'
       - name: Upload report
@@ -111,15 +121,104 @@ jobs:
           path: trivy-${{ steps.slug.outputs.slug }}.json
           if-no-files-found: ignore
 
-  # NB: a previous `open-issue-on-cron-failure` job was wired to
-  # `if: failure() && github.event_name == 'schedule'`. With the
-  # report-only posture (exit-code: '0') the matrix never fails, so
-  # that condition would never trigger. Removed rather than rewritten:
-  # the per-image JSON artifacts uploaded above are the canonical
-  # finding surface, and Renovate's docker-compose manager handles
-  # the proactive bump cadence. Operator triages by spot-checking
-  # the Actions tab + Dependency Dashboard. If a notification surface
-  # becomes necessary later, the right shape is a separate
-  # post-matrix aggregator job that reads `Results[].Vulnerabilities`
-  # from the JSON artifacts and posts a summary -- not a re-enable
-  # of the old failure-conditional opener.
+  trivy-changed-image:
+    name: Trivy ${{ matrix.image }} (change)
+    needs: list-images
+    if: github.event_name == 'pull_request' && needs.list-images.outputs.changes != '[]'
+    runs-on: ubuntu-latest
+    env:
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.list-images.outputs.changes) }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          persist-credentials: false # .trivyignore lives at the repo root
+      - name: Check out the shared gates
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          repository: catenahq/contracts
+          path: contracts
+          persist-credentials: false
+      - name: Docker Hub login (lifts the pull rate limit; skipped if no secret)
+        if: env.DOCKERHUB_USERNAME != ''
+        env:
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+      - name: Sanitize image name for artifact path
+        id: slug
+        env:
+          IMAGE: ${{ matrix.image }}
+        run: |
+          slug=$(echo "$IMAGE" | tr '/:.' '___')
+          echo "slug=$slug" >> "$GITHUB_OUTPUT"
+      - name: Scan the image this change pins
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ matrix.image }}
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          # Report, do not judge: trivy_gate.py decides. Real scan errors
+          # still fail this step on their own.
+          exit-code: '0'
+          scanners: vuln
+          format: 'json'
+          output: 'trivy-new.json'
+      - name: Scan the image it replaces
+        # Same settings as above, or the comparison would measure the
+        # settings rather than the images.
+        if: matrix.base_image != ''
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ matrix.base_image }}
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '0'
+          scanners: vuln
+          format: 'json'
+          output: 'trivy-base.json'
+      - name: Gate on what this change ADDS
+        # --require-baseline whenever there is an image being replaced: if its
+        # scan produced no report, the gate blocks rather than assuming
+        # nothing is new.
+        env:
+          IMAGE: ${{ matrix.image }}
+          BASE_IMAGE: ${{ matrix.base_image }}
+        run: |
+          set -euo pipefail
+          if [ -n "$BASE_IMAGE" ]; then
+            python3 contracts/scripts/trivy_gate.py trivy-new.json \
+              --baseline trivy-base.json --require-baseline --label "$IMAGE"
+          else
+            python3 contracts/scripts/trivy_gate.py trivy-new.json --label "$IMAGE"
+          fi
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: trivy-change-${{ steps.slug.outputs.slug }}
+          # Both halves of the comparison, so a verdict can be re-checked
+          # without re-running the scans.
+          path: |
+            trivy-new.json
+            trivy-base.json
+          if-no-files-found: ignore
+
+  trivy-images-gate:
+    name: trivy-images-gate
+    runs-on: ubuntu-latest
+    needs: [list-images, trivy-changed-image]
+    if: always()
+    steps:
+      - env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          for r in $RESULTS; do
+            case "$r" in
+              success|skipped) ;;
+              *) echo "::error::a needed job reported $r"; exit 1 ;;
+            esac
+          done
+          echo "all needed jobs green"

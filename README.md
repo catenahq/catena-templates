@@ -41,10 +41,11 @@ lib/                     # the build library
   quiesce_lint.py        # security lint over the hooks a host runs
                          # unattended: quiesce + post-restore migrations
   postgres_pins.py       # central Postgres image enforcement
+  images.py              # the pinned images, and the ones a change moves
 
 build/                   # thin entrypoints
   render.py  validate.py  lint_quiesce.py  lint_postgres_pins.py
-  lint_swarm.py  list_images.py
+  lint_swarm.py  list_images.py  changed_images.py
 
 sources.schema.json      # schema for a sources/<id>.json
 Schema.json              # schema for the generated templates.json
