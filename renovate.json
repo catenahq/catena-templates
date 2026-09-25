@@ -59,6 +59,46 @@
       "automerge": false
     },
     {
+      "description": "Renovate's docker datasource has release timestamps for Docker Hub only, so under the preset's 7-day minimumReleaseAge (timestamp-required) an image from any other registry never ages and is never bumped. The rules from here to the postgres rule look such images up through their upstream's GitHub releases instead: the same version numbers with real publish dates, so the cooldown still applies. A non-Docker-Hub image added to the catalog needs a rule here or it is never proposed. ghcr.io/immich-app/postgres and ghcr.io/nextcloud-releases/aio-talk have no semver tags and stay manual.",
+      "matchManagers": ["docker-compose"],
+      "matchPackageNames": ["ghcr.io/windshiftapp/windshift"],
+      "overrideDatasource": "github-releases",
+      "overridePackageName": "Windshiftapp/windshift",
+      "versioning": "semver-coerced"
+    },
+    {
+      "matchManagers": ["docker-compose"],
+      "matchPackageNames": ["ghcr.io/gitroomhq/postiz-app"],
+      "overrideDatasource": "github-releases",
+      "overridePackageName": "gitroomhq/postiz-app",
+      "versioning": "semver-coerced"
+    },
+    {
+      "matchManagers": ["docker-compose"],
+      "matchPackageNames": ["ghcr.io/immich-app/immich-server", "ghcr.io/immich-app/immich-machine-learning"],
+      "overrideDatasource": "github-releases",
+      "overridePackageName": "immich-app/immich",
+      "versioning": "semver-coerced"
+    },
+    {
+      "description": "The image tags drop the v that the release tags carry.",
+      "matchManagers": ["docker-compose"],
+      "matchPackageNames": ["ghcr.io/docker-mailserver/docker-mailserver"],
+      "overrideDatasource": "github-releases",
+      "overridePackageName": "docker-mailserver/docker-mailserver",
+      "extractVersion": "^v(?<version>.+)$",
+      "versioning": "semver-coerced"
+    },
+    {
+      "description": "The image tags drop the v that the release tags carry.",
+      "matchManagers": ["docker-compose"],
+      "matchPackageNames": ["docker.elastic.co/elasticsearch/elasticsearch"],
+      "overrideDatasource": "github-releases",
+      "overridePackageName": "elastic/elasticsearch",
+      "extractVersion": "^v(?<version>.+)$",
+      "versioning": "semver-coerced"
+    },
+    {
       "description": "Postgres is centrally governed: the per-template compose pins must equal postgres_default_image in sources/_meta.json (build/lint_postgres_pins.py fails the build otherwise). Group EVERY postgres bump -- the docker-compose pins AND the central-default customManager below -- into one reviewed PR so they move together and the lint stays green; a split bump (pins without the default, or vice versa) fails the lint. automerge off: a Postgres major/minor is a coordinated, reviewed change.",
       "matchPackageNames": ["postgres"],
       "groupName": "postgres central bump",
