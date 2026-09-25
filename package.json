@@ -1,12 +1,9 @@
 {
   "name": "@catenahq/templates",
   "version": "0.2.0",
-  "private": false,
-  "description": "Catena template catalog: one JSON source per template plus its compose file, rendered into Portainer App Templates (templates.json v3) and the machine catalog (catalog.json). Consumed by catenahq/ops (vendored tarball) and by Portainer directly (App Templates URL).",
+  "private": true,
+  "description": "Catena template catalog: one JSON source per template plus its compose file, rendered into Portainer App Templates (templates.json v3) and the machine catalog (catalog.json). Consumers read main, fetched raw.",
   "type": "module",
-  "files": [
-    "sources"
-  ],
   "scripts": {
     "render": "uv run build/render.py",
     "validate": "uv run build/validate.py",

@@ -4,9 +4,10 @@ Single source of truth for the Catena template catalog: one directory
 per application holding its compose file and its README, one JSON file
 per application holding its metadata and prose, and the build pipeline
 that renders them into Portainer App Templates (`templates.json`, format
-v3) and the machine catalog (`catalog.json`). Consumed by catenahq/ops
-(via a vendored tarball, contracts-pattern) and by Portainer itself (its
-App Templates URL field pointing at this repo's raw `templates.json`).
+v3) and the machine catalog (`catalog.json`). Every consumer reads `main`,
+fetched raw: catena-admin, catena-ce and the ops tooling read
+`catalog.json`, and Portainer itself can point its App Templates URL at
+`templates.json`.
 
 **What this repo promises and how that is enforced:** [SPEC.md](SPEC.md)
 -- hand-written intent plus machine-checked invariants, each citing the
@@ -72,22 +73,17 @@ raw templates.json:
 https://raw.githubusercontent.com/catenahq/catena-templates/main/templates.json
 ```
 
-Pin a release tag to freeze the catalog:
-
-```
-https://raw.githubusercontent.com/catenahq/catena-templates/tags/v0.2.0/templates.json
-```
-
 Each entry is a type-2 (swarm git-repo) stack: Portainer clones this
 repo and deploys `blueprints/<id>/docker-compose.yml` onto the host's
 swarm.
 
-### 2. ops/ Ansible reconciliation (catalog.json)
+### 2. The machine catalog (catalog.json)
 
-catenahq/ops reads `catalog.json` -- one fetch, every template, with the
-fields Portainer's format has no slot for. A managed VPS also reads it to
-render its OWN copy of `templates.json`, which is what its Portainer
-actually serves (see the sentinel section below).
+catena-admin (`shell/marketplace`, `payload/engines/catalog`), the
+catena-ce converge and the ops tooling read `catalog.json` -- one fetch,
+every template, with the fields Portainer's format has no slot for. A
+managed VPS reads it to render its OWN copy of `templates.json`, which is
+what its Portainer actually serves (see the sentinel section below).
 
 Why two artifacts rather than one: Portainer's format defines what it
 defines. Squeezing `sso_mode`, quiesce hooks, bench packs, sizing and
@@ -146,17 +142,9 @@ input, not a catalog to deploy from.
    `blueprints/<id>/README.md`, `templates.json`, `catalog.json` and
    `index.html` with the source change.
 7. Open a PR. CI runs `build-and-verify.yml`, `check:unicode` and `check:prose`.
-8. After merge, tag a `vX.Y.Z` release.
 
-## How to bump
-
-Patch: env-default change, prose tweak. Minor: new template, new
-`env_managed_keys` entry. Major: a change to the source schema or to the
-generated `catalog.json` shape (breaks the ops loader).
-
-Tag a release: `git tag -a vX.Y.Z -m "..." && git push --tags`.
-catenahq/ops's `Bump @catenahq/catena-templates to latest` workflow opens
-a vendored-tarball-bump PR on its next daily run.
+A merge to `main` is live for every new deploy as soon as the consumers
+next fetch the catalog; there are no releases to cut.
 
 ## What does NOT live here
 

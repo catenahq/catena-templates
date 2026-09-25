@@ -18,8 +18,12 @@ for layout, consumer model, and BASE URL setup.
   in `sources/<id>.json` and reach the reader through the generated
   README. Comments inside the compose explain a construct that does not
   read as written, beside that construct.
-- Every change is a deliberate version bump. Tag a `vX.Y.Z` release on
-  every merge to main; catenahq/ops pulls via that tag.
+- Every consumer reads `main`, fetched raw: a merge reaches every new
+  deploy at once, so `main` stays deployable.
+- Every image pin is a version the update engine can order (catena-admin
+  `payload/engines/stackupdate`): no floating or partial tags. The engine
+  moves the pins; a template whose tag scheme it cannot order yet gets an
+  override there first.
 - No emojis or em-dashes in any artifact. Plain hyphens + straight
   quotes only. `npm run check:unicode` enforces, and also scans for the
   names of systems Catena stopped shipping.
@@ -172,25 +176,22 @@ a warning and steps over, and the backup is then taken unquiesced.
    `sources/outline.json`, `sources/nextcloud-s3-oidc.json`.
 6. `make` -- render + lint + test. Commit the regenerated artifacts.
 7. Open a PR. CI must pass `build-and-verify.yml`, `check:unicode` and `check:prose`.
-8. After merge, `git tag -a vX.Y.Z -m "..." && git push --tags`.
 
-## When to bump the schema
+## Changing catalog.json
 
-`sources.schema.json` is internal to this repo; the CONTRACT with
-catenahq/ops is `catalog.json`. Changing the source shape is a minor
-bump when `catalog.json` comes out identical. Changing `catalog.json`
-is a major bump and needs coordinated PRs:
+`sources.schema.json` is internal to this repo; the CONTRACT with every
+consumer is `catalog.json`. A source change that leaves `catalog.json`
+identical needs nothing else. A change to `catalog.json` lands in the same
+merge window as its consumers, since they all read `main`:
 
-1. Land the new shape here behind a major version bump.
-2. Update `automation/helpers/templates_catalog.py` in catenahq/ops in
-   the same merge window.
-3. Update `generate-sizing-doc.py` in catenahq/ops.
-4. Update the Ansible loader in catena-ce
-   (`roles/infrastructure/tasks/_templates_catalog_load.yml`).
-5. Update the per-host render in catena-admin (`shell/marketplace`) --
-   it reads `catalog.json` and rewrites `templates.json` for one host,
-   so a shape change breaks a client's marketplace, not just a report.
-6. Bump the vendored tarball in catenahq/ops via the bump workflow.
+1. ops `automation/helpers/templates_catalog.py` and
+   `automation/operator-tools/generate-sizing-doc.py`.
+2. The Ansible loader in catena-ce
+   (`ansible/reconcile/roles/infrastructure/tasks/_templates_catalog_load.yml`).
+3. The per-host render in catena-admin (`shell/marketplace`) and its
+   catalog engine (`payload/engines/catalog`) -- the render reads
+   `catalog.json` and rewrites `templates.json` for one host, so a shape
+   change breaks a client's marketplace, not just a report.
 
 ## What does NOT live here
 
