@@ -118,7 +118,7 @@
             "type": "string",
             "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
           },
-          "description": "Keys the converge re-injects on every pass. They render to the operator-wired sentinel, never to a real value."
+          "description": "Keys the host's dashboard-sync re-injects into a running stack whenever they drift from what the panel renders (a rotated credential, a changed domain). In the public catalog they render to the operator-wired sentinel, never to a real value."
         },
         "postgres_image_override": {
           "type": "string",
