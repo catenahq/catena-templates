@@ -795,7 +795,7 @@
       "en": {
         "compose_description": "Work management with test runs, time tracking, and customer portals. Replaces Jira / Jira Service Management.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/windshift/README.md\n",
         "display_name": "Windshift",
-        "extra_notes": "**Interface language:** Windshift ships English, German, Spanish, Portuguese, Arabic, and Chinese. There is no French interface upstream as of v0.8.4.\n\n**Edition:** the self-hosted edition is AGPL-3.0 with no user or workspace cap. SAML 2.0, LDAP, and audit logging are announced for the paid Windshift Pro edition; OpenID Connect and passkeys are in this one.\n",
+        "extra_notes": "**Edition:** the self-hosted edition is AGPL-3.0 with no user or workspace cap. SAML 2.0, LDAP, and audit logging are announced for the paid Windshift Pro edition; OpenID Connect and passkeys are in this one.\n",
         "replaces": [
           "Jira",
           "Jira Service Management",
@@ -818,7 +818,7 @@
       "fr": {
         "compose_description": "Gestion du travail avec suites de tests, feuilles de temps et portails clients. Remplace Jira / Jira Service Management.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/windshift/README.md\n",
         "display_name": "Windshift",
-        "extra_notes": "**Langue de l'interface :** Windshift est livr\u00e9 en anglais, allemand, espagnol, portugais, arabe et chinois. Aucune traduction fran\u00e7aise n'existe en amont \u00e0 la version v0.8.4.\n\n**\u00c9dition :** l'\u00e9dition auto-h\u00e9berg\u00e9e est sous AGPL-3.0, sans limite d'utilisateurs ni d'espaces de travail. SAML 2.0, LDAP et le journal d'audit sont annonc\u00e9s pour l'\u00e9dition payante Windshift Pro ; OpenID Connect et les cl\u00e9s d'acc\u00e8s sont inclus ici.\n",
+        "extra_notes": "**\u00c9dition :** l'\u00e9dition auto-h\u00e9berg\u00e9e est sous AGPL-3.0, sans limite d'utilisateurs ni d'espaces de travail. SAML 2.0, LDAP et le journal d'audit sont annonc\u00e9s pour l'\u00e9dition payante Windshift Pro ; OpenID Connect et les cl\u00e9s d'acc\u00e8s sont inclus ici.\n",
         "replaces": [
           "Jira",
           "Jira Service Management",

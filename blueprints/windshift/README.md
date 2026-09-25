@@ -23,8 +23,6 @@ arranged beforehand, on request.
 3. *(Optional)* Enable Keycloak SSO: **Admin** -> **Single Sign-On** -> add an **OpenID Connect** provider. Name it `keycloak` so the pre-registered redirect URI matches, paste `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET` and `OIDC_ISSUER_URL` from the Environment tab, and set the scopes to `openid email profile`. If a different provider name is used, copy the **Callback URL** shown in the dialog into the identity provider's redirect URIs.
 4. *(Optional)* Add a customer portal from the admin area. Portal accounts are separate from internal accounts, and each portal carries its own name, branding, request types, and access rules.
 
-**Interface language:** Windshift ships English, German, Spanish, Portuguese, Arabic, and Chinese. There is no French interface upstream as of v0.8.4.
-
 **Edition:** the self-hosted edition is AGPL-3.0 with no user or workspace cap. SAML 2.0, LDAP, and audit logging are announced for the paid Windshift Pro edition; OpenID Connect and passkeys are in this one.
 
 ### Environment variables
@@ -60,8 +58,6 @@ préalable, sur demande.
 2. Visitez le domaine Windshift et créez le premier compte administrateur.
 3. *(Optionnel)* Activez Keycloak SSO : **Admin** -> **Single Sign-On** -> ajoutez un fournisseur **OpenID Connect**. Nommez-le `keycloak` pour que l'URI de redirection pré-enregistrée corresponde, collez `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET` et `OIDC_ISSUER_URL` depuis l'onglet Environment, puis indiquez les scopes `openid email profile`. Avec un autre nom de fournisseur, copiez la **Callback URL** affichée dans la fenêtre vers les URI de redirection du fournisseur d'identité.
 4. *(Optionnel)* Ajoutez un portail client depuis la zone d'administration. Les comptes de portail sont distincts des comptes internes, et chaque portail a son nom, son habillage, ses types de demandes et ses règles d'accès.
-
-**Langue de l'interface :** Windshift est livré en anglais, allemand, espagnol, portugais, arabe et chinois. Aucune traduction française n'existe en amont à la version v0.8.4.
 
 **Édition :** l'édition auto-hébergée est sous AGPL-3.0, sans limite d'utilisateurs ni d'espaces de travail. SAML 2.0, LDAP et le journal d'audit sont annoncés pour l'édition payante Windshift Pro ; OpenID Connect et les clés d'accès sont inclus ici.
 
