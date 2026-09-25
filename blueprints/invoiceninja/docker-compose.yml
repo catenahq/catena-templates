@@ -1,6 +1,6 @@
 services:
   app:
-    image: invoiceninja/invoiceninja-debian:5
+    image: invoiceninja/invoiceninja-debian:5.13.43
     deploy:
       restart_policy:
         condition: any

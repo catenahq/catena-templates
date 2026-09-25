@@ -520,7 +520,7 @@ services:
       default: {}
 
   jigasi:
-    image: jitsi/jigasi:jigasi-1.1-412-ge9a3acc-1
+    image: jitsi/jigasi:stable-10888
     deploy:
       restart_policy:
         condition: any

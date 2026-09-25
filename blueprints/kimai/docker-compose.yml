@@ -1,6 +1,6 @@
 services:
   kimai:
-    image: kimai/kimai2:stable
+    image: kimai/kimai2:2.67.0
     deploy:
       restart_policy:
         condition: any

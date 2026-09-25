@@ -142,7 +142,7 @@ services:
   # tunnel like any HTTP app (catalog extra_domains adds the router).
   # The policy is baked from MAIL_HOSTNAME at container start.
   mta-sts:
-    image: nginx:1.31-alpine
+    image: nginx:1.31.6-alpine
     deploy:
       restart_policy:
         condition: any
