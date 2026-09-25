@@ -2,21 +2,8 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["github>catenahq/renovate-config"],
   "docker-compose": {
-    "description": "The catalog's compose files: one per template, hand-edited at blueprints/<id>/docker-compose.yml. If this pattern stops matching them, Renovate extracts zero catalog images and reports nothing, so the Dependency Dashboard's docker-compose section is the check that it still works.",
-    "managerFilePatterns": [
-      "/^blueprints/[^/]+/docker-compose\\.yml$/"
-    ]
-  },
-  "postUpgradeTasks": {
-    "description": "Re-render after every bump, so the PR Renovate opens is complete. The per-template README, templates.json, catalog.json and index.html are generated from sources/ and the compose files; Renovate edits an input and cannot run make, so without this the generated artifacts can lag the input and render-idempotency fails the PR. build/render-ci.sh is the uv-optional entrypoint, because the Renovate container is not this repo's dev environment. Requires the runner to allow the command (RENOVATE_ALLOWED_COMMANDS in catenahq/renovate).",
-    "commands": ["bash build/render-ci.sh"],
-    "fileFilters": [
-      "blueprints/**",
-      "templates.json",
-      "catalog.json",
-      "index.html"
-    ],
-    "executionMode": "branch"
+    "description": "The catalog's image pins (blueprints/<id>/docker-compose.yml and the central postgres default in sources/_meta.json) are moved by the catena-admin update engine's repository job (catenahq/renovate engine-bump.yml), the same decision a host makes for a running service. Renovate does not manage them, so the two cannot disagree.",
+    "enabled": false
   },
   "packageRules": [
     {
@@ -43,79 +30,6 @@
       "matchUpdateTypes": ["minor", "patch"],
       "groupName": "python pep723 (minor+patch)",
       "automerge": true
-    },
-    {
-      "matchManagers": ["docker-compose"],
-      "matchFileNames": ["blueprints/**"],
-      "matchUpdateTypes": ["patch", "minor", "digest"],
-      "groupName": "catalog images (patch+minor)",
-      "automerge": true
-    },
-    {
-      "matchManagers": ["docker-compose"],
-      "matchFileNames": ["blueprints/**"],
-      "matchUpdateTypes": ["major"],
-      "groupName": "catalog images (major)",
-      "automerge": false
-    },
-    {
-      "description": "Renovate's docker datasource has release timestamps for Docker Hub only, so under the preset's 7-day minimumReleaseAge (timestamp-required) an image from any other registry never ages and is never bumped. The rules from here to the postgres rule look such images up through their upstream's GitHub releases instead: the same version numbers with real publish dates, so the cooldown still applies. A non-Docker-Hub image added to the catalog needs a rule here or it is never proposed. ghcr.io/immich-app/postgres and ghcr.io/nextcloud-releases/aio-talk have no semver tags and stay manual.",
-      "matchManagers": ["docker-compose"],
-      "matchPackageNames": ["ghcr.io/windshiftapp/windshift"],
-      "overrideDatasource": "github-releases",
-      "overridePackageName": "Windshiftapp/windshift",
-      "versioning": "semver-coerced"
-    },
-    {
-      "matchManagers": ["docker-compose"],
-      "matchPackageNames": ["ghcr.io/gitroomhq/postiz-app"],
-      "overrideDatasource": "github-releases",
-      "overridePackageName": "gitroomhq/postiz-app",
-      "versioning": "semver-coerced"
-    },
-    {
-      "matchManagers": ["docker-compose"],
-      "matchPackageNames": ["ghcr.io/immich-app/immich-server", "ghcr.io/immich-app/immich-machine-learning"],
-      "overrideDatasource": "github-releases",
-      "overridePackageName": "immich-app/immich",
-      "versioning": "semver-coerced"
-    },
-    {
-      "description": "The image tags drop the v that the release tags carry.",
-      "matchManagers": ["docker-compose"],
-      "matchPackageNames": ["ghcr.io/docker-mailserver/docker-mailserver"],
-      "overrideDatasource": "github-releases",
-      "overridePackageName": "docker-mailserver/docker-mailserver",
-      "extractVersion": "^v(?<version>.+)$",
-      "versioning": "semver-coerced"
-    },
-    {
-      "description": "The image tags drop the v that the release tags carry.",
-      "matchManagers": ["docker-compose"],
-      "matchPackageNames": ["docker.elastic.co/elasticsearch/elasticsearch"],
-      "overrideDatasource": "github-releases",
-      "overridePackageName": "elastic/elasticsearch",
-      "extractVersion": "^v(?<version>.+)$",
-      "versioning": "semver-coerced"
-    },
-    {
-      "description": "Postgres is centrally governed: the per-template compose pins must equal postgres_default_image in sources/_meta.json (build/lint_postgres_pins.py fails the build otherwise). Group EVERY postgres bump -- the docker-compose pins AND the central-default customManager below -- into one reviewed PR so they move together and the lint stays green; a split bump (pins without the default, or vice versa) fails the lint. automerge off: a Postgres major/minor is a coordinated, reviewed change.",
-      "matchPackageNames": ["postgres"],
-      "groupName": "postgres central bump",
-      "automerge": false
-    }
-  ],
-  "customManagers": [
-    {
-      "customType": "regex",
-      "description": "Track the central Postgres image (postgres_default_image) in sources/_meta.json. The per-template compose pins follow it (enforced by build/lint_postgres_pins.py); the packageRule above groups this bump with the compose-pin bumps into one PR.",
-      "managerFilePatterns": [
-        "/^sources/_meta\\.json$/"
-      ],
-      "matchStrings": [
-        "\"postgres_default_image\":\\s*\"(?<depName>postgres):(?<currentValue>[^\"]+)\""
-      ],
-      "datasourceTemplate": "docker"
     }
   ],
   "ignorePaths": [

@@ -1,18 +1,17 @@
 #!/usr/bin/env bash
 # Render the committed artifacts from an environment that may not have uv.
 #
-# Renovate edits the render's inputs -- a compose pin in blueprints/<id>/, the
-# central postgres default in sources/_meta.json -- and cannot run
-# `make render`. Its postUpgradeTasks runs this after each bump, so the
-# generated artifacts in the PR it opens match the inputs and render-idempotency
-# passes.
+# The update engine's repository job (catenahq/renovate engine-bump.yml, through
+# ops bump_versions.py) edits the render's inputs -- a compose pin in
+# blueprints/<id>/, the central postgres default in sources/_meta.json -- and
+# runs this after each bump, so the generated artifacts in the PR it opens
+# match the inputs and render-idempotency passes.
 #
-# The renovate container is not this repo's dev environment: it carries node and
-# a python3, with no uv and no pip. So this installs nothing: lib/model.py treats
-# jsonschema as optional and skips the JSON Schema layer without it, and the
-# render-idempotency job re-renders under uv and compares. uv is preferred where
-# it exists, because that is what `make render` uses and the two must not be
-# able to disagree.
+# This installs nothing, so it also works where there is a python3 and no uv or
+# pip: lib/model.py treats jsonschema as optional and skips the JSON Schema
+# layer without it, and the render-idempotency job re-renders under uv and
+# compares. uv is preferred where it exists, because that is what
+# `make render` uses and the two must not be able to disagree.
 set -euo pipefail
 
 # Bash's own expansion rather than dirname: this runs in whatever container

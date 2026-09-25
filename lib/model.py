@@ -108,17 +108,17 @@ def _schema(path: Path) -> dict[str, Any]:
 def _validate_schema(doc: dict[str, Any], schema: dict[str, Any], label: str) -> list[str]:
     """Layer 1, and NOT REQUIRED to render.
 
-    Renovate's container has a python3 and no pip, so a bump that re-renders
-    through build/render-ci.sh cannot install jsonschema -- and the render
-    aborting on the import left every catalog bump's generated artifacts
-    describing the old pin, which is the render-idempotency red this skip
-    exists to stop. Rendering needs the sources to BE valid, not to be proven
-    valid here.
+    build/render-ci.sh renders wherever a bump is made, including an
+    environment with a python3 and no pip, where jsonschema cannot be
+    installed -- and a render aborting on the import leaves a bump's generated
+    artifacts describing the old pin, which is the render-idempotency red this
+    skip exists to stop. Rendering needs the sources to BE valid, not to be
+    proven valid here.
 
     Nothing is lost: build/validate.py imports jsonschema directly and cannot
     run degraded, and the render-idempotency job re-renders under uv and
-    compares, so a Renovate render that skipped layer 1 is still checked by one
-    that did not.
+    compares, so a render that skipped layer 1 is still checked by one that did
+    not.
 
     The callers announce the skip, once each, rather than this returning an
     empty list per document with nothing said."""
