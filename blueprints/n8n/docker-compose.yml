@@ -1,6 +1,6 @@
 services:
   n8n:
-    image: n8nio/n8n:2.19.5
+    image: n8nio/n8n:2.41.2
     deploy:
       restart_policy:
         condition: any

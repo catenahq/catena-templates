@@ -1,6 +1,6 @@
 services:
   mongodb:
-    image: mongo:7.0.32
+    image: mongo:8.3.11
     deploy:
       restart_policy:
         condition: any
@@ -38,7 +38,7 @@ services:
           - mongodb
 
   rocketchat:
-    image: docker.io/rocketchat/rocket.chat:8.4.1
+    image: docker.io/rocketchat/rocket.chat:8.8.1
     deploy:
       restart_policy:
         condition: any
@@ -101,7 +101,7 @@ services:
   # Jitsi_Domain=meet.<base>, etc. Idempotent.
 
   prosody:
-    image: jitsi/prosody:stable-10888
+    image: jitsi/prosody:stable-11031
     deploy:
       restart_policy:
         condition: any
@@ -148,7 +148,7 @@ services:
           - recorder.meet.jitsi
 
   jicofo:
-    image: jitsi/jicofo:stable-10888
+    image: jitsi/jicofo:stable-11031
     deploy:
       restart_policy:
         condition: any
@@ -170,7 +170,7 @@ services:
       - default
 
   jvb:
-    image: jitsi/jvb:stable-10888
+    image: jitsi/jvb:stable-11031
     deploy:
       restart_policy:
         condition: any
@@ -215,7 +215,7 @@ services:
       - default
 
   jitsi-web:
-    image: jitsi/web:stable-10888
+    image: jitsi/web:stable-11031
     deploy:
       restart_policy:
         condition: any
