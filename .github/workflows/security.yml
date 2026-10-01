@@ -1,15 +1,9 @@
 name: security
 
-# Bundled FOSS security scan via catenahq/scanctl (profile full): detects the
-# repo's ecosystems and runs the matching scanners -- gitleaks, osv-scanner,
-# trivy fs+license, semgrep, zizmor, guarddog -- merges SARIF to code scanning,
-# and emits a CycloneDX SBOM artifact. The catalog images are scanned by
-# trivy-images.yml, through a matrix it enumerates from the blueprints on
-# each run.
-#
-# Inline caller, NOT the catenahq/scanctl reusable workflow: the reusable
-# github-reusable.yml@main startup-fails when called from this repo. scanctl
-# itself stays at @main (installed via go install ...@main).
+# Bundled FOSS security scan via catenahq/scanctl (profile full), through its
+# reusable workflow. Every finding in this repo's tree gates on every run. The
+# catalog images are scanned by trivy-images.yml, through a matrix it
+# enumerates from the blueprints on each run.
 
 on:
   pull_request:
@@ -26,49 +20,13 @@ permissions:
 
 jobs:
   scanctl:
-    # catena-templates is public; the self-hosted runner group excludes public
-    # repos, so this runs on a GitHub-hosted runner and sets up go + uv itself.
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
-        with:
-          fetch-depth: 0 # full history so gitleaks scans past commits
-          persist-credentials: false
-      - name: Set up Go
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
-        with:
-          go-version: stable
-      - name: Install uv
-        # uv backs the Python scanners (semgrep, guarddog), lazy-fetched at scan time.
-        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
-      - name: Install scanctl
-        env:
-          # Straight from git, not proxy.golang.org: the proxy caches branch
-          # resolution (~30 min), so @main could install a stale scanctl.
-          GOPRIVATE: github.com/catenahq/*
-        run: go install github.com/catenahq/scanctl/cmd/scanctl@main
-      - name: Run scanctl
-        # scanctl reads the commit to compare with from the event. Image CVEs
-        # gate only when the change introduces them; every other finding gates
-        # on every run.
-        env:
-          # zizmor's API-backed audits use this when present; absent = --offline.
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          "$(go env GOPATH)/bin/scanctl" run --profile full \
-            --out scanctl.sarif --sbom sbom.cdx.json \
-            --summary "$GITHUB_STEP_SUMMARY" .
-      - name: Upload SARIF to code scanning
-        if: always()
-        uses: github/codeql-action/upload-sarif@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4
-        with:
-          sarif_file: scanctl.sarif
-        continue-on-error: true
-      - name: Upload SBOM artifact
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
-        with:
-          name: sbom-cyclonedx
-          path: sbom.cdx.json
-          if-no-files-found: ignore
+    uses: catenahq/scanctl/.github/workflows/github-reusable.yml@main
+    # The called job asks for all three; a caller granting fewer fails to start.
+    permissions:
+      contents: read
+      security-events: write
+      pull-requests: write
+    with:
+      profile: full
+      # The self-hosted runner group excludes public repos.
+      runner: ubuntu-latest
