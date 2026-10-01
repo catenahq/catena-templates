@@ -1,13 +1,13 @@
 # Security policy
 
 Email **security@catena.run** (see the full policy in
-[catenahq/catena-ce SECURITY.md](https://github.com/catenahq/catena-ce/blob/main/SECURITY.md)).
+[catenahq/catena-ce SECURITY.md](https://github.com/catenahq/catena-ce/blob/HEAD/SECURITY.md)).
 
-Scope for THIS repository: the catalog metadata (`source/catalog.yml`,
-`source/sizing-data.yml`), the per-template compose files
-(`source/compose/`), the render pipeline (`build/render.py`), and the
-generated `blueprints/` + `templates.json` that client Portainer
-instances fetch from raw.githubusercontent.com. A compose change that
+Scope for THIS repository: the per-template metadata (`sources/<id>.json`),
+the hand-edited stack files (`blueprints/<id>/docker-compose.yml`), the
+render pipeline (`build/render.py`), and the generated `templates.json`,
+`catalog.json` and blueprint READMEs that client Portainer instances fetch
+from raw.githubusercontent.com. A compose change that
 weakens a template's isolation (network exposure, dropped auth labels,
 privileged mounts) is squarely in scope.
 
