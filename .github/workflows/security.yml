@@ -13,8 +13,10 @@ name: security
 
 on:
   pull_request:
+  # Every pushed branch. Renovate and engine-bump branches always carry a pull
+  # request, which tests each push to them.
   push:
-    branches: [main]
+    branches-ignore: ['renovate/**', 'engine-bump/**', 'scanctl/**']
   schedule:
     - cron: '17 6 * * 1'
 

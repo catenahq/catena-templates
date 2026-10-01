@@ -10,7 +10,7 @@ name: Trivy images (catalog)
 #                  (catenahq/contracts scripts/trivy_gate.py): the change fails
 #                  only on HIGH/CRITICAL fixable findings it ADDS. A new image
 #                  has nothing to replace and is graded on its own.
-#   push main,     scans every catalog image, report-only. The absolute level
+#   push,          scans every catalog image, report-only. The absolute level
 #   schedule       is upstream's to fix and the update engine's to move past;
 #                  the per-image JSON is uploaded as an artifact.
 #
@@ -23,8 +23,10 @@ name: Trivy images (catalog)
 
 on:
   pull_request:
+  # Every pushed branch. Renovate and engine-bump branches always carry a pull
+  # request, which tests each push to them.
   push:
-    branches: [main]
+    branches-ignore: ['renovate/**', 'engine-bump/**', 'scanctl/**']
   schedule:
     - cron: '23 6 * * *'
 

@@ -1,8 +1,10 @@
 name: build-and-verify
 
 on:
+  # Every pushed branch. Renovate and engine-bump branches always carry a pull
+  # request, which tests each push to them.
   push:
-    branches: [main]
+    branches-ignore: ['renovate/**', 'engine-bump/**', 'scanctl/**']
   pull_request:
     branches: [main]
 
