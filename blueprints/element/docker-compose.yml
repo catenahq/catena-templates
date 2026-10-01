@@ -1,5 +1,5 @@
 x-synapse-image: &synapse_image
-  image: matrixdotorg/synapse:v1.153.0
+  image: matrixdotorg/synapse:v1.161.0
 
 services:
   postgres:
@@ -247,7 +247,7 @@ services:
       default: {}
 
   element-web:
-    image: vectorim/element-web:v1.12.18
+    image: vectorim/element-web:v1.12.29
     deploy:
       restart_policy:
         condition: any
@@ -373,7 +373,7 @@ services:
   # templates are deployed side-by-side.
 
   prosody:
-    image: jitsi/prosody:stable-10888
+    image: jitsi/prosody:stable-11031
     deploy:
       restart_policy:
         condition: any
@@ -420,7 +420,7 @@ services:
           - recorder.meet.jitsi
 
   jicofo:
-    image: jitsi/jicofo:stable-10888
+    image: jitsi/jicofo:stable-11031
     deploy:
       restart_policy:
         condition: any
@@ -445,7 +445,7 @@ services:
       - default
 
   jvb:
-    image: jitsi/jvb:stable-10888
+    image: jitsi/jvb:stable-11031
     deploy:
       restart_policy:
         condition: any
@@ -489,7 +489,7 @@ services:
       - default
 
   jitsi-web:
-    image: jitsi/web:stable-10888
+    image: jitsi/web:stable-11031
     deploy:
       restart_policy:
         condition: any
@@ -520,7 +520,7 @@ services:
       default: {}
 
   jigasi:
-    image: jitsi/jigasi:stable-10888
+    image: jitsi/jigasi:stable-11031
     deploy:
       restart_policy:
         condition: any
