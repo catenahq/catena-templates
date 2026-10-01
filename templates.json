@@ -1044,7 +1044,7 @@
         "ERP",
         "Business"
       ],
-      "description": "Open-source ERP (accounting/inventory/HR/CRM/manufacturing). Replaces SAP / Odoo / NetSuite.",
+      "description": "Open-source ERP (accounting/inventory/HR/CRM/manufacturing) with a helpdesk. Replaces SAP / Odoo / NetSuite.",
       "env": [
         {
           "default": "erp.",
@@ -1067,12 +1067,17 @@
           "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "Database root password",
           "name": "DB_ROOT_PASSWORD"
+        },
+        {
+          "default": "erpnext,telephony,helpdesk",
+          "label": "Frappe apps",
+          "name": "FRAPPE_APPS"
         }
       ],
       "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/erpnext/logo.svg",
       "maintainer": "https://github.com/catenahq/catena-templates",
       "name": "catena-erpnext",
-      "note": "<p>Full open-source ERP suite -- accounting, inventory, HR/payroll, CRM, manufacturing, projects, and a built-in website/e-commerce module.</p><p>Replaces SAP Business One, Odoo, Oracle NetSuite.</p><p><a href=\"https://github.com/catenahq/catena-templates/blob/main/blueprints/erpnext/README.md\">https://github.com/catenahq/catena-templates/blob/main/blueprints/erpnext/README.md</a></p>",
+      "note": "<p>Full open-source ERP suite -- accounting, inventory, HR/payroll, CRM, manufacturing, projects, a built-in website/e-commerce module, and a helpdesk linked to its customers.</p><p>Replaces SAP Business One, Odoo, Oracle NetSuite.</p><p><a href=\"https://github.com/catenahq/catena-templates/blob/main/blueprints/erpnext/README.md\">https://github.com/catenahq/catena-templates/blob/main/blueprints/erpnext/README.md</a></p>",
       "platform": "linux",
       "repository": {
         "stackfile": "blueprints/erpnext/docker-compose.yml",

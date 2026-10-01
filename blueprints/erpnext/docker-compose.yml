@@ -8,7 +8,7 @@ x-common: &frappe-env
 services:
   # One-shot: render common_site_config.json from the env above.
   configurator:
-    image: frappe/erpnext:v16.34.2
+    image: ghcr.io/catenahq/erpnext:v16.37.0-1
     deploy:
       restart_policy:
         condition: none
@@ -39,10 +39,12 @@ services:
       - "vps.app=catena-erpnext"
       - "vps.component=configurator"
 
-  # One-shot: create the ERPNext site on first run (idempotent: bench
-  # new-site no-ops when the site already exists).
+  # One-shot: create the site on first run, then install the FRAPPE_APPS apps
+  # on it. install-app skips an app the site already has, so a redeploy with a
+  # longer list adds the new ones. The image is built from
+  # catena-templates images/erpnext.
   create-site:
-    image: frappe/erpnext:v16.34.2
+    image: ghcr.io/catenahq/erpnext:v16.37.0-1
     deploy:
       restart_policy:
         condition: none
@@ -59,17 +61,18 @@ services:
         wait-for-it -t 120 redis-queue:6379;
         until ls sites/common_site_config.json; do sleep 1; done;
         if [ ! -d "sites/${ERPNEXT_HOSTNAME}" ]; then
-          bench new-site --mariadb-user-host-login-scope='%'
-          --admin-password=${ERPNEXT_ADMIN_PASSWORD}
-          --db-root-username=root
-          --db-root-password=${DB_ROOT_PASSWORD}
-          --install-app erpnext
-          --set-default ${ERPNEXT_HOSTNAME};
-        fi
+        bench new-site --mariadb-user-host-login-scope='%'
+        --admin-password=${ERPNEXT_ADMIN_PASSWORD}
+        --db-root-username=root
+        --db-root-password=${DB_ROOT_PASSWORD}
+        --set-default ${ERPNEXT_HOSTNAME};
+        fi;
+        bench --site ${ERPNEXT_HOSTNAME} install-app $${FRAPPE_APPS//,/ };
     environment:
       <<: *frappe-env
       ERPNEXT_ADMIN_PASSWORD: ${ERPNEXT_ADMIN_PASSWORD}
       DB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      FRAPPE_APPS: ${FRAPPE_APPS:-erpnext,telephony,helpdesk}
     volumes:
       - sites:/home/frappe/frappe-bench/sites
       - logs:/home/frappe/frappe-bench/logs
@@ -79,7 +82,7 @@ services:
       - "vps.component=create-site"
 
   backend:
-    image: frappe/erpnext:v16.34.2
+    image: ghcr.io/catenahq/erpnext:v16.37.0-1
     deploy:
       restart_policy:
         condition: any
@@ -98,7 +101,7 @@ services:
       - default
 
   frontend:
-    image: frappe/erpnext:v16.34.2
+    image: ghcr.io/catenahq/erpnext:v16.37.0-1
     deploy:
       restart_policy:
         condition: any
@@ -135,7 +138,7 @@ services:
       default: {}
 
   websocket:
-    image: frappe/erpnext:v16.34.2
+    image: ghcr.io/catenahq/erpnext:v16.37.0-1
     deploy:
       restart_policy:
         condition: any
@@ -155,7 +158,7 @@ services:
       - default
 
   queue-default:
-    image: frappe/erpnext:v16.34.2
+    image: ghcr.io/catenahq/erpnext:v16.37.0-1
     deploy:
       restart_policy:
         condition: any
@@ -175,7 +178,7 @@ services:
       - default
 
   queue-short:
-    image: frappe/erpnext:v16.34.2
+    image: ghcr.io/catenahq/erpnext:v16.37.0-1
     deploy:
       restart_policy:
         condition: any
@@ -195,7 +198,7 @@ services:
       - default
 
   queue-long:
-    image: frappe/erpnext:v16.34.2
+    image: ghcr.io/catenahq/erpnext:v16.37.0-1
     deploy:
       restart_policy:
         condition: any
@@ -215,7 +218,7 @@ services:
       - default
 
   scheduler:
-    image: frappe/erpnext:v16.34.2
+    image: ghcr.io/catenahq/erpnext:v16.37.0-1
     deploy:
       restart_policy:
         condition: any
