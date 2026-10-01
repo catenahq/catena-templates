@@ -139,11 +139,10 @@ jobs:
         with:
           persist-credentials: false # .trivyignore lives at the repo root
       - name: Check out the shared gates
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        uses: catenahq/contracts/.github/actions/checkout-sibling@main
         with:
           repository: catenahq/contracts
           path: contracts
-          persist-credentials: false
       - name: Docker Hub login (lifts the pull rate limit; skipped if no secret)
         if: env.DOCKERHUB_USERNAME != ''
         env:
