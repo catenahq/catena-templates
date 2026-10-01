@@ -30,7 +30,7 @@ arranged beforehand, on request.
 
 **Resource note.** ERPNext is heavy -- 10+ containers, ~3 GB RAM + 2 CPUs recommended minimum. A dedicated VPS tier is the right home when Nextcloud + chat + other apps run alongside.
 
-**Upgrade path.** Major version bumps (v15 -> v16) require `bench migrate`. The compose template leaves `vps.auto-update=patch` on every service so weekly automated updates stay within v15.x.x -- majors are a deliberate operator action, not a 3 a.m. auto-update.
+**Updates.** The nightly update applies new ERPNext releases within version 16 once they have aged a week and passed the vulnerability check. While it runs, the site shows a maintenance page for a few minutes: the database is saved, the new version starts, `bench migrate` brings the database up to it, and the site reopens. If the migration or the health check after it fails, the previous version and the saved database are put back. The move to the next major version is never automatic.
 
 ### Environment variables
 
@@ -72,7 +72,7 @@ préalable, sur demande.
 
 **Ressources.** ERPNext est lourd -- 10+ conteneurs, minimum ~3 GB RAM + 2 CPUs recommandés. Un VPS dédié s'impose lorsque Nextcloud + chat + d'autres apps tournent en parallèle.
 
-**Montées de version.** Les bumps majeurs (v15 -> v16) nécessitent `bench migrate`. Le template laisse `vps.auto-update=patch` sur chaque service : les mises à jour hebdomadaires automatiques restent en v15.x.x -- les majeurs sont une action opérateur délibérée, pas une auto-update à 3 h du matin.
+**Mises à jour.** La mise à jour nocturne applique les nouvelles versions d'ERPNext de la version 16 une fois qu'elles ont une semaine d'ancienneté et ont réussi le contrôle de vulnérabilités. Pendant ce temps, le site affiche une page de maintenance quelques minutes : la base de données est sauvegardée, la nouvelle version démarre, `bench migrate` met la base à niveau, puis le site rouvre. Si la migration ou le contrôle de santé qui suit échoue, la version précédente et la base sauvegardée sont remises en place. Le passage à la version majeure suivante n'est jamais automatique.
 
 ### Variables d'environnement
 

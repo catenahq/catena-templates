@@ -1089,7 +1089,7 @@
       "en": {
         "compose_description": "Open-source ERP (accounting/inventory/HR/CRM/manufacturing). Replaces SAP / Odoo / NetSuite.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/erpnext/README.md\n",
         "display_name": "ERPNext",
-        "extra_notes": "**Resource note.** ERPNext is heavy -- 10+ containers, ~3 GB RAM + 2 CPUs recommended minimum. A dedicated VPS tier is the right home when Nextcloud + chat + other apps run alongside.\n\n**Upgrade path.** Major version bumps (v15 -> v16) require `bench migrate`. The compose template leaves `vps.auto-update=patch` on every service so weekly automated updates stay within v15.x.x -- majors are a deliberate operator action, not a 3 a.m. auto-update.\n",
+        "extra_notes": "**Resource note.** ERPNext is heavy -- 10+ containers, ~3 GB RAM + 2 CPUs recommended minimum. A dedicated VPS tier is the right home when Nextcloud + chat + other apps run alongside.\n\n**Updates.** The nightly update applies new ERPNext releases within version 16 once they have aged a week and passed the vulnerability check. While it runs, the site shows a maintenance page for a few minutes: the database is saved, the new version starts, `bench migrate` brings the database up to it, and the site reopens. If the migration or the health check after it fails, the previous version and the saved database are put back. The move to the next major version is never automatic.\n",
         "replaces": [
           "SAP Business One",
           "Odoo",
@@ -1107,7 +1107,7 @@
       "fr": {
         "compose_description": "ERP open-source (compta/stock/RH/CRM/prod). Remplace SAP / Odoo / NetSuite.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/erpnext/README.md\n",
         "display_name": "ERPNext",
-        "extra_notes": "**Ressources.** ERPNext est lourd -- 10+ conteneurs, minimum ~3 GB RAM + 2 CPUs recommand\u00e9s. Un VPS d\u00e9di\u00e9 s'impose lorsque Nextcloud + chat + d'autres apps tournent en parall\u00e8le.\n\n**Mont\u00e9es de version.** Les bumps majeurs (v15 -> v16) n\u00e9cessitent `bench migrate`. Le template laisse `vps.auto-update=patch` sur chaque service : les mises \u00e0 jour hebdomadaires automatiques restent en v15.x.x -- les majeurs sont une action op\u00e9rateur d\u00e9lib\u00e9r\u00e9e, pas une auto-update \u00e0 3 h du matin.\n",
+        "extra_notes": "**Ressources.** ERPNext est lourd -- 10+ conteneurs, minimum ~3 GB RAM + 2 CPUs recommand\u00e9s. Un VPS d\u00e9di\u00e9 s'impose lorsque Nextcloud + chat + d'autres apps tournent en parall\u00e8le.\n\n**Mises \u00e0 jour.** La mise \u00e0 jour nocturne applique les nouvelles versions d'ERPNext de la version 16 une fois qu'elles ont une semaine d'anciennet\u00e9 et ont r\u00e9ussi le contr\u00f4le de vuln\u00e9rabilit\u00e9s. Pendant ce temps, le site affiche une page de maintenance quelques minutes : la base de donn\u00e9es est sauvegard\u00e9e, la nouvelle version d\u00e9marre, `bench migrate` met la base \u00e0 niveau, puis le site rouvre. Si la migration ou le contr\u00f4le de sant\u00e9 qui suit \u00e9choue, la version pr\u00e9c\u00e9dente et la base sauvegard\u00e9e sont remises en place. Le passage \u00e0 la version majeure suivante n'est jamais automatique.\n",
         "replaces": [
           "SAP Business One",
           "Odoo",
@@ -1118,6 +1118,32 @@
       },
       "hostname_baked": true,
       "id": "erpnext",
+      "lifecycle": {
+        "after_update": [
+          [
+            "bench",
+            "set-maintenance-mode",
+            "off"
+          ]
+        ],
+        "before_update": [
+          [
+            "bench",
+            "set-maintenance-mode",
+            "on"
+          ]
+        ],
+        "migrate": [
+          [
+            "bench",
+            "--site",
+            "all",
+            "migrate"
+          ]
+        ],
+        "service": "backend",
+        "timeout_seconds": 3600
+      },
       "quiesce_post": "true",
       "quiesce_pre": "docker exec \"$(docker ps -q -f label=vps.app=catena-erpnext -f label=vps.component=db | head -1)\" sh -c 'mariadb-dump --single-transaction --quick --routines --triggers --add-drop-table -u root -p\"$MARIADB_ROOT_PASSWORD\" --all-databases > /var/lib/mysql/.catena-dump.sql.new && mv /var/lib/mysql/.catena-dump.sql.new /var/lib/mysql/.catena-dump.sql'",
       "quiesce_timeout_seconds": 60,

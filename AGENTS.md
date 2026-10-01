@@ -175,7 +175,7 @@ a warning and steps over, and the backup is then taken unquiesced.
    `before_update` / `after_update` wrap an update, for an application
    with a maintenance mode. Commands are argv arrays -- `docker exec`
    gives them no shell. Real examples: `sources/outline.json`,
-   `sources/nextcloud-s3-oidc.json`.
+   `sources/nextcloud-s3-oidc.json`, `sources/erpnext.json`.
 6. `make` -- render + lint + test. Commit the regenerated artifacts.
 7. Open a PR. CI must pass `build-and-verify.yml`, `check:unicode` and `check:prose`.
 
