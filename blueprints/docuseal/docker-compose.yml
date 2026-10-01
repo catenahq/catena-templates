@@ -1,6 +1,6 @@
 services:
   docuseal:
-    image: docuseal/docuseal:3.2.4
+    image: docuseal/docuseal:3.2.6
     deploy:
       restart_policy:
         condition: any
