@@ -74,6 +74,9 @@ jobs:
       - name: check:unicode
         working-directory: ./catena-templates
         run: node ../contracts/scripts/check-unicode.mjs
+      - name: Repo rules (no tracked env file; .gitignore carries the env rule)
+        working-directory: ./catena-templates
+        run: node ../contracts/scripts/check-repo-rules.mjs
       # Pinned in contracts/.vale-version, which check-prose.mjs also
       # reads and enforces: the grammars decide which comments are
       # visible, so a different version is a different gate.
