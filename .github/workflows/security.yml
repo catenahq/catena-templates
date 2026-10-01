@@ -3,9 +3,9 @@ name: security
 # Bundled FOSS security scan via catenahq/scanctl (profile full): detects the
 # repo's ecosystems and runs the matching scanners -- gitleaks, osv-scanner,
 # trivy fs+license, semgrep, zizmor, guarddog -- merges SARIF to code scanning,
-# and emits a CycloneDX SBOM artifact. trivy-images.yml is separate: it scans
-# every catalog image via a dynamically enumerated matrix, which scanctl's
-# static images: list cannot reproduce.
+# and emits a CycloneDX SBOM artifact. The catalog images are scanned by
+# trivy-images.yml, through a matrix it enumerates from the blueprints on
+# each run.
 #
 # Inline caller, NOT the catenahq/scanctl reusable workflow: the reusable
 # github-reusable.yml@main startup-fails when called from this repo. scanctl
@@ -49,7 +49,9 @@ jobs:
           GOPRIVATE: github.com/catenahq/*
         run: go install github.com/catenahq/scanctl/cmd/scanctl@main
       - name: Run scanctl
-        # scanctl reads the commit to compare with from the event.
+        # scanctl reads the commit to compare with from the event. Image CVEs
+        # gate only when the change introduces them; every other finding gates
+        # on every run.
         env:
           # zizmor's API-backed audits use this when present; absent = --offline.
           GH_TOKEN: ${{ github.token }}
