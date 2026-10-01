@@ -1,6 +1,6 @@
 services:
   wp:
-    image: wordpress:6.9.4-fpm-alpine
+    image: wordpress:7.1.1-fpm-alpine
     deploy:
       restart_policy:
         condition: any
@@ -233,7 +233,7 @@ services:
       default: {}
 
   db:
-    image: mariadb:12.3.2
+    image: mariadb:13.0.2
     deploy:
       restart_policy:
         condition: any
@@ -260,7 +260,7 @@ services:
       - default
 
   redis:
-    image: redis:7.4.9-alpine
+    image: redis:8.10.1-alpine
     deploy:
       restart_policy:
         condition: any
