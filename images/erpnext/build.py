@@ -34,10 +34,15 @@ INPUTS = HERE / "inputs.json"
 TAG_RE = re.compile(r"^v(\d+)\.(\d+)\.(\d+)-(\d+)$")
 
 # The last command of the builder stage's RUN in images/layered/Containerfile.
-# The strip is appended to it so the files never reach a layer.
-STRIP_ANCHOR = 'find apps -mindepth 1 -path "*/.git" | xargs rm -fr'
-STRIP = (STRIP_ANCHOR + ' && \\\n  find apps -mindepth 2 -maxdepth 4 -type d -name node_modules'
+# Build-time steps are appended to it, so removed files never reach a layer.
+ANCHOR = 'find apps -mindepth 1 -path "*/.git" | xargs rm -fr'
+# Build-only node_modules; Frappe's own run the websocket service.
+STRIP = ('find apps -mindepth 2 -maxdepth 4 -type d -name node_modules'
          ' -not -path "apps/frappe/*" -prune -exec rm -rf {} +')
+# NLTK corpora an app loads at runtime, into the bench venv's nltk_data, which
+# NLTK searches. An app that finds none downloads them into its container.
+NLTK = ("env/bin/python -c \"import sys, nltk; [nltk.download(c, download_dir='env/nltk_data',"
+        " raise_on_error=True) for c in sys.argv[1:]]\" ")
 
 
 def log(msg: str) -> None:
@@ -53,6 +58,15 @@ def run(*argv: str, cwd: Path | None = None, capture: bool = False) -> str:
 
 def vtuple(v: str) -> tuple[int, ...]:
     return tuple(int(x) for x in re.findall(r"\d+", v))
+
+
+def builder_steps() -> str:
+    """What replaces ANCHOR in the builder stage."""
+    steps = [ANCHOR, STRIP]
+    corpora = [c for app in SPEC["apps"] for c in app.get("nltk_data", [])]
+    if corpora:
+        steps.append(NLTK + " ".join(corpora))
+    return " && \\\n  ".join(steps)
 
 
 # --- resolve -----------------------------------------------------------------
@@ -107,6 +121,7 @@ def resolve_inputs() -> dict:
     fsha = head[f"refs/heads/{frappe['branch']}"]
     m = re.search(r'__version__ = "([^"]+)"', raw(frappe["repo"], fsha, "frappe/__init__.py"))
     inputs = {"builder": SPEC["builder"]["sha"],
+              "recipe": hashlib.sha256(builder_steps().encode()).hexdigest()[:16],
               "frappe": {"version": m.group(1), "sha": fsha}}
     for app in SPEC["apps"]:
         if "branch" in app:
@@ -196,10 +211,10 @@ def cmd_build(args) -> None:
     run("git", "-C", str(builder), "checkout", "--quiet", SPEC["builder"]["sha"])
     containerfile = builder / "images" / "layered" / "Containerfile"
     text = containerfile.read_text()
-    if text.count(STRIP_ANCHOR) != 1:
-        raise SystemExit("the layered Containerfile changed shape: the node_modules "
-                         "strip has no single anchor; review the builder bump")
-    containerfile.write_text(text.replace(STRIP_ANCHOR, STRIP))
+    if text.count(ANCHOR) != 1:
+        raise SystemExit("the layered Containerfile changed shape: the build-time "
+                         "steps have no single anchor; review the builder bump")
+    containerfile.write_text(text.replace(ANCHOR, builder_steps()))
 
     apps = []
     for app in SPEC["apps"]:
@@ -279,6 +294,11 @@ def cmd_test(args) -> None:
             log(f"upgrading the site from {first} to {new}")
             compose(new, "up", "-d")
         compose(new, "exec", "-T", "backend", "bench", "--site", "all", "migrate")
+        try:
+            compose(new, "exec", "-T", "backend", "test", "!", "-e", "/home/frappe/nltk_data")
+        except subprocess.CalledProcessError:
+            raise SystemExit("migrate downloaded NLTK data: add the corpus to that "
+                             "app's nltk_data in apps.json") from None
         ping(new)
     finally:
         compose(new, "down", "-v")

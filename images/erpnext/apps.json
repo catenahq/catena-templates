@@ -22,7 +22,8 @@
     {
       "name": "helpdesk",
       "repo": "https://github.com/frappe/helpdesk",
-      "tags": "^v\\d+\\.\\d+\\.\\d+$"
+      "tags": "^v\\d+\\.\\d+\\.\\d+$",
+      "nltk_data": ["averaged_perceptron_tagger_eng", "punkt_tab", "brown"]
     }
   ]
 }

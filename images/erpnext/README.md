@@ -29,13 +29,20 @@ Each app's build-only `node_modules` are removed in the build layer, which
 keeps about 740 MiB out of the image. Frappe's own stay: the websocket service
 runs from them.
 
+The NLTK corpora an app lists under `nltk_data` in `apps.json` are part of the
+image. Helpdesk loads them for its search and downloads any it cannot find
+into the container, after every migration and from its scheduler, so a host
+without them fetches them again after each update. The smoke test fails when
+a migration downloads one.
+
 ## When a new image is built
 
 `.github/workflows/erpnext-image.yml` runs `build.py resolve` daily. It reads
 the newest version of every input from upstream and compares it with what the
 newest published image records in its `io.catena.inputs` label. A new image
 is built only when one of them moved: a Frappe, ERPNext or Helpdesk release, a
-telephony commit, or a frappe_docker commit pinned here.
+telephony commit, a frappe_docker commit pinned here, or the build-time steps
+`build.py` adds to frappe_docker's Containerfile (the `recipe` input).
 
 Tags are `v<erpnext version>-<n>`: `v16.37.0-1` is the first build of
 ERPNext 16.37.0, `v16.37.0-2` the next build of it with another input moved.
