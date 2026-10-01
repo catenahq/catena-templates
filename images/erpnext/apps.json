@@ -1,0 +1,28 @@
+{
+  "image": "ghcr.io/catenahq/erpnext",
+  "builder": {
+    "repo": "https://github.com/frappe/frappe_docker",
+    "sha": "f09126b346c5f04a80068d0e34a0ca7c9fdaddb4"
+  },
+  "frappe": {
+    "repo": "https://github.com/frappe/frappe",
+    "branch": "version-16"
+  },
+  "apps": [
+    {
+      "name": "erpnext",
+      "repo": "https://github.com/frappe/erpnext",
+      "tags": "^v16\\.\\d+\\.\\d+$"
+    },
+    {
+      "name": "telephony",
+      "repo": "https://github.com/frappe/telephony",
+      "branch": "develop"
+    },
+    {
+      "name": "helpdesk",
+      "repo": "https://github.com/frappe/helpdesk",
+      "tags": "^v\\d+\\.\\d+\\.\\d+$"
+    }
+  ]
+}

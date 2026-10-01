@@ -5,3 +5,4 @@ __pycache__/
 *.tgz
 .DS_Store
 .token-savior-cache.json
+images/erpnext/inputs.json

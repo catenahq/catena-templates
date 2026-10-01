@@ -1,0 +1,101 @@
+# The image's smoke test, run by build.py test on the build machine: one site
+# with every app, the same processes the catalog template runs, plain compose
+# rather than swarm. IMG and INSTALL_ARGS come from build.py.
+x-app: &app
+  image: ${IMG}
+  networks: [net]
+  volumes:
+    - sites:/home/frappe/frappe-bench/sites
+    - logs:/home/frappe/frappe-bench/logs
+
+services:
+  configurator:
+    <<: *app
+    restart: "no"
+    entrypoint: [bash, -c]
+    command:
+      - >
+        ls -1 apps > sites/apps.txt;
+        bench set-config -g db_host db;
+        bench set-config -gp db_port 3306;
+        bench set-config -g redis_cache "redis://redis-cache:6379";
+        bench set-config -g redis_queue "redis://redis-queue:6379";
+        bench set-config -g redis_socketio "redis://redis-queue:6379";
+        bench set-config -gp socketio_port 9000;
+
+  create-site:
+    <<: *app
+    restart: "no"
+    entrypoint: [bash, -c]
+    command:
+      - >
+        wait-for-it -t 120 db:3306;
+        wait-for-it -t 120 redis-cache:6379;
+        wait-for-it -t 120 redis-queue:6379;
+        until jq -e .redis_queue sites/common_site_config.json >/dev/null 2>&1; do sleep 2; done;
+        if [ ! -d sites/frontend ]; then
+        bench new-site --mariadb-user-host-login-scope='%' --admin-password=admin
+        --db-root-username=root --db-root-password=admin ${INSTALL_ARGS} --set-default frontend;
+        fi
+
+  backend:
+    <<: *app
+    restart: on-failure
+  frontend:
+    <<: *app
+    restart: on-failure
+    command: [nginx-entrypoint.sh]
+    environment:
+      BACKEND: backend:8000
+      FRAPPE_SITE_NAME_HEADER: frontend
+      SOCKETIO: websocket:9000
+      UPSTREAM_REAL_IP_ADDRESS: 127.0.0.1
+      UPSTREAM_REAL_IP_HEADER: X-Forwarded-For
+      UPSTREAM_REAL_IP_RECURSIVE: "off"
+      PROXY_READ_TIMEOUT: 120
+      CLIENT_MAX_BODY_SIZE: 50m
+    ports: ["8080:8080"]
+  websocket:
+    <<: *app
+    restart: on-failure
+    command: [node, /home/frappe/frappe-bench/apps/frappe/socketio.js]
+  queue-short:
+    <<: *app
+    restart: on-failure
+    command: [bench, worker, --queue, "short,default"]
+  queue-long:
+    <<: *app
+    restart: on-failure
+    command: [bench, worker, --queue, "long,default,short"]
+  scheduler:
+    <<: *app
+    restart: on-failure
+    command: [bench, schedule]
+
+  db:
+    image: mariadb:11.8.9
+    restart: on-failure
+    networks: [net]
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --skip-character-set-client-handshake
+    environment:
+      MARIADB_ROOT_PASSWORD: admin
+    volumes: [db-data:/var/lib/mysql]
+  redis-cache:
+    image: redis:8.6.3-alpine3.23
+    restart: on-failure
+    networks: [net]
+  redis-queue:
+    image: redis:8.6.3-alpine3.23
+    restart: on-failure
+    networks: [net]
+
+volumes:
+  db-data:
+  sites:
+  logs:
+
+networks:
+  net:

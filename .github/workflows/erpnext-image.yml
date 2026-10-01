@@ -1,0 +1,62 @@
+name: erpnext-image
+
+# Builds ghcr.io/catenahq/erpnext (images/erpnext) when one of its inputs
+# moved upstream. images/erpnext/build.py makes every decision; this file
+# runs its steps in order and supplies the registry login.
+
+on:
+  schedule:
+    - cron: "41 1 * * *"
+  workflow_dispatch:
+    inputs:
+      force:
+        description: Build even when no input moved
+        type: boolean
+        default: false
+  push:
+    branches: [main]
+    paths: ["images/erpnext/**"]
+
+permissions:
+  contents: read
+  packages: write
+
+# One build at a time: two would compute the same next tag.
+concurrency:
+  group: erpnext-image
+  cancel-in-progress: false
+
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    defaults:
+      run:
+        working-directory: images/erpnext
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          persist-credentials: false
+      - name: Resolve
+        id: resolve
+        env:
+          FORCE: ${{ inputs.force && '--force' || '' }}
+        run: |
+          python3 build.py resolve $FORCE
+          build=$(python3 -c 'import json; print(str(json.load(open("inputs.json"))["build"]).lower())')
+          echo "build=$build" >> "$GITHUB_OUTPUT"
+      - name: Build
+        if: steps.resolve.outputs.build == 'true'
+        run: python3 build.py build
+      - name: Log in to GHCR
+        if: steps.resolve.outputs.build == 'true'
+        env:
+          ACTOR: ${{ github.actor }}
+          TOKEN: ${{ github.token }}
+        run: printf '%s' "$TOKEN" | docker login ghcr.io -u "$ACTOR" --password-stdin
+      - name: Test
+        if: steps.resolve.outputs.build == 'true'
+        run: python3 build.py test
+      - name: Publish
+        if: steps.resolve.outputs.build == 'true'
+        run: python3 build.py publish
