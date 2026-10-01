@@ -149,8 +149,8 @@ a warning and steps over, and the backup is then taken unquiesced.
 3. `Schema.json` -- the generated `templates.json` against the published
    Portainer App Templates format, because that file is what a client's
    Portainer fetches.
-4. `make lint` -- quiesce-hook allowlist + shellcheck, post-restore
-   migration argv allowlist, central Postgres pin enforcement, and the
+4. `make lint` -- quiesce-hook allowlist + shellcheck, lifecycle argv
+   allowlist, central Postgres pin enforcement, and the
    swarm-compatibility gate above (which also offers each file to the real
    `docker stack config` loader when docker is on PATH, because the ban list
    was written against one docker version and the loader is the authority).
@@ -168,12 +168,14 @@ a warning and steps over, and the backup is then taken unquiesced.
    `x-catena.quiesce`. Stateless / read-only templates omit it. Real
    examples: `sources/nextcloud-s3-oidc.json`,
    `sources/rocketchat-oidc.json`.
-5. If the application migrates its own schema at container start, add
-   `x-catena.post_restore_migrate`. That start-time migration runs
-   against the pre-replay database and the replay then overwrites it, so
-   after a restore across versions it has effectively not run. Commands
-   are argv arrays -- `docker exec` gives them no shell. Real examples:
-   `sources/outline.json`, `sources/nextcloud-s3-oidc.json`.
+5. If the application keeps a schema its new code expects migrated, add
+   `x-catena.lifecycle`: `migrate` runs after every image update the host
+   applies and after a forward restore (a start-time migration runs
+   against the pre-replay database, which the replay then overwrites).
+   `before_update` / `after_update` wrap an update, for an application
+   with a maintenance mode. Commands are argv arrays -- `docker exec`
+   gives them no shell. Real examples: `sources/outline.json`,
+   `sources/nextcloud-s3-oidc.json`.
 6. `make` -- render + lint + test. Commit the regenerated artifacts.
 7. Open a PR. CI must pass `build-and-verify.yml`, `check:unicode` and `check:prose`.
 
@@ -216,6 +218,6 @@ merge window as its consumers, since they all read `main`:
 - Every catalog image ref is CVE-scanned (trivy-images workflow);
   quiesce snippets pass the allowlist + path restriction in
   `lib/quiesce_lint.py` (no curl/wget, no rm outside the app's data
-  path), and post-restore migration argv pass their own, tighter
-  allowlist in the same module.
+  path), and lifecycle argv pass their own, tighter allowlist in the
+  same module.
 - SPEC.md gate pointers must resolve (ops audit --check-public-specs).

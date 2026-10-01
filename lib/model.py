@@ -83,8 +83,8 @@ class Entry:
         return self.catena.get("quiesce")
 
     @property
-    def post_restore_migrate(self) -> dict[str, Any] | None:
-        return self.catena.get("post_restore_migrate")
+    def lifecycle(self) -> dict[str, Any] | None:
+        return self.catena.get("lifecycle")
 
     @property
     def sizing(self) -> dict[str, Any]:

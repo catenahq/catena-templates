@@ -121,21 +121,21 @@ def test_quiesce_yaml_is_emitted_for_every_declaring_entry():
         assert path.exists() == bool(entry.quiesce), entry.slug
 
 
-def test_post_restore_migrate_reaches_the_catalog_unchanged():
-    """The recovery engine reads this out of catalog.json on a client
-    host mid-restore. A key the render drops is a migration that never
-    runs, and nothing downstream can tell that from an app that declared
-    none."""
+def test_lifecycle_reaches_the_catalog_unchanged():
+    """The update engine and the recovery engine read this out of
+    catalog.json on a client host, unattended. A key the render drops is a
+    migration that never runs, and nothing downstream can tell that from an
+    app that declared none."""
     catalog = {
         e["id"]: e for e in json.loads((ROOT / "catalog.json").read_text())["templates"]
     }
     declared = 0
     for entry in model.load_sources():
-        spec = entry.post_restore_migrate
-        assert catalog[entry.slug].get("post_restore_migrate") == spec, entry.slug
+        spec = entry.lifecycle
+        assert catalog[entry.slug].get("lifecycle") == spec, entry.slug
         if spec:
             declared += 1
-            assert spec["commands"], entry.slug
+            assert spec["migrate"], entry.slug
     assert declared > 0
 
 

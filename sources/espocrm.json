@@ -28,10 +28,10 @@
       "OIDC_CLIENT_SECRET=",
       "OIDC_ISSUER_URL=https://{{ keycloak_hostname | default('auth.' ~ cloudflare_zone) }}/realms/{{ keycloak_realm | default('vps') }}"
     ],
-    "post_restore_migrate": {
+    "lifecycle": {
       "service": "espocrm",
       "user": "www-data",
-      "commands": [
+      "migrate": [
         ["php", "rebuild.php"]
       ],
       "timeout_seconds": 900

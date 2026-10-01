@@ -89,10 +89,11 @@ def test_empty_snippet_rejected():
 
 def test_allowed_migrate_commands_lock():
     """Same reasoning as the quiesce allowlist, one container deeper: a
-    migration runs unattended inside an application after a forward
-    restore, so widening this is a review decision."""
+    lifecycle command runs unattended inside an application around an
+    update or after a forward restore, so widening this is a review
+    decision."""
     assert L.ALLOWED_MIGRATE_COMMANDS == frozenset({
-        "php", "occ", "yarn", "npm", "npx",
+        "php", "occ", "yarn", "npm", "npx", "bench",
     })
 
 
@@ -100,6 +101,7 @@ def test_migrate_argv_allows_the_declared_shapes():
     assert L.lint_migrate_argv(["php", "occ", "db:add-missing-indices"], label="x") == []
     assert L.lint_migrate_argv(
         ["yarn", "db:migrate", "--env", "production-ssl-disabled"], label="x") == []
+    assert L.lint_migrate_argv(["bench", "--site", "all", "migrate"], label="x") == []
 
 
 def test_migrate_argv_rejects_a_foreign_command():
@@ -116,11 +118,11 @@ def test_migrate_argv_rejects_shell_operators():
     assert any("docker exec with no shell" in e for e in errs)
 
 
-def test_migrate_timeout_cap_lives_in_the_schema():
+def test_lifecycle_timeout_cap_lives_in_the_schema():
     schema = json.loads((ROOT / "sources.schema.json").read_text())
-    migrate = schema["properties"]["x-catena"]["properties"]["post_restore_migrate"]
-    assert migrate["properties"]["timeout_seconds"]["maximum"] == 3600
-    assert migrate["required"] == ["service", "commands", "timeout_seconds"]
+    lifecycle = schema["properties"]["x-catena"]["properties"]["lifecycle"]
+    assert lifecycle["properties"]["timeout_seconds"]["maximum"] == 3600
+    assert lifecycle["required"] == ["service", "migrate", "timeout_seconds"]
 
 
 def test_timeout_cap_lives_in_the_schema():

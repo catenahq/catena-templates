@@ -102,10 +102,10 @@
       "check": "nextcloud-objectstore",
       "db_service": "db"
     },
-    "post_restore_migrate": {
+    "lifecycle": {
       "service": "app",
       "user": "www-data",
-      "commands": [
+      "migrate": [
         ["php", "occ", "db:add-missing-indices"],
         ["php", "occ", "maintenance:repair", "--include-expensive"]
       ],

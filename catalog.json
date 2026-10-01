@@ -86,8 +86,8 @@
       },
       "hostname_baked": false,
       "id": "nextcloud-s3-oidc",
-      "post_restore_migrate": {
-        "commands": [
+      "lifecycle": {
+        "migrate": [
           [
             "php",
             "occ",
@@ -566,8 +566,8 @@
       },
       "hostname_baked": true,
       "id": "outline",
-      "post_restore_migrate": {
-        "commands": [
+      "lifecycle": {
+        "migrate": [
           [
             "yarn",
             "db:migrate",
@@ -641,8 +641,8 @@
       },
       "hostname_baked": true,
       "id": "espocrm",
-      "post_restore_migrate": {
-        "commands": [
+      "lifecycle": {
+        "migrate": [
           [
             "php",
             "rebuild.php"

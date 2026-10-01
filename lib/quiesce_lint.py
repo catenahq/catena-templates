@@ -2,7 +2,7 @@
 
 Two families, both declared in `x-catena` and both executed on a client
 box with no operator present: the backup quiesce hooks, and the
-post-restore migration commands.
+lifecycle commands (migration, before and after an update).
 
 Schema-level checks (pairing, timeout cap, argv shape) live in
 sources.schema.json and run on every render. This module adds the checks
@@ -14,10 +14,10 @@ that are too slow or too external for the render path:
     cannot smuggle `curl evil.com` into a hook that runs as root on
     every client host before every backup.
   - Path restriction on rm/mv: inside the app's own data path only.
-  - Command allowlist on each migration argv, plus a refusal of shell
-    metacharacters there: migrations run through `docker exec` with no
-    shell, so an `&&` written by someone thinking in shell is passed to
-    the application as a literal argument and does nothing.
+  - Command allowlist on each lifecycle argv, plus a refusal of shell
+    metacharacters there: lifecycle commands run through `docker exec`
+    with no shell, so an `&&` written by someone thinking in shell is
+    passed to the application as a literal argument and does nothing.
   - The container the hook targets RESOLVES. A hook selects its container
     with `docker ps -q -f label=...`; when the filter matches nothing the
     expansion is empty, `docker exec ""` exits non-zero, and the daily
@@ -56,14 +56,18 @@ ALLOWED_COMMANDS = frozenset({
     "sqlite3",
 })
 
-# Migration commands are a separate, tighter allowlist. A quiesce hook
-# drives docker from the host; a migration runs inside one application
-# container and has no business being anything but that application's own
-# schema tool.
+# Lifecycle commands are a separate, tighter allowlist. A quiesce hook
+# drives docker from the host; a lifecycle command runs inside one
+# application container and has no business being anything but that
+# application's own admin tool.
 ALLOWED_MIGRATE_COMMANDS = frozenset({
     "php", "occ",           # Nextcloud, EspoCRM
     "yarn", "npm", "npx",   # the node applications
+    "bench",                # Frappe / ERPNext
 })
+
+# The argv lists a lifecycle block can carry.
+LIFECYCLE_LISTS = ("before_update", "migrate", "after_update")
 
 # Written as shell but executed as argv: these tokens reach the
 # application as literal arguments, so the second half of the line never
@@ -226,12 +230,13 @@ def lint_all() -> int:
     with_migrations = 0
 
     for entry in entries:
-        migrate = entry.post_restore_migrate
-        if migrate:
+        lifecycle = entry.lifecycle
+        if lifecycle:
             with_migrations += 1
-            for idx, argv in enumerate(migrate["commands"]):
-                all_errors.extend(lint_migrate_argv(
-                    argv, label=f"{entry.slug}.post_restore_migrate[{idx}]"))
+            for key in LIFECYCLE_LISTS:
+                for idx, argv in enumerate(lifecycle.get(key) or []):
+                    all_errors.extend(lint_migrate_argv(
+                        argv, label=f"{entry.slug}.lifecycle.{key}[{idx}]"))
 
         quiesce = entry.quiesce
         if not quiesce:
@@ -264,6 +269,6 @@ def lint_all() -> int:
         return 1
     print(
         f"hook lint OK ({with_hooks} templates with quiesce hooks, "
-        f"{with_migrations} with post-restore migrations)"
+        f"{with_migrations} with lifecycle commands)"
     )
     return 0
