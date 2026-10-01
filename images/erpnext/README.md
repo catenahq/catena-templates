@@ -15,8 +15,8 @@ carries what the template needs: `frappe/erpnext` has no Helpdesk, and
 
 | App | Tracks | Role |
 | --- | --- | --- |
-| frappe | the `version-16` branch | the framework every app runs on |
-| erpnext | the newest `v16.x.y` release | ERP, including its CRM (leads, prospects, opportunities) |
+| frappe | the release branch `apps.json` names | the framework every app runs on |
+| erpnext | the newest release matching the tag pattern in `apps.json` | ERP, including its CRM (leads, prospects, opportunities) |
 | telephony | the `develop` branch (no releases) | required by Helpdesk |
 | helpdesk | the newest release that supports the Frappe it builds against | tickets, linked both ways to ERPNext customers |
 
@@ -44,10 +44,11 @@ is built only when one of them moved: a Frappe, ERPNext or Helpdesk release, a
 telephony commit, a frappe_docker commit pinned here, or the build-time steps
 `build.py` adds to frappe_docker's Containerfile (the `recipe` input).
 
-Tags are `v<erpnext version>-<n>`: `v16.37.0-1` is the first build of
-ERPNext 16.37.0, `v16.37.0-2` the next build of it with another input moved.
+Tags are `v<erpnext version>-<n>`: `v1.2.3-1` is the first build of
+ERPNext 1.2.3, `v1.2.3-2` the next build of it with another input moved.
 The Catena update engine orders them (`build_suffix` in catena-admin
-`payload/engines/stackupdate/overrides.go`, locked to the v16 line) and each
+`payload/engines/stackupdate/overrides.go`, whose tag pattern holds them to
+one major line) and each
 host decides when to take one: after its soak, its CVE check, and with a
 database snapshot it replays when the migration fails.
 
@@ -60,7 +61,8 @@ release whose migration fails never reaches a host.
 
 ## Run it locally
 
-Docker with buildx and compose, git, python 3.11+:
+Docker with buildx and compose, git, and a python3 whose standard library
+has `tomllib`:
 
 ```sh
 python3 build.py resolve        # writes inputs.json; --force to build anyway

@@ -27,7 +27,7 @@ arranged beforehand, on request.
 
 ### Authentication
 
-Easy!Appointments v1.5.2 uses local email/password sign-in for staff. No native OIDC in the upstream release. The customer-facing booking page is public by design -- visitors book a slot without creating an account, only providing name, email, and phone. The SSO gap therefore only affects staff sign-in and is typically manageable for the small teams (1-10 staff) the app targets.
+Easy!Appointments uses local email/password sign-in for staff. The customer-facing booking page is public by design -- visitors book a slot without creating an account, only providing name, email, and phone. The SSO gap therefore only affects staff sign-in and is typically manageable for the small teams (1-10 staff) the app targets.
 
 Single sign-on for staff is available on request as an oauth2-proxy front layer; the default deployment ships with local accounts.
 
@@ -76,7 +76,7 @@ préalable, sur demande.
 
 ### Authentification
 
-Easy!Appointments v1.5.2 utilise une connexion locale par courriel/mot de passe pour le personnel. Pas d'OIDC natif dans la version upstream. La page de réservation côté client est publique par conception -- les visiteurs réservent un créneau sans compte, en fournissant seulement leur nom, courriel et téléphone. L'absence de SSO ne touche donc que la connexion du personnel et reste gérable pour les petites équipes (1 à 10 personnes) ciblées par l'application.
+Easy!Appointments utilise une connexion locale par courriel/mot de passe pour le personnel. La page de réservation côté client est publique par conception -- les visiteurs réservent un créneau sans compte, en fournissant seulement leur nom, courriel et téléphone. L'absence de SSO ne touche donc que la connexion du personnel et reste gérable pour les petites équipes (1 à 10 personnes) ciblées par l'application.
 
 Un SSO unifié pour le personnel est disponible sur demande sous forme de proxy oauth2 en façade ; le déploiement par défaut utilise des comptes locaux.
 
