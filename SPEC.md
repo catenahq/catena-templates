@@ -40,7 +40,7 @@ rendered: the per-app README, the Portainer App Templates v3
 | --- | --- |
 | Rendered outputs are exactly what `sources/` renders to (idempotent build) | `workflow:build-and-verify.yml` |
 | Every source file matches `sources.schema.json`, and `templates.json` matches the published Portainer format in `Schema.json` | `workflow:build-and-verify.yml` |
-| Every catalog image reference is CVE-scanned | `workflow:trivy-images.yml` |
+| Every catalog image reference is CVE-scanned | `workflow:security.yml`, `scanctl:trivy` |
 | Source is scanned on every change (secrets, vulnerable deps, static analysis, rendered config) | `workflow:security.yml`, `scanctl:gitleaks`, `scanctl:osv-scanner`, `scanctl:semgrep`, `scanctl:trivy` |
 | Templates deploy and run end-to-end on real servers | `bench:ce_install_suite` |
 
