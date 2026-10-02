@@ -1,6 +1,8 @@
 # scanctl config -- github.com/catenahq/scanctl
-# semgrep stays blocking to preserve the standalone semgrep.yml gate (--error).
-tools:
-  semgrep:
-    enabled: true
-    mode: block
+
+# Every image the blueprints pin, read from the compose files that declare
+# them. A pull request scans only the blueprints it touches, on both sides, and
+# gates on the CVEs it introduces; the scheduled run reports every image.
+image_pins:
+  - file: blueprints/*/docker-compose.yml
+    pattern: '(?m)^\s*image:\s*["'']?([^"''\s#]+)'

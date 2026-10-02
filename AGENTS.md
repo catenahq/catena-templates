@@ -215,7 +215,8 @@ merge window as its consumers, since they all read `main`:
   `tests/test_render.py`.
 - Generated artifacts are BUILD OUTPUTS; hand-edits fail the
   idempotent-render CI gate.
-- Every catalog image ref is CVE-scanned (trivy-images workflow);
+- Every catalog image ref is CVE-scanned (security.yml, through
+  scanctl.yml's image pins);
   quiesce snippets pass the allowlist + path restriction in
   `lib/quiesce_lint.py` (no curl/wget, no rm outside the app's data
   path), and lifecycle argv pass their own, tighter allowlist in the

@@ -2,8 +2,11 @@ name: security
 
 # Bundled FOSS security scan via catenahq/scanctl (profile full), through its
 # reusable workflow. Every finding in this repo's tree gates on every run. The
-# catalog images are scanned by trivy-images.yml, through a matrix it
-# enumerates from the blueprints on each run.
+# catalog images come from scanctl.yml's image pins: a change gates on the
+# CVEs it introduces in the blueprints it touches, and the daily run reports
+# every image, which is where a CVE published against an untouched image
+# surfaces. The Docker Hub login keeps that sweep under the account's pull
+# limit; without the secrets the pulls run anonymously.
 
 on:
   pull_request:
@@ -12,7 +15,7 @@ on:
   push:
     branches-ignore: ['renovate/**', 'engine-bump/**', 'scanctl/**']
   schedule:
-    - cron: '17 6 * * 1'
+    - cron: '17 6 * * *'
 
 permissions:
   contents: read
@@ -30,3 +33,6 @@ jobs:
       profile: full
       # The self-hosted runner group excludes public repos.
       runner: ubuntu-latest
+    secrets:
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
