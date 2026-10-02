@@ -257,9 +257,9 @@ services:
     healthcheck:
       test: ["CMD-SHELL", "mariadb-admin ping -h localhost -u root -p$${MARIADB_ROOT_PASSWORD}"]
       interval: 10s
-      timeout: 5s
+      timeout: 10s
       retries: 10
-      start_period: 30s
+      start_period: 10m
     labels:
       - "vps.auto-update=patch"
       - "vps.app=catena-erpnext"

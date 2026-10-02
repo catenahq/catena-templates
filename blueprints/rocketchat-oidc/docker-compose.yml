@@ -22,7 +22,7 @@ services:
           }
         "
       interval: 10s
-      start_period: 30s
+      start_period: 10m
       timeout: 10s
       retries: 5
     volumes:

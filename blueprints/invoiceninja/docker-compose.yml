@@ -164,8 +164,9 @@ services:
     healthcheck:
       test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
       interval: 10s
-      timeout: 5s
+      timeout: 10s
       retries: 10
+      start_period: 10m
     labels:
       - "vps.auto-update=patch"
       - "vps.app=catena-invoiceninja"

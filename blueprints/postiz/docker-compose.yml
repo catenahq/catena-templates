@@ -56,8 +56,9 @@ services:
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postiz"]
       interval: 10s
-      timeout: 5s
+      timeout: 10s
       retries: 5
+      start_period: 10m
     labels:
       - "vps.auto-update=patch"
       - "vps.app=catena-postiz"

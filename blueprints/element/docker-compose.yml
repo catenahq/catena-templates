@@ -23,8 +23,8 @@ services:
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U synapse -d synapse"]
       interval: 10s
-      start_period: 30s
-      timeout: 5s
+      start_period: 10m
+      timeout: 10s
       retries: 5
     labels:
       - "vps.auto-update=patch"
