@@ -61,15 +61,6 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: "24"
-      - name: Check required runner tools
-        run: |
-          missing=''
-          for t in git; do command -v "$t" >/dev/null 2>&1 || missing="$missing $t"; done
-          if [ -n "$missing" ]; then
-            echo "::error::Required tool(s) missing on the runner:$missing"
-            echo "::error::Install on the self-hosted runner: sudo apt-get install -y git -- see catenahq/ops internal_docs/tools/ci-runner-provisioning.md"
-            exit 1
-          fi
       - name: check:unicode
         working-directory: ./catena-templates
         run: node ../contracts/scripts/check-unicode.mjs
