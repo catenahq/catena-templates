@@ -350,7 +350,7 @@ def render_index_html(entries: list[Entry], meta: dict[str, Any]) -> str:
 
 
 def _prune_orphan_blueprints(entries: list[Entry]) -> list[str]:
-    """Drop blueprint directories no source file claims any more.
+    """Drop blueprint directories no source file claims.
 
     The render cannot simply wipe `blueprints/` and rebuild it: the
     compose in each directory is hand-edited, and so is any logo.png

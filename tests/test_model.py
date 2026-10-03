@@ -127,8 +127,8 @@ def test_order_naming_an_absent_template_is_an_error(sources):
 
 
 def test_a_template_without_a_compose_in_its_blueprint_is_an_error(sources):
-    """The compose is not named by the source file any more: it is found
-    at blueprints/<id>/docker-compose.yml or the template has none."""
+    """A template's compose is found at blueprints/<id>/docker-compose.yml;
+    a template without that file has none, which is an error."""
     (model.BLUEPRINTS / "example" / model.COMPOSE_NAME).unlink()
     _write(sources, _valid_doc())
     with pytest.raises(model.SourceError, match="does not exist"):
