@@ -20,7 +20,7 @@ arranged beforehand, on request.
 
 1. **Before deploy -- DNS + relay.** Mail needs DNS records and an outbound relay set up first. The MX, SPF, DKIM, DMARC, reverse-DNS and MTA-STS / TLS-RPT records are set up for the domain, and the relay credentials pasted in, before the first deploy.
 2. Click **Deploy**. Wait ~3 minutes for the first boot (mail services + Roundcube).
-3. Sign in at the webmail domain (`webmail.<your-domain>`). The login goes through Keycloak -- one account for every app in the suite. There is no separate mail password.
+3. After the server's next configuration run (Settings > Server configuration > **Bring this server up to date**), sign in at the webmail domain (`webmail.<your-domain>`). The login goes through Keycloak -- one account for every app in the suite. There is no separate mail password.
 4. Mailboxes are created automatically for staff and client users from Keycloak. A new user can sign in to webmail as soon as their account exists.
 
 ### How sign-in works
@@ -75,7 +75,7 @@ préalable, sur demande.
 
 1. **Avant le déploiement -- DNS + relais.** Le courriel nécessite des enregistrements DNS et un relais d'envoi configurés au préalable. Les enregistrements MX, SPF, DKIM, DMARC, DNS inverse et MTA-STS / TLS-RPT sont configurés pour le domaine, et les identifiants du relais renseignés, avant le premier déploiement.
 2. Cliquez **Deploy**. Patientez ~3 minutes pour le premier démarrage (services de courriel + Roundcube).
-3. Connexion sur le domaine webmail (`webmail.<votre-domaine>`). La connexion passe par Keycloak -- un seul compte pour toutes les applications de la suite. Aucun mot de passe de courriel distinct.
+3. Après la prochaine configuration du serveur (Paramètres > Configuration du serveur > **Remettre ce serveur à niveau**), connexion sur le domaine webmail (`webmail.<votre-domaine>`). La connexion passe par Keycloak -- un seul compte pour toutes les applications de la suite. Aucun mot de passe de courriel distinct.
 4. Les boîtes sont créées automatiquement pour les utilisateurs staff et client depuis Keycloak. Un nouvel utilisateur peut se connecter au webmail dès que son compte existe.
 
 ### Fonctionnement de la connexion
