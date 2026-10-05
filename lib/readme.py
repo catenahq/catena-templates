@@ -38,12 +38,22 @@ SSO_LABEL: dict[str, tuple[str, str]] = {
         "intégré. La commande exacte figure dans les étapes ci-dessous.",
     ),
     "auto": (
-        "Wired automatically. The managed converge runs an idempotent "
-        "hook that registers Keycloak inside the application on every "
-        "pass, so there is no post-deploy step.",
-        "Câblé automatiquement. La convergence gérée exécute un hook "
-        "idempotent qui enregistre Keycloak dans l'application à chaque "
-        "passage, sans étape post-déploiement.",
+        "Wired by the server itself. The first **Bring this server up to "
+        "date** run after the deploy (Settings > Server configuration, or "
+        "its schedule) registers Keycloak inside the application, and every "
+        "later run keeps it registered.",
+        "Câblé par le serveur lui-même. La première exécution de "
+        "**Remettre ce serveur à niveau** après le déploiement (Paramètres "
+        "> Configuration du serveur, ou son horaire) enregistre Keycloak "
+        "dans l'application, et chaque exécution suivante le maintient.",
+    ),
+    "panel-action": (
+        "Wired from the admin panel. After the first deploy, one action on "
+        "the **Actions** tab registers Keycloak inside the application; the "
+        "setup steps below name it.",
+        "Câblé depuis le panneau d'administration. Après le premier "
+        "déploiement, une action de l'onglet **Actions** enregistre "
+        "Keycloak dans l'application ; les étapes ci-dessous la nomment.",
     ),
     "none": (
         "Not available. This application's community edition has no OIDC "
@@ -90,7 +100,7 @@ _JINJA_HOSTNAME_SUBS: tuple[tuple[re.Pattern[str], str], ...] = (
     (re.compile(r"\{\{\s*rocketchat_hostname\s*\}\}"), "chat.yourdomain.com"),
     (re.compile(r"\{\{\s*espocrm_hostname\s*\}\}"), "crm.yourdomain.com"),
     (re.compile(r"\{\{\s*coturn_hostname\s*\}\}"), "turn.yourdomain.com"),
-    (re.compile(r"\{\{\s*keycloak_realm\s*\}\}"), "catena"),
+    (re.compile(r"\{\{\s*keycloak_realm\s*\}\}"), "vps"),
     # The inventory's `public_ip` fact, resolved on the real host at
     # deploy time. The bundled Jitsi block in rocketchat-oidc advertises
     # it as its ICE candidate.

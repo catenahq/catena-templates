@@ -11,7 +11,7 @@
   "x-catena": {
     "app_name": "catena-nextcloud",
     "upstream_url": "https://nextcloud.com",
-    "sso_mode": "auto",
+    "sso_mode": "panel-action",
     "domain": {
       "host": "nextcloud.{{ cloudflare_zone }}",
       "service": "app",
