@@ -10,7 +10,7 @@ Self-hosted email -- inbox storage on the VPS (Postfix + Dovecot + Rspamd) with 
 
 - **Upstream project:** <https://docker-mailserver.github.io/>
 - **Replaces:** **Google Workspace (Gmail)**, **Microsoft 365 (Exchange Online)**
-- **Sign-in (SSO):** Wired by the server itself. The first **Bring this server up to date** run after the deploy (Settings > Server configuration, or its schedule) registers Keycloak inside the application, and every later run keeps it registered.
+- **Sign-in (SSO):** Wired by the server itself. After the deploy, the server registers Keycloak inside the application with no step to take, and keeps it registered.
 - **Address:** `webmail.yourdomain.com`, served from `roundcube:80`
 
 The address is attached when the template is deployed. A different one is
@@ -19,8 +19,8 @@ arranged beforehand, on request.
 ### Setup steps
 
 1. **Before deploy -- DNS + relay.** Mail needs DNS records and an outbound relay set up first. The MX, SPF, DKIM, DMARC, reverse-DNS and MTA-STS / TLS-RPT records are set up for the domain, and the relay credentials pasted in, before the first deploy.
-2. Click **Deploy**. Wait ~3 minutes for the first boot (mail services + Roundcube).
-3. After the server's next configuration run (Settings > Server configuration > **Bring this server up to date**), sign in at the webmail domain (`webmail.<your-domain>`). The login goes through Keycloak -- one account for every app in the suite. There is no separate mail password.
+2. **Deploy** is the only step. The server completes the mail wiring on its own -- the TLS certificate, the postmaster mailbox, single sign-on, spam and virus filtering -- within about forty minutes of the deploy, or of the domain being applied on a server that has none yet.
+3. Webmail then answers at its address (`webmail.` followed by the domain). The login goes through Keycloak -- one account for every app in the suite. There is no separate mail password.
 4. Mailboxes are created automatically for staff and client users from Keycloak. A new user can sign in to webmail as soon as their account exists.
 
 ### How sign-in works
@@ -65,7 +65,7 @@ Courriel auto-hébergé -- stockage des boîtes sur le VPS (Postfix + Dovecot + 
 
 - **Projet original :** <https://docker-mailserver.github.io/>
 - **Remplace :** **Google Workspace (Gmail)**, **Microsoft 365 (Exchange Online)**
-- **Connexion (SSO) :** Câblé par le serveur lui-même. La première exécution de **Remettre ce serveur à niveau** après le déploiement (Paramètres > Configuration du serveur, ou son horaire) enregistre Keycloak dans l'application, et chaque exécution suivante le maintient.
+- **Connexion (SSO) :** Câblé par le serveur lui-même. Après le déploiement, le serveur enregistre Keycloak dans l'application, sans aucune étape à effectuer, et le maintient enregistré.
 - **Adresse :** `webmail.yourdomain.com`, servie par `roundcube:80`
 
 L'adresse est attachée au déploiement du modèle. Une autre se convient au
@@ -74,8 +74,8 @@ préalable, sur demande.
 ### Étapes de configuration
 
 1. **Avant le déploiement -- DNS + relais.** Le courriel nécessite des enregistrements DNS et un relais d'envoi configurés au préalable. Les enregistrements MX, SPF, DKIM, DMARC, DNS inverse et MTA-STS / TLS-RPT sont configurés pour le domaine, et les identifiants du relais renseignés, avant le premier déploiement.
-2. Cliquez **Deploy**. Patientez ~3 minutes pour le premier démarrage (services de courriel + Roundcube).
-3. Après la prochaine configuration du serveur (Paramètres > Configuration du serveur > **Remettre ce serveur à niveau**), connexion sur le domaine webmail (`webmail.<votre-domaine>`). La connexion passe par Keycloak -- un seul compte pour toutes les applications de la suite. Aucun mot de passe de courriel distinct.
+2. **Deploy** est la seule étape. Le serveur termine lui-même le câblage du courriel -- le certificat TLS, la boîte postmaster, l'authentification unique, le filtrage antipourriel et antivirus -- dans les quarante minutes qui suivent le déploiement, ou l'application du domaine sur un serveur qui n'en a pas encore.
+3. Le webmail répond ensuite à son adresse (`webmail.` suivi du domaine). La connexion passe par Keycloak -- un seul compte pour toutes les applications de la suite. Aucun mot de passe de courriel distinct.
 4. Les boîtes sont créées automatiquement pour les utilisateurs staff et client depuis Keycloak. Un nouvel utilisateur peut se connecter au webmail dès que son compte existe.
 
 ### Fonctionnement de la connexion

@@ -38,14 +38,12 @@ SSO_LABEL: dict[str, tuple[str, str]] = {
         "intégré. La commande exacte figure dans les étapes ci-dessous.",
     ),
     "auto": (
-        "Wired by the server itself. The first **Bring this server up to "
-        "date** run after the deploy (Settings > Server configuration, or "
-        "its schedule) registers Keycloak inside the application, and every "
-        "later run keeps it registered.",
-        "Câblé par le serveur lui-même. La première exécution de "
-        "**Remettre ce serveur à niveau** après le déploiement (Paramètres "
-        "> Configuration du serveur, ou son horaire) enregistre Keycloak "
-        "dans l'application, et chaque exécution suivante le maintient.",
+        "Wired by the server itself. After the deploy, the server registers "
+        "Keycloak inside the application with no step to take, and keeps it "
+        "registered.",
+        "Câblé par le serveur lui-même. Après le déploiement, le serveur "
+        "enregistre Keycloak dans l'application, sans aucune étape à "
+        "effectuer, et le maintient enregistré.",
     ),
     "panel-action": (
         "Wired from the admin panel. After the first deploy, one action on "
