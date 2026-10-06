@@ -43,6 +43,11 @@ services:
   # on it. install-app skips an app the site already has, so a redeploy with a
   # longer list adds the new ones. The image is built from
   # catena-templates images/erpnext.
+  #
+  # Waits for the configurator's keys, not for the file: the image ships
+  # sites/common_site_config.json as `{}` and a new volume is seeded with it,
+  # so the file exists before the configurator runs, and new-site without
+  # db_host connects to 127.0.0.1.
   create-site:
     image: ghcr.io/catenahq/erpnext:v16.37.0-1
     deploy:
@@ -59,7 +64,7 @@ services:
         wait-for-it -t 120 db:3306;
         wait-for-it -t 120 redis-cache:6379;
         wait-for-it -t 120 redis-queue:6379;
-        until ls sites/common_site_config.json; do sleep 1; done;
+        until jq -e '.db_host and .redis_cache and .redis_queue' sites/common_site_config.json >/dev/null 2>&1; do sleep 1; done;
         if [ ! -d "sites/${ERPNEXT_HOSTNAME}" ]; then
         bench new-site --mariadb-user-host-login-scope='%'
         --admin-password=${ERPNEXT_ADMIN_PASSWORD}
