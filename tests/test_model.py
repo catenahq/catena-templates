@@ -186,6 +186,24 @@ def test_quiesce_timeout_cap(sources):
         model.load_sources()
 
 
+def test_lifecycle_ready_is_one_argv(sources):
+    """ready is one command: the update lane asks it until it answers, and
+    a list of commands has no single answer to wait for."""
+    doc = _valid_doc()
+    doc["x-catena"]["lifecycle"] = {
+        "service": "app",
+        "ready": [["php", "occ", "status"]],
+        "migrate": [["php", "occ", "db:add-missing-indices"]],
+        "timeout_seconds": 60,
+    }
+    _write(sources, doc)
+    with pytest.raises(model.SourceError, match="ready"):
+        model.load_sources()
+    doc["x-catena"]["lifecycle"]["ready"] = ["php", "occ", "status"]
+    _write(sources, doc)
+    assert model.load_sources()[0].lifecycle["ready"] == ["php", "occ", "status"]
+
+
 def test_empty_sources_directory_is_an_error(sources):
     with pytest.raises(model.SourceError, match="no template files"):
         model.load_sources()

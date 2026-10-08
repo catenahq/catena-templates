@@ -2,7 +2,8 @@
 
 Two families, both declared in `x-catena` and both executed on a client
 box with no operator present: the backup quiesce hooks, and the
-lifecycle commands (migration, before and after an update).
+lifecycle commands (migration, before and after an update, and the ready
+question asked before each of those).
 
 Schema-level checks (pairing, timeout cap, argv shape) live in
 sources.schema.json and run on every render. This module adds the checks
@@ -237,6 +238,9 @@ def lint_all() -> int:
                 for idx, argv in enumerate(lifecycle.get(key) or []):
                     all_errors.extend(lint_migrate_argv(
                         argv, label=f"{entry.slug}.lifecycle.{key}[{idx}]"))
+            if lifecycle.get("ready"):
+                all_errors.extend(lint_migrate_argv(
+                    lifecycle["ready"], label=f"{entry.slug}.lifecycle.ready"))
 
         quiesce = entry.quiesce
         if not quiesce:

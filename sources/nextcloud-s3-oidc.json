@@ -105,6 +105,7 @@
     "lifecycle": {
       "service": "app",
       "user": "www-data",
+      "ready": ["php", "occ", "status", "--exit-code"],
       "migrate": [
         ["php", "occ", "db:add-missing-indices"],
         ["php", "occ", "maintenance:repair", "--include-expensive"]

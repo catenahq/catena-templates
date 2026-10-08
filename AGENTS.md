@@ -173,9 +173,13 @@ a warning and steps over, and the backup is then taken unquiesced.
    applies and after a forward restore (a start-time migration runs
    against the pre-replay database, which the replay then overwrites).
    `before_update` / `after_update` wrap an update, for an application
-   with a maintenance mode. Commands are argv arrays -- `docker exec`
-   gives them no shell. Real examples: `sources/outline.json`,
-   `sources/nextcloud-s3-oidc.json`, `sources/erpnext.json`.
+   with a maintenance mode. `ready` is one command the update lane runs
+   before each phase, and a forward restore before its migration, until
+   it exits 0, for an image whose entrypoint
+   copies or upgrades the application before starting it. Commands are
+   argv arrays -- `docker exec` gives them no shell. Real examples:
+   `sources/outline.json`, `sources/nextcloud-s3-oidc.json`,
+   `sources/erpnext.json`.
 6. `make` -- render + lint + test. Commit the regenerated artifacts.
 7. Open a PR. CI must pass `build-and-verify.yml`, `check:unicode` and `check:prose`.
 

