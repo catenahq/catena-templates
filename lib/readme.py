@@ -84,13 +84,13 @@ _JINJA_SECRET_RE = re.compile(r"\{\{\s*([a-zA-Z0-9_]+_(?:secret|password))\s*\}\
 
 _JINJA_HOSTNAME_SUBS: tuple[tuple[re.Pattern[str], str], ...] = (
     (re.compile(r"\{\{\s*cloudflare_zone\s*\}\}"), "yourdomain.com"),
-    (re.compile(r"\{\{\s*healthchecks_hostname\s*\}\}"), "checks.yourdomain.com"),
+    (re.compile(r"\{\{\s*healthchecks_hostname\s*\}\}"), "healthchecks.yourdomain.com"),
     (re.compile(r"\{\{\s*dokploy_admin_hostname\s*\}\}"), "admin.yourdomain.com"),
     (re.compile(r"\{\{\s*keycloak_hostname\s*\}\}"), "auth.yourdomain.com"),
-    (re.compile(r"\{\{\s*gatus_hostname\s*\}\}"), "monitor.yourdomain.com"),
+    (re.compile(r"\{\{\s*gatus_hostname\s*\}\}"), "gatus.yourdomain.com"),
     (re.compile(r"\{\{\s*catena_admin_hostname\s*\}\}"), "dash.yourdomain.com"),
     (re.compile(r"\{\{\s*infrastructure_gatus_hostname\s*\}\}"),
-     "monitor.yourdomain.com"),
+     "gatus.yourdomain.com"),
     (re.compile(r"\{\{\s*infrastructure_dash_hostname\s*\}\}"), "dash.yourdomain.com"),
     (re.compile(r"\{\{\s*recovery_hostname\s*\}\}"), "recovery.yourdomain.com"),
     (re.compile(r"\{\{\s*nextcloud_hostname\s*\}\}"), "nextcloud.yourdomain.com"),
