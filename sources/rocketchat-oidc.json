@@ -77,8 +77,12 @@
       "JITSI_JVB_AUTH_PASSWORD"
     ],
     "quiesce": {
-      "pre": "docker exec \"$(docker ps -q -f label=vps.app=catena-rocketchat -f label=vps.component=mongodb | head -1)\" mongosh --quiet --eval 'db.fsyncLock()'",
-      "post": "docker exec \"$(docker ps -q -f label=vps.app=catena-rocketchat -f label=vps.component=mongodb | head -1)\" mongosh --quiet --eval 'db.fsyncUnlock()'",
+      "service": "mongodb",
+      "pre": [["mongosh", "--quiet", "--eval", "db.fsyncLock()"]],
+      "post": [
+        ["mongosh", "--quiet", "--eval",
+         "while (db.adminCommand({currentOp:1}).fsyncLock) { db.fsyncUnlock() }"]
+      ],
       "timeout_seconds": 60
     }
   }

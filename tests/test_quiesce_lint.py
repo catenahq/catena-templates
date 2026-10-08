@@ -1,8 +1,8 @@
 """Unit tests for lib/quiesce_lint.py.
 
-Every case drives the pure snippet-level functions, so the suite runs
-without shellcheck on the host. The end-to-end case at the bottom runs
-the lint over the real sources/ tree.
+Most cases drive lint_migrate_argv directly. The lint_all cases run the
+gate over the real sources/ tree, or over a synthetic one to prove it
+reads sources rather than a cached artifact.
 """
 from __future__ import annotations
 
@@ -16,96 +16,56 @@ sys.path.insert(0, str(ROOT))
 from lib import model, quiesce_lint as L  # noqa: E402
 
 
-def test_allowed_commands_lock():
-    """Widening the allowlist must be deliberate: these snippets run as
-    root on every client host before every backup."""
-    assert L.ALLOWED_COMMANDS == frozenset({
-        "docker", "head", "true", "false",
-        "occ", "php",
-        "mongo", "mongosh",
-        "rocketchat-cli",
-        "touch", "rm", "mv",
-        "mariadb-dump", "mysqldump",
-        "pg_dump", "pg_dumpall",
-        "mongodump",
-        "sqlite3",
-    })
+def _quiesce(argv: list[str]) -> list[str]:
+    return L.lint_migrate_argv(argv, label="x", allowed=L.ALLOWED_QUIESCE_COMMANDS)
 
 
-def test_allowed_db_dump_commands_pass():
-    for cmd in ("mariadb-dump", "pg_dump", "pg_dumpall", "mongodump", "sqlite3"):
-        assert L.lint_snippet(f"{cmd} --help", label="x") == []
+def _migrate(argv: list[str]) -> list[str]:
+    return L.lint_migrate_argv(argv, label="x", allowed=L.ALLOWED_MIGRATE_COMMANDS)
 
 
-def test_simple_allowed_command_passes():
-    assert L.lint_snippet("docker exec abc occ maintenance:mode --on", label="x") == []
+def test_allowed_quiesce_commands_lock():
+    """Widening the allowlist must be deliberate: these commands run
+    inside an application on every client host around every nightly
+    backup."""
+    assert L.ALLOWED_QUIESCE_COMMANDS == frozenset({"php", "mongosh"})
 
 
-def test_pipeline_with_head_passes():
-    """The Nextcloud idiom: the outer command is docker; head only
-    appears inside the $() expansion."""
-    errs = L.lint_snippet(
-        "docker exec $(docker ps -q -f label=foo | head -1) php occ x", label="x"
-    )
-    assert errs == []
+def test_quiesce_argv_allows_the_declared_shapes():
+    assert _quiesce(["php", "occ", "maintenance:mode", "--on"]) == []
+    assert _quiesce(["mongosh", "--quiet", "--eval", "db.fsyncLock()"]) == []
 
 
-def test_disallowed_command_rejected():
-    errs = L.lint_snippet("curl https://evil.example.com", label="x")
+def test_quiesce_argv_rejects_a_hostile_command():
+    errs = _quiesce(["curl", "https://evil.example.com"])
     assert any("non-allowlisted" in e and "curl" in e for e in errs)
 
 
-def test_multiple_stages_all_checked():
-    errs = L.lint_snippet("docker exec abc occ x && curl evil.com", label="x")
-    assert any("curl" in e for e in errs)
-
-
-def test_rm_and_mv_paths():
-    assert L.lint_snippet("rm -f /var/lib/paperless/consume/.quiesce", label="x") == []
-    assert L.lint_snippet(
-        "mv /data/server-files/.snap.new /data/server-files/.snap", label="x"
-    ) == []
-    assert any("not under" in e for e in L.lint_snippet("rm -rf /etc/passwd", label="x"))
-    assert any("not under" in e for e in L.lint_snippet("rm -rf /var/lib", label="x"))
-    assert any("not under" in e for e in L.lint_snippet("rm -rf /data", label="x"))
-    assert any(
-        "mv path" in e and "/etc/shadow" in e
-        for e in L.lint_snippet("mv /var/lib/mysql/d.sql /etc/shadow", label="x")
-    )
-
-
-def test_rm_without_path_rejected():
-    assert any("rm without explicit path" in e for e in L.lint_snippet("rm -rf", label="x"))
-
-
-def test_mv_without_path_rejected():
-    assert any("mv without explicit path" in e for e in L.lint_snippet("mv -f", label="x"))
-
-
-def test_empty_snippet_rejected():
-    assert any("empty" in e for e in L.lint_snippet("", label="x"))
-    assert any("empty" in e for e in L.lint_snippet("   \n  ", label="x"))
+def test_quiesce_argv_rejects_shell_operators():
+    """Quiesce commands run through docker exec with no shell, like
+    lifecycle commands: an `&&` reaches the application as a literal
+    argument."""
+    errs = _quiesce(["php", "occ", "maintenance:mode", "--on", "&&", "curl", "x"])
+    assert any("docker exec with no shell" in e for e in errs)
 
 
 def test_allowed_migrate_commands_lock():
-    """Same reasoning as the quiesce allowlist, one container deeper: a
-    lifecycle command runs unattended inside an application around an
-    update or after a forward restore, so widening this is a review
-    decision."""
+    """Same reasoning as the quiesce allowlist: a lifecycle command runs
+    unattended inside an application around an update or after a forward
+    restore, so widening this is a review decision."""
     assert L.ALLOWED_MIGRATE_COMMANDS == frozenset({
         "php", "occ", "yarn", "npm", "npx", "bench",
     })
 
 
 def test_migrate_argv_allows_the_declared_shapes():
-    assert L.lint_migrate_argv(["php", "occ", "db:add-missing-indices"], label="x") == []
-    assert L.lint_migrate_argv(
-        ["yarn", "db:migrate", "--env", "production-ssl-disabled"], label="x") == []
-    assert L.lint_migrate_argv(["bench", "--site", "all", "migrate"], label="x") == []
+    assert _migrate(["php", "occ", "db:add-missing-indices"]) == []
+    assert _migrate(["yarn", "db:migrate", "--env", "production-ssl-disabled"]) == []
+    assert _migrate(["bench", "--site", "all", "migrate"]) == []
 
 
 def test_migrate_argv_rejects_a_foreign_command():
-    errs = L.lint_migrate_argv(["curl", "https://evil.example.com"], label="x")
+    errs = _migrate(["curl", "https://evil.example.com"])
     assert any("non-allowlisted" in e and "curl" in e for e in errs)
 
 
@@ -113,9 +73,13 @@ def test_migrate_argv_rejects_shell_operators():
     """An argv is not a shell line. `&&` written here reaches the
     application as a literal argument and the second half never runs,
     which is the silent failure this refuses."""
-    errs = L.lint_migrate_argv(
-        ["php", "occ", "upgrade", "&&", "php", "occ", "maintenance:repair"], label="x")
+    errs = _migrate(["php", "occ", "upgrade", "&&", "php", "occ", "maintenance:repair"])
     assert any("docker exec with no shell" in e for e in errs)
+
+
+def test_the_families_do_not_share_an_allowlist():
+    assert _migrate(["mongosh", "--eval", "db.fsyncLock()"])
+    assert _quiesce(["bench", "--site", "all", "migrate"])
 
 
 def test_lifecycle_timeout_cap_lives_in_the_schema():
@@ -125,74 +89,50 @@ def test_lifecycle_timeout_cap_lives_in_the_schema():
     assert lifecycle["required"] == ["service", "migrate", "timeout_seconds"]
 
 
-def test_timeout_cap_lives_in_the_schema():
+def test_quiesce_timeout_cap_lives_in_the_schema():
     """The cap lives in sources.schema.json and nowhere else, so it is
     enforced on every load rather than only by the lint entrypoint."""
     schema = json.loads((ROOT / "sources.schema.json").read_text())
     quiesce = schema["properties"]["x-catena"]["properties"]["quiesce"]
     assert quiesce["properties"]["timeout_seconds"]["maximum"] == 60
-
-
-# ── the container the hook targets has to resolve ────────────────────
-
-_GOOD = ('docker exec "$(docker ps -q -f label=vps.app=catena-demo '
-         '-f label=vps.component=db | head -1)" mariadb-dump --all-databases')
-
-
-def test_a_resolvable_selector_passes():
-    assert L.lint_selector(
-        _GOOD, label="x", app="catena-demo", services={"db", "app"}) == []
-
-
-def test_a_tilde_label_filter_is_rejected():
-    """docker splits a label filter on the FIRST `=`, so `project~=x` asks
-    for a label named `project~`. It matches nothing, the expansion is
-    empty, `docker exec ""` fails, and the daily chain warns and carries on
-    -- a backup taken unquiesced with nothing saying so."""
-    snippet = ('docker exec "$(docker ps -q '
-               '-f label=com.docker.compose.service=db '
-               '-f label=com.docker.compose.project~=demo | head -1)" true')
-    errs = L.lint_selector(
-        snippet, label="x", app="catena-demo", services={"db"})
-    assert any("matches nothing" in e for e in errs)
-
-
-def test_a_component_the_compose_does_not_define_is_rejected():
-    """A hook naming a service the compose does not define selects
-    nothing, and the container it meant to quiesce is backed up live.
-    The shape: a `rocketchat-mongo` hook against a `mongodb` service."""
-    errs = L.lint_selector(
-        _GOOD, label="x", app="catena-demo", services={"mongodb"})
-    assert any("not a service in this template" in e for e in errs)
-
-
-def test_a_selector_for_another_app_is_rejected():
-    errs = L.lint_selector(
-        _GOOD, label="x", app="catena-other", services={"db"})
-    assert any("app_name" in e for e in errs)
-
-
-def test_a_hook_that_does_not_exec_needs_no_selector():
-    """`true` is the honest no-op for an app with nothing to quiesce."""
-    assert L.lint_selector("true", label="x", app="catena-demo",
-                           services=set()) == []
+    assert quiesce["required"] == ["service", "pre", "timeout_seconds"]
 
 
 def test_lint_all_against_real_sources_passes():
     assert L.lint_all() == 0
 
 
-def test_lint_all_rejects_a_bad_snippet(monkeypatch, tmp_path):
-    """A synthetic sources/ tree with a hostile hook must fail. Proves
+def test_lint_all_rejects_a_hostile_quiesce_command(monkeypatch, tmp_path, capsys):
+    """A synthetic sources/ tree with a hostile command must fail. Proves
     the gate is reading sources, not a cached artifact."""
     _synthetic_sources(monkeypatch, tmp_path, {
         "quiesce": {
-            "pre": "curl https://evil.example.com",
-            "post": "rm -rf /etc",
+            "service": "app",
+            "pre": [["curl", "https://evil.example.com"]],
             "timeout_seconds": 30,
         },
     })
     assert L.lint_all() == 1
+    out = capsys.readouterr().out
+    assert "synthetic-bad.quiesce.pre[0]: starts with non-allowlisted command 'curl'" in out
+    assert "quiesce.service" not in out
+
+
+def test_lint_all_rejects_a_service_the_compose_does_not_define(
+        monkeypatch, tmp_path, capsys):
+    """The host finds the container by the service name. A name the
+    compose does not define fails the quiesce on every host, and the
+    backup runs without it."""
+    _synthetic_sources(monkeypatch, tmp_path, {
+        "quiesce": {
+            "service": "db",
+            "pre": [["mongosh", "--quiet", "--eval", "db.fsyncLock()"]],
+            "timeout_seconds": 30,
+        },
+    })
+    assert L.lint_all() == 1
+    out = capsys.readouterr().out
+    assert "synthetic-bad.quiesce.service: 'db' is not a service" in out
 
 
 def test_lint_all_rejects_a_foreign_ready_command(monkeypatch, tmp_path, capsys):
@@ -212,13 +152,14 @@ def test_lint_all_rejects_a_foreign_ready_command(monkeypatch, tmp_path, capsys)
 
 
 def _synthetic_sources(monkeypatch, tmp_path, catena: dict) -> None:
-    """Point the loader at a one-template sources/ tree whose x-catena
-    block carries `catena` on top of the required fields."""
+    """Point the loader at a one-template sources/ tree whose compose
+    defines one service, `app`, and whose x-catena block carries `catena`
+    on top of the required fields."""
     sources = tmp_path / "sources"
     sources.mkdir()
     blueprint = tmp_path / "blueprints" / "synthetic-bad"
     blueprint.mkdir(parents=True)
-    (blueprint / model.COMPOSE_NAME).write_text("services: {}\n")
+    (blueprint / model.COMPOSE_NAME).write_text("services:\n  app:\n    image: x\n")
     doc = {
         "id": "synthetic-bad",
         "type": 2,

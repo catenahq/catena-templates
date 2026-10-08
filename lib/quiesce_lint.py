@@ -1,66 +1,42 @@
-"""Security lint over the hooks a client host runs unattended (CI gate).
+"""Security lint over the commands a client host runs unattended (CI gate).
 
 Two families, both declared in `x-catena` and both executed on a client
-box with no operator present: the backup quiesce hooks, and the
-lifecycle commands (migration, before and after an update, and the ready
-question asked before each of those).
+box with no one present: the quiesce commands the nightly maintenance
+runs around its backup, and the lifecycle commands (migration, before
+and after an update, and the ready question asked before each of those).
+Both are argv arrays the host runs inside one service's container
+through `docker exec`, with no shell.
 
-Schema-level checks (pairing, timeout cap, argv shape) live in
-sources.schema.json and run on every render. This module adds the checks
-that are too slow or too external for the render path:
+Schema-level checks (argv shape, required keys, timeout caps) live in
+sources.schema.json and run on every render. This module adds:
 
-  - shellcheck (POSIX sh) per quiesce snippet when it is on PATH.
-    Missing locally is a warning; CI installs it.
-  - Command allowlist on the head of each pipeline stage, so a template
-    cannot smuggle `curl evil.com` into a hook that runs as root on
-    every client host before every backup.
-  - Path restriction on rm/mv: inside the app's own data path only.
-  - Command allowlist on each lifecycle argv, plus a refusal of shell
-    metacharacters there: lifecycle commands run through `docker exec`
-    with no shell, so an `&&` written by someone thinking in shell is
-    passed to the application as a literal argument and does nothing.
-  - The container the hook targets RESOLVES. A hook selects its container
-    with `docker ps -q -f label=...`; when the filter matches nothing the
-    expansion is empty, `docker exec ""` exits non-zero, and the daily
-    chain records a warning and carries on -- so the backup is taken
-    unquiesced and nothing says so. Two ways in, both of which had
-    happened here: a label filter written with `~=`, which docker parses
-    as a label literally named `<key>~` and therefore never matches, and
-    a component naming a service the compose does not define.
+  - A command allowlist per family on the first word of each argv, so a
+    template cannot smuggle `curl evil.com` into a command that runs on
+    every client host.
+  - A refusal of shell operators: with no shell, an `&&` written by
+    someone thinking in shell reaches the application as a literal
+    argument and the second half of the line never runs.
+  - The service a quiesce block names is a service the compose defines.
+    The host finds the container by that name; a name the compose does
+    not define fails the quiesce on every host, and the backup runs
+    without it.
 
 Exit codes: 0 clean, 1 lint failures, 2 structural error.
 """
 from __future__ import annotations
 
-import re
-import shutil
-import subprocess
-
 import yaml
 
 from .model import SourceError, load_sources
 
-ALLOWED_COMMANDS = frozenset({
-    # shell + control-flow primitives used by the docker exec idiom
-    "docker", "head", "true", "false",
-    # app-side admin clients
-    "occ", "php",                       # Nextcloud
-    "mongo", "mongosh",                 # Rocket.Chat / Mongo apps
-    "rocketchat-cli",                   # RC admin
-    # filesystem primitives (rm/mv are path-restricted below)
-    "touch", "rm", "mv",
-    # per-engine logical-dump tools, executed INSIDE the app's DB
-    # container via docker exec
-    "mariadb-dump", "mysqldump",
-    "pg_dump", "pg_dumpall",
-    "mongodump",
-    "sqlite3",
+# Each family runs inside one application container and gets that
+# application's own admin client, nothing else. Widening either set is a
+# review decision.
+ALLOWED_QUIESCE_COMMANDS = frozenset({
+    "php",                  # Nextcloud
+    "mongosh",              # MongoDB
 })
 
-# Lifecycle commands are a separate, tighter allowlist. A quiesce hook
-# drives docker from the host; a lifecycle command runs inside one
-# application container and has no business being anything but that
-# application's own admin tool.
 ALLOWED_MIGRATE_COMMANDS = frozenset({
     "php", "occ",           # Nextcloud, EspoCRM
     "yarn", "npm", "npx",   # the node applications
@@ -75,122 +51,22 @@ LIFECYCLE_LISTS = ("before_update", "migrate", "after_update")
 # runs and the failure is silent.
 SHELL_METACHARS = frozenset({"&&", "||", "|", ";", ">", ">>", "<", "&"})
 
-# rm + mv are allowed only against a recognised container data path:
-# /var/lib/<app>/... or /data/... . Anything else fails, which is what
-# catches `rm -rf /` and `mv /etc/shadow`.
-RM_ALLOWED_PATH_RE = re.compile(r"^(?:/var/lib/[A-Za-z0-9._-]+|/data)/")
-
-
-def shell_tokens(snippet: str) -> list[list[str]]:
-    """One token list per pipeline stage. Deliberately not a shell
-    parser: the allowlist needs only the first non-redirection token of
-    each stage, and shellcheck covers the parse-level problems."""
-    stages: list[list[str]] = []
-    for stage in re.split(r"\||;|&&|\|\|", snippet):
-        toks = [t for t in stage.strip().split() if t and not t.startswith("(")]
-        if toks:
-            stages.append(toks)
-    return stages
-
-
-def head_command(stage_tokens: list[str]) -> str:
-    """First non-redirection token, skipping KEY=value env prefixes."""
-    for tok in stage_tokens:
-        if "=" in tok and tok.split("=", 1)[0].replace("_", "").isalnum():
-            continue
-        return tok
-    return ""
-
-
-def lint_snippet(snippet: str, *, label: str) -> list[str]:
+def lint_migrate_argv(argv: list[str], *, label: str,
+                      allowed: frozenset[str]) -> list[str]:
     errors: list[str] = []
-    if not snippet.strip():
-        return [f"{label}: snippet is empty"]
-
-    for stage_idx, toks in enumerate(shell_tokens(snippet)):
-        head = head_command(toks)
-        # `cmd $(other)` -- the outer command is the one that runs.
-        if head.startswith("$("):
-            head = head.lstrip("$(").rstrip(")")
-        if head not in ALLOWED_COMMANDS:
-            errors.append(
-                f"{label}: stage {stage_idx + 1} starts with non-allowlisted "
-                f"command {head!r}; allowed: {sorted(ALLOWED_COMMANDS)}"
-            )
-            continue
-        if head in ("rm", "mv"):
-            paths = [t for t in toks[1:] if not t.startswith("-")]
-            if not paths:
-                errors.append(f"{label}: {head} without explicit path")
-            for path in paths:
-                if not RM_ALLOWED_PATH_RE.match(path):
-                    errors.append(
-                        f"{label}: {head} path {path!r} not under /var/lib/<app>/ or /data/"
-                    )
-    return errors
-
-
-def lint_migrate_argv(argv: list[str], *, label: str) -> list[str]:
-    errors: list[str] = []
-    head = head_command([str(t) for t in argv])
-    if head not in ALLOWED_MIGRATE_COMMANDS:
+    head = str(argv[0])
+    if head not in allowed:
         errors.append(
             f"{label}: starts with non-allowlisted command {head!r}; "
-            f"allowed: {sorted(ALLOWED_MIGRATE_COMMANDS)}"
+            f"allowed: {sorted(allowed)}"
         )
     for tok in argv:
         if str(tok) in SHELL_METACHARS:
             errors.append(
-                f"{label}: contains the shell operator {tok!r}, but migrations "
+                f"{label}: contains the shell operator {tok!r}, but commands "
                 f"run through docker exec with no shell. Split it into separate "
                 f"commands, which run in order and stop at the first failure"
             )
-    return errors
-
-
-# The one selector shape a hook may use. Anything else is a filter nobody
-# has proved resolves.
-_LABEL_FILTER = re.compile(
-    r"-f label=vps\.app=(?P<app>[\w.-]+) -f label=vps\.component=(?P<component>[\w.-]+)"
-)
-# `docker ps -f label=key~=value` splits on the FIRST `=`, so it looks for a
-# label named `key~` and matches nothing, silently.
-_TILDE_FILTER = re.compile(r"-f label=[\w.-]+~=")
-
-
-def lint_selector(snippet: str, *, label: str, app: str,
-                  services: set[str]) -> list[str]:
-    """The hook targets a container this template actually runs."""
-    errors: list[str] = []
-    if "docker exec" not in snippet:
-        return errors
-    if _TILDE_FILTER.search(snippet):
-        errors.append(
-            f"{label}: uses a `label=<key>~=<value>` filter. docker splits a "
-            f"label filter on the first `=`, so this asks for a label named "
-            f"`<key>~` and matches nothing -- the hook then runs "
-            f"`docker exec \"\"` and the backup is taken unquiesced"
-        )
-    found = _LABEL_FILTER.search(snippet)
-    if not found:
-        errors.append(
-            f"{label}: selects its container with something other than "
-            f"`-f label=vps.app=<app> -f label=vps.component=<service>`. "
-            f"Those two labels are on every service in this catalog and do "
-            f"not change when a client renames the stack"
-        )
-        return errors
-    if found.group("app") != app:
-        errors.append(
-            f"{label}: filters on vps.app={found.group('app')!r} but this "
-            f"template's app_name is {app!r}"
-        )
-    component = found.group("component")
-    if component not in services:
-        errors.append(
-            f"{label}: filters on vps.component={component!r}, which is not a "
-            f"service in this template's compose ({sorted(services)})"
-        )
     return errors
 
 
@@ -201,23 +77,6 @@ def compose_services(entry) -> set[str]:
     return set(doc["services"])
 
 
-def shellcheck_snippet(snippet: str, *, label: str) -> list[str]:
-    if shutil.which("shellcheck") is None:
-        return ["__SHELLCHECK_MISSING__"]
-    try:
-        proc = subprocess.run(
-            ["shellcheck", "-s", "sh", "-"],
-            input=snippet + "\n",
-            text=True, capture_output=True, check=False, timeout=10,
-        )
-    except subprocess.TimeoutExpired:
-        return [f"{label}: shellcheck timed out"]
-    if proc.returncode == 0:
-        return []
-    out = (proc.stdout + proc.stderr).strip().splitlines()
-    return [f"{label}: shellcheck: {line}" for line in out]
-
-
 def lint_all() -> int:
     try:
         entries = load_sources()
@@ -226,7 +85,6 @@ def lint_all() -> int:
         return 2
 
     all_errors: list[str] = []
-    shellcheck_missing = False
     with_hooks = 0
     with_migrations = 0
 
@@ -237,42 +95,36 @@ def lint_all() -> int:
             for key in LIFECYCLE_LISTS:
                 for idx, argv in enumerate(lifecycle.get(key) or []):
                     all_errors.extend(lint_migrate_argv(
-                        argv, label=f"{entry.slug}.lifecycle.{key}[{idx}]"))
+                        argv, label=f"{entry.slug}.lifecycle.{key}[{idx}]",
+                        allowed=ALLOWED_MIGRATE_COMMANDS))
             if lifecycle.get("ready"):
                 all_errors.extend(lint_migrate_argv(
-                    lifecycle["ready"], label=f"{entry.slug}.lifecycle.ready"))
+                    lifecycle["ready"], label=f"{entry.slug}.lifecycle.ready",
+                    allowed=ALLOWED_MIGRATE_COMMANDS))
 
         quiesce = entry.quiesce
         if not quiesce:
             continue
         with_hooks += 1
         services = compose_services(entry)
+        if quiesce["service"] not in services:
+            all_errors.append(
+                f"{entry.slug}.quiesce.service: {quiesce['service']!r} is not a "
+                f"service in this template's compose ({sorted(services)})"
+            )
         for name in ("pre", "post"):
-            label = f"{entry.slug}.quiesce_{name}"
-            snippet = str(quiesce[name])
-            all_errors.extend(lint_snippet(snippet, label=label))
-            all_errors.extend(lint_selector(
-                snippet, label=label,
-                app=entry.catena["app_name"], services=services,
-            ))
-            sh_errs = shellcheck_snippet(snippet, label=label)
-            if sh_errs == ["__SHELLCHECK_MISSING__"]:
-                shellcheck_missing = True
-            else:
-                all_errors.extend(sh_errs)
+            for idx, argv in enumerate(quiesce.get(name) or []):
+                all_errors.extend(lint_migrate_argv(
+                    argv, label=f"{entry.slug}.quiesce.{name}[{idx}]",
+                    allowed=ALLOWED_QUIESCE_COMMANDS))
 
-    if shellcheck_missing:
-        print(
-            "WARN: shellcheck not on PATH; static checks skipped. "
-            "CI must install shellcheck for full coverage."
-        )
     if all_errors:
         print("hook lint failed:")
         for err in all_errors:
             print(f"  {err}")
         return 1
     print(
-        f"hook lint OK ({with_hooks} templates with quiesce hooks, "
+        f"hook lint OK ({with_hooks} templates with quiesce commands, "
         f"{with_migrations} with lifecycle commands)"
     )
     return 0

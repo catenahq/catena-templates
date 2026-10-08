@@ -92,11 +92,6 @@
       "JITSI_JICOFO_COMPONENT_SECRET",
       "JITSI_JVB_AUTH_PASSWORD",
       "JIGASI_XMPP_PASSWORD"
-    ],
-    "quiesce": {
-      "pre": "true",
-      "post": "true",
-      "timeout_seconds": 5
-    }
+    ]
   }
 }

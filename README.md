@@ -5,8 +5,8 @@ per application holding its compose file and its README, one JSON file
 per application holding its metadata and prose, and the build pipeline
 that renders them into Portainer App Templates (`templates.json`, format
 v3) and the machine catalog (`catalog.json`). Every consumer reads `main`,
-fetched raw: catena-admin, catena-ce and the ops tooling read
-`catalog.json`, and Portainer itself can point its App Templates URL at
+fetched raw: catena-admin and the ops tooling read `catalog.json`, and
+Portainer itself can point its App Templates URL at
 `templates.json`.
 
 **What this repo promises and how that is enforced:** [SPEC.md](SPEC.md)
@@ -23,14 +23,14 @@ blueprints/              # ONE directory per template -- what Portainer clones
     logo.png             # HAND-PLACED; optional
     README.md            # generated from the source prose, EN then FR
     logo.svg             # generated placeholder, absent a logo.png
-    quiesce.yml          # generated, if the entry declares backup hooks
+    quiesce.yml          # generated, if the entry declares quiesce commands
 
 sources/                 # hand-edited metadata
   _meta.json             # postgres_default_image + sizing measurement header
   <id>.json              # ONE file per template: the Portainer fields a human
                          # owns, plus x-catena for everything that format
-                         # cannot carry (SSO mode, quiesce hooks,
-                         # post-restore migrations, bench membership,
+                         # cannot carry (SSO mode, quiesce commands,
+                         # lifecycle commands, bench membership,
                          # sizing, EN/FR prose)
 
 lib/                     # the build library
@@ -38,8 +38,8 @@ lib/                     # the build library
   render.py              # inputs -> every generated artifact
   readme.py              # one template's prose -> its README
   swarm_lint.py          # the swarm-stack-file compatibility gate
-  quiesce_lint.py        # security lint over the hooks a host runs
-                         # unattended: quiesce + post-restore migrations
+  quiesce_lint.py        # security lint over the commands a host runs
+                         # unattended: quiesce + lifecycle
   postgres_pins.py       # central Postgres image enforcement
 
 build/                   # thin entrypoints
@@ -50,7 +50,7 @@ sources.schema.json      # schema for a sources/<id>.json
 Schema.json              # schema for the generated templates.json
 
 templates.json           # generated; the Portainer App Templates index (v3)
-catalog.json             # generated; the machine view ops/ + the bench read
+catalog.json             # generated; the machine view catena-admin, ops/ and the bench read
 index.html               # generated; static catalog preview
 
 Makefile                 # make render / validate / lint / test / verify
@@ -79,8 +79,8 @@ swarm.
 
 ### 2. The machine catalog (catalog.json)
 
-catena-admin (`shell/marketplace`, `payload/engines/catalog`), the
-catena-ce converge and the ops tooling read `catalog.json` -- one fetch,
+catena-admin (`shell/marketplace`, `payload/engines/catalog`) and the
+ops tooling read `catalog.json` -- one fetch,
 every template, with the fields Portainer's format has no slot for. A
 managed VPS reads it to render its OWN copy of `templates.json`, which is
 what its Portainer actually serves (see the sentinel section below).
@@ -132,12 +132,15 @@ input, not a catalog to deploy from.
 4. `x-catena.sizing.peak_ram_mb` is required: the bench scheduler
    multiplies it by 1.15 to gate parallel slot acquisition. The other
    numbers stay null until a measured run.
-5. If the template takes write traffic during backup (DB writes,
-   append-only filesystem state, queue consumption), add
-   `x-catena.quiesce` with `pre`, `post` and `timeout_seconds`. Real
-   examples: Nextcloud (`occ maintenance:mode` on/off) and Rocket.Chat
-   (mongo fsyncLock/unlock). `make lint` enforces snippet safety: no
-   curl/wget, no rm outside the app's data path.
+5. If the application keeps live state that a file-level snapshot can
+   tear and the backup's own Postgres and MariaDB dumps do not cover,
+   add `x-catena.quiesce` with `service`, `pre`, `timeout_seconds` and
+   optionally `user` and `post`. Each command is an argv array the
+   nightly maintenance runs inside that service with `docker exec`, no
+   shell; `post` must succeed when `pre` never ran. Real examples:
+   Nextcloud (`occ maintenance:mode` on/off) and Rocket.Chat (MongoDB
+   fsyncLock/unlock). `make lint` holds each command to an allowlist of
+   the application's own admin clients.
 6. `make` -- renders, lints, and runs the tests. Commit the regenerated
    `blueprints/<id>/README.md`, `templates.json`, `catalog.json` and
    `index.html` with the source change.

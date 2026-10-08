@@ -102,8 +102,8 @@ jobs:
           persist-credentials: false
       - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
       - name: pytest tests/
-        run: uv run --with pytest --with jsonschema pytest tests/ -q
-      - name: lint quiesce snippets against the catalog
+        run: uv run --with pytest --with jsonschema --with pyyaml pytest tests/ -q
+      - name: lint quiesce and lifecycle commands against the catalog
         run: uv run build/lint_quiesce.py
       - name: lint postgres pins against the central default
         run: uv run build/lint_postgres_pins.py

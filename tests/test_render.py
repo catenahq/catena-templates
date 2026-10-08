@@ -8,6 +8,8 @@ import re
 import sys
 from pathlib import Path
 
+import yaml
+
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
@@ -83,7 +85,7 @@ def test_no_ansible_templating_reaches_portainer():
     piping a lookup through `| lower` did not match the collapse regex.
 
     catalog.json is the opposite case and deliberately keeps the Jinja:
-    the converge is what resolves it."""
+    the host's render is what resolves it."""
     portainer = (ROOT / "templates.json").read_text()
     assert "lookup('password'" not in portainer
     assert "{{" not in portainer
@@ -116,9 +118,30 @@ def test_catalog_json_and_templates_json_cover_the_same_ids():
 
 
 def test_quiesce_yaml_is_emitted_for_every_declaring_entry():
+    """One JSON argv per line reads back as the declared block."""
     for entry in model.load_sources():
         path = ROOT / "blueprints" / entry.slug / "quiesce.yml"
         assert path.exists() == bool(entry.quiesce), entry.slug
+        if entry.quiesce:
+            doc = yaml.safe_load(path.read_text())
+            assert doc.pop("id") == entry.slug
+            assert doc == entry.quiesce, entry.slug
+
+
+def test_quiesce_reaches_the_catalog_unchanged():
+    """The nightly maintenance reads this out of catalog.json on a client
+    host, unattended. A key the render drops or reshapes is a backup taken
+    without the quiesce, and nothing downstream can tell that from an app
+    that declared none."""
+    catalog = {
+        e["id"]: e for e in json.loads((ROOT / "catalog.json").read_text())["templates"]
+    }
+    declared = 0
+    for entry in model.load_sources():
+        assert catalog[entry.slug].get("quiesce") == entry.quiesce, entry.slug
+        if entry.quiesce:
+            declared += 1
+    assert declared > 0
 
 
 def test_lifecycle_reaches_the_catalog_unchanged():

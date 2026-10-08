@@ -110,9 +110,27 @@
         "timeout_seconds": 1800,
         "user": "www-data"
       },
-      "quiesce_post": "docker exec -u www-data \"$(docker ps -q -f label=vps.app=catena-nextcloud -f label=vps.component=app | head -1)\" php occ maintenance:mode --off",
-      "quiesce_pre": "docker exec -u www-data \"$(docker ps -q -f label=vps.app=catena-nextcloud -f label=vps.component=app | head -1)\" php occ maintenance:mode --on",
-      "quiesce_timeout_seconds": 30,
+      "quiesce": {
+        "post": [
+          [
+            "php",
+            "occ",
+            "maintenance:mode",
+            "--off"
+          ]
+        ],
+        "pre": [
+          [
+            "php",
+            "occ",
+            "maintenance:mode",
+            "--on"
+          ]
+        ],
+        "service": "app",
+        "timeout_seconds": 30,
+        "user": "www-data"
+      },
       "s3_reconcile": {
         "check": "nextcloud-objectstore",
         "db_service": "db",
@@ -355,9 +373,26 @@
       },
       "hostname_baked": true,
       "id": "rocketchat-oidc",
-      "quiesce_post": "docker exec \"$(docker ps -q -f label=vps.app=catena-rocketchat -f label=vps.component=mongodb | head -1)\" mongosh --quiet --eval 'db.fsyncUnlock()'",
-      "quiesce_pre": "docker exec \"$(docker ps -q -f label=vps.app=catena-rocketchat -f label=vps.component=mongodb | head -1)\" mongosh --quiet --eval 'db.fsyncLock()'",
-      "quiesce_timeout_seconds": 60,
+      "quiesce": {
+        "post": [
+          [
+            "mongosh",
+            "--quiet",
+            "--eval",
+            "while (db.adminCommand({currentOp:1}).fsyncLock) { db.fsyncUnlock() }"
+          ]
+        ],
+        "pre": [
+          [
+            "mongosh",
+            "--quiet",
+            "--eval",
+            "db.fsyncLock()"
+          ]
+        ],
+        "service": "mongodb",
+        "timeout_seconds": 60
+      },
       "sizing": {
         "disk_baseline_mb": 180,
         "idle_cpu_pct": 3,
@@ -447,9 +482,6 @@
       },
       "hostname_baked": true,
       "id": "element",
-      "quiesce_post": "true",
-      "quiesce_pre": "true",
-      "quiesce_timeout_seconds": 5,
       "sizing": {
         "disk_baseline_mb": null,
         "idle_cpu_pct": null,
@@ -658,9 +690,6 @@
         "timeout_seconds": 900,
         "user": "www-data"
       },
-      "quiesce_post": "true",
-      "quiesce_pre": "docker exec \"$(docker ps -q -f label=vps.app=catena-espocrm -f label=vps.component=db | head -1)\" sh -c 'mariadb-dump --single-transaction --quick --routines --triggers --add-drop-table -u root -p\"$MARIADB_ROOT_PASSWORD\" --all-databases > /var/lib/mysql/.catena-dump.sql.new && mv /var/lib/mysql/.catena-dump.sql.new /var/lib/mysql/.catena-dump.sql'",
-      "quiesce_timeout_seconds": 60,
       "sizing": {
         "disk_baseline_mb": 200,
         "idle_cpu_pct": 1,
@@ -1008,9 +1037,6 @@
       },
       "hostname_baked": true,
       "id": "wordpress",
-      "quiesce_post": "true",
-      "quiesce_pre": "docker exec \"$(docker ps -q -f label=vps.app=catena-wordpress -f label=vps.component=db | head -1)\" sh -c 'mariadb-dump --single-transaction --quick --routines --triggers --add-drop-table -u root -p\"$MARIADB_ROOT_PASSWORD\" --all-databases > /var/lib/mysql/.catena-dump.sql.new && mv /var/lib/mysql/.catena-dump.sql.new /var/lib/mysql/.catena-dump.sql'",
-      "quiesce_timeout_seconds": 60,
       "sizing": {
         "disk_baseline_mb": 180,
         "idle_cpu_pct": 1,
@@ -1151,9 +1177,6 @@
         "service": "backend",
         "timeout_seconds": 3600
       },
-      "quiesce_post": "true",
-      "quiesce_pre": "docker exec \"$(docker ps -q -f label=vps.app=catena-erpnext -f label=vps.component=db | head -1)\" sh -c 'mariadb-dump --single-transaction --quick --routines --triggers --add-drop-table -u root -p\"$MARIADB_ROOT_PASSWORD\" --all-databases > /var/lib/mysql/.catena-dump.sql.new && mv /var/lib/mysql/.catena-dump.sql.new /var/lib/mysql/.catena-dump.sql'",
-      "quiesce_timeout_seconds": 60,
       "sizing": {
         "disk_baseline_mb": 850,
         "idle_cpu_pct": 8,
@@ -1209,9 +1232,6 @@
       },
       "hostname_baked": false,
       "id": "actualbudget",
-      "quiesce_post": "true",
-      "quiesce_pre": "docker exec \"$(docker ps -q -f label=vps.app=catena-actualbudget -f label=vps.component=actual | head -1)\" sh -c 'sqlite3 /data/server-files/account.sqlite \".backup /data/server-files/.catena-snapshot.sqlite.new\" && mv /data/server-files/.catena-snapshot.sqlite.new /data/server-files/.catena-snapshot.sqlite'",
-      "quiesce_timeout_seconds": 30,
       "sizing": {
         "disk_baseline_mb": 30,
         "idle_cpu_pct": 1,
@@ -1325,9 +1345,6 @@
       },
       "hostname_baked": true,
       "id": "easyappointments",
-      "quiesce_post": "true",
-      "quiesce_pre": "docker exec \"$(docker ps -q -f label=vps.app=catena-easyappointments -f label=vps.component=db | head -1)\" sh -c 'mariadb-dump --single-transaction --quick --routines --triggers --add-drop-table -u root -p\"$MARIADB_ROOT_PASSWORD\" --all-databases > /var/lib/mysql/.catena-dump.sql.new && mv /var/lib/mysql/.catena-dump.sql.new /var/lib/mysql/.catena-dump.sql'",
-      "quiesce_timeout_seconds": 60,
       "sizing": {
         "disk_baseline_mb": null,
         "idle_cpu_pct": null,
@@ -1391,9 +1408,6 @@
       },
       "hostname_baked": true,
       "id": "mautic",
-      "quiesce_post": "true",
-      "quiesce_pre": "docker exec \"$(docker ps -q -f label=vps.app=catena-mautic -f label=vps.component=db | head -1)\" sh -c 'mariadb-dump --single-transaction --quick --routines --triggers --add-drop-table -u root -p\"$MARIADB_ROOT_PASSWORD\" --all-databases > /var/lib/mysql/.catena-dump.sql.new && mv /var/lib/mysql/.catena-dump.sql.new /var/lib/mysql/.catena-dump.sql'",
-      "quiesce_timeout_seconds": 60,
       "sizing": {
         "disk_baseline_mb": 420,
         "idle_cpu_pct": 3,
@@ -1457,9 +1471,6 @@
       },
       "hostname_baked": true,
       "id": "kimai",
-      "quiesce_post": "true",
-      "quiesce_pre": "docker exec \"$(docker ps -q -f label=vps.app=catena-kimai -f label=vps.component=db | head -1)\" sh -c 'mariadb-dump --single-transaction --quick --routines --triggers --add-drop-table -u root -p\"$MARIADB_ROOT_PASSWORD\" --all-databases > /var/lib/mysql/.catena-dump.sql.new && mv /var/lib/mysql/.catena-dump.sql.new /var/lib/mysql/.catena-dump.sql'",
-      "quiesce_timeout_seconds": 60,
       "sizing": {
         "disk_baseline_mb": 180,
         "idle_cpu_pct": 1,
@@ -1527,9 +1538,6 @@
       },
       "hostname_baked": true,
       "id": "invoiceninja",
-      "quiesce_post": "true",
-      "quiesce_pre": "docker exec \"$(docker ps -q -f label=vps.app=catena-invoiceninja -f label=vps.component=db | head -1)\" sh -c 'mariadb-dump --single-transaction --quick --routines --triggers --add-drop-table -u root -p\"$MARIADB_ROOT_PASSWORD\" --all-databases > /var/lib/mysql/.catena-dump.sql.new && mv /var/lib/mysql/.catena-dump.sql.new /var/lib/mysql/.catena-dump.sql'",
-      "quiesce_timeout_seconds": 60,
       "sizing": {
         "disk_baseline_mb": 350,
         "idle_cpu_pct": 2,

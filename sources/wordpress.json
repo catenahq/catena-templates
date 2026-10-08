@@ -64,11 +64,6 @@
     "env_managed_keys": [
       "WORDPRESS_HOSTNAME",
       "WPMS_SMTP_PASS"
-    ],
-    "quiesce": {
-      "pre": "docker exec \"$(docker ps -q -f label=vps.app=catena-wordpress -f label=vps.component=db | head -1)\" sh -c 'mariadb-dump --single-transaction --quick --routines --triggers --add-drop-table -u root -p\"$MARIADB_ROOT_PASSWORD\" --all-databases > /var/lib/mysql/.catena-dump.sql.new && mv /var/lib/mysql/.catena-dump.sql.new /var/lib/mysql/.catena-dump.sql'",
-      "post": "true",
-      "timeout_seconds": 60
-    }
+    ]
   }
 }

@@ -3,7 +3,7 @@
 # Rocket.Chat
 
 - `docker-compose.yml` -- the stack file this template deploys
-- `quiesce.yml` -- the pause and resume hooks the backup chain runs around a snapshot of this application
+- `quiesce.yml` -- the commands the nightly maintenance runs inside this application before and after its backup
 
 ## English
 

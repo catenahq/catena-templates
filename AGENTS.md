@@ -52,8 +52,9 @@ transforms `sources/` into:
   what it replaces, how sign-in works, the setup steps and the env
   table, EN then FR. Rendered from the `x-catena` prose, with every
   Jinja expression resolved to a placeholder first.
-- `blueprints/<id>/quiesce.yml` -- when the entry declares
-  `x-catena.quiesce`.
+- `blueprints/<id>/quiesce.yml` -- a readable copy of
+  `x-catena.quiesce`, when the entry declares one. The host reads the
+  block from `catalog.json`.
 - `blueprints/<id>/logo.svg` -- a deterministic placeholder, unless a
   hand-placed `logo.png` sits beside it.
 
@@ -106,7 +107,7 @@ differ in ways that are not symmetric. Three rules follow, all enforced by
 `configs:` is refused outright unless the object is `external`. A swarm stack
 file has no inline content form, and its `configs.file` reads a path beside
 the compose that neither deploy path has: `build/render.py` puts only the
-README, the logo and the quiesce hooks beside the compose, and a stack
+README, the logo and `quiesce.yml` beside the compose, and a stack
 created from a posted `StackFileContent` string has no directory at all.
 `docker stack config` cannot see either problem, because it resolves the path
 against this repository, where the file does sit next to the compose. Config
@@ -133,11 +134,11 @@ Every service also carries two labels:
 
 They are the stable identity. A container's NAME depends on docker's own
 scheme and on whatever stack name the client typed in Portainer; these do
-not. The quiesce hooks select on them (`docker ps -f label=vps.app=... -f
-label=vps.component=...`) and `make lint` checks that the component named is
-a service the compose actually defines -- because a filter that matches
-nothing produces an empty `docker exec ""`, which the daily chain records as
-a warning and steps over, and the backup is then taken unquiesced.
+not. The host finds the container a quiesce or lifecycle command runs in by
+these two labels, and `make lint` checks that a quiesce block's `service` is
+a service the compose actually defines -- because a service no container
+runs under fails the quiesce on every host, and the backup is then taken
+without it.
 
 ## Validation layers
 
@@ -149,8 +150,8 @@ a warning and steps over, and the backup is then taken unquiesced.
 3. `Schema.json` -- the generated `templates.json` against the published
    Portainer App Templates format, because that file is what a client's
    Portainer fetches.
-4. `make lint` -- quiesce-hook allowlist + shellcheck, lifecycle argv
-   allowlist, central Postgres pin enforcement, and the
+4. `make lint` -- the quiesce and lifecycle argv allowlists, the
+   quiesce service check, central Postgres pin enforcement, and the
    swarm-compatibility gate above (which also offers each file to the real
    `docker stack config` loader when docker is on PATH, because the ban list
    was written against one docker version and the loader is the authority).
@@ -164,10 +165,14 @@ a warning and steps over, and the backup is then taken unquiesced.
 2. `blueprints/<id>/docker-compose.yml` (Jinja stays in place; the
    render never writes into it).
 3. `blueprints/<id>/logo.png` (512x512 PNG, max 100KB). Optional.
-4. If the template has write traffic during backup, add
-   `x-catena.quiesce`. Stateless / read-only templates omit it. Real
-   examples: `sources/nextcloud-s3-oidc.json`,
-   `sources/rocketchat-oidc.json`.
+4. If the application keeps live state that a file-level snapshot can
+   tear and the backup's own Postgres and MariaDB dumps do not cover,
+   add `x-catena.quiesce`: argv arrays the nightly maintenance runs
+   inside one service before (`pre`) and after (`post`) its backup, with
+   no shell. `post` must succeed when `pre` never ran: it also runs after
+   a failed or resumed backup and after a restore. Real examples:
+   `sources/nextcloud-s3-oidc.json` (maintenance mode),
+   `sources/rocketchat-oidc.json` (MongoDB fsync lock).
 5. If the application keeps a schema its new code expects migrated, add
    `x-catena.lifecycle`: `migrate` runs after every image update the host
    applies and after a forward restore (a start-time migration runs
@@ -192,9 +197,7 @@ merge window as its consumers, since they all read `main`:
 
 1. ops `automation/helpers/templates_catalog.py` and
    `automation/operator-tools/generate-sizing-doc.py`.
-2. The Ansible loader in catena-ce
-   (`ansible/reconcile/roles/infrastructure/tasks/_templates_catalog_load.yml`).
-3. The per-host render in catena-admin (`shell/marketplace`) and its
+2. The per-host render in catena-admin (`shell/marketplace`) and its
    catalog engine (`payload/engines/catalog`) -- the render reads
    `catalog.json` and rewrites `templates.json` for one host, so a shape
    change breaks a client's marketplace, not just a report.
@@ -221,8 +224,6 @@ merge window as its consumers, since they all read `main`:
   idempotent-render CI gate.
 - Every catalog image ref is CVE-scanned (security.yml, through
   scanctl.yml's image pins);
-  quiesce snippets pass the allowlist + path restriction in
-  `lib/quiesce_lint.py` (no curl/wget, no rm outside the app's data
-  path), and lifecycle argv pass their own, tighter allowlist in the
-  same module.
+  quiesce and lifecycle argv each pass their own allowlist in
+  `lib/quiesce_lint.py`, with no shell operator.
 - SPEC.md gate pointers must resolve (ops audit --check-public-specs).

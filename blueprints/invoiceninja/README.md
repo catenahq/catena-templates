@@ -3,7 +3,6 @@
 # Invoice Ninja
 
 - `docker-compose.yml` -- the stack file this template deploys
-- `quiesce.yml` -- the pause and resume hooks the backup chain runs around a snapshot of this application
 
 ## English
 

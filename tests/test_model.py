@@ -170,17 +170,36 @@ def test_sizing_requires_peak_ram(sources):
         model.load_sources()
 
 
-def test_quiesce_half_pair_is_rejected(sources):
+def test_quiesce_commands_are_argv_lists(sources):
+    """The host runs each command through docker exec with no shell, so a
+    shell line is refused at load. post is optional."""
     doc = _valid_doc()
-    doc["x-catena"]["quiesce"] = {"pre": "true", "timeout_seconds": 10}
+    doc["x-catena"]["quiesce"] = {
+        "service": "app",
+        "pre": "php occ maintenance:mode --on",
+        "timeout_seconds": 30,
+    }
     _write(sources, doc)
-    with pytest.raises(model.SourceError, match="post"):
+    with pytest.raises(model.SourceError, match="quiesce/pre"):
+        model.load_sources()
+    doc["x-catena"]["quiesce"]["pre"] = [["php", "occ", "maintenance:mode", "--on"]]
+    _write(sources, doc)
+    assert model.load_sources()[0].quiesce["pre"] == [
+        ["php", "occ", "maintenance:mode", "--on"]]
+
+
+def test_quiesce_names_its_service(sources):
+    doc = _valid_doc()
+    doc["x-catena"]["quiesce"] = {"pre": [["php", "occ", "status"]], "timeout_seconds": 10}
+    _write(sources, doc)
+    with pytest.raises(model.SourceError, match="'service' is a required property"):
         model.load_sources()
 
 
 def test_quiesce_timeout_cap(sources):
     doc = _valid_doc()
-    doc["x-catena"]["quiesce"] = {"pre": "true", "post": "true", "timeout_seconds": 600}
+    doc["x-catena"]["quiesce"] = {
+        "service": "app", "pre": [["php", "occ", "status"]], "timeout_seconds": 600}
     _write(sources, doc)
     with pytest.raises(model.SourceError, match="timeout_seconds"):
         model.load_sources()
