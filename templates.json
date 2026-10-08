@@ -333,12 +333,6 @@
         {
           "default": "__CATENA_OPERATOR_WIRED__",
           "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
-          "label": "Jitsi prosody password",
-          "name": "JITSI_PROSODY_PASSWORD"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "Jitsi jicofo auth password",
           "name": "JITSI_JICOFO_AUTH_PASSWORD"
         },

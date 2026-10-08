@@ -40,8 +40,8 @@
       "OIDC_ISSUER_URL=https://{{ keycloak_hostname | default('auth.' ~ cloudflare_zone) }}/realms/{{ keycloak_realm | default('vps') }}",
       "OIDC_REDIRECT_URL=https://nextcloud.{{ cloudflare_zone }}/apps/user_oidc/code",
       "SIGNALING_HOSTNAME=signaling.{{ cloudflare_zone }}",
-      "SIGNALING_SECRET={{ nextcloud_talk_signaling_secret }}",
-      "TALK_INTERNAL_SECRET={{ nextcloud_talk_internal_secret }}",
+      "SIGNALING_SECRET={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}",
+      "TALK_INTERNAL_SECRET={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}",
       "TURN_HOSTNAME={{ coturn_hostname | default('turn.' ~ cloudflare_zone) }}",
       "TURN_STATIC_AUTH_SECRET={{ turn_static_auth_secret }}"
     ],
@@ -91,8 +91,6 @@
       "OIDC_ISSUER_URL",
       "OIDC_REDIRECT_URL",
       "SIGNALING_HOSTNAME",
-      "SIGNALING_SECRET",
-      "TALK_INTERNAL_SECRET",
       "TURN_HOSTNAME",
       "TURN_STATIC_AUTH_SECRET"
     ],

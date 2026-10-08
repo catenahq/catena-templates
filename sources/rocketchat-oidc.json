@@ -26,10 +26,9 @@
       "ADMIN_PASS={{ admin_password }}",
       "VPS_PUBLIC_IP={{ public_ip }}",
       "TURN_STATIC_AUTH_SECRET={{ turn_static_auth_secret }}",
-      "JITSI_PROSODY_PASSWORD={{ jitsi_prosody_password }}",
-      "JITSI_JICOFO_AUTH_PASSWORD={{ jitsi_jicofo_auth_password }}",
-      "JITSI_JICOFO_COMPONENT_SECRET={{ jitsi_jicofo_component_secret }}",
-      "JITSI_JVB_AUTH_PASSWORD={{ jitsi_jvb_auth_password }}"
+      "JITSI_JICOFO_AUTH_PASSWORD={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}",
+      "JITSI_JICOFO_COMPONENT_SECRET={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}",
+      "JITSI_JVB_AUTH_PASSWORD={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}"
     ],
     "bench": {
       "pack": "mongo",
@@ -70,11 +69,7 @@
     },
     "env_managed_keys": [
       "VPS_PUBLIC_IP",
-      "TURN_STATIC_AUTH_SECRET",
-      "JITSI_PROSODY_PASSWORD",
-      "JITSI_JICOFO_AUTH_PASSWORD",
-      "JITSI_JICOFO_COMPONENT_SECRET",
-      "JITSI_JVB_AUTH_PASSWORD"
+      "TURN_STATIC_AUTH_SECRET"
     ],
     "quiesce": {
       "service": "mongodb",

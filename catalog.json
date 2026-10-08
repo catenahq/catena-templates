@@ -53,8 +53,8 @@
         "OIDC_ISSUER_URL=https://{{ keycloak_hostname | default('auth.' ~ cloudflare_zone) }}/realms/{{ keycloak_realm | default('vps') }}",
         "OIDC_REDIRECT_URL=https://nextcloud.{{ cloudflare_zone }}/apps/user_oidc/code",
         "SIGNALING_HOSTNAME=signaling.{{ cloudflare_zone }}",
-        "SIGNALING_SECRET={{ nextcloud_talk_signaling_secret }}",
-        "TALK_INTERNAL_SECRET={{ nextcloud_talk_internal_secret }}",
+        "SIGNALING_SECRET={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}",
+        "TALK_INTERNAL_SECRET={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}",
         "TURN_HOSTNAME={{ coturn_hostname | default('turn.' ~ cloudflare_zone) }}",
         "TURN_STATIC_AUTH_SECRET={{ turn_static_auth_secret }}"
       ],
@@ -67,8 +67,6 @@
         "OIDC_ISSUER_URL",
         "OIDC_REDIRECT_URL",
         "SIGNALING_HOSTNAME",
-        "SIGNALING_SECRET",
-        "TALK_INTERNAL_SECRET",
         "TURN_HOSTNAME",
         "TURN_STATIC_AUTH_SECRET"
       ],
@@ -351,18 +349,13 @@
         "ADMIN_PASS={{ admin_password }}",
         "VPS_PUBLIC_IP={{ public_ip }}",
         "TURN_STATIC_AUTH_SECRET={{ turn_static_auth_secret }}",
-        "JITSI_PROSODY_PASSWORD={{ jitsi_prosody_password }}",
-        "JITSI_JICOFO_AUTH_PASSWORD={{ jitsi_jicofo_auth_password }}",
-        "JITSI_JICOFO_COMPONENT_SECRET={{ jitsi_jicofo_component_secret }}",
-        "JITSI_JVB_AUTH_PASSWORD={{ jitsi_jvb_auth_password }}"
+        "JITSI_JICOFO_AUTH_PASSWORD={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}",
+        "JITSI_JICOFO_COMPONENT_SECRET={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}",
+        "JITSI_JVB_AUTH_PASSWORD={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}"
       ],
       "env_managed_keys": [
         "VPS_PUBLIC_IP",
-        "TURN_STATIC_AUTH_SECRET",
-        "JITSI_PROSODY_PASSWORD",
-        "JITSI_JICOFO_AUTH_PASSWORD",
-        "JITSI_JICOFO_COMPONENT_SECRET",
-        "JITSI_JVB_AUTH_PASSWORD"
+        "TURN_STATIC_AUTH_SECRET"
       ],
       "fr": {
         "compose_description": "Messagerie d'\u00e9quipe + vid\u00e9o. Keycloak SSO pr\u00e9-c\u00e2bl\u00e9. Remplace Slack / Microsoft Teams.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/rocketchat-oidc/README.md\n",
@@ -452,10 +445,10 @@
         "VPS_PUBLIC_IP={{ public_ip }}",
         "TURN_HOSTNAME={{ coturn_hostname | default('turn.' ~ cloudflare_zone) }}",
         "TURN_STATIC_AUTH_SECRET={{ turn_static_auth_secret }}",
-        "JITSI_JICOFO_AUTH_PASSWORD={{ element_jitsi_jicofo_auth_password }}",
-        "JITSI_JICOFO_COMPONENT_SECRET={{ element_jitsi_jicofo_component_secret }}",
-        "JITSI_JVB_AUTH_PASSWORD={{ element_jitsi_jvb_auth_password }}",
-        "JIGASI_XMPP_PASSWORD={{ element_jigasi_xmpp_password }}",
+        "JITSI_JICOFO_AUTH_PASSWORD={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}",
+        "JITSI_JICOFO_COMPONENT_SECRET={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}",
+        "JITSI_JVB_AUTH_PASSWORD={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}",
+        "JIGASI_XMPP_PASSWORD={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}",
         "JIGASI_SIP_URI=",
         "JIGASI_SIP_PASSWORD=",
         "JIGASI_SIP_SERVER="
@@ -466,11 +459,7 @@
         "OIDC_BASE_URL",
         "VPS_PUBLIC_IP",
         "TURN_HOSTNAME",
-        "TURN_STATIC_AUTH_SECRET",
-        "JITSI_JICOFO_AUTH_PASSWORD",
-        "JITSI_JICOFO_COMPONENT_SECRET",
-        "JITSI_JVB_AUTH_PASSWORD",
-        "JIGASI_XMPP_PASSWORD"
+        "TURN_STATIC_AUTH_SECRET"
       ],
       "fr": {
         "compose_description": "Element + serveur Matrix. Chat (E2EE), voix, visio de groupe, entr\u00e9e SIP. SSO Keycloak pr\u00e9-c\u00e2bl\u00e9. F\u00e9d\u00e9ration d\u00e9sactiv\u00e9e par d\u00e9faut.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/element/README.md\n",
