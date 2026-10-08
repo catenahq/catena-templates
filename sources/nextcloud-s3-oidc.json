@@ -110,6 +110,7 @@
         ["php", "occ", "db:add-missing-indices"],
         ["php", "occ", "maintenance:repair", "--include-expensive"]
       ],
+      "versioned_volumes": ["nc-html", "nc-config", "nc-apps"],
       "timeout_seconds": 1800
     },
     "quiesce": {

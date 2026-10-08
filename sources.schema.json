@@ -196,6 +196,16 @@
               "$ref": "#/$defs/argv",
               "description": "A command that exits 0 once the application can run the commands above. Before each phase of an update, the update lane runs it every few seconds until it succeeds, for up to timeout_seconds. Declare it when the image's entrypoint copies or upgrades the application before starting it: the container runs from the moment the entrypoint starts, and every command fails until the entrypoint is done. It has to succeed in the state before_update leaves the application in."
             },
+            "versioned_volumes": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$"
+              },
+              "description": "Named volumes the new version upgrades in place and the previous version refuses to start on: the application's code tree, its configuration, its add-ons. The update lane copies each one before the update and, when the update rolls back, puts the copy back with every service that mounts it stopped. Never a volume holding the application's data, which a rollback must not take back in time, and never one a database or a one-shot service mounts: a rollback does not stop either."
+            },
             "timeout_seconds": {
               "type": "integer",
               "minimum": 1,

@@ -108,7 +108,12 @@
         ],
         "service": "app",
         "timeout_seconds": 1800,
-        "user": "www-data"
+        "user": "www-data",
+        "versioned_volumes": [
+          "nc-html",
+          "nc-config",
+          "nc-apps"
+        ]
       },
       "quiesce": {
         "post": [

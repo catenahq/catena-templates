@@ -223,6 +223,25 @@ def test_lifecycle_ready_is_one_argv(sources):
     assert model.load_sources()[0].lifecycle["ready"] == ["php", "occ", "status"]
 
 
+@pytest.mark.parametrize("volumes", [[], ["code", "code"], ["code/../etc"], "code"])
+def test_lifecycle_versioned_volumes_are_distinct_volume_names(sources, volumes):
+    """The host copies `<stack>_<name>` before an update and puts the copy
+    back on a rollback, so each entry is one volume name, listed once."""
+    doc = _valid_doc()
+    doc["x-catena"]["lifecycle"] = {
+        "service": "app",
+        "migrate": [["php", "occ", "db:add-missing-indices"]],
+        "versioned_volumes": volumes,
+        "timeout_seconds": 60,
+    }
+    _write(sources, doc)
+    with pytest.raises(model.SourceError, match="versioned_volumes"):
+        model.load_sources()
+    doc["x-catena"]["lifecycle"]["versioned_volumes"] = ["code", "conf.d"]
+    _write(sources, doc)
+    assert model.load_sources()[0].lifecycle["versioned_volumes"] == ["code", "conf.d"]
+
+
 def test_empty_sources_directory_is_an_error(sources):
     with pytest.raises(model.SourceError, match="no template files"):
         model.load_sources()

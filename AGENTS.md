@@ -151,7 +151,9 @@ without it.
    Portainer App Templates format, because that file is what a client's
    Portainer fetches.
 4. `make lint` -- the quiesce and lifecycle argv allowlists, the
-   quiesce service check, central Postgres pin enforcement, and the
+   quiesce service check, the versioned volume check (a top-level volume
+   that only long-running services other than a database mount),
+   central Postgres pin enforcement, and the
    swarm-compatibility gate above (which also offers each file to the real
    `docker stack config` loader when docker is on PATH, because the ban list
    was written against one docker version and the loader is the authority).
@@ -182,9 +184,12 @@ without it.
    before each phase, and a forward restore before its migration, until
    it exits 0, for an image whose entrypoint
    copies or upgrades the application before starting it. Commands are
-   argv arrays -- `docker exec` gives them no shell. Real examples:
-   `sources/outline.json`, `sources/nextcloud-s3-oidc.json`,
-   `sources/erpnext.json`.
+   argv arrays -- `docker exec` gives them no shell. `versioned_volumes`
+   names the volumes the new version upgrades in place and the old one
+   refuses to start on (code tree, configuration, add-ons, never data):
+   the lane copies them before an update and puts the copies back when
+   it rolls back. Real examples: `sources/outline.json`,
+   `sources/nextcloud-s3-oidc.json`, `sources/erpnext.json`.
 6. `make` -- render + lint + test. Commit the regenerated artifacts.
 7. Open a PR. CI must pass `build-and-verify.yml`, `check:unicode` and `check:prose`.
 

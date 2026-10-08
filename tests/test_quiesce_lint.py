@@ -1,7 +1,7 @@
 """Unit tests for lib/quiesce_lint.py.
 
-Most cases drive lint_migrate_argv directly. The lint_all cases run the
-gate over the real sources/ tree, or over a synthetic one to prove it
+Most argv cases drive lint_migrate_argv directly. The lint_all cases run
+the gate over the real sources/ tree, or over a synthetic one to prove it
 reads sources rather than a cached artifact.
 """
 from __future__ import annotations
@@ -9,6 +9,8 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
+
+import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
@@ -151,15 +153,97 @@ def test_lint_all_rejects_a_foreign_ready_command(monkeypatch, tmp_path, capsys)
     assert "synthetic-bad.lifecycle.ready: starts with non-allowlisted" in out
 
 
-def _synthetic_sources(monkeypatch, tmp_path, catena: dict) -> None:
-    """Point the loader at a one-template sources/ tree whose compose
-    defines one service, `app`, and whose x-catena block carries `catena`
-    on top of the required fields."""
+_VERSIONED_COMPOSE = """\
+services:
+  app:
+    image: acme/app:1.0.0
+    volumes: ["code:/var/www/html", "data:/var/www/html/data"]
+  cron:
+    image: acme/app:1.0.0
+    volumes:
+      - type: volume
+        source: code
+        target: /var/www/html
+  db:
+    image: postgres:18.6-alpine
+    volumes: ["db-data:/var/lib/postgresql/data"]
+volumes:
+  code:
+  data:
+  db-data:
+"""
+
+
+def _versioned(volumes: list[str]) -> dict:
+    return {"lifecycle": {
+        "service": "app",
+        "migrate": [["php", "occ", "db:add-missing-indices"]],
+        "versioned_volumes": volumes,
+        "timeout_seconds": 60,
+    }}
+
+
+def test_a_versioned_volume_long_running_services_mount_passes(
+        monkeypatch, tmp_path, capsys):
+    """Both compose forms count as a mount: the short `name:/path` and the
+    long `source:`."""
+    _synthetic_sources(monkeypatch, tmp_path, _versioned(["code"]), _VERSIONED_COMPOSE)
+    assert L.lint_all() == 0, capsys.readouterr().out
+
+
+@pytest.mark.parametrize("volume,needle", [
+    ("db-data", "is mounted by db, a database"),
+    ("cache", "is not a top-level volume"),
+    ("spare", "is mounted by no service"),
+])
+def test_a_versioned_volume_a_rollback_cannot_put_back_is_refused(
+        monkeypatch, tmp_path, capsys, volume, needle):
+    """A rollback scales the services that mount the volume to zero before
+    it puts the copy back; a database is never stopped (its dump is
+    replayed), and a volume the compose does not declare or no service
+    mounts has nothing a copy could restore."""
+    compose = _VERSIONED_COMPOSE + "  spare:\n"
+    compose = compose.replace("    volumes: [\"code:/var/www/html\", ",
+                              "    volumes: [\"cache:/tmp/cache\", \"code:/var/www/html\", ")
+    _synthetic_sources(monkeypatch, tmp_path, _versioned([volume]), compose)
+    assert L.lint_all() == 1
+    out = capsys.readouterr().out
+    assert f"synthetic-bad.lifecycle.versioned_volumes: {volume!r} {needle}" in out
+
+
+@pytest.mark.parametrize("condition", ["none", "on-failure"])
+def test_a_versioned_volume_a_one_shot_mounts_is_refused(
+        monkeypatch, tmp_path, capsys, condition):
+    """A rollback brings back only the services it stopped, and bringing a
+    one-shot back runs it again: such a service must not mount it."""
+    compose = _VERSIONED_COMPOSE.replace(
+        "  db:\n",
+        "  setup:\n    image: acme/app:1.0.0\n    volumes: [\"code:/srv\"]\n"
+        f"    deploy:\n      restart_policy:\n        condition: {condition}\n  db:\n")
+    _synthetic_sources(monkeypatch, tmp_path, _versioned(["code"]), compose)
+    assert L.lint_all() == 1
+    out = capsys.readouterr().out
+    assert "'code' is mounted by setup, a one-shot" in out
+
+
+def test_the_database_match_reads_the_image_name_only():
+    assert L.database_image("postgres:18.6-alpine")
+    assert L.database_image("ghcr.io/immich-app/postgres:14-vectorchord0.4.3")
+    assert L.database_image("mariadb:11.8.9@sha256:" + "0" * 64)
+    assert not L.database_image("nextcloud:34.0.0-apache")
+    assert not L.database_image("localhost:5000/acme/app:mysql-client")
+
+
+def _synthetic_sources(monkeypatch, tmp_path, catena: dict,
+                       compose: str = "services:\n  app:\n    image: x\n") -> None:
+    """Point the loader at a one-template sources/ tree whose compose is
+    `compose` (one service, `app`, by default) and whose x-catena block
+    carries `catena` on top of the required fields."""
     sources = tmp_path / "sources"
     sources.mkdir()
     blueprint = tmp_path / "blueprints" / "synthetic-bad"
     blueprint.mkdir(parents=True)
-    (blueprint / model.COMPOSE_NAME).write_text("services:\n  app:\n    image: x\n")
+    (blueprint / model.COMPOSE_NAME).write_text(compose)
     doc = {
         "id": "synthetic-bad",
         "type": 2,
