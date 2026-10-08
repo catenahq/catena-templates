@@ -34,7 +34,7 @@ Mautic community edition does not ship native OIDC. Local username/password is t
 
 ### SMTP and sending reputation
 
-Mautic does NOT send email directly. It hands every outbound to the managed SMTP relay (see the [provider accounts guide](https://docs.catena.run/en/guides/provider-accounts/) for recommended senders). Sending reputation, SPF/DKIM/DMARC, and bounce handling all live at the relay layer. SMTP is configured under **Settings** -> **Configuration** -> **Email Settings** with the relay's credentials before the first campaign goes out.
+Mautic does NOT send email directly. It hands every outbound to the managed SMTP relay (see the [outgoing email settings](https://docs.catena.run/en/configuration/email/) for the supported senders). Sending reputation, SPF/DKIM/DMARC, and bounce handling all live at the relay layer. SMTP is configured under **Settings** -> **Configuration** -> **Email Settings** with the relay's credentials before the first campaign goes out.
 
 ### Lead-magnet content and drip-campaign copy
 
@@ -93,7 +93,7 @@ Mautic édition communautaire ne fournit pas d'OIDC natif. Connexion locale par 
 
 ### SMTP et réputation d'envoi
 
-Mautic n'envoie PAS directement les courriels. Il remet chaque envoi au relais SMTP géré (voir le [guide des comptes fournisseurs](https://docs.catena.run/fr/guides/provider-accounts/) pour les expéditeurs recommandés). Réputation d'envoi, SPF/DKIM/DMARC, et gestion des rebonds vivent au niveau du relais. SMTP se configure sous **Settings** -> **Configuration** -> **Email Settings** avec les identifiants du relais avant la première campagne.
+Mautic n'envoie PAS directement les courriels. Il remet chaque envoi au relais SMTP géré (voir le [réglages du courriel sortant](https://docs.catena.run/fr/configuration/email/) pour les expéditeurs pris en charge). Réputation d'envoi, SPF/DKIM/DMARC, et gestion des rebonds vivent au niveau du relais. SMTP se configure sous **Settings** -> **Configuration** -> **Email Settings** avec les identifiants du relais avant la première campagne.
 
 ### Contenu d'aimant à prospects et copie des séquences drip
 
