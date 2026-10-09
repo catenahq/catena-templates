@@ -83,6 +83,10 @@ services:
       OVERWRITE_SETTING_Accounts_OAuth_Custom-Keycloak-url: ${OIDC_ISSUER_URL:-}
       OVERWRITE_SETTING_Accounts_OAuth_Custom-Keycloak-id: ${OIDC_CLIENT_ID:-}
       OVERWRITE_SETTING_Accounts_OAuth_Custom-Keycloak-secret: ${OIDC_CLIENT_SECRET:-}
+
+      # Read by the Jitsi wiring, which sets it as Rocket.Chat's
+      # Jitsi_Domain: calls open on the host jitsi-web's PUBLIC_URL names.
+      JITSI_HOSTNAME: meet.${ROCKETCHAT_HOSTNAME_BASE}
     labels:
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=3000"
@@ -103,15 +107,15 @@ services:
   # === JITSI BEGIN -- bundled on-server video conferencing ================
   # Always-on. The catena.run product story requires sovereign video --
   # no calls leave the server, no fallback to public meet.jit.si.
-  # The shared coturn at turn.<base> (roles/coturn) handles
-  # restrictive-network media relay; JVB advertises ${VPS_PUBLIC_IP}
+  # The shared coturn at turn.<base> (catena-ce reconcile/roles/coturn)
+  # handles restrictive-network media relay; JVB advertises ${VPS_PUBLIC_IP}
   # in ICE candidates so direct peer-to-JVB UDP works for the typical
   # case (no relay needed).
   #
-  # Wire-up: rocketchat-jitsi-wire.sh (catena-admin action) hits
-  # https://rocketchat.<base>/api/v1/settings/Jitsi_* with the bootstrap
-  # admin credentials and flips Jitsi_Enabled=true,
-  # Jitsi_Domain=meet.<base>, etc. Idempotent.
+  # Wire-up: catena-ce ansible/scripts/rocketchat-jitsi-wire.sh (a
+  # catena-admin action) signs in to Rocket.Chat's REST API with the
+  # bootstrap admin credentials and sets Jitsi_Enabled=true,
+  # Jitsi_Domain=<the rocketchat service's JITSI_HOSTNAME>, etc. Idempotent.
 
   prosody:
     image: jitsi/prosody:stable-11031
@@ -246,11 +250,8 @@ services:
       XMPP_RECORDER_DOMAIN: recorder.meet.jitsi
       TZ: Etc/UTC
     labels:
-      # Routed via Traefik on meet.<base>; HTTP only on the container
-      # side, TLS terminates at cloudflared/Traefik upstream like every
-      # other catena app. vps.auth.mode=public so room URLs work for
-      # anonymous participants (Jitsi rooms are by-link, not
-      # Keycloak-gated for v1).
+      # vps.auth.mode=public so room URLs work for anonymous participants:
+      # Jitsi rooms are joined by link.
       - "vps.auth.mode=public"
       - "vps.auto-update=patch"
       - "vps.app=catena-rocketchat"
