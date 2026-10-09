@@ -21,12 +21,12 @@ sources.schema.json and run on every render. This module adds:
     not define fails the quiesce on every host, and the backup runs
     without it.
   - Each volume a lifecycle block declares versioned is a top-level
-    volume of the compose that a service mounts, and no database and no
-    one-shot service mounts it. A rollback puts the volume's pre-update
-    copy back with the services that mount it scaled to zero; it never
-    stops a database, whose dump it replays instead, nor a one-shot,
-    which would run again if brought back. The host refuses every update
-    of a stack where one of them mounts the volume.
+    volume of the compose that a service mounts, and no database mounts
+    it. A rollback puts the volume's pre-update copy back with the
+    services that mount it scaled to zero; it never stops a database,
+    whose dump it replays instead, and the host refuses every update of a
+    stack where one mounts the volume. A one-shot service, which a
+    rollback does not stop either, is refused outright by the swarm lint.
 
 Exit codes: 0 clean, 1 lint failures, 2 structural error.
 """
@@ -127,11 +127,6 @@ def lint_versioned_volumes(entry, volumes: list[str]) -> list[str]:
                 errors.append(
                     f"{label} is mounted by {name}, a database: a rollback "
                     f"replays its dump and never stops it")
-            restart = ((svc.get("deploy") or {}).get("restart_policy") or {})
-            if restart.get("condition") in ("none", "on-failure"):
-                errors.append(
-                    f"{label} is mounted by {name}, a one-shot: a rollback "
-                    f"never stops it, and bringing it back would run it again")
     return errors
 
 

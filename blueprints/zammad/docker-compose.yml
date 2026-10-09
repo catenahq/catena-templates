@@ -12,15 +12,29 @@ x-zammad-env: &zammad-env
   ELASTICSEARCH_NAMESPACE: zammad
 
 services:
+  # Installs or updates the database through the image's zammad-init
+  # (migrations, seeds, translations, the Elasticsearch settings and index),
+  # then stays up so swarm keeps it at its replica count. The other Zammad
+  # services wait in the image's entrypoint until the migrations are done. A
+  # step that fails exits, and swarm starts the task again; TERM ends the wait
+  # at once.
   zammad-init:
     image: zammad/zammad:7.0.1-0035
     deploy:
       restart_policy:
-        condition: on-failure
+        condition: any
       placement:
         constraints:
           - node.labels.catena.role==data
-    command: ["zammad-init"]
+    command:
+      - bash
+      - -c
+      - |
+        set -e
+        /opt/zammad/bin/docker-entrypoint zammad-init
+        trap 'exit 0' TERM
+        sleep infinity &
+        wait
     environment: *zammad-env
     volumes:
       - zammad-storage:/opt/zammad/storage

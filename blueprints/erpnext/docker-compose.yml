@@ -6,86 +6,14 @@ x-common: &frappe-env
   REDIS_QUEUE: redis-queue:6379
 
 services:
-  # One-shot: render common_site_config.json from the env above.
-  configurator:
-    image: ghcr.io/catenahq/erpnext:v16.37.0-1
-    deploy:
-      restart_policy:
-        condition: none
-      placement:
-        constraints:
-          - node.labels.catena.role==data
-    entrypoint:
-      - bash
-      - -c
-    command:
-      # Idempotent: bail early if common_site_config.json already has db_host
-      # so a redeploy / host reboot doesn't rewrite the same values.
-      - >
-        ls -1 apps > sites/apps.txt;
-        [[ -n `grep -hs ^ sites/common_site_config.json | jq -r ".db_host // empty"` ]] && echo "configurator: already done" && exit 0;
-        bench set-config -g db_host $$DB_HOST;
-        bench set-config -gp db_port $$DB_PORT;
-        bench set-config -g redis_cache "redis://$$REDIS_CACHE";
-        bench set-config -g redis_queue "redis://$$REDIS_QUEUE";
-        bench set-config -g redis_socketio "redis://$$REDIS_QUEUE";
-        bench set-config -gp socketio_port 9000;
-    environment: *frappe-env
-    volumes:
-      - sites:/home/frappe/frappe-bench/sites
-      - logs:/home/frappe/frappe-bench/logs
-    labels:
-      - "vps.auto-update=minor"
-      - "vps.app=catena-erpnext"
-      - "vps.component=configurator"
-
-  # One-shot: create the site on first run, then install the FRAPPE_APPS apps
-  # on it. install-app skips an app the site already has, so a redeploy with a
-  # longer list adds the new ones. The image is built from
-  # catena-templates images/erpnext.
-  #
-  # Waits for the configurator's keys, not for the file: the image ships
-  # sites/common_site_config.json as `{}` and a new volume is seeded with it,
-  # so the file exists before the configurator runs, and new-site without
-  # db_host connects to 127.0.0.1.
-  create-site:
-    image: ghcr.io/catenahq/erpnext:v16.37.0-1
-    deploy:
-      restart_policy:
-        condition: none
-      placement:
-        constraints:
-          - node.labels.catena.role==data
-    entrypoint:
-      - bash
-      - -c
-    command:
-      - >
-        wait-for-it -t 120 db:3306;
-        wait-for-it -t 120 redis-cache:6379;
-        wait-for-it -t 120 redis-queue:6379;
-        until jq -e '.db_host and .redis_cache and .redis_queue' sites/common_site_config.json >/dev/null 2>&1; do sleep 1; done;
-        if [ ! -d "sites/${ERPNEXT_HOSTNAME}" ]; then
-        bench new-site --mariadb-user-host-login-scope='%'
-        --admin-password=${ERPNEXT_ADMIN_PASSWORD}
-        --db-root-username=root
-        --db-root-password=${DB_ROOT_PASSWORD}
-        --set-default ${ERPNEXT_HOSTNAME};
-        fi;
-        bench --site ${ERPNEXT_HOSTNAME} install-app $${FRAPPE_APPS//,/ };
-    environment:
-      <<: *frappe-env
-      ERPNEXT_ADMIN_PASSWORD: ${ERPNEXT_ADMIN_PASSWORD}
-      DB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
-      FRAPPE_APPS: ${FRAPPE_APPS:-erpnext,telephony,helpdesk}
-    volumes:
-      - sites:/home/frappe/frappe-bench/sites
-      - logs:/home/frappe/frappe-bench/logs
-    labels:
-      - "vps.auto-update=minor"
-      - "vps.app=catena-erpnext"
-      - "vps.component=create-site"
-
+  # Sets the site up, then serves it. The image's entrypoint links its assets
+  # into the sites volume and runs this script, which ends in the image's own
+  # start.sh. Every start runs each step, and each is a no-op once done: the
+  # bench config is written once, the site is created on the first start, and
+  # install-app skips an app the site already has, so a redeploy with a longer
+  # FRAPPE_APPS adds the new ones. A step that fails exits, and swarm starts
+  # the task again. The two setup secrets leave the environment before the app
+  # server starts. The image is built from catena-templates images/erpnext.
   backend:
     image: ghcr.io/catenahq/erpnext:v16.37.0-1
     deploy:
@@ -94,7 +22,37 @@ services:
       placement:
         constraints:
           - node.labels.catena.role==data
-    environment: *frappe-env
+    command:
+      - bash
+      - -c
+      - |
+        set -e
+        ls -1 apps > sites/apps.txt
+        if [ -z "$$(jq -r '.db_host // empty' sites/common_site_config.json)" ]; then
+          bench set-config -g db_host "$$DB_HOST"
+          bench set-config -gp db_port "$$DB_PORT"
+          bench set-config -g redis_cache "redis://$$REDIS_CACHE"
+          bench set-config -g redis_queue "redis://$$REDIS_QUEUE"
+          bench set-config -g redis_socketio "redis://$$REDIS_QUEUE"
+          bench set-config -gp socketio_port 9000
+        fi
+        wait-for-it -t 120 "$$DB_HOST:$$DB_PORT"
+        wait-for-it -t 120 "$$REDIS_CACHE"
+        wait-for-it -t 120 "$$REDIS_QUEUE"
+        if [ ! -d "sites/$$SITE_NAME" ]; then
+          bench new-site --mariadb-user-host-login-scope='%' \
+            --admin-password="$$ERPNEXT_ADMIN_PASSWORD" \
+            --db-root-username=root --db-root-password="$$DB_ROOT_PASSWORD" \
+            --set-default "$$SITE_NAME"
+        fi
+        bench --site "$$SITE_NAME" install-app $${FRAPPE_APPS//,/ }
+        unset ERPNEXT_ADMIN_PASSWORD DB_ROOT_PASSWORD
+        exec start.sh
+    environment:
+      <<: *frappe-env
+      ERPNEXT_ADMIN_PASSWORD: ${ERPNEXT_ADMIN_PASSWORD}
+      DB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      FRAPPE_APPS: ${FRAPPE_APPS:-erpnext,telephony,helpdesk}
     volumes:
       - sites:/home/frappe/frappe-bench/sites
       - logs:/home/frappe/frappe-bench/logs

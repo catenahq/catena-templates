@@ -211,21 +211,6 @@ def test_a_versioned_volume_a_rollback_cannot_put_back_is_refused(
     assert f"synthetic-bad.lifecycle.versioned_volumes: {volume!r} {needle}" in out
 
 
-@pytest.mark.parametrize("condition", ["none", "on-failure"])
-def test_a_versioned_volume_a_one_shot_mounts_is_refused(
-        monkeypatch, tmp_path, capsys, condition):
-    """A rollback brings back only the services it stopped, and bringing a
-    one-shot back runs it again: such a service must not mount it."""
-    compose = _VERSIONED_COMPOSE.replace(
-        "  db:\n",
-        "  setup:\n    image: acme/app:1.0.0\n    volumes: [\"code:/srv\"]\n"
-        f"    deploy:\n      restart_policy:\n        condition: {condition}\n  db:\n")
-    _synthetic_sources(monkeypatch, tmp_path, _versioned(["code"]), compose)
-    assert L.lint_all() == 1
-    out = capsys.readouterr().out
-    assert "'code' is mounted by setup, a one-shot" in out
-
-
 def test_the_database_match_reads_the_image_name_only():
     assert L.database_image("postgres:18.6-alpine")
     assert L.database_image("ghcr.io/immich-app/postgres:14-vectorchord0.4.3")

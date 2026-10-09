@@ -71,6 +71,17 @@ def test_a_service_must_say_what_happens_when_it_dies():
     assert any("restart_policy.condition" in e for e in errs)
 
 
+def test_a_service_that_finishes_is_refused():
+    """A finished service stays below its replica count, and Portainer fails
+    a deploy when the first task it lists for such a service failed: a setup
+    step runs in a long-running service instead."""
+    for condition in ("none", "on-failure"):
+        errs = L.lint_compose(
+            _body().replace("condition: any", f"condition: {condition}"), label="x")
+        assert any(f"condition is {condition!r}" in e and "below its replica count" in e
+                   for e in errs), condition
+
+
 def test_mem_limit_is_reported_as_a_refusal_not_a_drop():
     """The distinction is the whole point: a refused key fails the deploy,
     a dropped key does not, and the two need different fixes."""

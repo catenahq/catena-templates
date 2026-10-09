@@ -18,7 +18,7 @@ arranged beforehand, on request.
 
 ### Setup steps
 
-1. Click **Deploy**. First boot takes 5-10 min -- the site is created, MariaDB initialized, and the apps listed in `FRAPPE_APPS` installed. The `create-site` container logs in Portainer track the progress.
+1. Click **Deploy**. First boot takes 5-10 min -- the site is created, MariaDB initialized, and the apps listed in `FRAPPE_APPS` installed. The `backend` container logs in Portainer track the progress.
 2. Visit the ERPNext domain. Sign in as `Administrator` / `ERPNEXT_ADMIN_PASSWORD` from the Environment tab.
 3. Complete the setup wizard: company name, fiscal year, base currency, chart of accounts template.
 4. Open the helpdesk at `/helpdesk` on the same domain, then its **Settings**:
@@ -67,7 +67,7 @@ préalable, sur demande.
 
 ### Étapes de configuration
 
-1. Cliquez **Deploy**. Le premier démarrage dure 5-10 min -- le site est créé, MariaDB initialisé, et les apps listées dans `FRAPPE_APPS` installées. Les logs du conteneur `create-site` dans Portainer permettent de suivre la progression.
+1. Cliquez **Deploy**. Le premier démarrage dure 5-10 min -- le site est créé, MariaDB initialisé, et les apps listées dans `FRAPPE_APPS` installées. Les logs du conteneur `backend` dans Portainer permettent de suivre la progression.
 2. Visitez le domaine ERPNext. Connexion avec `Administrator` / `ERPNEXT_ADMIN_PASSWORD` de l'onglet Environment.
 3. Complétez l'assistant : nom de société, exercice fiscal, devise, plan comptable.
 4. Ouvrez le helpdesk à l'adresse `/helpdesk` du même domaine, puis ses **Settings** :

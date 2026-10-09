@@ -24,10 +24,19 @@ not up yet.
 Every key below was classified by deploying it to a real single-node swarm
 and reading the resulting service spec, not from documentation.
 
-Three positive requirements go with the bans:
+Four positive requirements go with the bans:
 
   restart-policy   `restart:` is gone, so every service states what happens
                    when it dies, in `deploy.restart_policy.condition`.
+  keeps-running    that condition is `any`. A service that finishes (`none`,
+                   `on-failure`) stays below its replica count, and Portainer
+                   fails a deploy when the first task it lists for a service
+                   below its count failed (its deploy check, libstack swarm
+                   getServiceStatus): one failed run of such a service can fail
+                   every later deploy of the stack, and Portainer then keeps a
+                   stored file its services do not run, which the update engine
+                   refuses to deploy over. A setup step runs in a long-running
+                   service, before its process starts or before it waits.
   data-pinning     a service that mounts a named volume or a host path is
                    pinned to node.labels.catena.role==data. At one node this
                    is a no-op; the moment a second node joins, swarm may
@@ -158,6 +167,14 @@ def lint_service(name: str, service: dict, *, label: str) -> list[str]:
             f"{where}: no deploy.restart_policy.condition. `restart:` is "
             f"dropped in a swarm stack, so a service that does not say this "
             f"gets swarm's default and nobody chose it"
+        )
+    elif condition != "any":
+        errors.append(
+            f"{where}: deploy.restart_policy.condition is {condition!r}. A "
+            f"service that finishes stays below its replica count, and one "
+            f"failed run of it can fail every later Portainer deploy of the "
+            f"stack. Run the step in a long-running service, before its "
+            f"process starts or before it waits"
         )
 
     if _mounts_state(service) and not _pinned(service):
