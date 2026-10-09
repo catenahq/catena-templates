@@ -10,7 +10,7 @@ Modern open-source CRM. Contacts, companies, opportunities, email sync, pipeline
 
 - **Upstream project:** <https://twenty.com/>
 - **Replaces:** **Salesforce**, **HubSpot**, **Pipedrive**
-- **Sign-in (SSO):** Enabled from the application's own admin screens: the `OIDC_*` values from the Environment tab are pasted in once.
+- **Sign-in (SSO):** Not available. This application's community edition has no OIDC support, so each account keeps a per-application login.
 - **Address:** `twenty.yourdomain.com`, served from `server:3000`
 
 The address is attached when the template is deployed. A different one is
@@ -19,10 +19,9 @@ arranged beforehand, on request.
 ### Setup steps
 
 1. Click **Deploy**. Wait ~1 min.
-2. Visit the Twenty domain and sign up to create the initial workspace + admin user.
-3. *(Optional)* Enable Keycloak SSO: **Settings** -> **Security** -> **Single sign-on** -> paste `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_ISSUER_URL` from the Environment tab. Save.
+2. Visit the Twenty domain and sign up to create the initial workspace + admin user. Twenty keeps its own login: single sign-on is in its paid editions only.
 
-**EspoCRM vs Twenty.** EspoCRM is this stack's default CRM (mature, native OIDC, mobile apps). Twenty is offered as an alternative for clients who prefer its Notion-style UI; both can be deployed side-by-side. The default `crm.<your-domain>` host is reserved for EspoCRM -- Twenty defaults to `twenty.<your-domain>`.
+**EspoCRM vs Twenty.** EspoCRM is the suite's default CRM (mature, native OIDC, mobile apps). Twenty is offered as an alternative for clients who prefer its Notion-style UI; both can be deployed side-by-side. The default `crm.<your-domain>` host is reserved for EspoCRM -- Twenty defaults to `twenty.<your-domain>`.
 
 ### Environment variables
 
@@ -45,7 +44,7 @@ CRM moderne open-source. Contacts, entreprises, opportunités, synchronisation e
 
 - **Projet original :** <https://twenty.com/>
 - **Remplace :** **Salesforce**, **HubSpot**, **Pipedrive**
-- **Connexion (SSO) :** À activer depuis les écrans d'administration de l'application : les valeurs `OIDC_*` de l'onglet Environment y sont collées une fois.
+- **Connexion (SSO) :** Non disponible. L'édition communautaire de cette application n'a pas de support OIDC : chaque compte garde un identifiant propre à l'application.
 - **Adresse :** `twenty.yourdomain.com`, servie par `server:3000`
 
 L'adresse est attachée au déploiement du modèle. Une autre se convient au
@@ -54,10 +53,9 @@ préalable, sur demande.
 ### Étapes de configuration
 
 1. Cliquez **Deploy**. Patientez ~1 min.
-2. Visitez le domaine Twenty et créez le compte initial (workspace + admin).
-3. *(Optionnel)* Activez Keycloak SSO : **Settings** -> **Security** -> **Single sign-on** -> collez `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_ISSUER_URL` depuis l'onglet Environment. Validez.
+2. Visitez le domaine Twenty et créez le compte initial (workspace + admin). Twenty garde sa propre connexion : l'authentification unique n'existe que dans ses éditions payantes.
 
-**EspoCRM vs Twenty.** EspoCRM est le CRM par défaut de cette stack (mature, OIDC natif, apps mobiles). Twenty est offert comme alternative pour les clients qui préfèrent son UI façon Notion ; les deux peuvent cohabiter. Le domaine par défaut `crm.<votre-domaine>` est réservé à EspoCRM -- Twenty utilise par défaut `twenty.<votre-domaine>`.
+**EspoCRM vs Twenty.** EspoCRM est le CRM par défaut de la suite (mature, OIDC natif, apps mobiles). Twenty est offert comme alternative pour les clients qui préfèrent son UI façon Notion ; les deux peuvent cohabiter. Le domaine par défaut `crm.<votre-domaine>` est réservé à EspoCRM -- Twenty utilise par défaut `twenty.<votre-domaine>`.
 
 ### Variables d'environnement
 

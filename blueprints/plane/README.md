@@ -10,7 +10,7 @@ Open-source project management -- issues, cycles, modules, pages, workspaces.
 
 - **Upstream project:** <https://plane.so/>
 - **Replaces:** **Jira**, **Linear**, **Asana**, **ClickUp**
-- **Sign-in (SSO):** Enabled from the application's own admin screens: the `OIDC_*` values from the Environment tab are pasted in once.
+- **Sign-in (SSO):** Not available. This application's community edition has no OIDC support, so each account keeps a per-application login.
 - **Address:** `projects.yourdomain.com`, served from `proxy:80`
 
 The address is attached when the template is deployed. A different one is
@@ -18,9 +18,8 @@ arranged beforehand, on request.
 
 ### Setup steps
 
-1. Click **Deploy**. Wait ~2-3 min (multi-service stack with MinIO).
-2. Visit the Plane domain and sign up to create the instance admin + first workspace.
-3. *(Optional)* Enable Keycloak SSO: while signed in, visit `https://projects.<your-domain>/god-mode` -> **Authentication** -> **OpenID Connect** -> paste `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_ISSUER_URL` from the Environment tab. Save.
+1. Click **Deploy**. Wait ~2-3 min (several services, MinIO included).
+2. Visit the Plane domain and sign up to create the instance admin + first workspace. Plane keeps its own login: single sign-on is in its paid editions only.
 
 ### Environment variables
 
@@ -45,7 +44,7 @@ Gestion de projet open-source -- issues, cycles, modules, pages, workspaces.
 
 - **Projet original :** <https://plane.so/>
 - **Remplace :** **Jira**, **Linear**, **Asana**, **ClickUp**
-- **Connexion (SSO) :** À activer depuis les écrans d'administration de l'application : les valeurs `OIDC_*` de l'onglet Environment y sont collées une fois.
+- **Connexion (SSO) :** Non disponible. L'édition communautaire de cette application n'a pas de support OIDC : chaque compte garde un identifiant propre à l'application.
 - **Adresse :** `projects.yourdomain.com`, servie par `proxy:80`
 
 L'adresse est attachée au déploiement du modèle. Une autre se convient au
@@ -53,9 +52,8 @@ préalable, sur demande.
 
 ### Étapes de configuration
 
-1. Cliquez **Deploy**. Patientez ~2-3 min (pile multi-services avec MinIO).
-2. Visitez le domaine Plane et créez le compte admin initial + le premier workspace.
-3. *(Optionnel)* Activez Keycloak SSO : une fois connecté, visitez `https://projects.<votre-domaine>/god-mode` -> **Authentication** -> **OpenID Connect** -> collez `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_ISSUER_URL` depuis l'onglet Environment. Validez.
+1. Cliquez **Deploy**. Patientez ~2-3 min (plusieurs services, MinIO compris).
+2. Visitez le domaine Plane et créez le compte admin initial + le premier workspace. Plane garde sa propre connexion : l'authentification unique n'existe que dans ses éditions payantes.
 
 ### Variables d'environnement
 

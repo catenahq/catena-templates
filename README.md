@@ -38,8 +38,9 @@ lib/                     # the build library
   render.py              # inputs -> every generated artifact
   readme.py              # one template's prose -> its README
   swarm_lint.py          # the swarm-stack-file compatibility gate
-  quiesce_lint.py        # security lint over the commands a host runs
-                         # unattended: quiesce + lifecycle
+  quiesce_lint.py        # security lint over what a host acts on
+                         # unattended: quiesce + lifecycle commands,
+                         # sign-in labels
   postgres_pins.py       # central Postgres image enforcement
 
 build/                   # thin entrypoints
@@ -92,13 +93,18 @@ parser. `catalog.json` carries them beside the same ids.
 
 ## The env sentinel convention
 
-Operator-controlled env vars (OIDC client id/secret, TURN auth secret,
-discovery URL, ...) plus every secret default in `templates.json` to a
-sentinel placeholder:
+Host-controlled env vars (TURN auth secret, admin password, ...) plus
+every secret default in `templates.json` to a sentinel placeholder:
 
 ```
-OIDC_CLIENT_SECRET=__CATENA_OPERATOR_WIRED__
+TURN_STATIC_AUTH_SECRET=__CATENA_OPERATOR_WIRED__
 ```
+
+An app's own sign-in values (`OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`,
+`OIDC_ISSUER_URL`) are in neither file: the host's settings sync writes
+them into the deployed stack's env from the Keycloak client it makes for
+the app's sign-in labels, and the compose reads them as
+`${OIDC_CLIENT_ID:-}`.
 
 Portainer has no per-deploy secret generator and no template engine, so
 three classes of value collapse to the sentinel: declared
@@ -155,8 +161,10 @@ next fetch the catalog; there are no releases to cut.
 - The per-host render that resolves the sentinels, and the on-box minting
   of per-deploy app passwords. Lives in catenahq/catena-admin
   (`shell/marketplace`), served to that host's Portainer.
-- Operator-side wiring (how OIDC clients get minted). Lives in
-  catenahq/ops and catenahq/catena-ce.
+- The Keycloak clients apps sign in with: an app's own client comes from
+  its sign-in labels through catenahq/catena-admin's settings sync
+  (`payload/lib/oidc_clients.py`), the mail server's from
+  catenahq/catena-ce's realm templates.
 - The client docs site, catenahq/docs. It is hand-written and reads
   nothing from here; a template's own documentation is the README in its
   blueprint directory.

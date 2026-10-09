@@ -1,11 +1,13 @@
-"""Security lint over the commands a client host runs unattended (CI gate).
+"""Security lint over what a client host acts on unattended (CI gate).
 
-Two families, both declared in `x-catena` and both executed on a client
-box with no one present: the quiesce commands the nightly maintenance
-runs around its backup, and the lifecycle commands (migration, before
-and after an update, and the ready question asked before each of those).
-Both are argv arrays the host runs inside one service's container
-through `docker exec`, with no shell.
+Two families of commands, both declared in `x-catena` and both executed on
+a client box with no one present: the quiesce commands the nightly
+maintenance runs around its backup, and the lifecycle commands (migration,
+before and after an update, and the ready question asked before each of
+those). Both are argv arrays the host runs inside one service's container
+through `docker exec`, with no shell. And the sign-in labels, from which
+the host's settings sync makes a Keycloak client and writes its values into
+the app's stack env.
 
 Schema-level checks (argv shape, required keys, timeout caps) live in
 sources.schema.json and run on every render. This module adds:
@@ -27,6 +29,12 @@ sources.schema.json and run on every render. This module adds:
     whose dump it replays instead, and the host refuses every update of a
     stack where one mounts the volume. A one-shot service, which a
     rollback does not stop either, is refused outright by the swarm lint.
+  - Sign-in labels sit on the route service (the one carrying
+    vps.route.host), which is the only service the host reads them from;
+    each is one the host knows; `vps.auth.oidc=true` comes with the return
+    addresses; and the template declares none of the three values the sync
+    writes (OIDC_CLIENT_ID, OIDC_CLIENT_SECRET, OIDC_ISSUER_URL) in
+    env_defaults or env_managed_keys, so each has one writer.
 
 Exit codes: 0 clean, 1 lint failures, 2 structural error.
 """
@@ -130,6 +138,59 @@ def lint_versioned_volumes(entry, volumes: list[str]) -> list[str]:
     return errors
 
 
+# The sign-in labels catena-admin's app intent reads, and the stack env keys
+# its settings sync writes from the Keycloak client it makes
+# (payload/lib/app_intent.py, payload/lib/oidc_clients.py).
+SIGNIN_LABELS = frozenset({
+    "vps.auth.oidc", "vps.auth.oidc.redirect_uris", "vps.auth.oidc.public",
+})
+SIGNIN_KEYS = ("OIDC_CLIENT_ID", "OIDC_CLIENT_SECRET", "OIDC_ISSUER_URL")
+_TRUE = ("true", "yes", "1", "on")
+
+
+def service_labels(service: dict) -> dict[str, str]:
+    labels = service.get("labels") or []
+    if isinstance(labels, dict):
+        return {str(k): str(v) for k, v in labels.items()}
+    return dict((str(item).split("=", 1) + [""])[:2] for item in labels)
+
+
+def lint_signin(entry) -> list[str]:
+    doc = yaml.safe_load(entry.compose_path.read_text(encoding="utf-8")) or {}
+    errors: list[str] = []
+    asks = False
+    for name, service in (doc.get("services") or {}).items():
+        labels = service_labels(service or {})
+        signin = {key for key in labels if key.startswith("vps.auth.oidc")}
+        if not signin:
+            continue
+        label = f"{entry.slug}:{name}"
+        for key in sorted(signin - SIGNIN_LABELS):
+            errors.append(f"{label}: {key} is not a sign-in label the host reads "
+                          f"({', '.join(sorted(SIGNIN_LABELS))})")
+        if not labels.get("vps.route.host", "").strip():
+            errors.append(f"{label}: carries sign-in labels but no vps.route.host; "
+                          f"the host reads them from the route service only")
+            continue
+        if labels.get("vps.auth.oidc", "").strip().lower() not in _TRUE:
+            continue
+        asks = True
+        if not labels.get("vps.auth.oidc.redirect_uris", "").strip():
+            errors.append(f"{label}: vps.auth.oidc=true without "
+                          f"vps.auth.oidc.redirect_uris; the sign-in entry would "
+                          f"accept no return address")
+    if asks:
+        declared = {kv.split("=", 1)[0] for kv in entry.catena["env_defaults"]}
+        declared |= set(entry.catena.get("env_managed_keys") or [])
+        for key in SIGNIN_KEYS:
+            if key in declared:
+                errors.append(
+                    f"{entry.slug}: {key} is declared in env_defaults or "
+                    f"env_managed_keys, but the settings sync writes it from the "
+                    f"app's sign-in entry; a second writer would undo the first")
+    return errors
+
+
 def lint_all() -> int:
     try:
         entries = load_sources()
@@ -142,6 +203,7 @@ def lint_all() -> int:
     with_migrations = 0
 
     for entry in entries:
+        all_errors.extend(lint_signin(entry))
         lifecycle = entry.lifecycle
         if lifecycle:
             with_migrations += 1

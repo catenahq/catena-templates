@@ -7,8 +7,23 @@ services:
       placement:
         constraints:
           - node.labels.catena.role==data
-    command: >-
-      sh -c "yarn db:migrate --env production-ssl-disabled && yarn start"
+    # The endpoints are set only once the settings sync has written the
+    # issuer: Outline exits at start on an endpoint that fails its URL check,
+    # as a bare path does, and its discovery alternative exits when the
+    # issuer does not answer at boot.
+    command:
+      - sh
+      - -c
+      - |
+        set -e
+        if [ -n "$$OIDC_ISSUER_URL" ]; then
+          export OIDC_AUTH_URI="$$OIDC_ISSUER_URL/protocol/openid-connect/auth"
+          export OIDC_TOKEN_URI="$$OIDC_ISSUER_URL/protocol/openid-connect/token"
+          export OIDC_USERINFO_URI="$$OIDC_ISSUER_URL/protocol/openid-connect/userinfo"
+          export OIDC_LOGOUT_URI="$$OIDC_ISSUER_URL/protocol/openid-connect/logout"
+        fi
+        yarn db:migrate --env production-ssl-disabled
+        exec yarn start
     environment:
       NODE_ENV: production
       SECRET_KEY: ${OUTLINE_SECRET_KEY}
@@ -23,13 +38,11 @@ services:
       FORCE_HTTPS: "true"
       ENABLE_UPDATES: "false"
 
-      # Keycloak OIDC -- populated by dashboard-sync after first deploy.
-      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID}
-      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET}
-      OIDC_AUTH_URI: ${OIDC_ISSUER_URL}/protocol/openid-connect/auth
-      OIDC_TOKEN_URI: ${OIDC_ISSUER_URL}/protocol/openid-connect/token
-      OIDC_USERINFO_URI: ${OIDC_ISSUER_URL}/protocol/openid-connect/userinfo
-      OIDC_LOGOUT_URI: ${OIDC_ISSUER_URL}/protocol/openid-connect/logout
+      # This app's own Keycloak sign-in entry, written by the settings sync
+      # from the sign-in labels below. Empty until its first pass.
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-}
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-}
+      OIDC_ISSUER_URL: ${OIDC_ISSUER_URL:-}
       OIDC_USERNAME_CLAIM: preferred_username
       OIDC_DISPLAY_NAME: Keycloak
       OIDC_SCOPES: openid profile email
@@ -43,7 +56,6 @@ services:
       - "vps.auth.oidc=true"
       - "vps.auth.groups=staff"
       - "vps.auth.oidc.redirect_uris=https://${OUTLINE_HOSTNAME}/auth/oidc.callback"
-      - "vps.auth.oidc.scopes=openid email profile"
       - "vps.auto-update=patch"
       - "vps.app=catena-outline"
       - "vps.component=outline"

@@ -159,7 +159,10 @@ without it.
    Portainer fetches.
 4. `make lint` -- the quiesce and lifecycle argv allowlists, the
    quiesce service check, the versioned volume check (a top-level volume
-   that only long-running services other than a database mount),
+   that only long-running services other than a database mount), the
+   sign-in labels (on the route service, `redirect_uris` beside
+   `vps.auth.oidc=true`, and no catalog default for the three `OIDC_*`
+   values the host's settings sync writes),
    central Postgres pin enforcement, and the
    swarm-compatibility gate above (which also offers each file to the real
    `docker stack config` loader when docker is on PATH, because the ban list
@@ -219,8 +222,9 @@ merge window as its consumers, since they all read `main`:
 - The per-host render that resolves the sentinels, and the on-box
   minting of per-deploy app passwords. catenahq/catena-admin
   (`shell/marketplace`).
-- Operator-side wiring (on-box config key names, OIDC client minting
-  flow). catenahq/ops and catenahq/catena-ce.
+- On-box config key names: catenahq/catena-ce. The Keycloak client an
+  app signs in with: catenahq/catena-admin's settings sync, from the
+  app's sign-in labels.
 - Per-VPS runtime state. All under `/var/lib/catena/` on each VPS.
 - The client docs site. catenahq/docs is hand-written and reads nothing
   from this repo; a template's own documentation is its README here.

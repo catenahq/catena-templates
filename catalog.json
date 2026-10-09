@@ -27,7 +27,7 @@
           "Dropbox",
           "OneDrive for Business"
         ],
-        "setup_steps": "1. Open the **Environment** tab and fill `S3_BUCKET`, `S3_REGION`, `S3_HOST`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` with the bucket's coordinates. (Everything else is pre-filled -- `NEXTCLOUD_HOSTNAME`, admin/DB credentials, OIDC integration vars.)\n2. Click **Deploy**. Wait ~2 minutes for the first boot.\n3. Wire SSO: open `dash.<your-domain>`, go to the **Actions** tab and click **Wire Nextcloud OIDC**. The action registers Keycloak as an OIDC provider inside Nextcloud (idempotent -- safe to re-run after redeploys or secret rotations).\n4. Sign in at the Nextcloud domain with **Log in with keycloak** (which uses the managed identity), or fall back to `NEXTCLOUD_ADMIN_USER` / `NEXTCLOUD_ADMIN_PASSWORD` from the Environment tab.\n",
+        "setup_steps": "1. Open the **Environment** tab and fill `S3_BUCKET`, `S3_REGION`, `S3_HOST`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` with the bucket's coordinates. (Everything else is pre-filled -- `NEXTCLOUD_HOSTNAME`, admin/DB credentials.)\n2. Click **Deploy**. Wait ~2 minutes for the first boot. Within a few minutes of the first deploy, the server creates Nextcloud's own sign-in entry in Keycloak, writes its values (`OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_ISSUER_URL`) into the Environment tab, and Nextcloud restarts once with them.\n3. Wire SSO once those values are there: open `dash.<your-domain>`, go to the **Actions** tab and click **Wire Nextcloud OIDC**. The action registers Keycloak as an OIDC provider inside Nextcloud (idempotent -- safe to re-run after redeploys or secret rotations).\n4. Sign in at the Nextcloud domain with **Log in with keycloak** (which uses the managed identity), or fall back to `NEXTCLOUD_ADMIN_USER` / `NEXTCLOUD_ADMIN_PASSWORD` from the Environment tab.\n",
         "what_it_is": "Self-hosted file sharing and collaboration -- the file hub that other templates plug into."
       },
       "env_defaults": [
@@ -47,11 +47,6 @@
         "S3_SSL=true",
         "S3_ACCESS_KEY=",
         "S3_SECRET_KEY=",
-        "OIDC_CLIENT_ID=nextcloud",
-        "OIDC_CLIENT_SECRET={{ nextcloud_oidc_client_secret }}",
-        "OIDC_DISCOVERY_URL=https://{{ keycloak_hostname | default('auth.' ~ cloudflare_zone) }}/realms/{{ keycloak_realm | default('vps') }}/.well-known/openid-configuration",
-        "OIDC_ISSUER_URL=https://{{ keycloak_hostname | default('auth.' ~ cloudflare_zone) }}/realms/{{ keycloak_realm | default('vps') }}",
-        "OIDC_REDIRECT_URL=https://nextcloud.{{ cloudflare_zone }}/apps/user_oidc/code",
         "SIGNALING_HOSTNAME=signaling.{{ cloudflare_zone }}",
         "SIGNALING_SECRET={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}",
         "TALK_INTERNAL_SECRET={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}",
@@ -61,11 +56,6 @@
       "env_managed_keys": [
         "DOMAIN_HOST",
         "NEXTCLOUD_HOSTNAME",
-        "OIDC_CLIENT_ID",
-        "OIDC_CLIENT_SECRET",
-        "OIDC_DISCOVERY_URL",
-        "OIDC_ISSUER_URL",
-        "OIDC_REDIRECT_URL",
         "SIGNALING_HOSTNAME",
         "TURN_HOSTNAME",
         "TURN_STATIC_AUTH_SECRET"
@@ -79,7 +69,7 @@
           "Dropbox",
           "OneDrive Entreprise"
         ],
-        "setup_steps": "1. Ouvrez l'onglet **Environment** et remplissez `S3_BUCKET`, `S3_REGION`, `S3_HOST`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` avec les coordonn\u00e9es du seau S3. (Le reste est pr\u00e9-rempli -- `NEXTCLOUD_HOSTNAME`, identifiants admin/DB, variables d'int\u00e9gration OIDC.)\n2. Cliquez **Deploy**. Patientez ~2 min pour le premier d\u00e9marrage.\n3. C\u00e2blez le SSO : ouvrez `dash.<votre-domaine>`, allez dans l'onglet **Actions** puis cliquez **C\u00e2bler l'OIDC pour Nextcloud**. L'action enregistre Keycloak comme fournisseur OIDC \u00e0 l'int\u00e9rieur de Nextcloud (idempotent -- peut \u00eatre relanc\u00e9e sans risque apr\u00e8s un red\u00e9ploiement ou une rotation de secret).\n4. Connexion sur le domaine Nextcloud avec **Se connecter avec keycloak** (utilise l'identit\u00e9 g\u00e9r\u00e9e), ou repli sur `NEXTCLOUD_ADMIN_USER` / `NEXTCLOUD_ADMIN_PASSWORD` de l'onglet Environment.\n",
+        "setup_steps": "1. Ouvrez l'onglet **Environment** et remplissez `S3_BUCKET`, `S3_REGION`, `S3_HOST`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` avec les coordonn\u00e9es du seau S3. (Le reste est pr\u00e9-rempli -- `NEXTCLOUD_HOSTNAME`, identifiants admin/DB.)\n2. Cliquez **Deploy**. Patientez ~2 min pour le premier d\u00e9marrage. Dans les minutes qui suivent le premier d\u00e9ploiement, le serveur cr\u00e9e l'entr\u00e9e de connexion propre \u00e0 Nextcloud dans Keycloak, inscrit ses valeurs (`OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_ISSUER_URL`) dans l'onglet Environment, et Nextcloud red\u00e9marre une fois avec elles.\n3. C\u00e2blez le SSO une fois ces valeurs pr\u00e9sentes : ouvrez `dash.<votre-domaine>`, allez dans l'onglet **Actions** puis cliquez **C\u00e2bler l'OIDC pour Nextcloud**. L'action enregistre Keycloak comme fournisseur OIDC \u00e0 l'int\u00e9rieur de Nextcloud (idempotent -- peut \u00eatre relanc\u00e9e sans risque apr\u00e8s un red\u00e9ploiement ou une rotation de secret).\n4. Connexion sur le domaine Nextcloud avec **Se connecter avec keycloak** (utilise l'identit\u00e9 g\u00e9r\u00e9e), ou repli sur `NEXTCLOUD_ADMIN_USER` / `NEXTCLOUD_ADMIN_PASSWORD` de l'onglet Environment.\n",
         "what_it_is": "Partage de fichiers et collaboration auto-h\u00e9berg\u00e9s -- le hub auquel d'autres templates se connectent."
       },
       "hostname_baked": false,
@@ -167,13 +157,13 @@
       "en": {
         "compose_description": "Photo and video library with phone backup. Replaces Google Photos / iCloud Photos.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/immich/README.md\n",
         "display_name": "Immich",
-        "extra_notes": "### Where the library lives\n\nBy default the library is a named volume under `/srv/catena`, which the nightly backup already covers. Setting `UPLOAD_LOCATION` to an absolute path moves it to that directory instead, which is the way to use a larger disk mounted on the server. A path outside `/srv/catena` is backed up only once it is declared in catena-admin under **Settings** -> **Backup** -> extra paths; until then the nightly coverage check reports it as data outside the backup set.\n\n### Machine learning\n\nSearch by content, face recognition and duplicate detection run in the `immich-machine-learning` service. It downloads its models on first use and holds them in memory while they are in use. On a server with little memory, the features can be turned off under **Administration** -> **Settings** -> **Machine Learning Settings**.\n",
+        "extra_notes": "### Sign-in\n\nImmich keeps its sign-in settings in its own database. On every start it compares them with the sign-in values in the Environment tab and corrects them, signed in as the administrator above. When the first account was created by hand instead, the settings are left as they are: enter the `OIDC_*` values under **Administration** -> **Settings** -> **Authentication Settings** -> **OAuth**, with the scope `openid email profile`.\n\n### Where the library lives\n\nBy default the library is a named volume under `/srv/catena`, which the nightly backup already covers. Setting `UPLOAD_LOCATION` to an absolute path moves it to that directory instead, which is the way to use a larger disk mounted on the server. A path outside `/srv/catena` is backed up only once it is declared in catena-admin under **Settings** -> **Backup** -> extra paths; until then the nightly coverage check reports it as data outside the backup set.\n\n### Machine learning\n\nSearch by content, face recognition and duplicate detection run in the `immich-machine-learning` service. It downloads its models on first use and holds them in memory while they are in use. On a server with little memory, the features can be turned off under **Administration** -> **Settings** -> **Machine Learning Settings**.\n",
         "replaces": [
           "Google Photos",
           "iCloud Photos",
           "Amazon Photos"
         ],
-        "setup_steps": "1. *(Optional)* Keep the library on a separate disk: mount the disk on the server, create a directory on it (for example `/mnt/photos/immich`), and set `UPLOAD_LOCATION` to that path in the **Environment** tab. The directory has to exist before the deploy. Then add the same path under **Settings** -> **Backup** -> extra paths in catena-admin, so the nightly backup includes it.\n2. Click **Deploy**. The first boot takes 2 to 3 minutes while the database initialises.\n3. Visit the Immich domain and create the first account, which becomes the administrator.\n4. *(Optional)* Enable Keycloak SSO: **Administration** -> **Settings** -> **Authentication Settings** -> **OAuth**, then enter:\n   - **Issuer URL:** `OIDC_ISSUER_URL` from Environment\n   - **Client ID:** `OIDC_CLIENT_ID` from Environment (`immich`)\n   - **Client Secret:** `OIDC_CLIENT_SECRET` from Environment (minted in Keycloak on request when blank)\n   - Save. The login page gains a **Login with OAuth** button. The local administrator keeps working as a break-glass.\n5. Install the Immich app on each phone, enter the Immich domain as the server address, and turn on backup.\n",
+        "setup_steps": "1. *(Optional)* Keep the library on a separate disk: mount the disk on the server, create a directory on it (for example `/mnt/photos/immich`), and set `UPLOAD_LOCATION` to that path in the **Environment** tab. The directory has to exist before the deploy. Then add the same path under **Settings** -> **Backup** -> extra paths in catena-admin, so the nightly backup includes it.\n2. Click **Deploy**. The first boot takes 2 to 3 minutes while the database initialises. On its first start Immich makes its administrator from the server's admin email (`IMMICH_ADMIN_EMAIL`), with the password `IMMICH_ADMIN_PASSWORD` from the Environment tab.\n3. Wait for the sign-in values. Within a few minutes of the first deploy, the server creates Immich's own sign-in entry in Keycloak, writes its values (`OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_ISSUER_URL`) into the Environment tab, and Immich restarts once and turns on **Sign in with Keycloak**.\n4. Sign in with Keycloak. The server's admin lands in the administrator account, matched by email; everyone else gets an account on their first sign-in. The administrator's password keeps working as a break-glass.\n5. Install the Immich app on each phone, enter the Immich domain as the server address, sign in with Keycloak, and turn on backup.\n",
         "what_it_is": "Photo and video library with automatic backup from phones, albums, sharing, face recognition and search by content."
       },
       "env_defaults": [
@@ -181,20 +171,19 @@
         "IMMICH_HOSTNAME=photos.{{ cloudflare_zone }}",
         "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
         "UPLOAD_LOCATION=immich-library",
-        "OIDC_CLIENT_ID=immich",
-        "OIDC_CLIENT_SECRET=",
-        "OIDC_ISSUER_URL=https://{{ keycloak_hostname | default('auth.' ~ cloudflare_zone) }}/realms/{{ keycloak_realm | default('vps') }}"
+        "IMMICH_ADMIN_EMAIL={{ admin_email }}",
+        "IMMICH_ADMIN_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
       ],
       "fr": {
         "compose_description": "Biblioth\u00e8que de photos et vid\u00e9os avec sauvegarde des t\u00e9l\u00e9phones. Remplace Google Photos / Photos iCloud.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/immich/README.md\n",
         "display_name": "Immich",
-        "extra_notes": "### Emplacement de la biblioth\u00e8que\n\nPar d\u00e9faut, la biblioth\u00e8que est un volume nomm\u00e9 sous `/srv/catena`, d\u00e9j\u00e0 couvert par la sauvegarde nocturne. Indiquer un chemin absolu dans `UPLOAD_LOCATION` la place dans ce r\u00e9pertoire, ce qui permet d'utiliser un disque plus grand mont\u00e9 sur le serveur. Un chemin hors de `/srv/catena` n'est sauvegard\u00e9 qu'une fois d\u00e9clar\u00e9 dans catena-admin sous **Settings** -> **Backup** -> chemins suppl\u00e9mentaires ; d'ici l\u00e0, la v\u00e9rification nocturne de couverture le signale comme donn\u00e9es hors de la sauvegarde.\n\n### Apprentissage automatique\n\nLa recherche par contenu, la reconnaissance des visages et la d\u00e9tection des doublons tournent dans le service `immich-machine-learning`. Il t\u00e9l\u00e9charge ses mod\u00e8les \u00e0 la premi\u00e8re utilisation et les garde en m\u00e9moire pendant leur usage. Sur un serveur avec peu de m\u00e9moire, ces fonctions se d\u00e9sactivent sous **Administration** -> **Settings** -> **Machine Learning Settings**.\n",
+        "extra_notes": "### Connexion\n\nImmich garde ses r\u00e9glages de connexion dans sa propre base de donn\u00e9es. \u00c0 chaque d\u00e9marrage, il les compare aux valeurs de connexion de l'onglet Environment et les corrige, connect\u00e9 comme l'administrateur ci-dessus. Si le premier compte a plut\u00f4t \u00e9t\u00e9 cr\u00e9\u00e9 \u00e0 la main, les r\u00e9glages restent tels quels : saisissez les valeurs `OIDC_*` sous **Administration** -> **Settings** -> **Authentication Settings** -> **OAuth**, avec la port\u00e9e `openid email profile`.\n\n### Emplacement de la biblioth\u00e8que\n\nPar d\u00e9faut, la biblioth\u00e8que est un volume nomm\u00e9 sous `/srv/catena`, d\u00e9j\u00e0 couvert par la sauvegarde nocturne. Indiquer un chemin absolu dans `UPLOAD_LOCATION` la place dans ce r\u00e9pertoire, ce qui permet d'utiliser un disque plus grand mont\u00e9 sur le serveur. Un chemin hors de `/srv/catena` n'est sauvegard\u00e9 qu'une fois d\u00e9clar\u00e9 dans catena-admin sous **Settings** -> **Backup** -> chemins suppl\u00e9mentaires ; d'ici l\u00e0, la v\u00e9rification nocturne de couverture le signale comme donn\u00e9es hors de la sauvegarde.\n\n### Apprentissage automatique\n\nLa recherche par contenu, la reconnaissance des visages et la d\u00e9tection des doublons tournent dans le service `immich-machine-learning`. Il t\u00e9l\u00e9charge ses mod\u00e8les \u00e0 la premi\u00e8re utilisation et les garde en m\u00e9moire pendant leur usage. Sur un serveur avec peu de m\u00e9moire, ces fonctions se d\u00e9sactivent sous **Administration** -> **Settings** -> **Machine Learning Settings**.\n",
         "replaces": [
           "Google Photos",
           "Photos iCloud",
           "Amazon Photos"
         ],
-        "setup_steps": "1. *(Optionnel)* Placez la biblioth\u00e8que sur un disque s\u00e9par\u00e9 : montez le disque sur le serveur, cr\u00e9ez-y un r\u00e9pertoire (par exemple `/mnt/photos/immich`) et indiquez ce chemin dans `UPLOAD_LOCATION` dans l'onglet **Environment**. Le r\u00e9pertoire doit exister avant le d\u00e9ploiement. Ajoutez ensuite le m\u00eame chemin dans catena-admin sous **Settings** -> **Backup** -> chemins suppl\u00e9mentaires, pour que la sauvegarde nocturne l'inclue.\n2. Cliquez **Deploy**. Le premier d\u00e9marrage prend 2 \u00e0 3 minutes, le temps d'initialiser la base de donn\u00e9es.\n3. Visitez le domaine Immich et cr\u00e9ez le premier compte, qui devient l'administrateur.\n4. *(Optionnel)* Activez Keycloak SSO : **Administration** -> **Settings** -> **Authentication Settings** -> **OAuth**, puis renseignez :\n   - **Issuer URL :** `OIDC_ISSUER_URL` depuis Environment\n   - **Client ID :** `OIDC_CLIENT_ID` depuis Environment (`immich`)\n   - **Client Secret :** `OIDC_CLIENT_SECRET` depuis Environment (g\u00e9n\u00e9r\u00e9 c\u00f4t\u00e9 Keycloak sur demande lorsqu'il est vide)\n   - Validez. La page de connexion affiche **Login with OAuth**. L'administrateur local continue de fonctionner comme issue de secours.\n5. Installez l'application Immich sur chaque t\u00e9l\u00e9phone, indiquez le domaine Immich comme adresse du serveur et activez la sauvegarde.\n",
+        "setup_steps": "1. *(Optionnel)* Placez la biblioth\u00e8que sur un disque s\u00e9par\u00e9 : montez le disque sur le serveur, cr\u00e9ez-y un r\u00e9pertoire (par exemple `/mnt/photos/immich`) et indiquez ce chemin dans `UPLOAD_LOCATION` dans l'onglet **Environment**. Le r\u00e9pertoire doit exister avant le d\u00e9ploiement. Ajoutez ensuite le m\u00eame chemin dans catena-admin sous **Settings** -> **Backup** -> chemins suppl\u00e9mentaires, pour que la sauvegarde nocturne l'inclue.\n2. Cliquez **Deploy**. Le premier d\u00e9marrage prend 2 \u00e0 3 minutes, le temps d'initialiser la base de donn\u00e9es. \u00c0 son premier d\u00e9marrage, Immich cr\u00e9e son administrateur avec l'adresse courriel d'administration du serveur (`IMMICH_ADMIN_EMAIL`) et le mot de passe `IMMICH_ADMIN_PASSWORD` de l'onglet Environment.\n3. Attendez les valeurs de connexion. Dans les minutes qui suivent le premier d\u00e9ploiement, le serveur cr\u00e9e l'entr\u00e9e de connexion propre \u00e0 Immich dans Keycloak, inscrit ses valeurs (`OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_ISSUER_URL`) dans l'onglet Environment, et Immich red\u00e9marre une fois puis active **Sign in with Keycloak**.\n4. Connectez-vous avec Keycloak. L'administrateur du serveur arrive dans le compte administrateur, reconnu par son adresse courriel ; les autres personnes re\u00e7oivent un compte \u00e0 leur premi\u00e8re connexion. Le mot de passe de l'administrateur continue de fonctionner comme issue de secours.\n5. Installez l'application Immich sur chaque t\u00e9l\u00e9phone, indiquez le domaine Immich comme adresse du serveur, connectez-vous avec Keycloak et activez la sauvegarde.\n",
         "what_it_is": "Biblioth\u00e8que de photos et vid\u00e9os avec sauvegarde automatique depuis les t\u00e9l\u00e9phones, albums, partage, reconnaissance des visages et recherche par contenu."
       },
       "hostname_baked": false,
@@ -208,7 +197,7 @@
         "peak_cpu_pct": null,
         "peak_ram_mb": 2800
       },
-      "sso_mode": "post-deploy-ui",
+      "sso_mode": "pre-wired",
       "upstream_url": "https://immich.app"
     },
     {
@@ -337,16 +326,16 @@
           "Microsoft Teams",
           "Discord (for work)"
         ],
-        "setup_steps": "1. Click **Deploy**. Nothing to fill in the Environment tab except a different hostname, where one is wanted.\n2. Wait ~5 minutes for the first sync. The login page will show **Sign in with Keycloak**.\n3. Sign in. The first user becomes the workspace admin.\n4. *(Optional, ~30 s)* Attach Nextcloud files in chats: Administration -> Apps -> Marketplace -> search `Nextcloud` -> install -> set the Nextcloud domain in the app settings. Users can then type `/nextcloud` in any chat to browse and attach files.\n",
+        "setup_steps": "1. Click **Deploy**. Nothing to fill in the Environment tab except a different hostname, where one is wanted.\n2. Wait for the sign-in values. Within a few minutes of the first deploy, the server creates Rocket.Chat's own sign-in entry in Keycloak, writes its values (`OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_ISSUER_URL`) into the Environment tab, and Rocket.Chat restarts once with them. The login page then shows **Sign in with Keycloak**.\n3. Sign in with Keycloak. The workspace administrator is the account made on the first start with the server's admin email (`ADMIN_EMAIL`): that person's Keycloak sign-in opens it. Everyone else gets an account on their first sign-in.\n4. *(Optional, ~30 s)* Attach Nextcloud files in chats: Administration -> Apps -> Marketplace -> search `Nextcloud` -> install -> set the Nextcloud domain in the app settings. Users can then type `/nextcloud` in any chat to browse and attach files.\n",
         "what_it_is": "Team chat -- channels, direct messages, file sharing, mobile apps, and video calls. Keycloak SSO pre-wired."
       },
       "env_defaults": [
         "DOMAIN_HOST=chat.{{ cloudflare_zone }}",
         "ROCKETCHAT_HOSTNAME=chat.{{ cloudflare_zone }}",
         "ROCKETCHAT_HOSTNAME_BASE={{ cloudflare_zone }}",
-        "OIDC_BASE_URL=https://{{ keycloak_hostname | default('auth.' ~ cloudflare_zone) }}",
         "ADMIN_USERNAME=admin",
         "ADMIN_PASS={{ admin_password }}",
+        "ADMIN_EMAIL={{ admin_email }}",
         "VPS_PUBLIC_IP={{ public_ip }}",
         "TURN_STATIC_AUTH_SECRET={{ turn_static_auth_secret }}",
         "JITSI_JICOFO_AUTH_PASSWORD={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}",
@@ -366,7 +355,7 @@
           "Microsoft Teams",
           "Discord (en usage pro)"
         ],
-        "setup_steps": "1. Cliquez **Deploy**. Rien \u00e0 remplir dans l'onglet Environment, sauf un autre nom de domaine le cas \u00e9ch\u00e9ant.\n2. Patientez ~5 min pour la synchro initiale. La page de connexion affichera **Se connecter avec Keycloak**.\n3. Connexion. Le premier utilisateur devient l'admin du workspace.\n4. *(Optionnel, ~30 s)* Joindre des fichiers Nextcloud : Administration -> Apps -> Marketplace -> cherchez `Nextcloud` -> installez -> indiquez le domaine Nextcloud. Les utilisateurs tapent ensuite `/nextcloud` dans un chat pour parcourir et joindre des fichiers.\n",
+        "setup_steps": "1. Cliquez **Deploy**. Rien \u00e0 remplir dans l'onglet Environment, sauf un autre nom de domaine le cas \u00e9ch\u00e9ant.\n2. Attendez les valeurs de connexion. Dans les minutes qui suivent le premier d\u00e9ploiement, le serveur cr\u00e9e l'entr\u00e9e de connexion propre \u00e0 Rocket.Chat dans Keycloak, inscrit ses valeurs (`OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_ISSUER_URL`) dans l'onglet Environment, et Rocket.Chat red\u00e9marre une fois avec elles. La page de connexion affiche alors **Sign in with Keycloak**.\n3. Connectez-vous avec Keycloak. L'administrateur de l'espace de travail est le compte cr\u00e9\u00e9 au premier d\u00e9marrage avec l'adresse courriel d'administration du serveur (`ADMIN_EMAIL`) : la connexion Keycloak de cette personne l'ouvre. Les autres personnes re\u00e7oivent un compte \u00e0 leur premi\u00e8re connexion.\n4. *(Optionnel, ~30 s)* Joindre des fichiers Nextcloud : Administration -> Apps -> Marketplace -> cherchez `Nextcloud` -> installez -> indiquez le domaine Nextcloud. Les utilisateurs tapent ensuite `/nextcloud` dans un chat pour parcourir et joindre des fichiers.\n",
         "what_it_is": "Messagerie d'\u00e9quipe -- canaux, messages directs, partage de fichiers, apps mobiles, appels vid\u00e9o. Keycloak SSO pr\u00e9-c\u00e2bl\u00e9."
       },
       "hostname_baked": true,
@@ -425,7 +414,7 @@
           "Signal (for team use)",
           "Zoom (for small group calls)"
         ],
-        "setup_steps": "1. Click **Deploy**. First boot takes ~3 minutes (Synapse generates signing keys, postgres initialises, Jitsi components register).\n2. Open `element.<your-domain>` -- the Element web client opens. Click **Sign in with Keycloak**.\n3. The first Keycloak user lands as a regular Matrix user. To promote them to homeserver admin, open `synapseadmin.<your-domain>` (operator-only, gated by Keycloak admin group), find the user, and toggle the admin flag.\n4. *(Optional)* Enable SIP dial-in: fill `JIGASI_SIP_URI`, `JIGASI_SIP_PASSWORD`, `JIGASI_SIP_SERVER` in the Environment tab with the SIP provider's credentials, then redeploy. Without these, chat / voice / video still work -- only dial-in from a phone is off.\n5. *(Optional)* Open federation: edit `FEDERATION_DOMAIN_WHITELIST` in the Environment tab (e.g. `\"matrix.org\",\"example.com\"`) and redeploy. Default is empty (no federation -- the homeserver only talks to itself).\n",
+        "setup_steps": "1. Click **Deploy**. First boot takes ~3 minutes (Synapse generates signing keys, postgres initialises, Jitsi components register). Within a few minutes of the first deploy, the server creates Element's own sign-in entry in Keycloak, writes its values (`OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_ISSUER_URL`) into the Environment tab, and the homeserver restarts once with them.\n2. Open `element.<your-domain>` -- the Element web client opens. Click **Sign in with Keycloak**.\n3. The first Keycloak user lands as a regular Matrix user. To promote them to homeserver admin, open `synapseadmin.<your-domain>` (admins only, gated by the Keycloak admin group), find the user, and toggle the admin flag.\n4. *(Optional)* Enable SIP dial-in: fill `JIGASI_SIP_URI`, `JIGASI_SIP_PASSWORD`, `JIGASI_SIP_SERVER` in the Environment tab with the SIP provider's credentials, then redeploy. Without these, chat / voice / video still work -- only dial-in from a phone is off.\n5. *(Optional)* Open federation: edit `FEDERATION_DOMAIN_WHITELIST` in the Environment tab (e.g. `\"matrix.org\",\"example.com\"`) and redeploy. Default is empty (no federation -- the homeserver only talks to itself).\n",
         "what_it_is": "Self-hosted Element + Matrix homeserver -- federated-capable team chat with end-to-end encryption, voice, group video (bundled Jitsi), and SIP dial-in."
       },
       "env_defaults": [
@@ -439,9 +428,6 @@
         "SYNAPSE_FORM_SECRET={{ lookup('password', '/dev/null length=48 chars=ascii_letters,digits') }}",
         "ALLOW_PUBLIC_REGISTRATION=false",
         "FEDERATION_DOMAIN_WHITELIST=",
-        "OIDC_BASE_URL=https://{{ keycloak_hostname | default('auth.' ~ cloudflare_zone) }}",
-        "OIDC_CLIENT_ID=element",
-        "OIDC_CLIENT_SECRET={{ element_oidc_client_secret }}",
         "VPS_PUBLIC_IP={{ public_ip }}",
         "TURN_HOSTNAME={{ coturn_hostname | default('turn.' ~ cloudflare_zone) }}",
         "TURN_STATIC_AUTH_SECRET={{ turn_static_auth_secret }}",
@@ -454,9 +440,6 @@
         "JIGASI_SIP_SERVER="
       ],
       "env_managed_keys": [
-        "OIDC_CLIENT_ID",
-        "OIDC_CLIENT_SECRET",
-        "OIDC_BASE_URL",
         "VPS_PUBLIC_IP",
         "TURN_HOSTNAME",
         "TURN_STATIC_AUTH_SECRET"
@@ -471,7 +454,7 @@
           "Signal (en usage pro)",
           "Zoom (pour les petits appels de groupe)"
         ],
-        "setup_steps": "1. Cliquez **Deploy**. Le premier d\u00e9marrage prend ~3 min (Synapse g\u00e9n\u00e8re ses cl\u00e9s de signature, postgres s'initialise, les composants Jitsi s'enregistrent).\n2. Ouvrez `element.<votre-domaine>` -- le client web Element s'ouvre. Cliquez **Se connecter avec Keycloak**.\n3. Le premier utilisateur Keycloak arrive comme utilisateur Matrix normal. Pour le promouvoir admin du homeserver, ouvrez `synapseadmin.<votre-domaine>` (r\u00e9serv\u00e9 op\u00e9rateur, prot\u00e9g\u00e9 par le groupe admin Keycloak), trouvez l'utilisateur, et activez l'indicateur admin.\n4. *(Optionnel)* Activez l'entr\u00e9e SIP : remplissez `JIGASI_SIP_URI`, `JIGASI_SIP_PASSWORD`, `JIGASI_SIP_SERVER` dans l'onglet Environment avec les identifiants du fournisseur SIP, puis red\u00e9ployez. Sans ces valeurs, chat / voix / vid\u00e9o fonctionnent quand m\u00eame -- seule l'entr\u00e9e par t\u00e9l\u00e9phone est d\u00e9sactiv\u00e9e.\n5. *(Optionnel)* Ouvrez la f\u00e9d\u00e9ration : \u00e9ditez `FEDERATION_DOMAIN_WHITELIST` dans l'onglet Environment (ex : `\"matrix.org\",\"example.com\"`) puis red\u00e9ployez. Par d\u00e9faut vide (pas de f\u00e9d\u00e9ration -- le homeserver ne parle qu'\u00e0 lui-m\u00eame).\n",
+        "setup_steps": "1. Cliquez **Deploy**. Le premier d\u00e9marrage prend ~3 min (Synapse g\u00e9n\u00e8re ses cl\u00e9s de signature, postgres s'initialise, les composants Jitsi s'enregistrent). Dans les minutes qui suivent le premier d\u00e9ploiement, le serveur cr\u00e9e l'entr\u00e9e de connexion propre \u00e0 Element dans Keycloak, inscrit ses valeurs (`OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_ISSUER_URL`) dans l'onglet Environment, et le homeserver red\u00e9marre une fois avec elles.\n2. Ouvrez `element.<votre-domaine>` -- le client web Element s'ouvre. Cliquez **Se connecter avec Keycloak**.\n3. Le premier utilisateur Keycloak arrive comme utilisateur Matrix normal. Pour le promouvoir admin du homeserver, ouvrez `synapseadmin.<votre-domaine>` (r\u00e9serv\u00e9 aux administrateurs, prot\u00e9g\u00e9 par le groupe admin Keycloak), trouvez l'utilisateur, et activez l'indicateur admin.\n4. *(Optionnel)* Activez l'entr\u00e9e SIP : remplissez `JIGASI_SIP_URI`, `JIGASI_SIP_PASSWORD`, `JIGASI_SIP_SERVER` dans l'onglet Environment avec les identifiants du fournisseur SIP, puis red\u00e9ployez. Sans ces valeurs, chat / voix / vid\u00e9o fonctionnent quand m\u00eame -- seule l'entr\u00e9e par t\u00e9l\u00e9phone est d\u00e9sactiv\u00e9e.\n5. *(Optionnel)* Ouvrez la f\u00e9d\u00e9ration : \u00e9ditez `FEDERATION_DOMAIN_WHITELIST` dans l'onglet Environment (ex : `\"matrix.org\",\"example.com\"`) puis red\u00e9ployez. Par d\u00e9faut vide (pas de f\u00e9d\u00e9ration -- le homeserver ne parle qu'\u00e0 lui-m\u00eame).\n",
         "what_it_is": "Element + serveur Matrix auto-h\u00e9berg\u00e9s -- messagerie d'\u00e9quipe avec chiffrement de bout en bout, voix, visio de groupe (Jitsi embarqu\u00e9), et entr\u00e9e SIP par t\u00e9l\u00e9phone. F\u00e9d\u00e9ration capable mais d\u00e9sactiv\u00e9e par d\u00e9faut."
       },
       "hostname_baked": true,
@@ -510,8 +493,8 @@
           "PandaDoc",
           "Adobe Sign"
         ],
-        "setup_steps": "1. Click **Deploy**. Wait ~1 min for the first boot.\n2. Visit the DocuSeal domain and complete the first-run wizard (creates the initial admin account).\n3. *(Optional)* Enable Keycloak SSO: **Settings** -> **SSO** -> choose **OpenID Connect** -> paste:\n   - **Client ID:** `OIDC_CLIENT_ID` from Environment (`docuseal`)\n   - **Client Secret:** `OIDC_CLIENT_SECRET` from Environment (minted in Keycloak on request when blank)\n   - **Issuer URL:** `OIDC_ISSUER_URL`\n   - Save. The login page gains a **Sign in with Keycloak** button. Local admin login keeps working as a break-glass.\n4. *(Optional)* Configure SMTP for signature-request emails: fill `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM_ADDRESS` in the Environment tab and redeploy. Without SMTP, recipients only see pending requests in their DocuSeal dashboard.\n",
-        "what_it_is": "Default document-signing app in the stack. Upload a PDF, place signature fields, send for signature. Audit trail + signed-PDF generation built-in."
+        "setup_steps": "1. Click **Deploy**. Wait ~1 min for the first boot.\n2. Visit the DocuSeal domain and complete the first-run wizard (creates the initial admin account). DocuSeal keeps its own login: each account is created inside DocuSeal.\n3. *(Optional)* Configure SMTP for signature-request emails: fill `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM_ADDRESS` in the Environment tab and redeploy. Without SMTP, recipients only see pending requests in their DocuSeal dashboard.\n",
+        "what_it_is": "Default document-signing app in the suite. Upload a PDF, place signature fields, send for signature. Audit trail + signed-PDF generation built-in."
       },
       "env_defaults": [
         "DOMAIN_HOST=sign.{{ cloudflare_zone }}",
@@ -523,10 +506,7 @@
         "SMTP_USERNAME=",
         "SMTP_PASSWORD=",
         "SMTP_FROM_ADDRESS=",
-        "SMTP_AUTH=plain",
-        "OIDC_CLIENT_ID=docuseal",
-        "OIDC_CLIENT_SECRET=",
-        "OIDC_ISSUER_URL=https://{{ keycloak_hostname | default('auth.' ~ cloudflare_zone) }}/realms/{{ keycloak_realm | default('vps') }}"
+        "SMTP_AUTH=plain"
       ],
       "fr": {
         "compose_description": "Signature \u00e9lectronique open-source (par d\u00e9faut). Remplace DocuSign / HelloSign.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/docuseal/README.md\n",
@@ -538,8 +518,8 @@
           "PandaDoc",
           "Adobe Sign"
         ],
-        "setup_steps": "1. Cliquez **Deploy**. Patientez ~1 min pour le premier d\u00e9marrage.\n2. Visitez le domaine DocuSeal et compl\u00e9tez l'assistant initial (cr\u00e9ation du compte admin).\n3. *(Optionnel)* Activez Keycloak SSO : **Settings** -> **SSO** -> choisissez **OpenID Connect** -> collez :\n   - **Client ID :** `OIDC_CLIENT_ID` depuis Environment (`docuseal`)\n   - **Client Secret :** `OIDC_CLIENT_SECRET` depuis Environment (g\u00e9n\u00e9r\u00e9 c\u00f4t\u00e9 Keycloak sur demande lorsqu'il est vide)\n   - **Issuer URL :** `OIDC_ISSUER_URL`\n   - Validez. La page de connexion affiche **Sign in with Keycloak**. La connexion admin locale continue de fonctionner comme issue de secours.\n4. *(Optionnel)* Configurez SMTP pour les e-mails de demande de signature : remplissez `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM_ADDRESS` dans l'onglet Environment puis red\u00e9ployez. Sans SMTP, les destinataires ne voient que les demandes en attente dans leur tableau de bord.\n",
-        "what_it_is": "Application de signature \u00e9lectronique par d\u00e9faut de la stack. T\u00e9l\u00e9versez un PDF, placez les champs de signature, envoyez pour signature. Piste d'audit + g\u00e9n\u00e9ration de PDF sign\u00e9 int\u00e9gr\u00e9es."
+        "setup_steps": "1. Cliquez **Deploy**. Patientez ~1 min pour le premier d\u00e9marrage.\n2. Visitez le domaine DocuSeal et compl\u00e9tez l'assistant initial (cr\u00e9ation du compte admin). DocuSeal garde sa propre connexion : chaque compte se cr\u00e9e dans DocuSeal.\n3. *(Optionnel)* Configurez SMTP pour les e-mails de demande de signature : remplissez `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM_ADDRESS` dans l'onglet Environment puis red\u00e9ployez. Sans SMTP, les destinataires ne voient que les demandes en attente dans leur tableau de bord.\n",
+        "what_it_is": "Application de signature \u00e9lectronique par d\u00e9faut de la suite. T\u00e9l\u00e9versez un PDF, placez les champs de signature, envoyez pour signature. Piste d'audit + g\u00e9n\u00e9ration de PDF sign\u00e9 int\u00e9gr\u00e9es."
       },
       "hostname_baked": true,
       "id": "docuseal",
@@ -552,7 +532,7 @@
         "peak_cpu_pct": 35,
         "peak_ram_mb": 540
       },
-      "sso_mode": "post-deploy-ui",
+      "sso_mode": "none",
       "upstream_url": "https://www.docuseal.com/"
     },
     {
@@ -575,7 +555,7 @@
           "Confluence",
           "Google Sites"
         ],
-        "setup_steps": "1. Click **Deploy**. Environment defaults are all pre-filled.\n2. Wait ~1 min for the first boot.\n3. Visit the Outline domain -> click **Sign in with Keycloak**. The first user to sign in becomes the workspace admin.\n",
+        "setup_steps": "1. Click **Deploy**. Environment defaults are all pre-filled.\n2. Wait for the sign-in values. Within a few minutes of the first deploy, the server creates Outline's own sign-in entry in Keycloak, writes its values (`OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_ISSUER_URL`) into the Environment tab, and Outline restarts once with them. Outline has no password login, so until then its login page offers no way in.\n3. Visit the Outline domain -> click **Sign in with Keycloak**. The first person to sign in creates the workspace and becomes its admin; everyone after joins as a member.\n",
         "what_it_is": "Team wiki / knowledge base. Notion-style pages, collections, nested docs. Keycloak SSO pre-wired."
       },
       "env_defaults": [
@@ -593,7 +573,7 @@
           "Confluence",
           "Google Sites"
         ],
-        "setup_steps": "1. Cliquez **Deploy**. Les valeurs par d\u00e9faut de l'Environment sont pr\u00e9-remplies.\n2. Patientez ~1 min pour le premier d\u00e9marrage.\n3. Visitez le domaine Outline -> cliquez **Se connecter avec Keycloak**. Le premier utilisateur devient l'admin du workspace.\n",
+        "setup_steps": "1. Cliquez **Deploy**. Les valeurs par d\u00e9faut de l'Environment sont pr\u00e9-remplies.\n2. Attendez les valeurs de connexion. Dans les minutes qui suivent le premier d\u00e9ploiement, le serveur cr\u00e9e l'entr\u00e9e de connexion propre \u00e0 Outline dans Keycloak, inscrit ses valeurs (`OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_ISSUER_URL`) dans l'onglet Environment, et Outline red\u00e9marre une fois avec elles. Outline n'a pas de connexion par mot de passe : d'ici l\u00e0, sa page de connexion n'offre aucun acc\u00e8s.\n3. Visitez le domaine Outline -> cliquez **Se connecter avec Keycloak**. La premi\u00e8re personne connect\u00e9e cr\u00e9e l'espace de travail et en devient l'admin ; les suivantes s'y joignent comme membres.\n",
         "what_it_is": "Wiki d'\u00e9quipe / base de connaissances. Pages fa\u00e7on Notion, collections, documents imbriqu\u00e9s. Keycloak SSO pr\u00e9-c\u00e2bl\u00e9."
       },
       "hostname_baked": true,
@@ -644,8 +624,8 @@
           "Zoho CRM",
           "Pipedrive"
         ],
-        "setup_steps": "1. Click **Deploy**. Wait ~1 min.\n2. Visit the EspoCRM domain. Sign in as `ESPOCRM_ADMIN_USERNAME` / `ESPOCRM_ADMIN_PASSWORD` from the Environment tab.\n3. *(Optional)* Enable Keycloak SSO: **Administration** -> **Authentication** -> set **Method** to **OIDC** -> paste:\n   - **Client ID:** `OIDC_CLIENT_ID` from Environment (`espocrm`)\n   - **Client Secret:** `OIDC_CLIENT_SECRET` from Environment (minted in Keycloak on request when blank)\n   - **Authorization Endpoint:** `<OIDC_ISSUER_URL>/protocol/openid-connect/auth`\n   - **Token Endpoint:** `<OIDC_ISSUER_URL>/protocol/openid-connect/token`\n   - **JSON Web Key Set Endpoint:** `<OIDC_ISSUER_URL>/protocol/openid-connect/certs`\n   - **Username Claim:** `preferred_username`\n   - Save. The login page gains a **Sign in with Keycloak** button. Local admin login keeps working as a break-glass.\n",
-        "what_it_is": "Default CRM in the stack. Contacts, accounts, opportunities, leads, calendar, email integration, mass mail, workflow automation. Native OIDC via post-deploy toggle."
+        "setup_steps": "1. Click **Deploy**. Wait ~1 min.\n2. Wait for the sign-in values. Within a few minutes of the first deploy, the server creates EspoCRM's own sign-in entry in Keycloak, writes its values (`OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_ISSUER_URL`) into the Environment tab, and EspoCRM restarts once with them.\n3. Visit the EspoCRM domain and sign in with Keycloak. EspoCRM creates the account on its first sign-in, with the email address as its user name (50 characters at most); the account has no roles until an administrator gives it some under **Administration** -> **Users**.\n4. The local administrator, `ESPOCRM_ADMIN_USERNAME` / `ESPOCRM_ADMIN_PASSWORD` from the Environment tab, keeps signing in with its password as a break-glass.\n",
+        "what_it_is": "Default CRM in the suite. Contacts, accounts, opportunities, leads, calendar, email integration, mass mail, workflow automation. Keycloak sign-in pre-wired."
       },
       "env_defaults": [
         "DOMAIN_HOST=crm.{{ cloudflare_zone }}",
@@ -653,10 +633,7 @@
         "ESPOCRM_ADMIN_USERNAME=admin",
         "ESPOCRM_ADMIN_PASSWORD={{ lookup('password', '/dev/null length=24 chars=ascii_letters,digits') }}",
         "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
-        "DB_ROOT_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
-        "OIDC_CLIENT_ID=espocrm",
-        "OIDC_CLIENT_SECRET=",
-        "OIDC_ISSUER_URL=https://{{ keycloak_hostname | default('auth.' ~ cloudflare_zone) }}/realms/{{ keycloak_realm | default('vps') }}"
+        "DB_ROOT_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
       ],
       "fr": {
         "compose_description": "CRM open-source (par d\u00e9faut). Remplace Salesforce / HubSpot / Zoho.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/espocrm/README.md\n",
@@ -668,8 +645,8 @@
           "Zoho CRM",
           "Pipedrive"
         ],
-        "setup_steps": "1. Cliquez **Deploy**. Patientez ~1 min.\n2. Visitez le domaine EspoCRM. Connexion avec `ESPOCRM_ADMIN_USERNAME` / `ESPOCRM_ADMIN_PASSWORD` de l'onglet Environment.\n3. *(Optionnel)* Activez Keycloak SSO : **Administration** -> **Authentication** -> r\u00e9glez **Method** sur **OIDC** -> collez :\n   - **Client ID :** `OIDC_CLIENT_ID` depuis Environment (`espocrm`)\n   - **Client Secret :** `OIDC_CLIENT_SECRET` depuis Environment (g\u00e9n\u00e9r\u00e9 c\u00f4t\u00e9 Keycloak sur demande lorsqu'il est vide)\n   - **Authorization Endpoint :** `<OIDC_ISSUER_URL>/protocol/openid-connect/auth`\n   - **Token Endpoint :** `<OIDC_ISSUER_URL>/protocol/openid-connect/token`\n   - **JSON Web Key Set Endpoint :** `<OIDC_ISSUER_URL>/protocol/openid-connect/certs`\n   - **Username Claim :** `preferred_username`\n   - Validez. La page de connexion affiche **Sign in with Keycloak**. La connexion admin locale continue de fonctionner comme issue de secours.\n",
-        "what_it_is": "CRM par d\u00e9faut de la stack. Contacts, comptes, opportunit\u00e9s, prospects, calendrier, int\u00e9gration email, mass mail, automatisation. OIDC natif via un bouton post-d\u00e9ploiement."
+        "setup_steps": "1. Cliquez **Deploy**. Patientez ~1 min.\n2. Attendez les valeurs de connexion. Dans les minutes qui suivent le premier d\u00e9ploiement, le serveur cr\u00e9e l'entr\u00e9e de connexion propre \u00e0 EspoCRM dans Keycloak, inscrit ses valeurs (`OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_ISSUER_URL`) dans l'onglet Environment, et EspoCRM red\u00e9marre une fois avec elles.\n3. Visitez le domaine EspoCRM et connectez-vous avec Keycloak. EspoCRM cr\u00e9e le compte \u00e0 sa premi\u00e8re connexion, avec l'adresse courriel comme nom d'utilisateur (50 caract\u00e8res au plus) ; le compte n'a aucun r\u00f4le tant qu'un administrateur ne lui en donne pas sous **Administration** -> **Users**.\n4. L'administrateur local, `ESPOCRM_ADMIN_USERNAME` / `ESPOCRM_ADMIN_PASSWORD` de l'onglet Environment, continue de se connecter par mot de passe comme issue de secours.\n",
+        "what_it_is": "CRM par d\u00e9faut de la suite. Contacts, comptes, opportunit\u00e9s, prospects, calendrier, int\u00e9gration email, mass mail, automatisation. Connexion Keycloak pr\u00e9-c\u00e2bl\u00e9e."
       },
       "hostname_baked": true,
       "id": "espocrm",
@@ -693,7 +670,7 @@
         "peak_cpu_pct": 40,
         "peak_ram_mb": 480
       },
-      "sso_mode": "post-deploy-ui",
+      "sso_mode": "pre-wired",
       "upstream_url": "https://www.espocrm.com/"
     },
     {
@@ -711,13 +688,13 @@
       "en": {
         "compose_description": "Modern open-source CRM (alternative to EspoCRM). Replaces Salesforce / HubSpot.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/twenty/README.md\n",
         "display_name": "Twenty",
-        "extra_notes": "**EspoCRM vs Twenty.** EspoCRM is this stack's default CRM (mature, native OIDC, mobile apps). Twenty is offered as an alternative for clients who prefer its Notion-style UI; both can be deployed side-by-side. The default `crm.<your-domain>` host is reserved for EspoCRM -- Twenty defaults to `twenty.<your-domain>`.\n",
+        "extra_notes": "**EspoCRM vs Twenty.** EspoCRM is the suite's default CRM (mature, native OIDC, mobile apps). Twenty is offered as an alternative for clients who prefer its Notion-style UI; both can be deployed side-by-side. The default `crm.<your-domain>` host is reserved for EspoCRM -- Twenty defaults to `twenty.<your-domain>`.\n",
         "replaces": [
           "Salesforce",
           "HubSpot",
           "Pipedrive"
         ],
-        "setup_steps": "1. Click **Deploy**. Wait ~1 min.\n2. Visit the Twenty domain and sign up to create the initial workspace + admin user.\n3. *(Optional)* Enable Keycloak SSO: **Settings** -> **Security** -> **Single sign-on** -> paste `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_ISSUER_URL` from the Environment tab. Save.\n",
+        "setup_steps": "1. Click **Deploy**. Wait ~1 min.\n2. Visit the Twenty domain and sign up to create the initial workspace + admin user. Twenty keeps its own login: single sign-on is in its paid editions only.\n",
         "what_it_is": "Modern open-source CRM. Contacts, companies, opportunities, email sync, pipelines. Alternative to EspoCRM (the default CRM)."
       },
       "env_defaults": [
@@ -729,13 +706,13 @@
       "fr": {
         "compose_description": "CRM moderne open-source (alternative \u00e0 EspoCRM). Remplace Salesforce / HubSpot.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/twenty/README.md\n",
         "display_name": "Twenty",
-        "extra_notes": "**EspoCRM vs Twenty.** EspoCRM est le CRM par d\u00e9faut de cette stack (mature, OIDC natif, apps mobiles). Twenty est offert comme alternative pour les clients qui pr\u00e9f\u00e8rent son UI fa\u00e7on Notion ; les deux peuvent cohabiter. Le domaine par d\u00e9faut `crm.<votre-domaine>` est r\u00e9serv\u00e9 \u00e0 EspoCRM -- Twenty utilise par d\u00e9faut `twenty.<votre-domaine>`.\n",
+        "extra_notes": "**EspoCRM vs Twenty.** EspoCRM est le CRM par d\u00e9faut de la suite (mature, OIDC natif, apps mobiles). Twenty est offert comme alternative pour les clients qui pr\u00e9f\u00e8rent son UI fa\u00e7on Notion ; les deux peuvent cohabiter. Le domaine par d\u00e9faut `crm.<votre-domaine>` est r\u00e9serv\u00e9 \u00e0 EspoCRM -- Twenty utilise par d\u00e9faut `twenty.<votre-domaine>`.\n",
         "replaces": [
           "Salesforce",
           "HubSpot",
           "Pipedrive"
         ],
-        "setup_steps": "1. Cliquez **Deploy**. Patientez ~1 min.\n2. Visitez le domaine Twenty et cr\u00e9ez le compte initial (workspace + admin).\n3. *(Optionnel)* Activez Keycloak SSO : **Settings** -> **Security** -> **Single sign-on** -> collez `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_ISSUER_URL` depuis l'onglet Environment. Validez.\n",
+        "setup_steps": "1. Cliquez **Deploy**. Patientez ~1 min.\n2. Visitez le domaine Twenty et cr\u00e9ez le compte initial (workspace + admin). Twenty garde sa propre connexion : l'authentification unique n'existe que dans ses \u00e9ditions payantes.\n",
         "what_it_is": "CRM moderne open-source. Contacts, entreprises, opportunit\u00e9s, synchronisation email, pipelines. Alternative \u00e0 EspoCRM (le CRM par d\u00e9faut)."
       },
       "hostname_baked": true,
@@ -749,7 +726,7 @@
         "peak_cpu_pct": 55,
         "peak_ram_mb": 920
       },
-      "sso_mode": "post-deploy-ui",
+      "sso_mode": "none",
       "upstream_url": "https://twenty.com/"
     },
     {
@@ -772,7 +749,7 @@
           "Asana",
           "ClickUp"
         ],
-        "setup_steps": "1. Click **Deploy**. Wait ~2-3 min (multi-service stack with MinIO).\n2. Visit the Plane domain and sign up to create the instance admin + first workspace.\n3. *(Optional)* Enable Keycloak SSO: while signed in, visit `https://projects.<your-domain>/god-mode` -> **Authentication** -> **OpenID Connect** -> paste `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_ISSUER_URL` from the Environment tab. Save.\n",
+        "setup_steps": "1. Click **Deploy**. Wait ~2-3 min (several services, MinIO included).\n2. Visit the Plane domain and sign up to create the instance admin + first workspace. Plane keeps its own login: single sign-on is in its paid editions only.\n",
         "what_it_is": "Open-source project management -- issues, cycles, modules, pages, workspaces."
       },
       "env_defaults": [
@@ -792,7 +769,7 @@
           "Asana",
           "ClickUp"
         ],
-        "setup_steps": "1. Cliquez **Deploy**. Patientez ~2-3 min (pile multi-services avec MinIO).\n2. Visitez le domaine Plane et cr\u00e9ez le compte admin initial + le premier workspace.\n3. *(Optionnel)* Activez Keycloak SSO : une fois connect\u00e9, visitez `https://projects.<votre-domaine>/god-mode` -> **Authentication** -> **OpenID Connect** -> collez `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_ISSUER_URL` depuis l'onglet Environment. Validez.\n",
+        "setup_steps": "1. Cliquez **Deploy**. Patientez ~2-3 min (plusieurs services, MinIO compris).\n2. Visitez le domaine Plane et cr\u00e9ez le compte admin initial + le premier workspace. Plane garde sa propre connexion : l'authentification unique n'existe que dans ses \u00e9ditions payantes.\n",
         "what_it_is": "Gestion de projet open-source -- issues, cycles, modules, pages, workspaces."
       },
       "hostname_baked": true,
@@ -806,7 +783,7 @@
         "peak_cpu_pct": 50,
         "peak_ram_mb": 1040
       },
-      "sso_mode": "post-deploy-ui",
+      "sso_mode": "none",
       "upstream_url": "https://plane.so/"
     },
     {
@@ -824,14 +801,14 @@
       "en": {
         "compose_description": "Work management with test runs, time tracking, and customer portals. Replaces Jira / Jira Service Management.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/windshift/README.md\n",
         "display_name": "Windshift",
-        "extra_notes": "**Edition:** the self-hosted edition is AGPL-3.0 with no user or workspace cap. SAML 2.0, LDAP, and audit logging are announced for the paid Windshift Pro edition; OpenID Connect and passkeys are in this one.\n",
+        "extra_notes": "**Edition:** the self-hosted edition is AGPL-3.0 with no user or workspace cap. SAML 2.0, LDAP, and audit logging are announced for the paid Windshift Pro edition; OpenID Connect and passkeys are in this one.\n\n**Sign-in:** Windshift keeps the provider's values in its own database. When `OIDC_CLIENT_SECRET` changes in the Environment tab, paste it again into the `keycloak` provider.\n",
         "replaces": [
           "Jira",
           "Jira Service Management",
           "Tempo",
           "Xray"
         ],
-        "setup_steps": "1. Click **Deploy**. Wait ~1 min (one binary plus its database).\n2. Visit the Windshift domain and create the first administrator account.\n3. *(Optional)* Enable Keycloak SSO: **Admin** -> **Single Sign-On** -> add an **OpenID Connect** provider. Name it `keycloak` so the pre-registered redirect URI matches, paste `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET` and `OIDC_ISSUER_URL` from the Environment tab, and set the scopes to `openid email profile`. If a different provider name is used, copy the **Callback URL** shown in the dialog into the identity provider's redirect URIs.\n4. *(Optional)* Add a customer portal from the admin area. Portal accounts are separate from internal accounts, and each portal carries its own name, branding, request types, and access rules.\n",
+        "setup_steps": "1. Click **Deploy**. Wait ~1 min (one binary plus its database).\n2. Visit the Windshift domain and create the first administrator account.\n3. Turn on Keycloak sign-in, once. Within a few minutes of the first deploy, the server creates Windshift's own sign-in entry in Keycloak and writes its values (`OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_ISSUER_URL`) into the Environment tab. Then, in Windshift: **Admin** -> **Single Sign-On** -> add an **OpenID Connect** provider named `keycloak` (the entry accepts the return address of that name only), paste the three values, set the scopes to `openid email profile`, and turn on account creation for new sign-ins. Until then Windshift shows no Keycloak button.\n4. *(Optional)* Add a customer portal from the admin area. Portal accounts are separate from internal accounts, and each portal carries its own name, branding, request types, and access rules.\n",
         "what_it_is": "Work management with test runs, time tracking, and branded customer portals."
       },
       "env_defaults": [
@@ -847,14 +824,14 @@
       "fr": {
         "compose_description": "Gestion du travail avec suites de tests, feuilles de temps et portails clients. Remplace Jira / Jira Service Management.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/windshift/README.md\n",
         "display_name": "Windshift",
-        "extra_notes": "**\u00c9dition :** l'\u00e9dition auto-h\u00e9berg\u00e9e est sous AGPL-3.0, sans limite d'utilisateurs ni d'espaces de travail. SAML 2.0, LDAP et le journal d'audit sont annonc\u00e9s pour l'\u00e9dition payante Windshift Pro ; OpenID Connect et les cl\u00e9s d'acc\u00e8s sont inclus ici.\n",
+        "extra_notes": "**\u00c9dition :** l'\u00e9dition auto-h\u00e9berg\u00e9e est sous AGPL-3.0, sans limite d'utilisateurs ni d'espaces de travail. SAML 2.0, LDAP et le journal d'audit sont annonc\u00e9s pour l'\u00e9dition payante Windshift Pro ; OpenID Connect et les cl\u00e9s d'acc\u00e8s sont inclus ici.\n\n**Connexion :** Windshift garde les valeurs du fournisseur dans sa propre base de donn\u00e9es. Quand `OIDC_CLIENT_SECRET` change dans l'onglet Environment, collez-le de nouveau dans le fournisseur `keycloak`.\n",
         "replaces": [
           "Jira",
           "Jira Service Management",
           "Tempo",
           "Xray"
         ],
-        "setup_steps": "1. Cliquez **Deploy**. Patientez ~1 min (un binaire et sa base de donn\u00e9es).\n2. Visitez le domaine Windshift et cr\u00e9ez le premier compte administrateur.\n3. *(Optionnel)* Activez Keycloak SSO : **Admin** -> **Single Sign-On** -> ajoutez un fournisseur **OpenID Connect**. Nommez-le `keycloak` pour que l'URI de redirection pr\u00e9-enregistr\u00e9e corresponde, collez `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET` et `OIDC_ISSUER_URL` depuis l'onglet Environment, puis indiquez les scopes `openid email profile`. Avec un autre nom de fournisseur, copiez la **Callback URL** affich\u00e9e dans la fen\u00eatre vers les URI de redirection du fournisseur d'identit\u00e9.\n4. *(Optionnel)* Ajoutez un portail client depuis la zone d'administration. Les comptes de portail sont distincts des comptes internes, et chaque portail a son nom, son habillage, ses types de demandes et ses r\u00e8gles d'acc\u00e8s.\n",
+        "setup_steps": "1. Cliquez **Deploy**. Patientez ~1 min (un binaire et sa base de donn\u00e9es).\n2. Visitez le domaine Windshift et cr\u00e9ez le premier compte administrateur.\n3. Activez la connexion Keycloak, une seule fois. Dans les minutes qui suivent le premier d\u00e9ploiement, le serveur cr\u00e9e l'entr\u00e9e de connexion propre \u00e0 Windshift dans Keycloak et inscrit ses valeurs (`OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_ISSUER_URL`) dans l'onglet Environment. Ensuite, dans Windshift : **Admin** -> **Single Sign-On** -> ajoutez un fournisseur **OpenID Connect** nomm\u00e9 `keycloak` (l'entr\u00e9e n'accepte que l'adresse de retour de ce nom), collez les trois valeurs, indiquez les scopes `openid email profile` et activez la cr\u00e9ation de compte \u00e0 la premi\u00e8re connexion. D'ici l\u00e0, Windshift n'affiche aucun bouton Keycloak.\n4. *(Optionnel)* Ajoutez un portail client depuis la zone d'administration. Les comptes de portail sont distincts des comptes internes, et chaque portail a son nom, son habillage, ses types de demandes et ses r\u00e8gles d'acc\u00e8s.\n",
         "what_it_is": "Gestion du travail avec suites de tests, feuilles de temps et portails clients personnalis\u00e9s."
       },
       "hostname_baked": false,
@@ -892,8 +869,8 @@
           "Freshdesk",
           "Jira Service Desk"
         ],
-        "setup_steps": "1. Click **Deploy**. First boot is slow (2-3 min) -- Elasticsearch and Rails migrations run on startup.\n2. Visit the Zammad domain. Complete the setup wizard (admin account, organization name).\n3. *(Optional)* Enable Keycloak SSO: **Settings** -> **Security** -> **Third-party authentication** -> **OpenID Connect** -> paste `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_ISSUER_URL` from the Environment tab. Save.\n",
-        "what_it_is": "Ticket-first help desk. Email, Telegram, social channels, SLAs, knowledge base. Native OIDC."
+        "setup_steps": "1. Click **Deploy**. First boot is slow (2-3 min) -- Elasticsearch and Rails migrations run on startup.\n2. Visit the Zammad domain. Complete the setup wizard (admin account, organization name), keeping the system URL it proposes: Keycloak returns the browser to that address.\n3. Within a few minutes of the first deploy, the server creates Zammad's own sign-in entry in Keycloak and writes its values (`OIDC_CLIENT_ID`, `OIDC_ISSUER_URL`; the entry is a public client, with no secret) into the Environment tab. Zammad applies them on its restart, and its login page then offers **Keycloak**.\n4. A person signing in with Keycloak for the first time gets Zammad's default role, Customer; an administrator gives the Agent role under **Users** in the admin settings. A Keycloak sign-in whose email matches an existing Zammad account is linked to that account.\n",
+        "what_it_is": "Ticket-first help desk. Email, Telegram, social channels, SLAs, knowledge base. Keycloak sign-in pre-wired."
       },
       "env_defaults": [
         "DOMAIN_HOST=help.{{ cloudflare_zone }}",
@@ -909,8 +886,8 @@
           "Freshdesk",
           "Jira Service Desk"
         ],
-        "setup_steps": "1. Cliquez **Deploy**. Le premier d\u00e9marrage est lent (2-3 min) -- Elasticsearch et les migrations Rails se lancent au d\u00e9marrage.\n2. Visitez le domaine Zammad. Compl\u00e9tez l'assistant de configuration (compte admin, nom d'organisation).\n3. *(Optionnel)* Activez Keycloak SSO : **Settings** -> **Security** -> **Third-party authentication** -> **OpenID Connect** -> collez `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_ISSUER_URL` depuis l'onglet Environment. Validez.\n",
-        "what_it_is": "Helpdesk orient\u00e9 tickets. Email, Telegram, canaux sociaux, SLA, base de connaissances. OIDC natif."
+        "setup_steps": "1. Cliquez **Deploy**. Le premier d\u00e9marrage est lent (2-3 min) -- Elasticsearch et les migrations Rails se lancent au d\u00e9marrage.\n2. Visitez le domaine Zammad. Compl\u00e9tez l'assistant de configuration (compte admin, nom d'organisation) en gardant l'URL syst\u00e8me qu'il propose : Keycloak renvoie le navigateur \u00e0 cette adresse.\n3. Dans les minutes qui suivent le premier d\u00e9ploiement, le serveur cr\u00e9e l'entr\u00e9e de connexion propre \u00e0 Zammad dans Keycloak et inscrit ses valeurs (`OIDC_CLIENT_ID`, `OIDC_ISSUER_URL` ; l'entr\u00e9e est un client public, sans secret) dans l'onglet Environment. Zammad les applique \u00e0 son red\u00e9marrage, et sa page de connexion propose alors **Keycloak**.\n4. Une personne qui se connecte avec Keycloak pour la premi\u00e8re fois re\u00e7oit le r\u00f4le par d\u00e9faut de Zammad, Customer ; un administrateur donne le r\u00f4le Agent sous **Users** dans les r\u00e9glages d'administration. Une connexion Keycloak dont l'adresse courriel correspond \u00e0 un compte Zammad existant est li\u00e9e \u00e0 ce compte.\n",
+        "what_it_is": "Helpdesk orient\u00e9 tickets. Email, Telegram, canaux sociaux, SLA, base de connaissances. Connexion Keycloak pr\u00e9-c\u00e2bl\u00e9e."
       },
       "hostname_baked": true,
       "id": "zammad",
@@ -923,7 +900,7 @@
         "peak_cpu_pct": null,
         "peak_ram_mb": 1536
       },
-      "sso_mode": "post-deploy-ui",
+      "sso_mode": "pre-wired",
       "upstream_url": "https://zammad.com/"
     },
     {

@@ -7,6 +7,10 @@ services:
       placement:
         constraints:
           - node.labels.catena.role==data
+    # The image runs its command through `bash -c`. IMMICH_SIGNIN_JS runs
+    # beside the server: Immich keeps its sign-in settings in its own
+    # database, where only an administrator can change them.
+    command: ["node -e \"$$IMMICH_SIGNIN_JS\" & exec start.sh"]
     environment:
       DB_HOSTNAME: db
       DB_USERNAME: immich
@@ -14,11 +18,59 @@ services:
       DB_DATABASE_NAME: immich
       REDIS_HOSTNAME: redis
 
-      # Exposed for reference in Administration -> Settings -> OAuth.
-      # Immich reads its OAuth settings from its own database, not from env.
-      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID}
-      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET}
-      OIDC_ISSUER_URL: ${OIDC_ISSUER_URL}
+      # The administrator IMMICH_SIGNIN_JS makes when the server has none.
+      IMMICH_ADMIN_EMAIL: ${IMMICH_ADMIN_EMAIL}
+      IMMICH_ADMIN_PASSWORD: ${IMMICH_ADMIN_PASSWORD}
+      # This app's own Keycloak sign-in entry, written by the settings sync
+      # from the sign-in labels below. Empty until its first pass.
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-}
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-}
+      OIDC_ISSUER_URL: ${OIDC_ISSUER_URL:-}
+      # On each start: wait for the API, make the administrator (refused
+      # once one exists), then, with the entry's values present, sign in as
+      # that administrator and turn Keycloak sign-in on where the stored
+      # settings differ. Logs carry no value.
+      IMMICH_SIGNIN_JS: |
+        const env = process.env;
+        const api = "http://127.0.0.1:2283/api";
+        const log = (m) => console.log("catena sign-in: " + m);
+        const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+        async function call(method, path, body, token) {
+          const headers = { "content-type": "application/json" };
+          if (token) headers.authorization = "Bearer " + token;
+          const res = await fetch(api + path, { method, headers, body: body ? JSON.stringify(body) : undefined });
+          return { status: res.status, body: await res.json().catch(() => null) };
+        }
+        (async () => {
+          for (let i = 0; ; i++) {
+            try { if ((await fetch(api + "/server/ping")).ok) break; } catch {}
+            if (i === 200) return log("the server did not answer; Keycloak sign-in not checked");
+            await sleep(3000);
+          }
+          const admin = { email: env.IMMICH_ADMIN_EMAIL, password: env.IMMICH_ADMIN_PASSWORD };
+          if ((await call("POST", "/auth/admin-sign-up", { ...admin, name: "Admin" })).status === 201) {
+            log("administrator created");
+          }
+          if (!env.OIDC_CLIENT_ID) return log("no sign-in values yet; Keycloak sign-in stays off");
+          const login = await call("POST", "/auth/login", admin);
+          if (login.status >= 300) {
+            return log("the first account was made by hand; set sign-in in Administration > Settings > OAuth");
+          }
+          const token = login.body.accessToken;
+          const config = (await call("GET", "/admin/config", null, token)).body;
+          const want = {
+            enabled: true, issuerUrl: env.OIDC_ISSUER_URL, clientId: env.OIDC_CLIENT_ID,
+            clientSecret: env.OIDC_CLIENT_SECRET, scope: "openid email profile",
+            tokenEndpointAuthMethod: "client_secret_post", autoRegister: true,
+            buttonText: "Sign in with Keycloak",
+          };
+          if (Object.keys(want).some((k) => config.oauth[k] !== want[k])) {
+            Object.assign(config.oauth, want);
+            const put = await call("PUT", "/admin/config", config, token);
+            log(put.status < 300 ? "Keycloak sign-in on" : "settings refused, status " + put.status);
+          }
+          await call("POST", "/auth/logout", null, token);
+        })().catch((e) => log(e.message));
     volumes:
       # A volume name or an absolute host path. A path is a bind mount, so a
       # library on a separately mounted disk is one Environment value.
@@ -31,7 +83,6 @@ services:
       - "vps.auth.oidc=true"
       - "vps.auth.groups=staff"
       - "vps.auth.oidc.redirect_uris=https://${IMMICH_HOSTNAME}/auth/login,https://${IMMICH_HOSTNAME}/user-settings,app.immich:///oauth-callback"
-      - "vps.auth.oidc.scopes=openid email profile"
       - "vps.auto-update=patch"
       - "vps.app=catena-immich"
       - "vps.component=immich-server"

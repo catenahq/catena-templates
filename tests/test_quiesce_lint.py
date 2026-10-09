@@ -211,6 +211,67 @@ def test_a_versioned_volume_a_rollback_cannot_put_back_is_refused(
     assert f"synthetic-bad.lifecycle.versioned_volumes: {volume!r} {needle}" in out
 
 
+_SIGNIN_COMPOSE = """\
+services:
+  app:
+    image: acme/app:1.0.0
+    labels:
+      - "vps.route.host=${DOMAIN_HOST}"
+      - "vps.auth.mode=public"
+      - "vps.auth.oidc=true"
+      - "vps.auth.oidc.redirect_uris=https://${DOMAIN_HOST}/cb"
+  worker:
+    image: acme/app:1.0.0
+"""
+
+
+def test_a_template_that_asks_for_a_sign_in_entry_passes(monkeypatch, tmp_path, capsys):
+    _synthetic_sources(monkeypatch, tmp_path, {}, _SIGNIN_COMPOSE)
+    assert L.lint_all() == 0, capsys.readouterr().out
+
+
+@pytest.mark.parametrize("key", ["OIDC_CLIENT_ID", "OIDC_CLIENT_SECRET", "OIDC_ISSUER_URL"])
+def test_a_sign_in_value_the_sync_writes_has_no_second_writer(
+        monkeypatch, tmp_path, capsys, key):
+    """The settings sync writes the three values from the app's own
+    Keycloak client; a catalog default or a managed key would write the
+    same key from somewhere else."""
+    _synthetic_sources(monkeypatch, tmp_path, {
+        "env_defaults": ["DOMAIN_HOST=x.example.com", f"{key}=from-the-catalog"],
+        "env_managed_keys": [key],
+    }, _SIGNIN_COMPOSE)
+    assert L.lint_all() == 1
+    assert f"synthetic-bad: {key} is declared in env_defaults" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("edit,needle", [
+    (('      - "vps.auth.oidc.redirect_uris=https://${DOMAIN_HOST}/cb"\n', ""),
+     "synthetic-bad:app: vps.auth.oidc=true without vps.auth.oidc.redirect_uris"),
+    (('      - "vps.auth.oidc=true"\n', '      - "vps.auth.oidc=true"\n'
+      '      - "vps.auth.oidc.scopes=openid email"\n'),
+     "synthetic-bad:app: vps.auth.oidc.scopes is not a sign-in label the host reads"),
+])
+def test_a_sign_in_label_the_host_cannot_use_is_refused(
+        monkeypatch, tmp_path, capsys, edit, needle):
+    _synthetic_sources(monkeypatch, tmp_path, {}, _SIGNIN_COMPOSE.replace(*edit))
+    assert L.lint_all() == 1
+    assert needle in capsys.readouterr().out
+
+
+def test_sign_in_labels_off_the_route_service_are_refused(monkeypatch, tmp_path, capsys):
+    """The host reads sign-in labels from the route service alone, so labels
+    on another service ask for nothing."""
+    compose = _SIGNIN_COMPOSE.replace(
+        '      - "vps.auth.oidc=true"\n'
+        '      - "vps.auth.oidc.redirect_uris=https://${DOMAIN_HOST}/cb"\n', ""
+    ) + ('    labels:\n      - "vps.auth.oidc=true"\n'
+         '      - "vps.auth.oidc.redirect_uris=https://x.example.com/cb"\n')
+    _synthetic_sources(monkeypatch, tmp_path, {}, compose)
+    assert L.lint_all() == 1
+    assert ("synthetic-bad:worker: carries sign-in labels but no vps.route.host"
+            in capsys.readouterr().out)
+
+
 def test_the_database_match_reads_the_image_name_only():
     assert L.database_image("postgres:18.6-alpine")
     assert L.database_image("ghcr.io/immich-app/postgres:14-vectorchord0.4.3")
@@ -223,7 +284,7 @@ def _synthetic_sources(monkeypatch, tmp_path, catena: dict,
                        compose: str = "services:\n  app:\n    image: x\n") -> None:
     """Point the loader at a one-template sources/ tree whose compose is
     `compose` (one service, `app`, by default) and whose x-catena block
-    carries `catena` on top of the required fields."""
+    carries `catena` over the required fields."""
     sources = tmp_path / "sources"
     sources.mkdir()
     blueprint = tmp_path / "blueprints" / "synthetic-bad"
@@ -237,7 +298,6 @@ def _synthetic_sources(monkeypatch, tmp_path, catena: dict,
         "categories": ["Testing"],
         "platform": "linux",
         "x-catena": {
-            **catena,
             "app_name": "synthetic-bad",
             "upstream_url": "https://example.com",
             "sso_mode": "none",
@@ -259,6 +319,7 @@ def _synthetic_sources(monkeypatch, tmp_path, catena: dict,
                 "compose_description": "test",
                 "setup_steps": "1. aucune",
             },
+            **catena,
         },
     }
     (sources / "synthetic-bad.json").write_text(json.dumps(doc))

@@ -10,7 +10,7 @@
   "x-catena": {
     "app_name": "catena-plane",
     "upstream_url": "https://plane.so/",
-    "sso_mode": "post-deploy-ui",
+    "sso_mode": "none",
     "domain": {
       "host": "projects.{{ cloudflare_zone }}",
       "service": "proxy",
@@ -47,7 +47,7 @@
         "ClickUp"
       ],
       "compose_description": "Open-source project management. Replaces Jira / Linear / Asana.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/plane/README.md\n",
-      "setup_steps": "1. Click **Deploy**. Wait ~2-3 min (multi-service stack with MinIO).\n2. Visit the Plane domain and sign up to create the instance admin + first workspace.\n3. *(Optional)* Enable Keycloak SSO: while signed in, visit `https://projects.<your-domain>/god-mode` -> **Authentication** -> **OpenID Connect** -> paste `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_ISSUER_URL` from the Environment tab. Save.\n"
+      "setup_steps": "1. Click **Deploy**. Wait ~2-3 min (several services, MinIO included).\n2. Visit the Plane domain and sign up to create the instance admin + first workspace. Plane keeps its own login: single sign-on is in its paid editions only.\n"
     },
     "fr": {
       "display_name": "Plane",
@@ -59,7 +59,7 @@
         "ClickUp"
       ],
       "compose_description": "Gestion de projet open-source. Remplace Jira / Linear / Asana.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/plane/README.md\n",
-      "setup_steps": "1. Cliquez **Deploy**. Patientez ~2-3 min (pile multi-services avec MinIO).\n2. Visitez le domaine Plane et cr\u00e9ez le compte admin initial + le premier workspace.\n3. *(Optionnel)* Activez Keycloak SSO : une fois connect\u00e9, visitez `https://projects.<votre-domaine>/god-mode` -> **Authentication** -> **OpenID Connect** -> collez `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_ISSUER_URL` depuis l'onglet Environment. Validez.\n"
+      "setup_steps": "1. Cliquez **Deploy**. Patientez ~2-3 min (plusieurs services, MinIO compris).\n2. Visitez le domaine Plane et cr\u00e9ez le compte admin initial + le premier workspace. Plane garde sa propre connexion : l'authentification unique n'existe que dans ses \u00e9ditions payantes.\n"
     }
   }
 }

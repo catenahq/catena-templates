@@ -94,36 +94,6 @@
         {
           "default": "__CATENA_OPERATOR_WIRED__",
           "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
-          "label": "OIDC client ID",
-          "name": "OIDC_CLIENT_ID"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
-          "label": "OIDC client secret",
-          "name": "OIDC_CLIENT_SECRET"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
-          "label": "OIDC discovery URL",
-          "name": "OIDC_DISCOVERY_URL"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
-          "label": "OIDC issuer URL",
-          "name": "OIDC_ISSUER_URL"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
-          "label": "OIDC redirect URL",
-          "name": "OIDC_REDIRECT_URL"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "Signaling hostname",
           "name": "SIGNALING_HOSTNAME"
         },
@@ -193,20 +163,16 @@
           "name": "UPLOAD_LOCATION"
         },
         {
-          "default": "immich",
-          "label": "OIDC client ID",
-          "name": "OIDC_CLIENT_ID"
-        },
-        {
-          "default": "",
-          "label": "OIDC client secret",
-          "name": "OIDC_CLIENT_SECRET"
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
+          "label": "Immich admin email",
+          "name": "IMMICH_ADMIN_EMAIL"
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
           "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
-          "label": "OIDC issuer URL",
-          "name": "OIDC_ISSUER_URL"
+          "label": "Immich admin password",
+          "name": "IMMICH_ADMIN_PASSWORD"
         }
       ],
       "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/immich/logo.svg",
@@ -302,12 +268,6 @@
           "name": "ROCKETCHAT_HOSTNAME_BASE"
         },
         {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
-          "label": "OIDC base URL",
-          "name": "OIDC_BASE_URL"
-        },
-        {
           "default": "admin",
           "label": "Admin username",
           "name": "ADMIN_USERNAME"
@@ -317,6 +277,12 @@
           "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "Admin pass",
           "name": "ADMIN_PASS"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
+          "label": "Admin email",
+          "name": "ADMIN_EMAIL"
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
@@ -421,24 +387,6 @@
           "default": "",
           "label": "Federation domain whitelist",
           "name": "FEDERATION_DOMAIN_WHITELIST"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
-          "label": "OIDC base URL",
-          "name": "OIDC_BASE_URL"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
-          "label": "OIDC client ID",
-          "name": "OIDC_CLIENT_ID"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
-          "label": "OIDC client secret",
-          "name": "OIDC_CLIENT_SECRET"
         },
         {
           "default": "__CATENA_OPERATOR_WIRED__",
@@ -568,28 +516,12 @@
           "default": "plain",
           "label": "SMTP auth",
           "name": "SMTP_AUTH"
-        },
-        {
-          "default": "docuseal",
-          "label": "OIDC client ID",
-          "name": "OIDC_CLIENT_ID"
-        },
-        {
-          "default": "",
-          "label": "OIDC client secret",
-          "name": "OIDC_CLIENT_SECRET"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
-          "label": "OIDC issuer URL",
-          "name": "OIDC_ISSUER_URL"
         }
       ],
       "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/docuseal/logo.svg",
       "maintainer": "https://github.com/catenahq/catena-templates",
       "name": "catena-docuseal",
-      "note": "<p>Default document-signing app in the stack. Upload a PDF, place signature fields, send for signature. Audit trail + signed-PDF generation built-in.</p><p>Replaces DocuSign, HelloSign, PandaDoc, Adobe Sign.</p><p><a href=\"https://github.com/catenahq/catena-templates/blob/main/blueprints/docuseal/README.md\">https://github.com/catenahq/catena-templates/blob/main/blueprints/docuseal/README.md</a></p>",
+      "note": "<p>Default document-signing app in the suite. Upload a PDF, place signature fields, send for signature. Audit trail + signed-PDF generation built-in.</p><p>Replaces DocuSign, HelloSign, PandaDoc, Adobe Sign.</p><p><a href=\"https://github.com/catenahq/catena-templates/blob/main/blueprints/docuseal/README.md\">https://github.com/catenahq/catena-templates/blob/main/blueprints/docuseal/README.md</a></p>",
       "platform": "linux",
       "repository": {
         "stackfile": "blueprints/docuseal/docker-compose.yml",
@@ -685,28 +617,12 @@
           "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "Database root password",
           "name": "DB_ROOT_PASSWORD"
-        },
-        {
-          "default": "espocrm",
-          "label": "OIDC client ID",
-          "name": "OIDC_CLIENT_ID"
-        },
-        {
-          "default": "",
-          "label": "OIDC client secret",
-          "name": "OIDC_CLIENT_SECRET"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
-          "label": "OIDC issuer URL",
-          "name": "OIDC_ISSUER_URL"
         }
       ],
       "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/espocrm/logo.svg",
       "maintainer": "https://github.com/catenahq/catena-templates",
       "name": "catena-espocrm",
-      "note": "<p>Default CRM in the stack. Contacts, accounts, opportunities, leads, calendar, email integration, mass mail, workflow automation. Native OIDC via post-deploy toggle.</p><p>Replaces Salesforce, HubSpot, Zoho CRM, Pipedrive.</p><p><a href=\"https://github.com/catenahq/catena-templates/blob/main/blueprints/espocrm/README.md\">https://github.com/catenahq/catena-templates/blob/main/blueprints/espocrm/README.md</a></p>",
+      "note": "<p>Default CRM in the suite. Contacts, accounts, opportunities, leads, calendar, email integration, mass mail, workflow automation. Keycloak sign-in pre-wired.</p><p>Replaces Salesforce, HubSpot, Zoho CRM, Pipedrive.</p><p><a href=\"https://github.com/catenahq/catena-templates/blob/main/blueprints/espocrm/README.md\">https://github.com/catenahq/catena-templates/blob/main/blueprints/espocrm/README.md</a></p>",
       "platform": "linux",
       "repository": {
         "stackfile": "blueprints/espocrm/docker-compose.yml",
@@ -881,7 +797,7 @@
       "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/zammad/logo.svg",
       "maintainer": "https://github.com/catenahq/catena-templates",
       "name": "catena-zammad",
-      "note": "<p>Ticket-first help desk. Email, Telegram, social channels, SLAs, knowledge base. Native OIDC.</p><p>Replaces Zendesk, Freshdesk, Jira Service Desk.</p><p><a href=\"https://github.com/catenahq/catena-templates/blob/main/blueprints/zammad/README.md\">https://github.com/catenahq/catena-templates/blob/main/blueprints/zammad/README.md</a></p>",
+      "note": "<p>Ticket-first help desk. Email, Telegram, social channels, SLAs, knowledge base. Keycloak sign-in pre-wired.</p><p>Replaces Zendesk, Freshdesk, Jira Service Desk.</p><p><a href=\"https://github.com/catenahq/catena-templates/blob/main/blueprints/zammad/README.md\">https://github.com/catenahq/catena-templates/blob/main/blueprints/zammad/README.md</a></p>",
       "platform": "linux",
       "repository": {
         "stackfile": "blueprints/zammad/docker-compose.yml",

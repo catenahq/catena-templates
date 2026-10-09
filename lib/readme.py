@@ -19,10 +19,14 @@ from .model import Entry
 # Keyed by sso_mode. Two-tuple: (EN, FR).
 SSO_LABEL: dict[str, tuple[str, str]] = {
     "pre-wired": (
-        "Pre-wired. The login page shows \"Sign in with Keycloak\" out of "
-        "the box, with no post-deploy step.",
-        "Pré-câblé. La page de connexion affiche \"Se connecter avec "
-        "Keycloak\" d'emblée, sans étape post-déploiement.",
+        "Pre-wired. Within a few minutes of the first deploy, the server "
+        "gives the application its own sign-in entry in Keycloak and the "
+        "application restarts once with it; the login page then offers "
+        "Keycloak, with no step to take.",
+        "Pré-câblé. Dans les minutes qui suivent le premier déploiement, le "
+        "serveur donne à l'application sa propre entrée de connexion dans "
+        "Keycloak et l'application redémarre une fois avec elle ; la page de "
+        "connexion propose alors Keycloak, sans aucune étape à effectuer.",
     ),
     "post-deploy-ui": (
         "Enabled from the application's own admin screens: the `OIDC_*` "
@@ -99,6 +103,7 @@ _JINJA_HOSTNAME_SUBS: tuple[tuple[re.Pattern[str], str], ...] = (
     (re.compile(r"\{\{\s*espocrm_hostname\s*\}\}"), "crm.yourdomain.com"),
     (re.compile(r"\{\{\s*coturn_hostname\s*\}\}"), "turn.yourdomain.com"),
     (re.compile(r"\{\{\s*keycloak_realm\s*\}\}"), "vps"),
+    (re.compile(r"\{\{\s*admin_email\s*\}\}"), "<your-admin-email>"),
     # The inventory's `public_ip` fact, resolved on the real host at
     # deploy time. The bundled Jitsi block in rocketchat-oidc advertises
     # it as its ICE candidate.

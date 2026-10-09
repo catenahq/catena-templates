@@ -123,9 +123,6 @@ services:
       # Roundcube does its OWN Keycloak login (not behind oauth2-proxy);
       # public at the proxy layer, OIDC enforced by the app.
       - "vps.auth.mode=public"
-      - "vps.auth.oidc=true"
-      - "vps.auth.oidc.redirect_uris=https://${WEBMAIL_HOSTNAME}/index.php/login/oauth"
-      - "vps.auth.oidc.scopes=openid email profile groups"
       - "vps.auto-update=patch"
       - "vps.app=catena-mailserver"
       - "vps.component=roundcube"

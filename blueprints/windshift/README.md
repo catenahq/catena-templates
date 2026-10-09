@@ -20,10 +20,12 @@ arranged beforehand, on request.
 
 1. Click **Deploy**. Wait ~1 min (one binary plus its database).
 2. Visit the Windshift domain and create the first administrator account.
-3. *(Optional)* Enable Keycloak SSO: **Admin** -> **Single Sign-On** -> add an **OpenID Connect** provider. Name it `keycloak` so the pre-registered redirect URI matches, paste `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET` and `OIDC_ISSUER_URL` from the Environment tab, and set the scopes to `openid email profile`. If a different provider name is used, copy the **Callback URL** shown in the dialog into the identity provider's redirect URIs.
+3. Turn on Keycloak sign-in, once. Within a few minutes of the first deploy, the server creates Windshift's own sign-in entry in Keycloak and writes its values (`OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_ISSUER_URL`) into the Environment tab. Then, in Windshift: **Admin** -> **Single Sign-On** -> add an **OpenID Connect** provider named `keycloak` (the entry accepts the return address of that name only), paste the three values, set the scopes to `openid email profile`, and turn on account creation for new sign-ins. Until then Windshift shows no Keycloak button.
 4. *(Optional)* Add a customer portal from the admin area. Portal accounts are separate from internal accounts, and each portal carries its own name, branding, request types, and access rules.
 
 **Edition:** the self-hosted edition is AGPL-3.0 with no user or workspace cap. SAML 2.0, LDAP, and audit logging are announced for the paid Windshift Pro edition; OpenID Connect and passkeys are in this one.
+
+**Sign-in:** Windshift keeps the provider's values in its own database. When `OIDC_CLIENT_SECRET` changes in the Environment tab, paste it again into the `keycloak` provider.
 
 ### Environment variables
 
@@ -56,10 +58,12 @@ préalable, sur demande.
 
 1. Cliquez **Deploy**. Patientez ~1 min (un binaire et sa base de données).
 2. Visitez le domaine Windshift et créez le premier compte administrateur.
-3. *(Optionnel)* Activez Keycloak SSO : **Admin** -> **Single Sign-On** -> ajoutez un fournisseur **OpenID Connect**. Nommez-le `keycloak` pour que l'URI de redirection pré-enregistrée corresponde, collez `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET` et `OIDC_ISSUER_URL` depuis l'onglet Environment, puis indiquez les scopes `openid email profile`. Avec un autre nom de fournisseur, copiez la **Callback URL** affichée dans la fenêtre vers les URI de redirection du fournisseur d'identité.
+3. Activez la connexion Keycloak, une seule fois. Dans les minutes qui suivent le premier déploiement, le serveur crée l'entrée de connexion propre à Windshift dans Keycloak et inscrit ses valeurs (`OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_ISSUER_URL`) dans l'onglet Environment. Ensuite, dans Windshift : **Admin** -> **Single Sign-On** -> ajoutez un fournisseur **OpenID Connect** nommé `keycloak` (l'entrée n'accepte que l'adresse de retour de ce nom), collez les trois valeurs, indiquez les scopes `openid email profile` et activez la création de compte à la première connexion. D'ici là, Windshift n'affiche aucun bouton Keycloak.
 4. *(Optionnel)* Ajoutez un portail client depuis la zone d'administration. Les comptes de portail sont distincts des comptes internes, et chaque portail a son nom, son habillage, ses types de demandes et ses règles d'accès.
 
 **Édition :** l'édition auto-hébergée est sous AGPL-3.0, sans limite d'utilisateurs ni d'espaces de travail. SAML 2.0, LDAP et le journal d'audit sont annoncés pour l'édition payante Windshift Pro ; OpenID Connect et les clés d'accès sont inclus ici.
+
+**Connexion :** Windshift garde les valeurs du fournisseur dans sa propre base de données. Quand `OIDC_CLIENT_SECRET` change dans l'onglet Environment, collez-le de nouveau dans le fournisseur `keycloak`.
 
 ### Variables d'environnement
 

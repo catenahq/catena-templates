@@ -10,7 +10,7 @@ Team wiki / knowledge base. Notion-style pages, collections, nested docs. Keyclo
 
 - **Upstream project:** <https://www.getoutline.com/>
 - **Replaces:** **Notion**, **Confluence**, **Google Sites**
-- **Sign-in (SSO):** Pre-wired. The login page shows "Sign in with Keycloak" out of the box, with no post-deploy step.
+- **Sign-in (SSO):** Pre-wired. Within a few minutes of the first deploy, the server gives the application its own sign-in entry in Keycloak and the application restarts once with it; the login page then offers Keycloak, with no step to take.
 - **Address:** `wiki.yourdomain.com`, served from `outline:3000`
 
 The address is attached when the template is deployed. A different one is
@@ -19,8 +19,8 @@ arranged beforehand, on request.
 ### Setup steps
 
 1. Click **Deploy**. Environment defaults are all pre-filled.
-2. Wait ~1 min for the first boot.
-3. Visit the Outline domain -> click **Sign in with Keycloak**. The first user to sign in becomes the workspace admin.
+2. Wait for the sign-in values. Within a few minutes of the first deploy, the server creates Outline's own sign-in entry in Keycloak, writes its values (`OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_ISSUER_URL`) into the Environment tab, and Outline restarts once with them. Outline has no password login, so until then its login page offers no way in.
+3. Visit the Outline domain -> click **Sign in with Keycloak**. The first person to sign in creates the workspace and becomes its admin; everyone after joins as a member.
 
 ### Environment variables
 
@@ -44,7 +44,7 @@ Wiki d'équipe / base de connaissances. Pages façon Notion, collections, docume
 
 - **Projet original :** <https://www.getoutline.com/>
 - **Remplace :** **Notion**, **Confluence**, **Google Sites**
-- **Connexion (SSO) :** Pré-câblé. La page de connexion affiche "Se connecter avec Keycloak" d'emblée, sans étape post-déploiement.
+- **Connexion (SSO) :** Pré-câblé. Dans les minutes qui suivent le premier déploiement, le serveur donne à l'application sa propre entrée de connexion dans Keycloak et l'application redémarre une fois avec elle ; la page de connexion propose alors Keycloak, sans aucune étape à effectuer.
 - **Adresse :** `wiki.yourdomain.com`, servie par `outline:3000`
 
 L'adresse est attachée au déploiement du modèle. Une autre se convient au
@@ -53,8 +53,8 @@ préalable, sur demande.
 ### Étapes de configuration
 
 1. Cliquez **Deploy**. Les valeurs par défaut de l'Environment sont pré-remplies.
-2. Patientez ~1 min pour le premier démarrage.
-3. Visitez le domaine Outline -> cliquez **Se connecter avec Keycloak**. Le premier utilisateur devient l'admin du workspace.
+2. Attendez les valeurs de connexion. Dans les minutes qui suivent le premier déploiement, le serveur crée l'entrée de connexion propre à Outline dans Keycloak, inscrit ses valeurs (`OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_ISSUER_URL`) dans l'onglet Environment, et Outline redémarre une fois avec elles. Outline n'a pas de connexion par mot de passe : d'ici là, sa page de connexion n'offre aucun accès.
+3. Visitez le domaine Outline -> cliquez **Se connecter avec Keycloak**. La première personne connectée crée l'espace de travail et en devient l'admin ; les suivantes s'y joignent comme membres.
 
 ### Variables d'environnement
 

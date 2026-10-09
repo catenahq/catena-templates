@@ -14,10 +14,11 @@ x-zammad-env: &zammad-env
 services:
   # Installs or updates the database through the image's zammad-init
   # (migrations, seeds, translations, the Elasticsearch settings and index),
-  # then stays up so swarm keeps it at its replica count. The other Zammad
-  # services wait in the image's entrypoint until the migrations are done. A
-  # step that fails exits, and swarm starts the task again; TERM ends the wait
-  # at once.
+  # applies Keycloak sign-in (ZAMMAD_SIGNIN_RB), then stays up so swarm keeps
+  # it at its replica count. The other Zammad services wait in the image's
+  # entrypoint until the migrations are done, and read the sign-in settings
+  # on each request, so they need no restart for them. A step that fails
+  # exits, and swarm starts the task again; TERM ends the wait at once.
   zammad-init:
     image: zammad/zammad:7.0.1-0035
     deploy:
@@ -32,10 +33,33 @@ services:
       - |
         set -e
         /opt/zammad/bin/docker-entrypoint zammad-init
+        bundle exec rails r "$$ZAMMAD_SIGNIN_RB"
         trap 'exit 0' TERM
         sleep infinity &
         wait
-    environment: *zammad-env
+    environment:
+      <<: *zammad-env
+      # This app's own Keycloak sign-in entry, a public client with no
+      # secret, written by the settings sync from the sign-in labels on
+      # zammad-nginx. Empty until its first pass.
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-}
+      OIDC_ISSUER_URL: ${OIDC_ISSUER_URL:-}
+      # Setting.set refuses a setting name Zammad does not know, which fails
+      # this step after an update that renamed one.
+      ZAMMAD_SIGNIN_RB: |
+        id = ENV["OIDC_CLIENT_ID"].to_s
+        if id.empty?
+          puts "catena sign-in: no sign-in values yet; Keycloak sign-in stays off"
+        else
+          Setting.set("auth_openid_connect_credentials", {
+            "display_name" => "Keycloak", "identifier" => id,
+            "issuer" => ENV["OIDC_ISSUER_URL"], "uid_field" => "sub",
+            "scope" => "openid email profile", "pkce" => true,
+          })
+          Setting.set("auth_openid_connect", true)
+          Setting.set("auth_third_party_auto_link_at_inital_login", true)
+          puts "catena sign-in: Keycloak sign-in on"
+        end
     volumes:
       - zammad-storage:/opt/zammad/storage
     labels:
@@ -113,9 +137,9 @@ services:
       - "vps.route.service=zammad-nginx"
       - "vps.auth.mode=public"
       - "vps.auth.oidc=true"
+      - "vps.auth.oidc.public=true"
       - "vps.auth.groups=staff"
       - "vps.auth.oidc.redirect_uris=https://${ZAMMAD_HOSTNAME}/auth/openid_connect/callback"
-      - "vps.auth.oidc.scopes=openid email profile"
       - "vps.auto-update=patch"
       - "vps.app=catena-zammad"
       - "vps.component=zammad-nginx"

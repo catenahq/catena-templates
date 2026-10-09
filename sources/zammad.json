@@ -11,7 +11,7 @@
   "x-catena": {
     "app_name": "catena-zammad",
     "upstream_url": "https://zammad.com/",
-    "sso_mode": "post-deploy-ui",
+    "sso_mode": "pre-wired",
     "domain": {
       "host": "help.{{ cloudflare_zone }}",
       "service": "zammad-nginx",
@@ -37,26 +37,26 @@
     },
     "en": {
       "display_name": "Zammad",
-      "what_it_is": "Ticket-first help desk. Email, Telegram, social channels, SLAs, knowledge base. Native OIDC.",
+      "what_it_is": "Ticket-first help desk. Email, Telegram, social channels, SLAs, knowledge base. Keycloak sign-in pre-wired.",
       "replaces": [
         "Zendesk",
         "Freshdesk",
         "Jira Service Desk"
       ],
       "compose_description": "Ticket-first help desk. Replaces Zendesk / Freshdesk.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/zammad/README.md\n",
-      "setup_steps": "1. Click **Deploy**. First boot is slow (2-3 min) -- Elasticsearch and Rails migrations run on startup.\n2. Visit the Zammad domain. Complete the setup wizard (admin account, organization name).\n3. *(Optional)* Enable Keycloak SSO: **Settings** -> **Security** -> **Third-party authentication** -> **OpenID Connect** -> paste `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_ISSUER_URL` from the Environment tab. Save.\n",
+      "setup_steps": "1. Click **Deploy**. First boot is slow (2-3 min) -- Elasticsearch and Rails migrations run on startup.\n2. Visit the Zammad domain. Complete the setup wizard (admin account, organization name), keeping the system URL it proposes: Keycloak returns the browser to that address.\n3. Within a few minutes of the first deploy, the server creates Zammad's own sign-in entry in Keycloak and writes its values (`OIDC_CLIENT_ID`, `OIDC_ISSUER_URL`; the entry is a public client, with no secret) into the Environment tab. Zammad applies them on its restart, and its login page then offers **Keycloak**.\n4. A person signing in with Keycloak for the first time gets Zammad's default role, Customer; an administrator gives the Agent role under **Users** in the admin settings. A Keycloak sign-in whose email matches an existing Zammad account is linked to that account.\n",
       "extra_notes": "**Resource note:** Zammad bundles Elasticsearch which reserves ~1.5 GB RAM. Zammad alongside other apps needs a \u22654 GB VPS.\n"
     },
     "fr": {
       "display_name": "Zammad",
-      "what_it_is": "Helpdesk orient\u00e9 tickets. Email, Telegram, canaux sociaux, SLA, base de connaissances. OIDC natif.",
+      "what_it_is": "Helpdesk orient\u00e9 tickets. Email, Telegram, canaux sociaux, SLA, base de connaissances. Connexion Keycloak pr\u00e9-c\u00e2bl\u00e9e.",
       "replaces": [
         "Zendesk",
         "Freshdesk",
         "Jira Service Desk"
       ],
       "compose_description": "Helpdesk orient\u00e9 tickets. Remplace Zendesk / Freshdesk.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/zammad/README.md\n",
-      "setup_steps": "1. Cliquez **Deploy**. Le premier d\u00e9marrage est lent (2-3 min) -- Elasticsearch et les migrations Rails se lancent au d\u00e9marrage.\n2. Visitez le domaine Zammad. Compl\u00e9tez l'assistant de configuration (compte admin, nom d'organisation).\n3. *(Optionnel)* Activez Keycloak SSO : **Settings** -> **Security** -> **Third-party authentication** -> **OpenID Connect** -> collez `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_ISSUER_URL` depuis l'onglet Environment. Validez.\n",
+      "setup_steps": "1. Cliquez **Deploy**. Le premier d\u00e9marrage est lent (2-3 min) -- Elasticsearch et les migrations Rails se lancent au d\u00e9marrage.\n2. Visitez le domaine Zammad. Compl\u00e9tez l'assistant de configuration (compte admin, nom d'organisation) en gardant l'URL syst\u00e8me qu'il propose : Keycloak renvoie le navigateur \u00e0 cette adresse.\n3. Dans les minutes qui suivent le premier d\u00e9ploiement, le serveur cr\u00e9e l'entr\u00e9e de connexion propre \u00e0 Zammad dans Keycloak et inscrit ses valeurs (`OIDC_CLIENT_ID`, `OIDC_ISSUER_URL` ; l'entr\u00e9e est un client public, sans secret) dans l'onglet Environment. Zammad les applique \u00e0 son red\u00e9marrage, et sa page de connexion propose alors **Keycloak**.\n4. Une personne qui se connecte avec Keycloak pour la premi\u00e8re fois re\u00e7oit le r\u00f4le par d\u00e9faut de Zammad, Customer ; un administrateur donne le r\u00f4le Agent sous **Users** dans les r\u00e9glages d'administration. Une connexion Keycloak dont l'adresse courriel correspond \u00e0 un compte Zammad existant est li\u00e9e \u00e0 ce compte.\n",
       "extra_notes": "**Ressources :** Zammad int\u00e8gre Elasticsearch qui r\u00e9serve ~1,5 GB de RAM. Zammad avec d'autres apps demande un VPS \u22654 GB.\n"
     }
   }

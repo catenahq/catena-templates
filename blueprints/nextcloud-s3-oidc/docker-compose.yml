@@ -279,10 +279,12 @@ services:
       OBJECTSTORE_S3_KEY: ${S3_ACCESS_KEY}
       OBJECTSTORE_S3_SECRET: ${S3_SECRET_KEY}
 
-      NEXTCLOUD_OIDC_CLIENT_ID: ${OIDC_CLIENT_ID}
-      NEXTCLOUD_OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET}
-      NEXTCLOUD_OIDC_ISSUER_URL: ${OIDC_ISSUER_URL}
-      NEXTCLOUD_OIDC_REDIRECT_URL: ${OIDC_REDIRECT_URL}
+      # This app's own Keycloak sign-in entry, written by the settings sync
+      # from the sign-in labels below; empty until its first pass. The
+      # Nextcloud OIDC wire action reads them from the running container.
+      NEXTCLOUD_OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-}
+      NEXTCLOUD_OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-}
+      NEXTCLOUD_OIDC_ISSUER_URL: ${OIDC_ISSUER_URL:-}
 
       # Talk + HPB wire script (catena-wire-nextcloud-talk-hpb) reads
       # these from the running container at click time and feeds them
@@ -327,7 +329,6 @@ services:
       - "vps.auth.oidc=true"
       - "vps.auth.groups=staff"
       - "vps.auth.oidc.redirect_uris=https://${NEXTCLOUD_HOSTNAME}/apps/user_oidc/code"
-      - "vps.auth.oidc.scopes=openid email profile groups"
       - "vps.auto-update=patch"
       - "vps.app=catena-nextcloud"
       - "vps.component=app"

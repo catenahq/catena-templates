@@ -146,18 +146,19 @@ services:
         turn_user_lifetime: 86400000
         turn_allow_guests: true
 
-        # OIDC -- Keycloak. The realm + client live in the operator's
-        # Keycloak; ops/ converge mints the client (env_managed_keys
-        # re-injects OIDC_CLIENT_SECRET on every converge). Users land
-        # on Synapse's /_synapse/client/oidc/callback; Synapse maps the
-        # `preferred_username` claim to the local part of the Matrix ID.
+        # OIDC -- this app's own Keycloak sign-in entry, whose values the
+        # settings sync writes from the sign-in labels on element-web; empty
+        # until its first pass, when Synapse logs the provider as broken and
+        # serves on. Users land on Synapse's /_synapse/client/oidc/callback;
+        # Synapse maps the `preferred_username` claim to the local part of
+        # the Matrix ID.
         oidc_providers:
           - idp_id: keycloak
             idp_name: "Keycloak"
             discover: true
-            issuer: "${OIDC_BASE_URL}/realms/vps"
-            client_id: "${OIDC_CLIENT_ID}"
-            client_secret: "${OIDC_CLIENT_SECRET}"
+            issuer: "${OIDC_ISSUER_URL:-}"
+            client_id: "${OIDC_CLIENT_ID:-}"
+            client_secret: "${OIDC_CLIENT_SECRET:-}"
             scopes: ["openid", "profile", "email"]
             user_mapping_provider:
               config:
@@ -221,9 +222,9 @@ services:
       SYNAPSE_REGISTRATION_SHARED_SECRET: ${SYNAPSE_REGISTRATION_SHARED_SECRET}
       SYNAPSE_MACAROON_SECRET: ${SYNAPSE_MACAROON_SECRET}
       SYNAPSE_FORM_SECRET: ${SYNAPSE_FORM_SECRET}
-      OIDC_BASE_URL: ${OIDC_BASE_URL}
-      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID}
-      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET}
+      OIDC_ISSUER_URL: ${OIDC_ISSUER_URL:-}
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-}
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-}
       TURN_HOSTNAME: ${TURN_HOSTNAME}
       TURN_STATIC_AUTH_SECRET: ${TURN_STATIC_AUTH_SECRET}
       ALLOW_PUBLIC_REGISTRATION: ${ALLOW_PUBLIC_REGISTRATION}
@@ -233,10 +234,6 @@ services:
       - element-synapse-data:/data
     labels:
       - "vps.auth.mode=public"
-      - "vps.auth.oidc=true"
-      - "vps.auth.groups=staff"
-      - "vps.auth.oidc.redirect_uris=https://${MATRIX_HOSTNAME}/_synapse/client/oidc/callback"
-      - "vps.auth.oidc.scopes=openid email profile groups"
       - "vps.auto-update=patch"
       - "vps.app=catena-element"
       - "vps.component=synapse"
@@ -330,6 +327,11 @@ services:
       - "vps.route.port=80"
       - "vps.route.service=element-web"
       - "vps.auth.mode=public"
+      # The sign-in entry is read from the route service; Synapse, on the
+      # homeserver host, is what Keycloak returns the browser to.
+      - "vps.auth.oidc=true"
+      - "vps.auth.groups=staff"
+      - "vps.auth.oidc.redirect_uris=https://${MATRIX_HOSTNAME}/_synapse/client/oidc/callback"
       - "vps.auto-update=patch"
       - "vps.app=catena-element"
       - "vps.component=element-web"

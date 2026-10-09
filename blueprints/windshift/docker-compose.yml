@@ -22,6 +22,12 @@ services:
       # proto/host headers are the only source of the real scheme.
       USE_PROXY: "true"
       SSO_SECRET: ${SSO_SECRET}
+      # This app's own Keycloak sign-in entry, written by the settings sync
+      # from the sign-in labels below. Windshift does not read them: they are
+      # here to be pasted once into its single sign-on screen.
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-}
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-}
+      OIDC_ISSUER_URL: ${OIDC_ISSUER_URL:-}
       # WebAuthn credentials are bound to this relying-party id. It must
       # equal the hostname users type; changing it invalidates every
       # passkey already registered.
@@ -73,7 +79,6 @@ services:
       - "vps.auth.oidc=true"
       - "vps.auth.groups=staff"
       - "vps.auth.oidc.redirect_uris=https://${WINDSHIFT_HOSTNAME}/api/sso/callback/keycloak"
-      - "vps.auth.oidc.scopes=openid email profile"
       - "vps.auto-update=patch"
       - "vps.app=catena-windshift"
       - "vps.component=windshift"
