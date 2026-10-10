@@ -18,11 +18,11 @@ services:
       # HTTPS URLs. Redis + cache-key salt wire the redis-cache plugin
       # to the redis service; one site per hostname so two installs
       # cannot collide on shared object-cache keys.
-      # Plugin password is exposed only when WPMS_SMTP_PASS env is set
-      # (operator-configured SMTP). When unset/empty, wp-mail-smtp
-      # falls back to its option-stored password (also empty until the
-      # task wires it up). Defining the constant unconditionally would
-      # masquerade an empty constant as a "configured" credential.
+      # WP Mail SMTP authenticates with the relay password from
+      # WPMS_SMTP_PASS when that env is set (outgoing mail chosen in the
+      # panel): WPMS_ON turns its constants on, and only the password is
+      # one, so every other setting stays in its option. With the env
+      # empty neither is defined and the plugin reads its own option.
       WPMS_SMTP_PASS: ${WPMS_SMTP_PASS}
       WORDPRESS_CONFIG_EXTRA: |
         define( 'FORCE_SSL_ADMIN', true );
@@ -35,6 +35,7 @@ services:
         define( 'WP_CACHE_KEY_SALT', '${WORDPRESS_HOSTNAME}_' );
         $$_wpms_smtp_pass = getenv( 'WPMS_SMTP_PASS' );
         if ( $$_wpms_smtp_pass !== false && $$_wpms_smtp_pass !== '' ) {
+            define( 'WPMS_ON', true );
             define( 'WPMS_SMTP_PASS', $$_wpms_smtp_pass );
         }
     volumes:

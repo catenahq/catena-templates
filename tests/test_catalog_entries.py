@@ -1,7 +1,8 @@
 """Per-template facts a host or an action relies on and no generic gate
 checks: what a template's backup mode does, where EspoCRM keeps what its
-admin screens make, the Rocket.Chat settings its Keycloak sign-in needs, and
-the user_oidc release the Nextcloud wiring is written for.
+admin screens make, the Rocket.Chat settings its Keycloak sign-in needs, how
+WordPress's mail plugin reads its relay password, and the user_oidc release
+the Nextcloud wiring is written for.
 """
 from __future__ import annotations
 
@@ -106,6 +107,19 @@ def test_rocket_chat_sends_a_keycloak_account_no_emailed_code_until_an_admin_ask
     key = "Accounts_twoFactorAuthentication_email_available_for_OAuth_users"
     assert env[key] == "false"
     assert f"OVERWRITE_SETTING_{key}" not in env
+
+
+def test_wordpress_mail_authenticates_with_the_relay_password_from_its_env():
+    """WP Mail SMTP reads a WPMS_* constant only while WPMS_ON is true
+    (src/Options.php is_const_enabled), so the password constant is defined
+    with it, and both only when the env carries the password."""
+    extra = _service("wordpress", "wp")["environment"]["WORDPRESS_CONFIG_EXTRA"]
+    guarded = extra.split("if ( $$_wpms_smtp_pass !== false && $$_wpms_smtp_pass !== '' ) {", 1)
+    assert len(guarded) == 2, extra
+    body = guarded[1].split("}", 1)[0]
+    assert "define( 'WPMS_ON', true );" in body
+    assert "define( 'WPMS_SMTP_PASS', $$_wpms_smtp_pass );" in body
+    assert "WPMS_ON" not in guarded[0]
 
 
 def test_nextcloud_names_the_user_oidc_release_its_wiring_is_written_for():
