@@ -13,10 +13,34 @@ from __future__ import annotations
 
 import re
 
-from .model import SourceError, load_meta, load_sources
+from .model import COMPOSE_NAME, SourceError, load_meta, load_sources
 
 # `image: postgres:<tag>` only. MariaDB / Mongo / Redis are governed elsewhere.
 _PG_PIN = re.compile(r"^\s*image:\s*(postgres:[^\s#]+)\s*(?:#.*)?$", re.MULTILINE)
+
+
+def pin_errors(slug: str, body: str, *, override: str | None,
+               default: str) -> tuple[int, list[str]]:
+    """How many vanilla-postgres pins one compose body has, and the
+    violations among them. The registry importer records these on an
+    imported entry before the lint sees it."""
+    pins = _PG_PIN.findall(body)
+    if not pins:
+        return 0, []
+    expected = override or default
+    which = "postgres_image_override" if override else "postgres_default_image"
+    errors = [
+        f"{slug}: {COMPOSE_NAME} pins {pin!r} but {which} is {expected!r}. "
+        f"Match the central default, or add a justified "
+        f"postgres_image_override if this app cannot run it."
+        for pin in pins if pin != expected
+    ]
+    if override and override == default:
+        errors.append(
+            f"{slug}: postgres_image_override equals "
+            f"postgres_default_image ({default!r}); drop the override."
+        )
+    return len(pins), errors
 
 
 def lint_all() -> int:
@@ -34,25 +58,11 @@ def lint_all() -> int:
     errors: list[str] = []
     checked = 0
     for entry in entries:
-        pins = _PG_PIN.findall(entry.compose_path.read_text())
-        if not pins:
-            continue
-        override = entry.catena.get("postgres_image_override")
-        expected = override or default
-        for pin in pins:
-            checked += 1
-            if pin != expected:
-                which = "postgres_image_override" if override else "postgres_default_image"
-                errors.append(
-                    f"{entry.slug}: {entry.compose_path.name} pins {pin!r} but "
-                    f"{which} is {expected!r}. Match the central default, or add "
-                    f"a justified postgres_image_override if this app cannot run it."
-                )
-        if override and override == default:
-            errors.append(
-                f"{entry.slug}: postgres_image_override equals "
-                f"postgres_default_image ({default!r}); drop the override."
-            )
+        count, found = pin_errors(
+            entry.slug, entry.compose_path.read_text(),
+            override=entry.catena.get("postgres_image_override"), default=default)
+        checked += count
+        errors.extend(found)
 
     if errors:
         print("postgres-pin policy violations:")

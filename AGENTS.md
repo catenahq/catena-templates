@@ -35,6 +35,17 @@ for layout, consumer model, and BASE URL setup.
   be deleted.
 - Bilingual prose (the `x-catena.en` / `x-catena.fr` blocks): both
   required, no EN-only or FR-only templates.
+- An entry `build/import_registry.py` writes carries
+  `x-catena.status: imported` and publishes marked untested, with stubs
+  for its bench pack, sizing and prose. Import only from MIT, Apache-2.0
+  or BSD sources: never widen `origin.licence` in the schema, and never
+  import an entry whose licence the importer reports unknown. An imported
+  entry merges only once `make` passes and the app checker reports no
+  error on it (catena-admin CI runs `catena-applint --catalog` over every
+  blueprint): every error the importer records in `pending.findings` is
+  fixed, or the entry is dropped. Finishing an imported entry means filling
+  every stub, settling `pending`, then deleting `pending` and `status`;
+  `origin` stays.
 - No secrets, ever. Sentinel placeholders (`__CATENA_OPERATOR_WIRED__`)
   in templates.json. This repo is public and one file serves every
   client, so it cannot hold a per-host value; a client's Portainer reads
@@ -147,7 +158,10 @@ quiesce on every host, and the backup is then taken without it.
 ## Validation layers
 
 1. `sources.schema.json` -- field shapes, enums, required keys,
-   the quiesce timeout cap. Runs on every load, not just in CI.
+   the quiesce timeout cap, and the imported tier (an imported entry
+   names its origin and its pending list; only a curated one has to
+   carry a bench pack and a measured peak). Runs on every load, not just
+   in CI.
 2. Cross-file invariants in `lib/model.py` -- id matches filename, no
    duplicate slug, the compose file exists, no `env_managed_keys` entry
    that names nothing.
@@ -167,7 +181,7 @@ quiesce on every host, and the backup is then taken without it.
 
 ## Add a new template
 
-1. `sources/<id>.json`. Required: `id`, `type` (3), `title`, `name`,
+1. `sources/<id>.json`. Required: `id`, `type` (2), `title`, `name`,
    `categories`, `platform`, and the `x-catena` block (`app_name`,
    `upstream_url`, `sso_mode`, `domain`, `compose_file`, `env_defaults`,
    `bench.pack`, `sizing.peak_ram_mb`, `en`, `fr`).

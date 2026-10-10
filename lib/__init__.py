@@ -7,6 +7,9 @@ generated from it by `lib.render` and gated for drift in CI.
 Modules:
   model         -- load + validate sources/, expose the entry model
   render        -- write blueprints/ + templates.json + catalog.json + index.html
+  readme        -- one template's README from its prose
   quiesce_lint  -- security lint over the backup quiesce hooks
   postgres_pins -- central Postgres image pin enforcement
+  swarm_lint    -- swarm stack file compatibility gate
+  importers     -- write untested entries from a third-party registry
 """

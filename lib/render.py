@@ -98,6 +98,10 @@ MANAGED_ENV_DESCRIPTION = (
     "the real value; deploying this file directly does not."
 )
 
+# How the gallery, the detail panel and the preview name an entry the registry
+# importer wrote and no person has finished.
+IMPORTED_MARK = "Imported, untested"
+
 
 def strip_jinja_for_portainer(value: str) -> str:
     """Turn a raw env_defaults value into a Portainer env default.
@@ -150,9 +154,13 @@ def render_env(entry: Entry) -> list[dict[str, str]]:
 def render_note(entry: Entry) -> str:
     """The note is Portainer's detail panel. It gets what the gallery
     description has no room for: the one-line pitch, what it replaces,
-    and the docs link."""
+    and the docs link. An imported entry says so first, and an entry with an
+    origin names its template source and licence."""
     en = entry.prose("en")
-    parts = [f"<p>{html.escape(en['what_it_is'])}</p>"]
+    parts = []
+    if entry.imported:
+        parts.append(f"<p>{IMPORTED_MARK}: not yet tested on a Catena server.</p>")
+    parts.append(f"<p>{html.escape(en['what_it_is'])}</p>")
     replaces = en.get("replaces") or []
     if replaces:
         parts.append(
@@ -166,12 +174,21 @@ def render_note(entry: Entry) -> str:
             safe = html.escape(line)
             parts.append(f'<p><a href="{safe}">{safe}</a></p>')
             break
+    origin = entry.origin
+    if origin:
+        source = html.escape(origin["source"])
+        parts.append(
+            f'<p>Template source: <a href="{source}">{source}</a>, '
+            f"{html.escape(origin['licence'])}. {html.escape(origin['attribution'])}</p>"
+        )
     return "".join(parts)
 
 
 def render_portainer_template(entry: Entry, logo_filename: str) -> dict[str, Any]:
     en = entry.prose("en")
     description = en["compose_description"].strip().split("\n")[0]
+    if entry.imported:
+        description = f"{IMPORTED_MARK}: {description}"
     return {
         "categories": list(entry.raw["categories"]),
         "description": description,
@@ -193,7 +210,8 @@ def render_portainer_template(entry: Entry, logo_filename: str) -> dict[str, Any
 def render_catalog_entry(entry: Entry) -> dict[str, Any]:
     """The flat machine view. Key names match what the consumers join
     on; the nesting in sources/ exists for the human editing it. The
-    lifecycle and quiesce blocks pass through unchanged."""
+    lifecycle and quiesce blocks pass through unchanged, and so do an
+    imported entry's status, origin and null stubs."""
     cat = entry.catena
     bench = cat["bench"]
     out: dict[str, Any] = {
@@ -214,6 +232,10 @@ def render_catalog_entry(entry: Entry) -> dict[str, Any]:
         "en": cat["en"],
         "fr": cat["fr"],
     }
+    if entry.imported:
+        out["status"] = cat["status"]
+    if entry.origin:
+        out["origin"] = dict(entry.origin)
     if cat.get("env_managed_keys"):
         out["env_managed_keys"] = list(cat["env_managed_keys"])
     if cat.get("env_required_when"):
@@ -306,10 +328,13 @@ def render_index_html(entries: list[Entry], meta: dict[str, Any]) -> str:
     for entry in entries:
         en = entry.prose("en")
         cats = ", ".join(entry.raw["categories"])
+        name = en["display_name"]
+        if entry.imported:
+            name = f"{name} ({IMPORTED_MARK.lower()})"
         rows.append(
             "      <tr>"
             f"<td><code>{html.escape(entry.slug)}</code></td>"
-            f"<td>{html.escape(en['display_name'])}</td>"
+            f"<td>{html.escape(name)}</td>"
             f"<td>{html.escape(en['what_it_is'])}</td>"
             f"<td>{html.escape(cats)}</td>"
             f"<td>{html.escape(entry.catena['sso_mode'])}</td>"

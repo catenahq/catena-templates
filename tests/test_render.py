@@ -97,7 +97,9 @@ def test_no_ansible_templating_reaches_portainer():
 def test_catalog_json_carries_what_portainer_cannot():
     """The second artifact exists precisely for the fields the Portainer
     format has no slot for. If they stop being emitted, ops loses SSO
-    wiring, bench membership, and sizing in one go."""
+    wiring, bench membership, and sizing in one go. An imported entry
+    carries its origin where a curated one carries its bench pack and its
+    measured peak."""
     doc = json.loads((ROOT / "catalog.json").read_text())
     assert doc["postgres_default_image"].startswith("postgres:")
     assert set(doc["sizing"]) == {
@@ -105,9 +107,12 @@ def test_catalog_json_carries_what_portainer_cannot():
     }
     for entry in doc["templates"]:
         assert entry["sso_mode"]
+        assert entry["en"]["display_name"] and entry["fr"]["display_name"]
+        if entry.get("status") == "imported":
+            assert entry["origin"]["licence"]
+            continue
         assert entry["bench_pack"]
         assert entry["sizing"]["peak_ram_mb"] > 0
-        assert entry["en"]["display_name"] and entry["fr"]["display_name"]
 
 
 def test_catalog_json_and_templates_json_cover_the_same_ids():

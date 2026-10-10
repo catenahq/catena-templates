@@ -90,6 +90,16 @@ class Entry:
     def sizing(self) -> dict[str, Any]:
         return self.catena["sizing"]
 
+    @property
+    def imported(self) -> bool:
+        """Written by the registry importer and not finished by a person:
+        published, and marked untested wherever the catalog shows it."""
+        return self.catena.get("status") == "imported"
+
+    @property
+    def origin(self) -> dict[str, Any] | None:
+        return self.catena.get("origin")
+
     def prose(self, lang: str) -> dict[str, Any]:
         return self.catena[lang]
 

@@ -42,10 +42,12 @@ lib/                     # the build library
                          # unattended: quiesce + lifecycle commands,
                          # sign-in labels
   postgres_pins.py       # central Postgres image enforcement
+  importers/             # the registry importer: pipeline.py, plus one
+                         # adapter per registry format (portainer.py)
 
 build/                   # thin entrypoints
   render.py  validate.py  lint_quiesce.py  lint_postgres_pins.py
-  lint_swarm.py
+  lint_swarm.py  import_registry.py
 
 sources.schema.json      # schema for a sources/<id>.json
 Schema.json              # schema for the generated templates.json
@@ -156,6 +158,48 @@ input, not a catalog to deploy from.
 
 A merge to `main` is live for every new deploy as soon as the consumers
 next fetch the catalog; there are no releases to cut.
+
+## Import from a registry
+
+`build/import_registry.py` writes entries from a third-party template
+registry, one adapter per format (`lib/importers/`; Portainer template
+lists, versions 2 and 3, today):
+
+```
+uv run build/import_registry.py --applint /path/to/catena-applint [--dry-run] \
+    https://raw.githubusercontent.com/<owner>/<repo>/<ref>/templates.json
+```
+
+- **Licence.** Read from GitHub's licence API for the repository the
+  compose file is copied from (the registry's own repository for a
+  single-container entry). Only MIT, Apache-2.0 and BSD-2/3-Clause
+  sources are imported; any other licence, or one GitHub cannot name,
+  skips the entry and the report lists it. `GITHUB_TOKEN` lifts the
+  API's rate limit.
+- **Compose.** A stack entry's file is fetched from its repository; a
+  single-container entry gets a one-service file from its image, ports,
+  volumes, env and labels. The first published TCP port becomes
+  `vps.route.host`/`vps.route.port`, Traefik labels go, and the app
+  checker's `--fix` (catena-admin `payload/cmd/catena-applint`, named by
+  `--applint` or `CATENA_APPLINT`) corrects the rest. Without the
+  checker the import warns and records that it did not run.
+- **Settings.** Every variable the registry or the compose names is an
+  env default; one named like a password, secret or key gets a minted
+  value.
+- **What it writes.** `sources/<id>.json` with `x-catena.status:
+  imported`, the `origin` (registry, source, licence, attribution) and
+  `pending` (the findings left on the compose, and what a person still
+  chooses: version, access, host name, EN/FR text, sizing, bench pack,
+  SSO, quiesce hooks, bind mounts, refused features), plus
+  `blueprints/<id>/docker-compose.yml`, and the id at the end of the
+  `_meta.json` order. An id already in the catalog is left alone.
+
+An imported entry renders with stubs (no bench pack, no measured peak,
+placeholder prose) and the published catalog marks it untested:
+`status` and `origin` in `catalog.json`, "Imported, untested" in the
+Portainer description and note, the README and `index.html`. Finishing
+it means filling the stubs, settling `pending`, and deleting both
+`pending` and `status`; `origin` stays.
 
 ## What does NOT live here
 

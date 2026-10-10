@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://raw.githubusercontent.com/catenahq/catena-templates/main/sources.schema.json",
   "title": "Catena template source",
-  "description": "One hand-edited template definition: the Portainer App Template fields a human owns, plus the x-catena extension block carrying everything the Portainer format has no slot for (SSO wiring, backup quiesce hooks, bench membership, sizing, bilingual prose). sources/<id>.json is canonical; templates.json, catalog.json, blueprints/ and index.html are generated from it.",
+  "description": "One hand-edited template definition: the Portainer App Template fields a human owns, plus the x-catena extension block carrying everything the Portainer format has no slot for (SSO wiring, backup quiesce hooks, bench membership, sizing, bilingual prose). sources/<id>.json is canonical; templates.json, catalog.json, blueprints/ and index.html are generated from it. An entry the registry importer wrote carries x-catena.status \"imported\": it publishes with stubs where a curated entry has hand-written parts, and the published catalog marks it untested.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -66,6 +66,73 @@
         "app_name": {
           "type": "string",
           "pattern": "^[a-z0-9][a-z0-9-]*$"
+        },
+        "status": {
+          "const": "imported",
+          "description": "Marks an entry build/import_registry.py wrote from a third-party registry and no person has finished. Its bench pack and peak_ram_mb may be null stubs and its prose is the importer's placeholder; the published catalog flags it as untested. A curated entry carries no status."
+        },
+        "origin": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "registry",
+            "entry",
+            "source",
+            "licence",
+            "attribution"
+          ],
+          "description": "Where an imported entry's compose file comes from, published with the entry: the registry, the entry's title there, the repository or registry the file is copied from, that source's licence and its copyright notice. It stays once a person finishes the entry.",
+          "properties": {
+            "registry": {
+              "type": "string",
+              "minLength": 1
+            },
+            "entry": {
+              "type": "string",
+              "minLength": 1
+            },
+            "source": {
+              "type": "string",
+              "minLength": 1
+            },
+            "licence": {
+              "enum": [
+                "MIT",
+                "Apache-2.0",
+                "BSD-2-Clause",
+                "BSD-3-Clause"
+              ],
+              "description": "SPDX identifier. Only these permissive licences are imported; the importer reads this list."
+            },
+            "attribution": {
+              "type": "string",
+              "minLength": 1,
+              "description": "The copyright lines of the source's licence file, or that file's address when it carries none."
+            }
+          }
+        },
+        "pending": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "findings",
+            "to_choose"
+          ],
+          "description": "What a person still settles before an imported entry is curated: the findings the app checker and the catalog lint leave on its compose file, and the choices the importer cannot make. Only an imported entry carries it.",
+          "properties": {
+            "findings": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "to_choose": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
         },
         "upstream_url": {
           "type": "string",
@@ -227,8 +294,10 @@
                 "mariadb",
                 "mongo",
                 "nodb",
-                "embedded"
-              ]
+                "embedded",
+                null
+              ],
+              "description": "null only on an imported entry: it is in no bench pack."
             },
             "fixture": {
               "enum": [
@@ -291,9 +360,12 @@
               "minimum": 1
             },
             "peak_ram_mb": {
-              "type": "integer",
+              "type": [
+                "integer",
+                "null"
+              ],
               "minimum": 1,
-              "description": "Required. The bench scheduler multiplies it by 1.15 to gate slot acquisition."
+              "description": "Required. The bench scheduler multiplies it by 1.15 to gate slot acquisition. null only on an imported entry, which is not measured yet."
             },
             "idle_cpu_pct": {
               "type": [
@@ -345,6 +417,40 @@
           },
           "propertyNames": {
             "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+          }
+        }
+      },
+      "dependentRequired": {
+        "pending": [
+          "status"
+        ]
+      },
+      "if": {
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "required": [
+          "origin",
+          "pending"
+        ]
+      },
+      "else": {
+        "properties": {
+          "bench": {
+            "properties": {
+              "pack": {
+                "type": "string"
+              }
+            }
+          },
+          "sizing": {
+            "properties": {
+              "peak_ram_mb": {
+                "type": "integer"
+              }
+            }
           }
         }
       }
