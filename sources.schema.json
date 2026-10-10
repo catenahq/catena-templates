@@ -233,15 +233,26 @@
           "additionalProperties": false,
           "required": [
             "service",
-            "migrate",
             "timeout_seconds"
           ],
-          "description": "Commands the host runs inside one service around a schema change: around every image update the update lane applies, the migration only when the update moves that service's image, and after a FORWARD restore once the database replay has put the snapshot's contents back. Declare it when the application keeps a schema its new code expects migrated. A migration the application runs at container start is not enough on a restore: it runs against the pre-replay database and the replay then overwrites it. Every command is an argv array executed through docker exec, never a shell.",
+          "anyOf": [
+            {
+              "required": [
+                "migrate"
+              ]
+            },
+            {
+              "required": [
+                "versioned_volumes"
+              ]
+            }
+          ],
+          "description": "Commands the host runs inside one service around a schema change, and volumes it copies around an update of that service: the commands around every image update the update lane applies, the migration only when the update moves that service's image, and after a FORWARD restore once the database replay has put the snapshot's contents back. Declare it when the application keeps a schema its new code expects migrated (migrate), or when its new version upgrades state in a volume that the previous version then refuses or misreads (versioned_volumes); an entry declares one or both. A migration the application runs at container start is not enough on a restore: it runs against the pre-replay database and the replay then overwrites it. Every command is an argv array executed through docker exec, never a shell.",
           "properties": {
             "service": {
               "type": "string",
               "minLength": 1,
-              "description": "Compose service the commands run inside."
+              "description": "Compose service the commands run inside, and whose new version upgrades the versioned volumes."
             },
             "user": {
               "type": "string",
@@ -271,13 +282,13 @@
                 "type": "string",
                 "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$"
               },
-              "description": "Named volumes the new version upgrades in place and the previous version refuses to start on: the application's code tree, its configuration, its add-ons. The update lane copies each one before the update and, when the update rolls back, puts the copy back with every service that mounts it stopped. Never a volume holding the application's data, which a rollback must not take back in time, and never one a database or a one-shot service mounts: a rollback does not stop either."
+              "description": "Named volumes the new version of the service upgrades in place and the previous version refuses to start on or misreads: the application's code tree, its configuration, its add-ons, or the database files it keeps in a volume (SQLite). The update lane copies each one before an update that moves the service, with the application in its backup mode when it declares one, and, when the update rolls back, puts the copy back with every service that mounts it stopped; what was written to the volume since the copy is lost, as a database dump's replay loses it. A volume of the users' files that the previous version still reads stays out, and so does one a database or a one-shot service mounts: a rollback does not stop either."
             },
             "timeout_seconds": {
               "type": "integer",
               "minimum": 1,
               "maximum": 3600,
-              "description": "Ceiling for each command."
+              "description": "Ceiling for each command, database dump and replay, and volume copy and put-back."
             }
           }
         },

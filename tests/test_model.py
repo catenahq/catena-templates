@@ -242,6 +242,21 @@ def test_lifecycle_versioned_volumes_are_distinct_volume_names(sources, volumes)
     assert model.load_sources()[0].lifecycle["versioned_volumes"] == ["code", "conf.d"]
 
 
+def test_a_lifecycle_declares_a_migration_or_versioned_volumes(sources):
+    """An application whose new version upgrades a volume as it starts has
+    no migration to declare, only the volumes a rollback puts back. A block
+    with neither gives the host nothing to do."""
+    doc = _valid_doc()
+    doc["x-catena"]["lifecycle"] = {
+        "service": "app", "versioned_volumes": ["data"], "timeout_seconds": 300}
+    _write(sources, doc)
+    assert model.load_sources()[0].lifecycle == doc["x-catena"]["lifecycle"]
+    del doc["x-catena"]["lifecycle"]["versioned_volumes"]
+    _write(sources, doc)
+    with pytest.raises(model.SourceError, match="x-catena/lifecycle"):
+        model.load_sources()
+
+
 def test_empty_sources_directory_is_an_error(sources):
     with pytest.raises(model.SourceError, match="no template files"):
         model.load_sources()

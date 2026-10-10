@@ -89,7 +89,9 @@ def test_lifecycle_timeout_cap_lives_in_the_schema():
     schema = json.loads((ROOT / "sources.schema.json").read_text())
     lifecycle = schema["properties"]["x-catena"]["properties"]["lifecycle"]
     assert lifecycle["properties"]["timeout_seconds"]["maximum"] == 3600
-    assert lifecycle["required"] == ["service", "migrate", "timeout_seconds"]
+    assert lifecycle["required"] == ["service", "timeout_seconds"]
+    assert lifecycle["anyOf"] == [{"required": ["migrate"]},
+                                  {"required": ["versioned_volumes"]}]
 
 
 def test_quiesce_timeout_cap_lives_in_the_schema():

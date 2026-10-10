@@ -214,11 +214,17 @@ it.
    it exits 0, for an image whose entrypoint
    copies or upgrades the application before starting it. Commands are
    argv arrays -- `docker exec` gives them no shell. `versioned_volumes`
-   names the volumes the new version upgrades in place and the old one
-   refuses to start on (code tree, configuration, add-ons, never data):
-   the lane copies them before an update and puts the copies back when
-   it rolls back. Real examples: `sources/outline.json`,
-   `sources/nextcloud-s3-oidc.json`, `sources/erpnext.json`.
+   names the volumes the new version of that service upgrades in place
+   and the old one refuses to start on or misreads (code tree,
+   configuration, add-ons, or a SQLite database; never a volume of the
+   users' files the old one still reads): the lane copies them before an
+   update, in the backup mode when the entry declares one, and puts the
+   copies back when it rolls back, losing what was written since, as a
+   database dump's replay does. An application that upgrades such a
+   volume as it starts declares `service`, `versioned_volumes` and
+   `timeout_seconds` alone. Real examples: `sources/outline.json`,
+   `sources/nextcloud-s3-oidc.json`, `sources/erpnext.json`,
+   `sources/actualbudget.json`.
 6. `make` -- render + lint + test. Commit the regenerated artifacts.
 7. Open a PR. CI must pass `build-and-verify.yml`, `check:unicode` and `check:prose`.
 

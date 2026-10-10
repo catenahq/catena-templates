@@ -219,13 +219,13 @@ def lint_all() -> int:
 
     all_errors: list[str] = []
     with_hooks = 0
-    with_migrations = 0
+    with_lifecycle = 0
 
     for entry in entries:
         all_errors.extend(lint_signin(entry))
         lifecycle = entry.lifecycle
         if lifecycle:
-            with_migrations += 1
+            with_lifecycle += 1
             for key in LIFECYCLE_LISTS:
                 for idx, argv in enumerate(lifecycle.get(key) or []):
                     all_errors.extend(lint_migrate_argv(
@@ -262,6 +262,6 @@ def lint_all() -> int:
         return 1
     print(
         f"hook lint OK ({with_hooks} templates with quiesce commands, "
-        f"{with_migrations} with lifecycle commands)"
+        f"{with_lifecycle} with a lifecycle block)"
     )
     return 0

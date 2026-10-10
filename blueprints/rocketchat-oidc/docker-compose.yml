@@ -111,7 +111,7 @@ services:
   # === JITSI BEGIN -- bundled on-server video conferencing ================
   # Always-on. The catena.run product story requires sovereign video --
   # no calls leave the server, no fallback to public meet.jit.si.
-  # The shared coturn at turn.<base> (catena-ce reconcile/roles/coturn)
+  # The shared coturn at ${TURN_HOSTNAME} (catena-ce reconcile/roles/coturn)
   # handles restrictive-network media relay; JVB advertises ${VPS_PUBLIC_IP}
   # in ICE candidates so direct peer-to-JVB UDP works for the typical
   # case (no relay needed).
@@ -217,8 +217,8 @@ services:
       JVB_ADVERTISE_IPS: ${VPS_PUBLIC_IP}
       # Restrictive-network fallback. JVB hands clients an `iceServers`
       # list pointing at the shared coturn; clients that cannot reach
-      # JVB on UDP/10000 directly relay through turn.<base>:5349.
-      JVB_TURN_HOST: turn.${ROCKETCHAT_HOSTNAME_BASE}
+      # JVB on UDP/10000 directly relay through ${TURN_HOSTNAME}:5349.
+      JVB_TURN_HOST: ${TURN_HOSTNAME}
       JVB_TURN_PORT: "5349"
       JVB_TURN_TRANSPORT: tcp
       JVB_TURN_SECRET: ${TURN_STATIC_AUTH_SECRET}

@@ -68,6 +68,11 @@
     ],
     "env_required_when": {
       "RELAY_PASSWORD": "RELAY_HOST"
+    },
+    "lifecycle": {
+      "service": "roundcube",
+      "versioned_volumes": ["roundcube-db"],
+      "timeout_seconds": 300
     }
   }
 }

@@ -25,6 +25,7 @@
       "ADMIN_PASS={{ admin_password }}",
       "ADMIN_EMAIL={{ admin_email }}",
       "VPS_PUBLIC_IP={{ public_ip }}",
+      "TURN_HOSTNAME={{ coturn_hostname | default('turn.' ~ cloudflare_zone) }}",
       "TURN_STATIC_AUTH_SECRET={{ turn_static_auth_secret }}",
       "JITSI_JICOFO_AUTH_PASSWORD={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}",
       "JITSI_JICOFO_COMPONENT_SECRET={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}",
@@ -69,6 +70,7 @@
     },
     "env_managed_keys": [
       "VPS_PUBLIC_IP",
+      "TURN_HOSTNAME",
       "TURN_STATIC_AUTH_SECRET"
     ],
     "quiesce": {

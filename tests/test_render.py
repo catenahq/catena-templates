@@ -152,19 +152,20 @@ def test_quiesce_reaches_the_catalog_unchanged():
 def test_lifecycle_reaches_the_catalog_unchanged():
     """The update engine and the recovery engine read this out of
     catalog.json on a client host, unattended. A key the render drops is a
-    migration that never runs, and nothing downstream can tell that from an
-    app that declared none."""
+    migration that never runs, or a volume a rollback does not put back, and
+    nothing downstream can tell that from an app that declared none."""
     catalog = {
         e["id"]: e for e in json.loads((ROOT / "catalog.json").read_text())["templates"]
     }
-    declared = 0
+    migrating = versioning = 0
     for entry in model.load_sources():
         spec = entry.lifecycle
         assert catalog[entry.slug].get("lifecycle") == spec, entry.slug
         if spec:
-            declared += 1
-            assert spec["migrate"], entry.slug
-    assert declared > 0
+            assert spec.get("migrate") or spec.get("versioned_volumes"), entry.slug
+            migrating += bool(spec.get("migrate"))
+            versioning += bool(spec.get("versioned_volumes"))
+    assert migrating > 0 and versioning > 0
 
 
 def test_every_blueprint_carries_its_compose_and_its_readme():

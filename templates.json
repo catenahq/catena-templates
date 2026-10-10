@@ -293,6 +293,12 @@
         {
           "default": "__CATENA_OPERATOR_WIRED__",
           "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
+          "label": "TURN hostname",
+          "name": "TURN_HOSTNAME"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "TURN static auth secret",
           "name": "TURN_STATIC_AUTH_SECRET"
         },
