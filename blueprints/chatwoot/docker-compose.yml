@@ -29,15 +29,10 @@ services:
     labels:
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=3000"
-      - "vps.route.service=rails"
       - "vps.auth.mode=public"
       - "vps.auto-update=patch"
-      - "vps.app=catena-chatwoot"
-      - "vps.component=rails"
     networks:
-      catena-network:
-        aliases:
-          - catena-chatwoot
+      catena-network: {}
       default: {}
 
   sidekiq:
@@ -64,8 +59,6 @@ services:
       - storage-data:/app/storage
     labels:
       - "vps.auto-update=patch"
-      - "vps.app=catena-chatwoot"
-      - "vps.component=sidekiq"
     networks:
       - default
 
@@ -92,8 +85,6 @@ services:
       start_period: 10m
     labels:
       - "vps.auto-update=patch"
-      - "vps.app=catena-chatwoot"
-      - "vps.component=db"
     networks:
       - default
 
@@ -104,8 +95,6 @@ services:
         condition: any
     labels:
       - "vps.auto-update=patch"
-      - "vps.app=catena-chatwoot"
-      - "vps.component=redis"
     networks:
       - default
 

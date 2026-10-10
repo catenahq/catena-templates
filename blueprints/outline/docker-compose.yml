@@ -51,18 +51,13 @@ services:
     labels:
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=3000"
-      - "vps.route.service=outline"
       - "vps.auth.mode=public"
       - "vps.auth.oidc=true"
       - "vps.auth.groups=staff"
       - "vps.auth.oidc.redirect_uris=https://${OUTLINE_HOSTNAME}/auth/oidc.callback"
       - "vps.auto-update=patch"
-      - "vps.app=catena-outline"
-      - "vps.component=outline"
     networks:
-      catena-network:
-        aliases:
-          - catena-outline
+      catena-network: {}
       default: {}
 
   db:
@@ -88,8 +83,6 @@ services:
       start_period: 10m
     labels:
       - "vps.auto-update=patch"
-      - "vps.app=catena-outline"
-      - "vps.component=db"
     networks:
       - default
 
@@ -100,8 +93,6 @@ services:
         condition: any
     labels:
       - "vps.auto-update=patch"
-      - "vps.app=catena-outline"
-      - "vps.component=redis"
     networks:
       - default
 

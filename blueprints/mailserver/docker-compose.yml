@@ -80,8 +80,6 @@ services:
       # Mail ports -> public-port registry (host reconciler applies ufw).
       - "vps.expose.tcp=25,465,587,993"
       - "vps.auto-update=patch"
-      - "vps.app=catena-mailserver"
-      - "vps.component=dms"
     networks:
       default: {}
       # Shared antivirus: rspamd reaches the ops-managed clamd at
@@ -119,24 +117,19 @@ services:
     labels:
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=80"
-      - "vps.route.service=roundcube"
       # Roundcube does its OWN Keycloak login (not behind oauth2-proxy);
       # public at the proxy layer, OIDC enforced by the app.
       - "vps.auth.mode=public"
       - "vps.auto-update=patch"
-      - "vps.app=catena-mailserver"
-      - "vps.component=roundcube"
     networks:
       catena-network:
         aliases:
-          - catena-mailserver
           - roundcube
       default: {}
 
   # MTA-STS policy host. docker-mailserver serves no HTTPS, so this tiny
-  # nginx publishes the RFC 8461 policy at
-  # mta-sts.<zone>/.well-known/mta-sts.txt. Routed via Traefik + the
-  # tunnel like any HTTP app (catalog extra_domains adds the router).
+  # nginx serves the RFC 8461 policy for
+  # mta-sts.<zone>/.well-known/mta-sts.txt.
   # The policy is baked from MAIL_HOSTNAME at container start.
   mta-sts:
     image: nginx:1.31.6-alpine
@@ -177,10 +170,7 @@ services:
       retries: 5
       start_period: 10s
     labels:
-      - "vps.auth.mode=public"
       - "vps.auto-update=patch"
-      - "vps.app=catena-mailserver"
-      - "vps.component=mta-sts"
     networks:
       catena-network:
         aliases:

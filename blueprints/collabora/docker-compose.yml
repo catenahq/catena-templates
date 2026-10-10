@@ -17,19 +17,14 @@ services:
     labels:
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=9980"
-      - "vps.route.service=collabora"
       # The WOPI allow-list above is what authenticates a caller, so the
       # route carries no auth proxy: the editor loads in an iframe, and
       # an auth redirect inside that iframe lands on the Keycloak login
       # page instead of the document.
       - "vps.auth.mode=public"
       - "vps.auto-update=patch"
-      - "vps.app=catena-collabora"
-      - "vps.component=collabora"
     networks:
-      catena-network:
-        aliases:
-          - catena-collabora
+      catena-network: {}
       default: {}
 
 networks:

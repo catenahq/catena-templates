@@ -30,8 +30,6 @@ services:
       - mongodb-config:/data/configdb
     labels:
       - "vps.auto-update=patch"
-      - "vps.app=catena-rocketchat"
-      - "vps.component=mongodb"
     networks:
       default:
         aliases:
@@ -90,18 +88,13 @@ services:
     labels:
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=3000"
-      - "vps.route.service=rocketchat"
       - "vps.auth.mode=public"
       - "vps.auth.oidc=true"
       - "vps.auth.groups=staff"
       - "vps.auth.oidc.redirect_uris=https://${ROCKETCHAT_HOSTNAME}/_oauth/keycloak"
       - "vps.auto-update=patch"
-      - "vps.app=catena-rocketchat"
-      - "vps.component=rocketchat"
     networks:
-      catena-network:
-        aliases:
-          - catena-rocketchat
+      catena-network: {}
       default: {}
 
   # === JITSI BEGIN -- bundled on-server video conferencing ================
@@ -147,8 +140,6 @@ services:
       TZ: Etc/UTC
     labels:
       - "vps.auto-update=patch"
-      - "vps.app=catena-rocketchat"
-      - "vps.component=prosody"
     networks:
       default:
         aliases:
@@ -181,8 +172,6 @@ services:
       TZ: Etc/UTC
     labels:
       - "vps.auto-update=patch"
-      - "vps.app=catena-rocketchat"
-      - "vps.component=jicofo"
     networks:
       - default
 
@@ -226,8 +215,6 @@ services:
     labels:
       - "vps.expose.udp=10000"
       - "vps.auto-update=patch"
-      - "vps.app=catena-rocketchat"
-      - "vps.component=jvb"
     networks:
       - default
 
@@ -250,12 +237,7 @@ services:
       XMPP_RECORDER_DOMAIN: recorder.meet.jitsi
       TZ: Etc/UTC
     labels:
-      # vps.auth.mode=public so room URLs work for anonymous participants:
-      # Jitsi rooms are joined by link.
-      - "vps.auth.mode=public"
       - "vps.auto-update=patch"
-      - "vps.app=catena-rocketchat"
-      - "vps.component=jitsi-web"
     networks:
       catena-network:
         aliases:

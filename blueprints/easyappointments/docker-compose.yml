@@ -25,15 +25,10 @@ services:
     labels:
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=80"
-      - "vps.route.service=easyappointments"
       - "vps.auth.mode=public"
       - "vps.auto-update=patch"
-      - "vps.app=catena-easyappointments"
-      - "vps.component=easyappointments"
     networks:
-      catena-network:
-        aliases:
-          - catena-easyappointments
+      catena-network: {}
       default: {}
 
   db:
@@ -59,8 +54,6 @@ services:
       start_period: 10m
     labels:
       - "vps.auto-update=patch"
-      - "vps.app=catena-easyappointments"
-      - "vps.component=db"
     networks:
       - default
 

@@ -74,18 +74,13 @@ services:
     labels:
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=8080"
-      - "vps.route.service=windshift"
       - "vps.auth.mode=public"
       - "vps.auth.oidc=true"
       - "vps.auth.groups=staff"
       - "vps.auth.oidc.redirect_uris=https://${WINDSHIFT_HOSTNAME}/api/sso/callback/keycloak"
       - "vps.auto-update=patch"
-      - "vps.app=catena-windshift"
-      - "vps.component=windshift"
     networks:
-      catena-network:
-        aliases:
-          - catena-windshift
+      catena-network: {}
       default: {}
 
   db:
@@ -111,8 +106,6 @@ services:
       start_period: 10m
     labels:
       - "vps.auto-update=patch"
-      - "vps.app=catena-windshift"
-      - "vps.component=db"
     networks:
       - default
 

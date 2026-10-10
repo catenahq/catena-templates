@@ -22,16 +22,10 @@ services:
     labels:
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=8001"
-      - "vps.route.service=kimai"
       - "vps.auth.mode=public"
-      - "vps.auth.groups=staff"
       - "vps.auto-update=patch"
-      - "vps.app=catena-kimai"
-      - "vps.component=kimai"
     networks:
-      catena-network:
-        aliases:
-          - catena-kimai
+      catena-network: {}
       default: {}
 
   db:
@@ -57,8 +51,6 @@ services:
       start_period: 10m
     labels:
       - "vps.auto-update=patch"
-      - "vps.app=catena-kimai"
-      - "vps.component=db"
     networks:
       - default
 

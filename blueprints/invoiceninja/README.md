@@ -21,7 +21,7 @@ arranged beforehand, on request.
 1. Click **Deploy**. Wait ~2 min for the first boot (Laravel migrations + admin user seeding via `init.sh`).
 2. **One-time: generate APP_KEY**. From a shell on the VPS:
    ```
-   docker exec $(docker ps --filter name=invoiceninja-app --format '{{.Names}}' | head -1) \
+   docker exec $(docker ps --filter label=com.docker.swarm.service.name=catena-invoiceninja_app --format '{{.Names}}' | head -1) \
      runuser -u www-data -- php artisan key:generate --show --no-interaction
    ```
    Copy the `base64:...` output. In Portainer: edit the **Environment variables** -> set `INVOICENINJA_APP_KEY` to the copied value, then click **Update the stack** to redeploy.
@@ -43,7 +43,7 @@ Invoice Ninja's self-hosted edition ships under the Elastic License 2.0. Two pra
 
 ### Authentication
 
-Native OIDC for self-hosted is an open feature request upstream. Until it ships, Invoice Ninja uses local username/password. The Keycloak `staff` group gates access at the Traefik edge via oauth2-proxy before traffic reaches Invoice Ninja, so people outside the staff group cannot reach the login page.
+Native OIDC for self-hosted is an open feature request upstream. Until it ships, Invoice Ninja uses local username/password. The address is open to the internet, since clients pay their invoices in its portal: Invoice Ninja's own login protects the rest.
 
 ### Payment processing
 
@@ -94,7 +94,7 @@ préalable, sur demande.
 1. Cliquez **Deploy**. Patientez ~2 min pour le premier démarrage (migrations Laravel + création de l'admin par `init.sh`).
 2. **Une seule fois : générez APP_KEY**. Depuis un terminal sur le VPS :
    ```
-   docker exec $(docker ps --filter name=invoiceninja-app --format '{{.Names}}' | head -1) \
+   docker exec $(docker ps --filter label=com.docker.swarm.service.name=catena-invoiceninja_app --format '{{.Names}}' | head -1) \
      runuser -u www-data -- php artisan key:generate --show --no-interaction
    ```
    Copiez la sortie `base64:...`. Dans Portainer : modifiez les **variables d'environnement** -> réglez `INVOICENINJA_APP_KEY` à la valeur copiée, puis cliquez **Update the stack** pour redéployer.
@@ -116,7 +116,7 @@ L'édition auto-hébergée d'Invoice Ninja est sous Elastic License 2.0. Deux im
 
 ### Authentification
 
-OIDC natif en auto-hébergement est une demande ouverte côté upstream. En attendant, Invoice Ninja utilise un identifiant local. Le groupe Keycloak `staff` filtre l'accès au bord Traefik via oauth2-proxy avant que le trafic n'atteigne Invoice Ninja, donc les personnes hors de l'équipe ne peuvent pas atteindre la page de connexion.
+OIDC natif en auto-hébergement est une demande ouverte côté upstream. En attendant, Invoice Ninja utilise un identifiant local. L'adresse est ouverte sur Internet, puisque les clients paient leurs factures dans son portail : la connexion propre à Invoice Ninja protège le reste.
 
 ### Traitement des paiements
 

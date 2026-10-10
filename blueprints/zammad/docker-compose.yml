@@ -62,9 +62,6 @@ services:
         end
     volumes:
       - zammad-storage:/opt/zammad/storage
-    labels:
-      - "vps.app=catena-zammad"
-      - "vps.component=zammad-init"
     networks:
       - default
 
@@ -82,8 +79,6 @@ services:
       - zammad-storage:/opt/zammad/storage
     labels:
       - "vps.auto-update=patch"
-      - "vps.app=catena-zammad"
-      - "vps.component=zammad-railsserver"
     networks:
       - default
 
@@ -96,8 +91,6 @@ services:
     environment: *zammad-env
     labels:
       - "vps.auto-update=patch"
-      - "vps.app=catena-zammad"
-      - "vps.component=zammad-websocket"
     networks:
       - default
 
@@ -115,8 +108,6 @@ services:
       - zammad-storage:/opt/zammad/storage
     labels:
       - "vps.auto-update=patch"
-      - "vps.app=catena-zammad"
-      - "vps.component=zammad-scheduler"
     networks:
       - default
 
@@ -134,19 +125,14 @@ services:
     labels:
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=8080"
-      - "vps.route.service=zammad-nginx"
       - "vps.auth.mode=public"
       - "vps.auth.oidc=true"
       - "vps.auth.oidc.public=true"
       - "vps.auth.groups=staff"
       - "vps.auth.oidc.redirect_uris=https://${ZAMMAD_HOSTNAME}/auth/openid_connect/callback"
       - "vps.auto-update=patch"
-      - "vps.app=catena-zammad"
-      - "vps.component=zammad-nginx"
     networks:
-      catena-network:
-        aliases:
-          - catena-zammad
+      catena-network: {}
       default: {}
 
   db:
@@ -172,8 +158,6 @@ services:
       start_period: 10m
     labels:
       - "vps.auto-update=patch"
-      - "vps.app=catena-zammad"
-      - "vps.component=db"
     networks:
       - default
 
@@ -184,8 +168,6 @@ services:
         condition: any
     labels:
       - "vps.auto-update=patch"
-      - "vps.app=catena-zammad"
-      - "vps.component=redis"
     networks:
       - default
 
@@ -197,8 +179,6 @@ services:
     command: ["memcached", "-m", "256"]
     labels:
       - "vps.auto-update=patch"
-      - "vps.app=catena-zammad"
-      - "vps.component=memcached"
     networks:
       - default
 
@@ -224,8 +204,6 @@ services:
       start_period: 60s
     labels:
       - "vps.auto-update=off"
-      - "vps.app=catena-zammad"
-      - "vps.component=elasticsearch"
     networks:
       - default
 

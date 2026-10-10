@@ -30,15 +30,10 @@ services:
     labels:
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=5678"
-      - "vps.route.service=n8n"
       - "vps.auth.mode=public"
       - "vps.auto-update=patch"
-      - "vps.app=catena-n8n"
-      - "vps.component=n8n"
     networks:
-      catena-network:
-        aliases:
-          - catena-n8n
+      catena-network: {}
       default: {}
 
   db:
@@ -64,8 +59,6 @@ services:
       start_period: 10m
     labels:
       - "vps.auto-update=patch"
-      - "vps.app=catena-n8n"
-      - "vps.component=db"
     networks:
       - default
 

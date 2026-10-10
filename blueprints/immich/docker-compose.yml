@@ -78,18 +78,13 @@ services:
     labels:
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=2283"
-      - "vps.route.service=immich-server"
       - "vps.auth.mode=public"
       - "vps.auth.oidc=true"
       - "vps.auth.groups=staff"
       - "vps.auth.oidc.redirect_uris=https://${IMMICH_HOSTNAME}/auth/login,https://${IMMICH_HOSTNAME}/user-settings,app.immich:///oauth-callback"
       - "vps.auto-update=patch"
-      - "vps.app=catena-immich"
-      - "vps.component=immich-server"
     networks:
-      catena-network:
-        aliases:
-          - catena-immich
+      catena-network: {}
       default: {}
 
   # The service name is the address Immich's default machine-learning URL
@@ -106,8 +101,6 @@ services:
       - model-cache:/cache
     labels:
       - "vps.auto-update=patch"
-      - "vps.app=catena-immich"
-      - "vps.component=immich-machine-learning"
     networks:
       - default
 
@@ -132,9 +125,6 @@ services:
         target: /dev/shm
         tmpfs:
           size: 134217728
-    labels:
-      - "vps.app=catena-immich"
-      - "vps.component=db"
     networks:
       - default
 
@@ -145,8 +135,6 @@ services:
         condition: any
     labels:
       - "vps.auto-update=patch"
-      - "vps.app=catena-immich"
-      - "vps.component=redis"
     networks:
       - default
 

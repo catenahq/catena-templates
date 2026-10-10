@@ -27,15 +27,10 @@ services:
     labels:
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=80"
-      - "vps.route.service=documentserver"
       - "vps.auth.mode=public"
       - "vps.auto-update=patch"
-      - "vps.app=catena-onlyoffice"
-      - "vps.component=documentserver"
     networks:
-      catena-network:
-        aliases:
-          - catena-onlyoffice
+      catena-network: {}
       default: {}
 
 volumes:

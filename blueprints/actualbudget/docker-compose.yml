@@ -16,15 +16,10 @@ services:
     labels:
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=5006"
-      - "vps.route.service=actual"
       - "vps.auth.mode=public"
       - "vps.auto-update=patch"
-      - "vps.app=catena-actualbudget"
-      - "vps.component=actual"
     networks:
-      catena-network:
-        aliases:
-          - catena-actualbudget
+      catena-network: {}
       default: {}
 
 volumes:

@@ -48,8 +48,6 @@ services:
       start_period: 60s
     labels:
       - "vps.auto-update=patch"
-      - "vps.app=catena-wordpress"
-      - "vps.component=wp"
     networks:
       - default
 
@@ -221,15 +219,10 @@ services:
     labels:
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=80"
-      - "vps.route.service=nginx"
       - "vps.auth.mode=public"
       - "vps.auto-update=patch"
-      - "vps.app=catena-wordpress"
-      - "vps.component=nginx"
     networks:
-      catena-network:
-        aliases:
-          - catena-wordpress
+      catena-network: {}
       default: {}
 
   db:
@@ -255,8 +248,6 @@ services:
       start_period: 10m
     labels:
       - "vps.auto-update=patch"
-      - "vps.app=catena-wordpress"
-      - "vps.component=db"
     networks:
       - default
 
@@ -272,8 +263,6 @@ services:
       retries: 5
     labels:
       - "vps.auto-update=patch"
-      - "vps.app=catena-wordpress"
-      - "vps.component=redis"
     networks:
       - default
 

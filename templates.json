@@ -332,7 +332,7 @@
         "Communication",
         "Chat"
       ],
-      "description": "Element + Matrix homeserver. Chat (E2EE), voice, group video, SIP dial-in. Keycloak SSO pre-wired. Federation off by default.",
+      "description": "Element + Matrix homeserver. Chat (E2EE), voice, group video. Keycloak SSO pre-wired. Federation off by default.",
       "env": [
         {
           "default": "element.",
@@ -449,7 +449,7 @@
       "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/element/logo.svg",
       "maintainer": "https://github.com/catenahq/catena-templates",
       "name": "catena-element",
-      "note": "<p>Self-hosted Element + Matrix homeserver -- federated-capable team chat with end-to-end encryption, voice, group video (bundled Jitsi), and SIP dial-in.</p><p>Replaces Slack, Microsoft Teams, Signal (for team use), Zoom (for small group calls).</p><p><a href=\"https://github.com/catenahq/catena-templates/blob/main/blueprints/element/README.md\">https://github.com/catenahq/catena-templates/blob/main/blueprints/element/README.md</a></p>",
+      "note": "<p>Self-hosted Element + Matrix homeserver -- federated-capable team chat with end-to-end encryption, voice and group video (bundled Jitsi).</p><p>Replaces Slack, Microsoft Teams, Signal (for team use), Zoom (for small group calls).</p><p><a href=\"https://github.com/catenahq/catena-templates/blob/main/blueprints/element/README.md\">https://github.com/catenahq/catena-templates/blob/main/blueprints/element/README.md</a></p>",
       "platform": "linux",
       "repository": {
         "stackfile": "blueprints/element/docker-compose.yml",

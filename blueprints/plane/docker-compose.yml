@@ -8,8 +8,6 @@ services:
       NEXT_PUBLIC_API_BASE_URL: ""
     labels:
       - "vps.auto-update=patch"
-      - "vps.app=catena-plane"
-      - "vps.component=web"
     networks:
       - default
 
@@ -22,8 +20,6 @@ services:
       NEXT_PUBLIC_API_BASE_URL: ""
     labels:
       - "vps.auto-update=patch"
-      - "vps.app=catena-plane"
-      - "vps.component=space"
     networks:
       - default
 
@@ -36,8 +32,6 @@ services:
       NEXT_PUBLIC_API_BASE_URL: ""
     labels:
       - "vps.auto-update=patch"
-      - "vps.app=catena-plane"
-      - "vps.component=admin"
     networks:
       - default
 
@@ -72,8 +66,6 @@ services:
       FILE_SIZE_LIMIT: "5242880"
     labels:
       - "vps.auto-update=patch"
-      - "vps.app=catena-plane"
-      - "vps.component=api"
     networks:
       - default
 
@@ -86,8 +78,6 @@ services:
     environment: *backend-env
     labels:
       - "vps.auto-update=patch"
-      - "vps.app=catena-plane"
-      - "vps.component=worker"
     networks:
       - default
 
@@ -100,8 +90,6 @@ services:
     environment: *backend-env
     labels:
       - "vps.auto-update=patch"
-      - "vps.app=catena-plane"
-      - "vps.component=beat-worker"
     networks:
       - default
 
@@ -114,8 +102,6 @@ services:
       API_BASE_URL: http://api:8000
     labels:
       - "vps.auto-update=patch"
-      - "vps.app=catena-plane"
-      - "vps.component=live"
     networks:
       - default
 
@@ -130,15 +116,10 @@ services:
     labels:
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=80"
-      - "vps.route.service=proxy"
       - "vps.auth.mode=public"
       - "vps.auto-update=patch"
-      - "vps.app=catena-plane"
-      - "vps.component=proxy"
     networks:
-      catena-network:
-        aliases:
-          - catena-plane
+      catena-network: {}
       default: {}
 
   db:
@@ -164,8 +145,6 @@ services:
       start_period: 10m
     labels:
       - "vps.auto-update=patch"
-      - "vps.app=catena-plane"
-      - "vps.component=db"
     networks:
       - default
 
@@ -181,8 +160,6 @@ services:
       - redis-data:/data
     labels:
       - "vps.auto-update=patch"
-      - "vps.app=catena-plane"
-      - "vps.component=redis"
     networks:
       - default
 
@@ -202,8 +179,6 @@ services:
       - minio-data:/export
     labels:
       - "vps.auto-update=off"
-      - "vps.app=catena-plane"
-      - "vps.component=minio"
     networks:
       - default
 

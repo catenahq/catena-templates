@@ -28,8 +28,6 @@ services:
       retries: 5
     labels:
       - "vps.auto-update=patch"
-      - "vps.app=catena-element"
-      - "vps.component=postgres"
     networks:
       default:
         aliases:
@@ -233,10 +231,7 @@ services:
     volumes:
       - element-synapse-data:/data
     labels:
-      - "vps.auth.mode=public"
       - "vps.auto-update=patch"
-      - "vps.app=catena-element"
-      - "vps.component=synapse"
     networks:
       catena-network:
         aliases:
@@ -325,7 +320,6 @@ services:
     labels:
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=80"
-      - "vps.route.service=element-web"
       - "vps.auth.mode=public"
       # The sign-in entry is read from the route service; Synapse, on the
       # homeserver host, is what Keycloak returns the browser to.
@@ -333,12 +327,9 @@ services:
       - "vps.auth.groups=staff"
       - "vps.auth.oidc.redirect_uris=https://${MATRIX_HOSTNAME}/_synapse/client/oidc/callback"
       - "vps.auto-update=patch"
-      - "vps.app=catena-element"
-      - "vps.component=element-web"
     networks:
       catena-network:
         aliases:
-          - catena-element
           - element-web
       default: {}
 
@@ -351,13 +342,7 @@ services:
       # Restricts the admin UI to managing THIS homeserver only.
       REACT_APP_SERVER: https://${MATRIX_HOSTNAME}
     labels:
-      # Admin tier: gated by oauth2-proxy admin instance. Operators
-      # log in via Keycloak; only members of the operator group can
-      # reach the UI. Mirrors the catena-admin gating posture.
-      - "vps.auth.mode=admin"
       - "vps.auto-update=patch"
-      - "vps.app=catena-element"
-      - "vps.component=synapse-admin"
     networks:
       catena-network:
         aliases:
@@ -409,8 +394,6 @@ services:
       TZ: Etc/UTC
     labels:
       - "vps.auto-update=patch"
-      - "vps.app=catena-element"
-      - "vps.component=prosody"
     networks:
       default:
         aliases:
@@ -441,8 +424,6 @@ services:
       TZ: Etc/UTC
     labels:
       - "vps.auto-update=patch"
-      - "vps.app=catena-element"
-      - "vps.component=jicofo"
     networks:
       - default
 
@@ -485,8 +466,6 @@ services:
     labels:
       - "vps.expose.udp=10010"
       - "vps.auto-update=patch"
-      - "vps.app=catena-element"
-      - "vps.component=jvb"
     networks:
       - default
 
@@ -509,12 +488,7 @@ services:
       XMPP_RECORDER_DOMAIN: recorder.meet.jitsi
       TZ: Etc/UTC
     labels:
-      # Public by-link rooms; participants do not need an Element
-      # account to join (Jitsi rooms are by-URL).
-      - "vps.auth.mode=public"
       - "vps.auto-update=patch"
-      - "vps.app=catena-element"
-      - "vps.component=jitsi-web"
     networks:
       catena-network:
         aliases:
@@ -526,18 +500,9 @@ services:
     deploy:
       restart_policy:
         condition: any
-    # SIP signalling. Port range is the standard Jigasi default; UDP
-    # for RTP, TCP/UDP for SIP. mode: host so the SIP provider sees
-    # the real VPS public IP in Via headers.
-    ports:
-      - target: 5060
-        published: 5060
-        protocol: udp
-        mode: host
-      - target: 5060
-        published: 5060
-        protocol: tcp
-        mode: host
+    # SIP gateway. It publishes no port on the host: with the three
+    # JIGASI_SIP_* values below it registers outbound to the SIP provider
+    # over UDP, and phone dial-in into a room is not a supported feature.
     environment:
       XMPP_SERVER: prosody
       XMPP_DOMAIN: meet.jitsi
@@ -547,12 +512,8 @@ services:
       XMPP_GUEST_DOMAIN: guest.meet.jitsi
       JIGASI_XMPP_USER: jigasi
       JIGASI_XMPP_PASSWORD: ${JIGASI_XMPP_PASSWORD}
-      # SIP trunk credentials -- operator fills these in the
-      # Environment tab once they have a SIP provider account
-      # (Twilio Programmable Voice, OVH Telephony, Bandwidth, etc.).
-      # Empty values leave jigasi unregistered; the rest of the
-      # stack still works (chat, video, E2EE), only SIP dial-in is
-      # off. To enable dial-in: fill these three vars and redeploy.
+      # SIP provider credentials, from the Environment tab. Empty values
+      # leave jigasi unregistered; chat, voice and video work either way.
       JIGASI_SIP_URI: ${JIGASI_SIP_URI}
       JIGASI_SIP_PASSWORD: ${JIGASI_SIP_PASSWORD}
       JIGASI_SIP_SERVER: ${JIGASI_SIP_SERVER}
@@ -563,8 +524,6 @@ services:
       TZ: Etc/UTC
     labels:
       - "vps.auto-update=patch"
-      - "vps.app=catena-element"
-      - "vps.component=jigasi"
     networks:
       - default
   # === JITSI END ============================================================

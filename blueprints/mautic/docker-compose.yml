@@ -40,15 +40,10 @@ services:
     labels:
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=80"
-      - "vps.route.service=mautic_web"
       - "vps.auth.mode=public"
       - "vps.auto-update=patch"
-      - "vps.app=catena-mautic"
-      - "vps.component=mautic_web"
     networks:
-      catena-network:
-        aliases:
-          - catena-mautic
+      catena-network: {}
       default: {}
 
   mautic_worker:
@@ -74,8 +69,6 @@ services:
       - media-data:/var/www/html/docroot/media
     labels:
       - "vps.auto-update=patch"
-      - "vps.app=catena-mautic"
-      - "vps.component=mautic_worker"
     networks:
       - default
 
@@ -100,8 +93,6 @@ services:
       - media-data:/var/www/html/docroot/media
     labels:
       - "vps.auto-update=patch"
-      - "vps.app=catena-mautic"
-      - "vps.component=mautic_cron"
     networks:
       - default
 
@@ -128,8 +119,6 @@ services:
       start_period: 10m
     labels:
       - "vps.auto-update=patch"
-      - "vps.app=catena-mautic"
-      - "vps.component=db"
     networks:
       - default
 

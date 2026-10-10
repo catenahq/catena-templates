@@ -127,25 +127,22 @@ lint offers every inline script to the interpreter it names.
 `catena-`. That string is the Portainer stack name a client sees, so under
 swarm it prefixes every service (`catena-nextcloud_app`), every task
 container (`catena-nextcloud_app.1.<task-id>`) and every volume
-(`catena-nextcloud_nc-data`). The routed service carries it as its
-`catena-network` alias too, because the Traefik backend and the per-app
-oauth2-proxy upstream both resolve the slugified stack name.
+(`catena-nextcloud_nc-data`).
 
 `id` does NOT get the prefix: it is the join key every consumer already uses
 and the blueprint directory name.
 
-Every service also carries two labels:
-
-    vps.app        the app_name above
-    vps.component  this service's key in the compose
-
-They are the stable identity. A container's NAME depends on docker's own
-scheme and on whatever stack name the client typed in Portainer; these do
-not. The host finds the container a quiesce or lifecycle command runs in by
-these two labels, and `make lint` checks that a quiesce block's `service` is
-a service the compose actually defines -- because a service no container
-runs under fails the quiesce on every host, and the backup is then taken
-without it.
+The host knows an app by its stack name and a service by its key in the
+compose: swarm stamps both on every task (`com.docker.stack.namespace`,
+`com.docker.swarm.service.name=<app_name>_<service>`). The route service is
+the one service that declares `vps.route.host`, and the host reads the
+app-level labels (`vps.route.*`, `vps.auth.*`, `vps.health.*`) from it alone;
+it joins `catena-network`, where Traefik and the app's oauth2-proxy reach it
+by its swarm name `<app_name>_<service>`. The host runs a quiesce or
+lifecycle command in the container of the service the block names, and
+`make lint` checks that a quiesce block's `service` is a service the compose
+actually defines -- because a service no container runs under fails the
+quiesce on every host, and the backup is then taken without it.
 
 ## Validation layers
 

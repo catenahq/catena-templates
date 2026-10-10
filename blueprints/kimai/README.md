@@ -38,7 +38,7 @@ Kimai can generate PDF invoices directly from tracked time. That suits a billing
 
 ### Authentication
 
-Until SAML is wired (step 3 above), Kimai uses local username/password. Even after SAML is wired, local admin login keeps working as a break-glass path. The Keycloak `staff` group gates access at the Traefik edge via oauth2-proxy before traffic reaches Kimai, so people outside the staff group cannot reach the login page.
+Until SAML is wired (step 3 above), Kimai uses local username/password. Even after SAML is wired, local admin login keeps working as a break-glass path. The address is open to the internet: Kimai's own login is what keeps people out.
 
 ### Resource note
 
@@ -98,7 +98,7 @@ Kimai peut générer des factures PDF directement depuis le temps suivi. Cette v
 
 ### Authentification
 
-Tant que SAML n'est pas câblé (étape 3 ci-dessus), Kimai utilise un identifiant local. Même après SAML, la connexion admin locale continue de fonctionner comme issue de secours. Le groupe Keycloak `staff` filtre l'accès au bord Traefik via oauth2-proxy avant que le trafic n'atteigne Kimai, donc les personnes hors de l'équipe ne peuvent pas atteindre la page de connexion.
+Tant que SAML n'est pas câblé (étape 3 ci-dessus), Kimai utilise un identifiant local. Même après SAML, la connexion admin locale continue de fonctionner comme issue de secours. L'adresse est ouverte sur Internet : c'est la connexion propre à Kimai qui contrôle l'accès.
 
 ### Ressources
 

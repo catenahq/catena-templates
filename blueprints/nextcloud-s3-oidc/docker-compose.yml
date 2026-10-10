@@ -324,18 +324,13 @@ services:
     labels:
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=80"
-      - "vps.route.service=app"
       - "vps.auth.mode=public"
       - "vps.auth.oidc=true"
       - "vps.auth.groups=staff"
       - "vps.auth.oidc.redirect_uris=https://${NEXTCLOUD_HOSTNAME}/apps/user_oidc/code"
       - "vps.auto-update=patch"
-      - "vps.app=catena-nextcloud"
-      - "vps.component=app"
     networks:
-      catena-network:
-        aliases:
-          - catena-nextcloud
+      catena-network: {}
       default: {}
       # Shared antivirus: files_antivirus (Daemon mode) reaches the
       # ops-managed clamd at clamav:3310 over this network. ops wires
@@ -372,8 +367,6 @@ services:
       start_period: 10m
     labels:
       - "vps.auto-update=patch"
-      - "vps.app=catena-nextcloud"
-      - "vps.component=db"
     networks:
       - default
 
@@ -384,8 +377,6 @@ services:
         condition: any
     labels:
       - "vps.auto-update=patch"
-      - "vps.app=catena-nextcloud"
-      - "vps.component=redis"
     networks:
       - default
 
@@ -457,9 +448,6 @@ services:
     # execs /cron.sh, a thin runner for occ background-jobs. The app service
     # writes zz-catena.config.php into the shared nc-config volume on its
     # own startup; cron picks it up via the shared mount.
-    labels:
-      - "vps.app=catena-nextcloud"
-      - "vps.component=cron"
     networks:
       - default
       # Background virus scans (files_antivirus job) run here too, so
@@ -497,10 +485,7 @@ services:
   #      The bundled eturnal stays unused.
   #
   # Public exposure: only the signaling HTTP endpoint (port 8081
-  # inside the container) needs to be reachable. The catalog entry
-  # in source/catalog.yml declares signaling.<base>:8081
-  # as an extra_domain so the catena converge writes the matching
-  # Traefik route.
+  # inside the container) needs to be reachable.
   #
   # Tag: pinned to a dated upstream build. Bump by listing
   # `ghcr.io/nextcloud-releases/aio-talk` tags and picking the
@@ -516,8 +501,6 @@ services:
       # advertises this to clients as the parent app's identity.
       NC_DOMAIN: ${NEXTCLOUD_HOSTNAME}
       # Public hostname clients dial for the WSS signaling channel.
-      # Routed through Cloudflare Tunnel + Traefik to this container's
-      # port 8081.
       TALK_HOST: ${SIGNALING_HOSTNAME}
       # TURN coordinates Janus uses for its own ICE candidates.
       # Pointed at the standalone coturn (turn.<base>:5349) so
@@ -544,13 +527,7 @@ services:
       TALK_MAX_STREAM_BITRATE: "1048576"
       TALK_MAX_SCREEN_BITRATE: "2097152"
     labels:
-      # Public via Traefik (the Domain entry in catalog adds the
-      # router/service labels at deploy time). Bearer-secret authed
-      # by aio-talk's signaling layer; no oauth2-proxy gate.
-      - "vps.auth.mode=public"
       - "vps.auto-update=patch"
-      - "vps.app=catena-nextcloud"
-      - "vps.component=talk-hpb"
     networks:
       catena-network:
         aliases:
