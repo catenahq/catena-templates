@@ -15,7 +15,7 @@ services:
   # the task again. The two setup secrets leave the environment before the app
   # server starts. The image is built from catena-templates images/erpnext.
   backend:
-    image: ghcr.io/catenahq/erpnext:v16.37.0-1
+    image: ghcr.io/catenahq/erpnext:v16.50.0-3
     deploy:
       restart_policy:
         condition: any
@@ -64,7 +64,7 @@ services:
       - default
 
   frontend:
-    image: ghcr.io/catenahq/erpnext:v16.37.0-1
+    image: ghcr.io/catenahq/erpnext:v16.50.0-3
     deploy:
       restart_policy:
         condition: any
@@ -101,7 +101,7 @@ services:
       default: {}
 
   websocket:
-    image: ghcr.io/catenahq/erpnext:v16.37.0-1
+    image: ghcr.io/catenahq/erpnext:v16.50.0-3
     deploy:
       restart_policy:
         condition: any
@@ -121,7 +121,7 @@ services:
       - default
 
   queue-default:
-    image: ghcr.io/catenahq/erpnext:v16.37.0-1
+    image: ghcr.io/catenahq/erpnext:v16.50.0-3
     deploy:
       restart_policy:
         condition: any
@@ -141,7 +141,7 @@ services:
       - default
 
   queue-short:
-    image: ghcr.io/catenahq/erpnext:v16.37.0-1
+    image: ghcr.io/catenahq/erpnext:v16.50.0-3
     deploy:
       restart_policy:
         condition: any
@@ -161,7 +161,7 @@ services:
       - default
 
   queue-long:
-    image: ghcr.io/catenahq/erpnext:v16.37.0-1
+    image: ghcr.io/catenahq/erpnext:v16.50.0-3
     deploy:
       restart_policy:
         condition: any
@@ -181,7 +181,7 @@ services:
       - default
 
   scheduler:
-    image: ghcr.io/catenahq/erpnext:v16.37.0-1
+    image: ghcr.io/catenahq/erpnext:v16.50.0-3
     deploy:
       restart_policy:
         condition: any
@@ -231,7 +231,7 @@ services:
       - default
 
   redis-cache:
-    image: redis:8.6.3-alpine3.23
+    image: redis:8.6.7-alpine3.23
     deploy:
       restart_policy:
         condition: any
@@ -243,7 +243,7 @@ services:
       - default
 
   redis-queue:
-    image: redis:8.6.3-alpine3.23
+    image: redis:8.6.7-alpine3.23
     deploy:
       restart_policy:
         condition: any
