@@ -6,8 +6,10 @@
            writes inputs.json, with "build": false when nothing moved
   build    the image, from frappe_docker's layered Containerfile at the pinned
            builder commit, build-only node_modules removed in the same layer
-  test     a site with every app, migrated and pinged; an upgrade from the
-           previous published image when there is one
+  test     the catalog template's backend sets up a site with every app, which
+           is migrated and pinged; when there is a previous published image,
+           the site is set up on it, and the new image's backend starts on it
+           before the migration
   publish  push the tag
 
 Stdlib only. Run from anywhere; paths resolve beside this file.
@@ -243,35 +245,52 @@ def cmd_build(args) -> None:
 
 # --- test --------------------------------------------------------------------
 
+# The site the smoke stack creates, which every request names.
+SITE = "frontend"
+BACKEND = "erpnext-smoke-backend-1"
+
+
 def compose(image: str, *argv: str) -> None:
-    """docker compose over the smoke stack, running `image`. Apps install in
-    apps.json order, which puts each one after the apps it requires."""
-    env = {**os.environ, "IMG": image,
-           "INSTALL_ARGS": " ".join(f"--install-app {a['name']}" for a in SPEC["apps"])}
+    """docker compose over the smoke stack, running `image`, with the values
+    the template's backend reads. It installs FRAPPE_APPS in order, and
+    apps.json's order puts each app after the apps it requires."""
+    env = {**os.environ, "IMG": image, "ERPNEXT_HOSTNAME": SITE,
+           "ERPNEXT_ADMIN_PASSWORD": "admin", "DB_ROOT_PASSWORD": "admin",
+           "FRAPPE_APPS": ",".join(a["name"] for a in SPEC["apps"])}
     argv = ("docker", "compose", "-p", "erpnext-smoke",
             "-f", str(HERE / "smoke-compose.yml"), *argv)
     log("$ " + " ".join(argv))
     subprocess.run(argv, check=True, text=True, env=env)
 
 
-def wait_site(image: str) -> None:
+def wait_backend(image: str) -> None:
+    """Wait for the template's backend script to reach the app server, its
+    last step: start.sh runs gunicorn on port 8000. A step that fails ends the
+    script, and the container exits or restarts."""
     for _ in range(120):
-        state = run("docker", "inspect", "-f", "{{.State.Status}} {{.State.ExitCode}}",
-                    "erpnext-smoke-create-site-1", capture=True).strip()
-        if state.startswith("exited"):
-            if state != "exited 0":
-                compose(image, "logs", "create-site")
-                raise SystemExit(f"site creation failed: {state}")
+        status, code, restarts = run(
+            "docker", "inspect", "-f",
+            "{{.State.Status}} {{.State.ExitCode}} {{.RestartCount}}",
+            BACKEND, capture=True).split()
+        if status != "running" or restarts != "0":
+            compose(image, "logs", "backend")
+            raise SystemExit(f"the backend's setup failed on {image}: {status}, "
+                             f"exit code {code}, {restarts} restart(s)")
+        probe = subprocess.run(["docker", "exec", BACKEND, "bash", "-c",
+                                ": > /dev/tcp/127.0.0.1/8000"], capture_output=True)
+        if probe.returncode == 0:
+            log(f"the backend serves on {image}")
             return
         time.sleep(5)
-    raise SystemExit("site creation did not finish in 10 minutes")
+    compose(image, "logs", "backend")
+    raise SystemExit(f"the backend did not reach its app server on {image} in 10 minutes")
 
 
 def ping(image: str) -> None:
     # nginx resolves the backend once at start; a restarted backend may move.
     compose(image, "restart", "frontend")
     for _ in range(30):
-        res = subprocess.run(["curl", "-s", "-H", "Host: frontend",
+        res = subprocess.run(["curl", "-s", "-H", f"Host: {SITE}",
                               "http://localhost:8080/api/method/ping"],
                              text=True, capture_output=True)
         if '"pong"' in res.stdout:
@@ -289,10 +308,13 @@ def cmd_test(args) -> None:
         if first != new:
             run("docker", "pull", first)
         compose(first, "up", "-d")
-        wait_site(first)
+        wait_backend(first)
         if first != new:
+            # As on a host: the new backend's setup, install-app included, runs
+            # against the previous image's schema before the migration.
             log(f"upgrading the site from {first} to {new}")
             compose(new, "up", "-d")
+            wait_backend(new)
         compose(new, "exec", "-T", "backend", "bench", "--site", "all", "migrate")
         try:
             compose(new, "exec", "-T", "backend", "test", "!", "-e", "/home/frappe/nltk_data")

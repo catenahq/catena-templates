@@ -54,10 +54,14 @@ database snapshot it replays when the migration fails.
 
 ## Before an image is pushed
 
-`build.py test` creates a site with every app, runs `bench --site all
-migrate` and expects `/api/method/ping` to answer. When a previous image
-exists, the site is created on it and then upgraded to the new image, so a
-release whose migration fails never reaches a host.
+`build.py test` runs the catalog template's own backend
+(`smoke-compose.yml` extends it), whose script writes the bench config,
+creates a site with every app and starts the app server. It then runs
+`bench --site all migrate` and expects `/api/method/ping` to answer. When a
+previous image exists, the site is created on it, and the new image's backend
+starts on that site before the migration, as on a host, so a release whose
+backend cannot start on its predecessor's site, or whose migration fails,
+never reaches a host.
 
 ## Run it locally
 
