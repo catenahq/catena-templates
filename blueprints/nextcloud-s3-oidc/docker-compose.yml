@@ -56,7 +56,7 @@ services:
         set -e
         : "$${NEXTCLOUD_LOGLEVEL:=3}"
         : "$${NEXTCLOUD_VERSIONS_RETENTION:=auto, 7}"
-        : "$${NEXTCLOUD_TRASH_RETENTION:=auto, 30}"
+        : "$${NEXTCLOUD_TRASH_RETENTION:=30, 30}"
         : "$${NEXTCLOUD_MAX_CHUNK_SIZE:=83886080}"
         cat > /var/www/html/config/zz-catena.config.php <<PHP
         <?php
@@ -224,13 +224,15 @@ services:
       # need deeper undo. Direct lever on hot+cold bucket storage cost.
       #
       # NEXTCLOUD_TRASH_RETENTION: passed verbatim into the
-      # `trashbin_retention_obligation` config key (same `auto, <N>`
-      # format). This is the mass-DELETE safety net: a runaway desktop
+      # `trashbin_retention_obligation` config key, `<min>, <max>` in
+      # days. This is the mass-DELETE safety net: a runaway desktop
       # sync that deletes a tree propagates the deletes server-side, but
-      # the files land in each user's trash and are recoverable for at
-      # least N days regardless of free space. Default `auto, 30` keeps a
-      # 30-day undo window for accidental/ransomware bulk deletion; lower
-      # it only for storage-constrained clients who accept a shorter
+      # the files land in each user's trash. Default `30, 30` keeps them
+      # 30 days and then deletes them, a 30-day undo window for
+      # accidental/ransomware bulk deletion; an `auto` minimum would let
+      # Nextcloud empty the trash any day it needs space. A user over
+      # quota still has the trash cleaned until the quota holds. Lower it
+      # only for storage-constrained clients who accept a shorter
       # recovery window. (versions_retention covers OVERWRITES; this
       # covers DELETES -- both are needed.)
       #
@@ -246,7 +248,7 @@ services:
       # 100 MB.
       NEXTCLOUD_LOGLEVEL: ${NEXTCLOUD_LOGLEVEL:-3}
       NEXTCLOUD_VERSIONS_RETENTION: ${NEXTCLOUD_VERSIONS_RETENTION:-auto, 7}
-      NEXTCLOUD_TRASH_RETENTION: ${NEXTCLOUD_TRASH_RETENTION:-auto, 30}
+      NEXTCLOUD_TRASH_RETENTION: ${NEXTCLOUD_TRASH_RETENTION:-30, 30}
       NEXTCLOUD_MAX_CHUNK_SIZE: ${NEXTCLOUD_MAX_CHUNK_SIZE:-83886080}
 
       # TLS is terminated upstream (Cloudflare Tunnel -> Traefik). Force

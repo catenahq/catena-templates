@@ -47,7 +47,7 @@
           "name": "NEXTCLOUD_VERSIONS_RETENTION"
         },
         {
-          "default": "auto, 30",
+          "default": "30, 30",
           "label": "Nextcloud trash retention",
           "name": "NEXTCLOUD_TRASH_RETENTION"
         },
