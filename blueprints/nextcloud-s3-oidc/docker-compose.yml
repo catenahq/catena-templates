@@ -285,6 +285,12 @@ services:
       NEXTCLOUD_OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-}
       NEXTCLOUD_OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-}
       NEXTCLOUD_OIDC_ISSUER_URL: ${OIDC_ISSUER_URL:-}
+      # The user_oidc release the wire action's provider command is written
+      # for. The action installs user_oidc from the app store, which serves
+      # the newest release this Nextcloud supports, and each core upgrade
+      # moves it to the newest again; the action refuses to wire an installed
+      # release of another major version, or an older one.
+      NEXTCLOUD_USER_OIDC_VERSION: "8.11.0"
 
       # Talk + HPB wire script (catena-wire-nextcloud-talk-hpb) reads
       # these from the running container at click time and feeds them

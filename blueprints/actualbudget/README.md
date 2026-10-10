@@ -3,6 +3,7 @@
 # Actual Budget
 
 - `docker-compose.yml` -- the stack file this template deploys
+- `quiesce.yml` -- the commands the nightly maintenance runs inside this application before and after its backup
 
 ## English
 

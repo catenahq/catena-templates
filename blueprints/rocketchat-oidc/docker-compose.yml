@@ -62,9 +62,11 @@ services:
       # settings are named Accounts_OAuth_Custom-Keycloak-* (the name
       # lowercased, then capitalized), and an OVERWRITE_SETTING_ for one is
       # applied on every start: it keeps the address, id and secret in step
-      # with the entry. Merging by email across services is what joins a
-      # Keycloak sign-in to an account made with a password, the first
-      # administrator's included.
+      # with the entry, and the userinfo call's token in the Authorization
+      # header: Keycloak reads a userinfo GET's token from that header only,
+      # and Rocket.Chat's default puts it in the URL. Merging by email across
+      # services is what joins a Keycloak sign-in to an account made with a
+      # password, the first administrator's included.
       Accounts_OAuth_Custom_Keycloak: "true"
       Accounts_OAuth_Custom_Keycloak_authorize_path: /protocol/openid-connect/auth
       Accounts_OAuth_Custom_Keycloak_token_path: /protocol/openid-connect/token
@@ -78,9 +80,18 @@ services:
       Accounts_OAuth_Custom_Keycloak_name_field: name
       Accounts_OAuth_Custom_Keycloak_merge_users: "true"
       Accounts_OAuth_Custom_Keycloak_merge_users_distinct_services: "true"
+      Accounts_OAuth_Custom_Keycloak_identity_token_sent_via: header
       OVERWRITE_SETTING_Accounts_OAuth_Custom-Keycloak-url: ${OIDC_ISSUER_URL:-}
       OVERWRITE_SETTING_Accounts_OAuth_Custom-Keycloak-id: ${OIDC_CLIENT_ID:-}
       OVERWRITE_SETTING_Accounts_OAuth_Custom-Keycloak-secret: ${OIDC_CLIENT_SECRET:-}
+      OVERWRITE_SETTING_Accounts_OAuth_Custom-Keycloak-identity_token_sent_via: header
+
+      # An account that has signed in with Keycloak gets no emailed code from
+      # Rocket.Chat: Keycloak's sign-in and its second factor are the check.
+      # An account that never has keeps Rocket.Chat's emailed code. A
+      # setting named bare is its value when Rocket.Chat first creates it,
+      # so an administrator who turns emailed codes back on keeps that.
+      Accounts_twoFactorAuthentication_email_available_for_OAuth_users: "false"
 
       # Read by the Jitsi wiring, which sets it as Rocket.Chat's
       # Jitsi_Domain: calls open on the host jitsi-web's PUBLIC_URL names.

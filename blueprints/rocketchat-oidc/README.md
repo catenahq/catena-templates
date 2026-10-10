@@ -28,6 +28,10 @@ arranged beforehand, on request.
 
 Rocket.Chat's iOS and Android apps connect straight to the server. Users paste `https://chat.<your-domain>` into the app on first launch and sign in via Keycloak.
 
+### Emailed sign-in codes
+
+An account that signs in with Keycloak gets no emailed code from Rocket.Chat: Keycloak's sign-in and its own second factor are the check. You can turn emailed codes back on for those accounts under **Administration** -> **Settings** -> **Accounts** -> **Two Factor Authentication** -> **Make two factor via email available for oAuth users**; your choice stays across restarts and updates.
+
 ### Environment variables
 
 These are the fields the deploy form presents in the **App Templates**
@@ -72,6 +76,10 @@ préalable, sur demande.
 ### Applications mobiles
 
 Les apps iOS et Android de Rocket.Chat se connectent directement au serveur. Les utilisateurs collent `https://chat.<votre-domaine>` au premier lancement et se connectent via Keycloak.
+
+### Codes de connexion par courriel
+
+Un compte qui se connecte avec Keycloak ne reçoit aucun code par courriel de Rocket.Chat : la connexion Keycloak et son propre second facteur font la vérification. Vous pouvez réactiver les codes par courriel pour ces comptes dans **Administration** -> **Settings** -> **Accounts** -> **Two Factor Authentication** -> **Make two factor via email available for oAuth users** ; votre choix est conservé lors des redémarrages et des mises à jour.
 
 ### Variables d'environnement
 

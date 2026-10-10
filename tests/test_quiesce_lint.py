@@ -30,12 +30,13 @@ def test_allowed_quiesce_commands_lock():
     """Widening the allowlist must be deliberate: these commands run
     inside an application on every client host around every nightly
     backup."""
-    assert L.ALLOWED_QUIESCE_COMMANDS == frozenset({"php", "mongosh"})
+    assert L.ALLOWED_QUIESCE_COMMANDS == frozenset({"php", "mongosh", "pkill"})
 
 
 def test_quiesce_argv_allows_the_declared_shapes():
     assert _quiesce(["php", "occ", "maintenance:mode", "--on"]) == []
     assert _quiesce(["mongosh", "--quiet", "--eval", "db.fsyncLock()"]) == []
+    assert _quiesce(["pkill", "-STOP", "-x", "node"]) == []
 
 
 def test_quiesce_argv_rejects_a_hostile_command():

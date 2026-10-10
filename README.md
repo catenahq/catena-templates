@@ -144,9 +144,11 @@ input, not a catalog to deploy from.
    optionally `user` and `post`. Each command is an argv array the
    nightly maintenance runs inside that service with `docker exec`, no
    shell; `post` must succeed when `pre` never ran. Real examples:
-   Nextcloud (`occ maintenance:mode` on/off) and Rocket.Chat (MongoDB
-   fsyncLock/unlock). `make lint` holds each command to an allowlist of
-   the application's own admin clients.
+   Nextcloud (`occ maintenance:mode` on/off), Rocket.Chat (MongoDB
+   fsyncLock/unlock) and Actual Budget (`pkill -STOP` / `-CONT` on its
+   server process). `make lint` holds each command to an allowlist of
+   the application's own admin clients, plus `pkill` for an application
+   with no admin client that can hold its writes.
 6. `make` -- renders, lints, and runs the tests. Commit the regenerated
    `blueprints/<id>/README.md`, `templates.json`, `catalog.json` and
    `index.html` with the source change.

@@ -320,7 +320,7 @@
       "en": {
         "compose_description": "Team chat + video. Keycloak SSO pre-wired. Replaces Slack / Microsoft Teams.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/rocketchat-oidc/README.md\n",
         "display_name": "Rocket.Chat",
-        "extra_notes": "### Mobile apps\n\nRocket.Chat's iOS and Android apps connect straight to the server. Users paste `https://chat.<your-domain>` into the app on first launch and sign in via Keycloak.\n",
+        "extra_notes": "### Mobile apps\n\nRocket.Chat's iOS and Android apps connect straight to the server. Users paste `https://chat.<your-domain>` into the app on first launch and sign in via Keycloak.\n\n### Emailed sign-in codes\n\nAn account that signs in with Keycloak gets no emailed code from Rocket.Chat: Keycloak's sign-in and its own second factor are the check. You can turn emailed codes back on for those accounts under **Administration** -> **Settings** -> **Accounts** -> **Two Factor Authentication** -> **Make two factor via email available for oAuth users**; your choice stays across restarts and updates.\n",
         "replaces": [
           "Slack",
           "Microsoft Teams",
@@ -349,7 +349,7 @@
       "fr": {
         "compose_description": "Messagerie d'\u00e9quipe + vid\u00e9o. Keycloak SSO pr\u00e9-c\u00e2bl\u00e9. Remplace Slack / Microsoft Teams.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/rocketchat-oidc/README.md\n",
         "display_name": "Rocket.Chat",
-        "extra_notes": "### Applications mobiles\n\nLes apps iOS et Android de Rocket.Chat se connectent directement au serveur. Les utilisateurs collent `https://chat.<votre-domaine>` au premier lancement et se connectent via Keycloak.\n",
+        "extra_notes": "### Applications mobiles\n\nLes apps iOS et Android de Rocket.Chat se connectent directement au serveur. Les utilisateurs collent `https://chat.<votre-domaine>` au premier lancement et se connectent via Keycloak.\n\n### Codes de connexion par courriel\n\nUn compte qui se connecte avec Keycloak ne re\u00e7oit aucun code par courriel de Rocket.Chat : la connexion Keycloak et son propre second facteur font la v\u00e9rification. Vous pouvez r\u00e9activer les codes par courriel pour ces comptes dans **Administration** -> **Settings** -> **Accounts** -> **Two Factor Authentication** -> **Make two factor via email available for oAuth users** ; votre choix est conserv\u00e9 lors des red\u00e9marrages et des mises \u00e0 jour.\n",
         "replaces": [
           "Slack",
           "Microsoft Teams",
@@ -1203,6 +1203,26 @@
       },
       "hostname_baked": false,
       "id": "actualbudget",
+      "quiesce": {
+        "post": [
+          [
+            "pkill",
+            "-CONT",
+            "-x",
+            "node"
+          ]
+        ],
+        "pre": [
+          [
+            "pkill",
+            "-STOP",
+            "-x",
+            "node"
+          ]
+        ],
+        "service": "actual",
+        "timeout_seconds": 10
+      },
       "sizing": {
         "disk_baseline_mb": 30,
         "idle_cpu_pct": 1,
