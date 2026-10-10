@@ -43,7 +43,7 @@ lib/                     # the build library
                          # sign-in labels
   postgres_pins.py       # central Postgres image enforcement
   importers/             # the registry importer: pipeline.py, plus one
-                         # adapter per registry format (portainer.py)
+                         # adapter per registry format
 
 build/                   # thin entrypoints
   render.py  validate.py  lint_quiesce.py  lint_postgres_pins.py
@@ -105,8 +105,9 @@ TURN_STATIC_AUTH_SECRET=__CATENA_OPERATOR_WIRED__
 An app's own sign-in values (`OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`,
 `OIDC_ISSUER_URL`) are in neither file: the host's settings sync writes
 them into the deployed stack's env from the Keycloak client it makes for
-the app's sign-in labels, and the compose reads them as
-`${OIDC_CLIENT_ID:-}`.
+the sign-in labels on the service of the app's main address (its only
+address, or the one marked `vps.route.main=true`), and the compose reads
+them as `${OIDC_CLIENT_ID:-}`.
 
 Portainer has no per-deploy secret generator and no template engine, so
 three classes of value collapse to the sentinel: declared
@@ -162,30 +163,42 @@ next fetch the catalog; there are no releases to cut.
 ## Import from a registry
 
 `build/import_registry.py` writes entries from a third-party template
-registry, one adapter per format (`lib/importers/`; Portainer template
-lists, versions 2 and 3, today):
+registry, one adapter per format (`lib/importers/`; `--format` picks it,
+`--help` lists them): Portainer template lists, versions 2 and 3, and a
+registry holding one directory per app with a compose file, a
+`template.toml` and a `meta.json`, read at one commit through GitHub's
+file listing:
 
 ```
 uv run build/import_registry.py --applint /path/to/catena-applint [--dry-run] \
     https://raw.githubusercontent.com/<owner>/<repo>/<ref>/templates.json
+uv run build/import_registry.py --format <format> [--dry-run] \
+    'https://api.github.com/repos/<owner>/<repo>/git/trees/<commit>?recursive=1'
 ```
 
 - **Licence.** Read from GitHub's licence API for the repository the
   compose file is copied from (the registry's own repository for a
-  single-container entry). Only MIT, Apache-2.0 and BSD-2/3-Clause
-  sources are imported; any other licence, or one GitHub cannot name,
-  skips the entry and the report lists it. `GITHUB_TOKEN` lifts the
-  API's rate limit.
+  single-container entry), or, for a per-app directory, the app's own
+  repository its `meta.json` links; that registry's own licence must be
+  permitted too, and its notice joins the attribution. Only MIT,
+  Apache-2.0 and BSD-2/3-Clause sources are imported; any other licence,
+  or one GitHub cannot name, skips the entry and the report lists it.
+  `GITHUB_TOKEN` lifts the API's rate limit.
 - **Compose.** A stack entry's file is fetched from its repository; a
   single-container entry gets a one-service file from its image, ports,
-  volumes, env and labels. The first published TCP port becomes
+  volumes, env and labels. The address the registry routes (the first
+  `[[config.domains]]`), or else the first published TCP port, becomes
   `vps.route.host`/`vps.route.port`, Traefik labels go, and the app
   checker's `--fix` (catena-admin `payload/cmd/catena-applint`, named by
   `--applint` or `CATENA_APPLINT`) corrects the rest. Without the
-  checker the import warns and records that it did not run.
+  checker the import warns and records that it did not run. A further
+  address, a file the registry writes beside the stack and a value the
+  host cannot mint are recorded as choices.
 - **Settings.** Every variable the registry or the compose names is an
   env default; one named like a password, secret or key gets a minted
-  value.
+  value. A `template.toml` helper (`${password:32}` and the others) gets
+  a minted value of the same length and alphabet, and env lines that
+  share one generated value read it from one setting.
 - **What it writes.** `sources/<id>.json` with `x-catena.status:
   imported`, the `origin` (registry, source, licence, attribution) and
   `pending` (the findings left on the compose, and what a person still

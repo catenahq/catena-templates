@@ -1,0 +1,7 @@
+# Files exempt from contracts/scripts/check-unicode.mjs's banned-word scan.
+# One `path -- reason` per line. A listed file that is clean fails the gate,
+# so draining a file means deleting its entry in the same commit.
+
+build/import_registry.py -- names the Dokploy template registry, which the importer reads
+lib/importers/dokploy.py -- names the Dokploy template registry, which the importer reads
+tests/test_import_dokploy.py -- names the Dokploy template registry, which the importer reads

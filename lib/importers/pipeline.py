@@ -11,14 +11,16 @@ An adapter reads one registry format into Candidates. For each, in order:
             registry's fields. A licence outside sources.schema.json's
             origin.licence list skips the entry; so does a licence the API
             cannot name, and a source off GitHub.
-  compose   fetched for a stack entry, or the adapter's, then made into a
+  compose   fetched for a stack entry, or the adapter's, changed by the
+            adapter where its registry's format asks, then made into a
             catalog stack file: no version key, no Traefik labels, a restart
             policy on each service that keeps running, and the route labels
-            on the first service publishing a TCP port. The proxy reaches that
-            port over catena-network, so it is not published on the server.
+            on the service and port the registry routes, or else on the first
+            service publishing a TCP port. The proxy reaches that port over
+            catena-network, so it is not published on the server.
   settings  each variable the registry declares or the compose reads is an
             env default; one named like a password, secret or key gets the
-            catalog's minted value.
+            catalog's minted value, unless the adapter gives it one.
   checker   catena-applint --fix (catena-admin payload/cmd/catena-applint)
             corrects the file. What it leaves, and what the catalog's swarm
             lint and Postgres pin rule refuse, is recorded on the entry.
@@ -70,10 +72,14 @@ class Candidate:
     """One registry entry as an adapter reads it.
 
     `compose` is a stack file the adapter writes from the entry's fields;
-    `compose_url` is where a stack entry's file is fetched from. The licence
-    that applies is the one of `licence_repo` on GitHub; an adapter that has
-    no repository to name says why in `licence_problem`. A non-empty `skip`
-    keeps the entry out, with that reason."""
+    `compose_url` is where a stack entry's file is fetched from, and
+    `convert` is the adapter's own change to that file, made first. `route`
+    is the service and port the registry routes, when it names one. The
+    licence that applies is the one of `licence_repo` on GitHub; an adapter
+    that has no repository to name says why in `licence_problem`. `notice`
+    is a further copyright notice the attribution carries: the registry's,
+    when the licence that applies is the app's. A non-empty `skip` keeps the
+    entry out, with that reason."""
 
     entry: str
     slug: str = ""
@@ -83,8 +89,11 @@ class Candidate:
     settings: list[tuple[str, str]] = field(default_factory=list)
     compose: dict[str, Any] | None = None
     compose_url: str = ""
+    convert: Callable[[dict[str, Any]], dict[str, Any]] | None = None
+    route: tuple[str, int] | None = None
     licence_repo: tuple[str, str] | None = None
     licence_problem: str = ""
+    notice: str = ""
     source: str = ""
     upstream_url: str = ""
     to_choose: list[str] = field(default_factory=list)
@@ -270,7 +279,7 @@ def dump_compose(doc: dict[str, Any]) -> str:
 
 
 # ${VAR}, ${VAR:-default}, ${VAR-default}, ${VAR:?error}, ${VAR:+other}, $VAR.
-_COMPOSE_VAR = re.compile(
+COMPOSE_VAR = re.compile(
     r"\$(?:\{([A-Za-z_][A-Za-z0-9_]*)(?:(:?[-?+])([^}]*))?\}|([A-Za-z_][A-Za-z0-9_]*))")
 
 
@@ -291,7 +300,7 @@ def compose_variables(doc: dict[str, Any]) -> dict[str, str]:
     gives it. `$$` is compose's literal dollar and reads nothing."""
     found: dict[str, str] = {}
     for text in _strings(doc):
-        for m in _COMPOSE_VAR.finditer(text.replace("$$", "")):
+        for m in COMPOSE_VAR.finditer(text.replace("$$", "")):
             default = m.group(3) if m.group(2) in ("-", ":-") else ""
             found.setdefault(m.group(1) or m.group(4), default)
     return found
@@ -310,12 +319,18 @@ def secret_like(name: str) -> bool:
     return any(w in SECRET_WORDS or w.endswith(("PASSWORD", "SECRET")) for w in words)
 
 
+def lookup(length: int, chars: str = "ascii_letters,digits", lower: bool = False) -> str:
+    """A value each host's catalog render (catena-admin shell/marketplace)
+    mints and keeps: `length` letters and digits, or hex digits with
+    chars="hexdigits" and lower, the two sets it mints."""
+    pipe = " | lower" if lower else ""
+    return f"{{{{ lookup('password', '/dev/null length={length} chars={chars}'){pipe} }}}}"
+
+
 def minted(name: str) -> str:
-    """The catalog's minted value, which each host's catalog render
-    (catena-admin shell/marketplace) mints and keeps: 32 characters for a
-    password, 64 for a secret or a key."""
-    length = 32 if "PASS" in name.upper() else 64
-    return f"{{{{ lookup('password', '/dev/null length={length} chars=ascii_letters,digits') }}}}"
+    """The catalog's minted value for a setting named like a credential: 32
+    characters for a password, 64 for a secret or a key."""
+    return lookup(32 if "PASS" in name.upper() else 64)
 
 
 def _drop_traefik(holder: dict[str, Any]) -> int:
@@ -380,8 +395,10 @@ class Stack:
     to_choose: list[str]
 
 
-def make_stack(doc: dict[str, Any]) -> Stack:
-    """The compose as a catalog stack file, before the checker runs."""
+def make_stack(doc: dict[str, Any], route: tuple[str, int] | None = None) -> Stack:
+    """The compose as a catalog stack file, before the checker runs. The
+    route labels go on `route`, the service and port the registry routes, or
+    else on the first TCP port a service publishes."""
     doc.pop("version", None)
     services = doc["services"]
     to_choose: list[str] = []
@@ -417,29 +434,35 @@ def make_stack(doc: dict[str, Any]) -> Stack:
                 to_choose.append(f"service {name} sets {key} to a fixed value in the compose "
                                  f"file: make it a setting, which gets a minted value")
 
-    for name, service in services.items():
-        ports = service.get("ports") or []
-        for index, entry in enumerate(ports):
-            found = _port(entry)
-            if found and found[1] == "tcp":
-                break
-        else:
-            continue
-        port = int(found[0])
-        del ports[index]
-        if not ports:
-            service.pop("ports")
-        _add_labels(service, {"vps.route.host": "${DOMAIN_HOST}", "vps.route.port": str(port)})
-        note = f"route: service {name}, port {port}, the first published TCP port"
-        if traefik:
-            note += "; the registry's Traefik labels are dropped, as Catena routes the app itself"
-        for other, svc in services.items():
-            if svc.get("ports"):
-                listed = ", ".join(_port_text(entry) for entry in svc["ports"])
-                to_choose.append(f"ports service {other} publishes on the server ({listed}): "
-                                 f"declare each in vps.expose.tcp or vps.expose.udp, or drop it")
-        return Stack(doc, name, port, [note] + to_choose)
-    raise Skip("no service publishes a TCP port to route")
+    if route:
+        why = "the registry's address for the app"
+    else:
+        why = "the first published TCP port"
+        published = [(name, int(found[0])) for name, service in services.items()
+                     for found in map(_port, service.get("ports") or [])
+                     if found and found[1] == "tcp"]
+        if not published:
+            raise Skip("no service publishes a TCP port to route")
+        route = published[0]
+    name, port = route
+    if name not in services:
+        raise Skip(f"the registry routes service {name}, which the compose file does not define")
+    service = services[name]
+    ports = [entry for entry in service.get("ports") or [] if _port(entry) != (str(port), "tcp")]
+    if ports:
+        service["ports"] = ports
+    else:
+        service.pop("ports", None)
+    _add_labels(service, {"vps.route.host": "${DOMAIN_HOST}", "vps.route.port": str(port)})
+    note = f"route: service {name}, port {port}, {why}"
+    if traefik:
+        note += "; the registry's Traefik labels are dropped, as Catena routes the app itself"
+    for other, svc in services.items():
+        if svc.get("ports"):
+            listed = ", ".join(_port_text(entry) for entry in svc["ports"])
+            to_choose.append(f"ports service {other} publishes on the server ({listed}): "
+                             f"declare each in vps.expose.tcp or vps.expose.udp, or drop it")
+    return Stack(doc, name, port, [note] + to_choose)
 
 
 def _port_text(entry: Any) -> str:
@@ -557,9 +580,10 @@ class Importer:
         except FetchError as exc:
             raise Skip(f"compose file: {exc}") from exc
         try:
-            return load_compose(text)
+            doc = load_compose(text)
         except ValueError as exc:
             raise Skip(f"compose file {candidate.compose_url}: {exc}") from exc
+        return candidate.convert(doc) if candidate.convert else doc
 
     def _entry(self, c: Candidate) -> tuple[str, dict[str, Any], str]:
         if c.skip:
@@ -571,9 +595,11 @@ class Importer:
                 or (model.BLUEPRINTS / slug).exists()):
             raise Skip(f"the id {slug} is already in the catalog")
         licence = self._licence(c)
-        stack = make_stack(self._compose(c))
+        stack = make_stack(self._compose(c), c.route)
         host = f"{slug}.{ZONE}"
-        settings = settings_for(c, stack.doc, host)
+        env = [(name, value if render.LOOKUP_PASSWORD_RE.search(value)
+                else minted(name) if secret_like(name) else value)
+               for name, value in settings_for(c, stack.doc, host)]
         app_name = f"catena-{slug}"
         compose_file = f"{model.BLUEPRINTS.name}/{slug}/{model.COMPOSE_NAME}"
 
@@ -591,15 +617,15 @@ class Importer:
                                            default=self.postgres_default)
         findings += [f"catalog lint: {e}" for e in pins]
 
-        secrets = [name for name, _ in settings if secret_like(name)]
+        secrets = [name for name, value in env if render.LOOKUP_PASSWORD_RE.search(value)]
         images = ", ".join(f"{svc.get('image', '?')} (service {name})"
                            for name, svc in stack.doc["services"].items())
         to_choose = stack.to_choose + c.to_choose + [
             f"pinned version: {images}",
             f"access mode: no vps.auth.mode label, so only administrators reach {slug}.<domain>",
             f"host name: {slug}.<domain> is a placeholder",
-            f"upstream URL: {c.upstream_url} is where the template comes from; the project's "
-            f"home page belongs there",
+            f"upstream URL: {c.upstream_url} comes from the registry; the project's home page "
+            f"belongs there",
             "EN/FR text: what it is, what it replaces and the setup steps; the French text "
             "quotes the registry's English description",
             "sizing: peak_ram_mb is not measured",
@@ -631,14 +657,13 @@ class Importer:
                 "upstream_url": c.upstream_url,
                 "sso_mode": "none",
                 "domain": {"host": host, "service": stack.service, "port": stack.port},
-                "env_defaults": [f"{name}={minted(name) if secret_like(name) else value}"
-                                 for name, value in settings],
+                "env_defaults": [f"{name}={value}" for name, value in env],
                 "origin": {
                     "registry": self.registry,
                     "entry": c.entry,
                     "source": c.source,
                     "licence": licence.spdx,
-                    "attribution": licence.attribution,
+                    "attribution": "; ".join(filter(None, [licence.attribution, c.notice])),
                 },
                 "pending": {"findings": findings, "to_choose": to_choose},
                 "bench": {"pack": None, "fixture": "skip"},
