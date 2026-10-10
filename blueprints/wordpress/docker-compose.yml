@@ -1,6 +1,6 @@
 services:
   wp:
-    image: wordpress:7.1.1-fpm-alpine
+    image: wordpress:7.1.3-fpm-alpine
     deploy:
       restart_policy:
         condition: any
@@ -54,7 +54,7 @@ services:
       - default
 
   nginx:
-    image: nginx:1.31.5-alpine
+    image: nginx:1.31.6-alpine
     deploy:
       restart_policy:
         condition: any
@@ -261,7 +261,7 @@ services:
       - default
 
   redis:
-    image: redis:8.10.1-alpine
+    image: redis:8.10.2-alpine
     deploy:
       restart_policy:
         condition: any
