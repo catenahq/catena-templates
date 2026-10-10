@@ -25,9 +25,9 @@ lint:
 	uv run build/lint_postgres_pins.py
 	uv run build/lint_swarm.py
 
-## test: unit tests over the build library
+## test: unit tests over the build library and the image builders
 test:
-	uv run --with pytest --with jsonschema --with pyyaml pytest tests/ -q
+	uv run --with pytest --with jsonschema --with pyyaml pytest tests/ images/erpnext -q
 
 ## verify: what CI runs -- render must be idempotent against the commit
 verify: render
