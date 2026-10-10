@@ -1,6 +1,6 @@
 services:
   espocrm:
-    image: espocrm/espocrm:10.0.8
+    image: espocrm/espocrm:10.0.9
     deploy:
       restart_policy:
         condition: any
@@ -57,7 +57,7 @@ services:
       default: {}
 
   cron:
-    image: espocrm/espocrm:10.0.8
+    image: espocrm/espocrm:10.0.9
     deploy:
       restart_policy:
         condition: any
