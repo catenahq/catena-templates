@@ -4,7 +4,9 @@ marked imported and untested.
 An adapter reads one registry format into Candidates. For each, in order:
 
   id        the adapter's slug, refused when a source file or a blueprint
-            directory already holds it: the importer never overwrites.
+            directory already holds it: the importer never overwrites. An
+            entry whose title or id holds a word on the banned-word list
+            check:unicode reads is skipped too.
   licence   GitHub's licence API, for the repository whose text the entry
             copies: the one a stack entry's compose file sits in, or the
             registry's own for a compose the adapter writes from the
@@ -65,6 +67,10 @@ ZONE = "{{ cloudflare_zone }}"
 
 # The checker's rules that refuse a feature giving the app the server itself.
 REFUSED_RULES = frozenset({"X1", "X2", "X3", "X4", "X5", "X6"})
+
+# The banned-word list contracts/scripts/check-unicode.mjs reads, in the
+# contracts checkout beside this one.
+BANNED_WORDS = model.ROOT.parent / "contracts" / "banned-words.json"
 
 
 @dataclass
@@ -221,6 +227,20 @@ def permissive_licences() -> tuple[str, ...]:
     schema = json.loads(model.SOURCE_SCHEMA.read_text())
     origin = schema["properties"]["x-catena"]["properties"]["origin"]
     return tuple(origin["properties"]["licence"]["enum"])
+
+
+def banned_words() -> list[tuple[str, re.Pattern[str]]]:
+    """Each word of BANNED_WORDS with the match the gate makes, ignoring
+    case: no letter, digit or underscore before it, nor after it unless the
+    list marks it a stem."""
+    words = []
+    for t in json.loads(BANNED_WORDS.read_text())["tokens"]:
+        tail = "" if t["stem"] else r"(?![0-9A-Za-z_])"
+        words.append((t["token"], re.compile(
+            rf"(?<![0-9A-Za-z_]){re.escape(t['token'])}{tail}", re.IGNORECASE)))
+    if not words:
+        raise ValueError("it lists no words")
+    return words
 
 
 class ComposeLoader(yaml.SafeLoader):
@@ -505,6 +525,12 @@ def _finding(f: dict[str, Any]) -> str:
     return f"{f['rule']} {f['severity']}{where}: {f['message']}"
 
 
+# A checker finding at error severity as _finding writes it, and the line an
+# entry records when no checker ran. make lint refuses an entry holding either.
+CHECKER_ERROR = re.compile(r"^\S+ error(?: \S+)?: ")
+CHECKER_NOT_RUN = "checker not run: "
+
+
 @dataclass
 class Report:
     seen: int = 0
@@ -525,10 +551,12 @@ class Report:
 
 
 class Importer:
-    def __init__(self, registry: str, applint: str, dry_run: bool):
+    def __init__(self, registry: str, applint: str, dry_run: bool,
+                 banned: list[tuple[str, re.Pattern[str]]]):
         self.registry = registry
         self.applint = applint
         self.dry_run = dry_run
+        self.banned = banned
         self.allowed = permissive_licences()
         self.licences: dict[tuple[str, str], Licence] = {}
         self.taken: set[str] = set()
@@ -591,6 +619,11 @@ class Importer:
         slug = c.slug
         if not re.match(r"^[a-z0-9][a-z0-9-]*$", slug):
             raise Skip("the entry gives no name to make an id from")
+        for what, text in (("title", c.title), ("id", slug)):
+            word = next((word for word, rx in self.banned if rx.search(text)), None)
+            if word:
+                raise Skip(f"its {what} {text!r} holds {word}, a word on the banned-word list "
+                           f"check:unicode refuses")
         if (slug in self.taken or (model.SOURCES / f"{slug}.json").exists()
                 or (model.BLUEPRINTS / slug).exists()):
             raise Skip(f"the id {slug} is already in the catalog")
@@ -611,7 +644,7 @@ class Importer:
 
         findings = [_finding(f) for f in checked or []]
         if checked is None:
-            findings.append(f"checker not run: name catena-applint with --applint or {APPLINT_ENV}")
+            findings.append(f"{CHECKER_NOT_RUN}name catena-applint with --applint or {APPLINT_ENV}")
         findings += [f"catalog lint: {e}" for e in swarm_lint.lint_compose(compose, label=compose_file)]
         _, pins = postgres_pins.pin_errors(slug, compose, override=None,
                                            default=self.postgres_default)
@@ -702,6 +735,12 @@ def main(argv: list[str], adapters: dict[str, Callable[[Any, str], list[Candidat
     args = parser.parse_args(argv)
 
     try:
+        banned = banned_words()
+    except (OSError, ValueError) as exc:
+        print(f"import_registry: cannot read the banned-word list {BANNED_WORDS}: {exc}",
+              file=sys.stderr)
+        return 1
+    try:
         candidates = adapters[args.format](json.loads(fetch(args.registry)), args.registry)
     except (FetchError, ValueError) as exc:
         print(f"import_registry: cannot read the registry: {exc}", file=sys.stderr)
@@ -714,7 +753,7 @@ def main(argv: list[str], adapters: dict[str, Callable[[Any, str], list[Candidat
         print("import_registry: WARN: no catena-applint, so the compose files are written "
               "without its corrections; each entry records that", file=sys.stderr)
 
-    report = Importer(args.registry, applint, args.dry_run).run(candidates)
+    report = Importer(args.registry, applint, args.dry_run, banned).run(candidates)
     print(f"registry {args.registry}")
     for line in report.lines(args.dry_run):
         print(line)

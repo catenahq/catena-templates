@@ -43,9 +43,12 @@ for layout, consumer model, and BASE URL setup.
   entry merges only once `make` passes and the app checker reports no
   error on it (catena-admin CI runs `catena-applint --catalog` over every
   blueprint): every error the importer records in `pending.findings` is
-  fixed, or the entry is dropped. Finishing an imported entry means filling
-  every stub, settling `pending`, then deleting `pending` and `status`;
-  `origin` stays.
+  fixed and its line deleted, or the entry is dropped. `make lint` refuses
+  an error line and the line recording that the checker did not run.
+  Never import an entry whose title or id holds a word on the contracts
+  banned-word list; the importer skips it. Finishing an imported entry
+  means filling every stub, settling `pending`, then deleting `pending`
+  and `status`; `origin` stays.
 - No secrets, ever. Sentinel placeholders (`__CATENA_OPERATOR_WIRED__`)
   in templates.json. This repo is public and one file serves every
   client, so it cannot hold a per-host value; a client's Portainer reads
@@ -180,8 +183,9 @@ it.
    that only long-running services other than a database mount), the
    sign-in labels (on the main address's service, `redirect_uris` beside
    `vps.auth.oidc=true`, and no catalog default for the three `OIDC_*`
-   values the host's settings sync writes),
-   central Postgres pin enforcement, and the
+   values the host's settings sync writes), an imported entry's pending
+   findings (no app checker error, and no record that the checker did not
+   run), central Postgres pin enforcement, and the
    swarm-compatibility gate above (which also offers each file to the real
    `docker stack config` loader when docker is on PATH, because the ban list
    was written against one docker version and the loader is the authority).

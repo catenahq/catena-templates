@@ -170,7 +170,7 @@ for _ident, (_name, _github, _website) in BLUEPRINTS.items():
 @pytest.fixture
 def catalog(tmp_path, monkeypatch):
     """An empty catalog tree the importer writes into and the loader reads
-    back, and the fixture network."""
+    back, a banned-word list, and the fixture network."""
     sources = tmp_path / "sources"
     sources.mkdir()
     blueprints = tmp_path / "blueprints"
@@ -180,8 +180,11 @@ def catalog(tmp_path, monkeypatch):
         "postgres_default_image": "postgres:18.6-alpine",
         "sizing": {"last_measured_at": "x", "measurement_host": "x", "measurement_method": "x"},
     }, indent=2) + "\n")
+    banned = tmp_path / "banned-words.json"
+    banned.write_text(json.dumps({"tokens": [{"token": "forbiddenware", "stem": False}]}))
     monkeypatch.setattr(model, "SOURCES", sources)
     monkeypatch.setattr(model, "BLUEPRINTS", blueprints)
+    monkeypatch.setattr(pipeline, "BANNED_WORDS", banned)
     monkeypatch.delenv(pipeline.APPLINT_ENV, raising=False)
     calls: list[str] = []
 

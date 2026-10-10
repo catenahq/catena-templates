@@ -7,7 +7,8 @@ before and after an update, and the ready question asked before each of
 those). Both are argv arrays the host runs inside one service's container
 through `docker exec`, with no shell. And the sign-in labels, from which
 the host's settings sync makes a Keycloak client and writes its values into
-the app's stack env.
+the app's stack env. And what the registry importer left on an imported
+entry, which reaches every host's app catalog.
 
 Schema-level checks (argv shape, required keys, timeout caps) live in
 sources.schema.json and run on every render. This module adds:
@@ -36,6 +37,9 @@ sources.schema.json and run on every render. This module adds:
     addresses; and the template declares none of the three values the sync
     writes (OIDC_CLIENT_ID, OIDC_CLIENT_SECRET, OIDC_ISSUER_URL) in
     env_defaults or env_managed_keys, so each has one writer.
+  - An imported entry's pending findings hold no app checker error and no
+    record that the checker did not run: catena-admin CI runs
+    catena-applint --catalog over every blueprint and fails on an error.
 
 Exit codes: 0 clean, 1 lint failures, 2 structural error.
 """
@@ -43,6 +47,7 @@ from __future__ import annotations
 
 import yaml
 
+from .importers.pipeline import CHECKER_ERROR, CHECKER_NOT_RUN
 from .model import SourceError, load_sources
 
 # Each family runs inside one application container and gets that
@@ -210,6 +215,22 @@ def lint_signin(entry) -> list[str]:
     return errors
 
 
+def lint_pending(entry) -> list[str]:
+    label = f"{entry.slug}.pending.findings"
+    errors: list[str] = []
+    for finding in entry.catena.get("pending", {}).get("findings", []):
+        if finding.startswith(CHECKER_NOT_RUN):
+            errors.append(
+                f"{label}: the app checker did not run on this entry: run catena-applint "
+                f"--fix --nodes 2 --name {entry.catena['app_name']} on its compose and record "
+                f"the findings it leaves in place of this line, or drop the entry")
+        elif CHECKER_ERROR.match(finding):
+            errors.append(
+                f"{label}: {finding!r} is an app checker error, which fails catena-admin CI "
+                f"(catena-applint --catalog): fix it and delete the line, or drop the entry")
+    return errors
+
+
 def lint_all() -> int:
     try:
         entries = load_sources()
@@ -223,6 +244,7 @@ def lint_all() -> int:
 
     for entry in entries:
         all_errors.extend(lint_signin(entry))
+        all_errors.extend(lint_pending(entry))
         lifecycle = entry.lifecycle
         if lifecycle:
             with_lifecycle += 1

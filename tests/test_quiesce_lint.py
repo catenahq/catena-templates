@@ -308,6 +308,48 @@ def test_sign_in_labels_off_the_main_address_are_refused(
     assert needle in capsys.readouterr().out
 
 
+def _imported(findings: list[str]) -> dict:
+    return {
+        "status": "imported",
+        "origin": {"registry": "https://example.com/templates.json", "entry": "Synthetic",
+                   "source": "https://github.com/example/app", "licence": "MIT",
+                   "attribution": "Copyright (c) 2025 Example"},
+        "pending": {"findings": findings, "to_choose": []},
+    }
+
+
+def test_an_imported_entry_with_no_checker_error_passes(monkeypatch, tmp_path, capsys):
+    """catena-admin CI's catalog check fails on an error alone. A catalog
+    lint line belongs to the swarm and Postgres lints, which check the
+    compose itself."""
+    _synthetic_sources(monkeypatch, tmp_path, _imported([
+        "K3 warn app: an error page answers on /",
+        "S2 info: the file names no version",
+        "catalog lint: blueprints/synthetic-bad/docker-compose.yml: an error",
+    ]))
+    assert L.lint_all() == 0, capsys.readouterr().out
+
+
+@pytest.mark.parametrize("finding,needle", [
+    ("X6 error app: Service app mounts the Docker socket",
+     "'X6 error app: Service app mounts the Docker socket' is an app checker error"),
+    ("K1 error: the file declares no services",
+     "'K1 error: the file declares no services' is an app checker error"),
+    ("checker error: exit 2: catena-applint: one compose file",
+     "'checker error: exit 2: catena-applint: one compose file' is an app checker error"),
+    ("checker not run: name catena-applint with --applint or CATENA_APPLINT",
+     "the app checker did not run on this entry: run catena-applint --fix --nodes 2 "
+     "--name synthetic-bad on its compose"),
+])
+def test_an_imported_entry_the_catalog_check_refuses_fails(
+        monkeypatch, tmp_path, capsys, finding, needle):
+    """catena-admin CI runs catena-applint --catalog over every blueprint and
+    fails on an error; an entry the checker never ran on is unchecked."""
+    _synthetic_sources(monkeypatch, tmp_path, _imported([finding]))
+    assert L.lint_all() == 1
+    assert f"synthetic-bad.pending.findings: {needle}" in capsys.readouterr().out
+
+
 def test_the_database_match_reads_the_image_name_only():
     assert L.database_image("postgres:18.6-alpine")
     assert L.database_image("ghcr.io/immich-app/postgres:14-vectorchord0.4.3")

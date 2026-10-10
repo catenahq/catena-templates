@@ -20,12 +20,15 @@ import yaml
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from lib import model, readme, render  # noqa: E402
+from lib import model, quiesce_lint, readme, render  # noqa: E402
 from lib.importers import pipeline, portainer  # noqa: E402
 
 ADAPTERS = {"portainer": portainer.read}
 REGISTRY = "https://raw.githubusercontent.com/example/registry/main/templates.json"
 API = pipeline.GITHUB_API
+# A banned-word list in the shape of contracts/banned-words.json, with words
+# of its own so this file holds none of the real list's.
+BANNED = {"tokens": [{"token": "forbiddenware", "stem": False}, {"token": "badstem", "stem": True}]}
 
 
 def _licence(repo: str, spdx: str, text: str) -> bytes:
@@ -134,7 +137,7 @@ sys.exit(1)
 @pytest.fixture
 def catalog(tmp_path, monkeypatch):
     """An empty catalog tree the importer writes into and the loader reads
-    back, and the fixture network."""
+    back, the fixture banned-word list, and the fixture network."""
     sources = tmp_path / "sources"
     sources.mkdir()
     blueprints = tmp_path / "blueprints"
@@ -144,8 +147,11 @@ def catalog(tmp_path, monkeypatch):
         "postgres_default_image": "postgres:18.6-alpine",
         "sizing": {"last_measured_at": "x", "measurement_host": "x", "measurement_method": "x"},
     }, indent=2) + "\n")
+    banned = tmp_path / "banned-words.json"
+    banned.write_text(json.dumps(BANNED))
     monkeypatch.setattr(model, "SOURCES", sources)
     monkeypatch.setattr(model, "BLUEPRINTS", blueprints)
+    monkeypatch.setattr(pipeline, "BANNED_WORDS", banned)
     monkeypatch.delenv(pipeline.APPLINT_ENV, raising=False)
     calls: list[str] = []
 
@@ -303,6 +309,79 @@ def test_without_the_checker_the_import_warns_and_records_it(catalog, capsys):
     assert "is not an executable" in err and "WARN: no catena-applint" in err
     findings = _source("notes")["x-catena"]["pending"]["findings"]
     assert any(f.startswith("checker not run") for f in findings)
+
+
+def test_make_lint_refuses_an_error_the_checker_leaves_until_it_is_settled(catalog, capsys):
+    """make lint reads the findings as the importer writes them; catena-admin
+    CI's catalog check fails on an error."""
+    tmp_path, _ = catalog
+    assert _run("--applint", str(_stub_checker(tmp_path))) == 0
+    capsys.readouterr()
+    assert quiesce_lint.lint_all() == 1
+    out = capsys.readouterr().out
+    assert ("web-stack.pending.findings: 'X6 error web: Service web mounts the Docker socket' is "
+            "an app checker error") in out
+    assert "did not run" not in out
+    for slug in ("web-stack", "notes"):
+        path = model.SOURCES / f"{slug}.json"
+        doc = json.loads(path.read_text())
+        pending = doc["x-catena"]["pending"]
+        pending["findings"] = [f for f in pending["findings"] if not f.startswith("X6 error")]
+        path.write_text(json.dumps(doc))
+    assert quiesce_lint.lint_all() == 0, capsys.readouterr().out
+
+
+def test_make_lint_refuses_an_entry_the_checker_did_not_run_on(catalog, capsys):
+    assert _run() == 0
+    capsys.readouterr()
+    assert quiesce_lint.lint_all() == 1
+    assert ("notes.pending.findings: the app checker did not run on this entry: run catena-applint "
+            "--fix --nodes 2 --name catena-notes on its compose") in capsys.readouterr().out
+
+
+def test_an_entry_whose_title_or_id_holds_a_banned_word_is_skipped(catalog, capsys, monkeypatch):
+    notes = REGISTRY_DOC["templates"][1]
+    monkeypatch.setitem(WEB, REGISTRY, json.dumps({"version": "3", "templates": [
+        dict(notes, title="Forbiddenware Notes"),
+        dict(notes, title="Jotter", name="jotter-forbiddenware"),
+        dict(notes, title="Forbiddenwares", name="forbiddenwares"),
+    ]}).encode())
+    assert _run() == 0
+    out = capsys.readouterr().out
+    assert ("skipped, other reasons: 2\n  Forbiddenware Notes: its title 'Forbiddenware Notes' "
+            "holds forbiddenware, a word on the banned-word list check:unicode refuses\n"
+            "  Jotter: its id 'jotter-forbiddenware' holds forbiddenware") in out
+    assert sorted(p.name for p in model.SOURCES.iterdir()) == [model.META_NAME, "forbiddenwares.json"]
+
+
+@pytest.mark.parametrize("text,words", [
+    ("uptime-forbiddenware", ["forbiddenware"]),
+    ("Forbiddenware Monitor", ["forbiddenware"]),
+    ("forbiddenwares", []),
+    ("forbiddenware_ui", []),
+    ("badstemmed", ["badstem"]),
+    ("xbadstem", []),
+])
+def test_a_banned_word_matches_where_the_gate_matches_it(catalog, text, words):
+    """The gate's boundary: no letter, digit or underscore before the word,
+    nor after it unless it is a stem."""
+    assert [word for word, rx in pipeline.banned_words() if rx.search(text)] == words
+
+
+def test_without_the_banned_word_list_nothing_is_read(catalog, capsys, monkeypatch):
+    tmp_path, calls = catalog
+    monkeypatch.setattr(pipeline, "BANNED_WORDS", tmp_path / "absent.json")
+    assert _run() == 1
+    assert "cannot read the banned-word list" in capsys.readouterr().err
+    assert calls == []
+
+
+@pytest.mark.skipif(not pipeline.BANNED_WORDS.is_file(), reason="no contracts checkout beside this one")
+def test_the_banned_word_list_is_the_one_the_unicode_gate_reads():
+    gate = (pipeline.BANNED_WORDS.parent / "scripts" / "check-unicode.mjs").read_text()
+    assert ('join(resolve(dirname(fileURLToPath(import.meta.url)), ".."), "banned-words.json")'
+            in gate)
+    assert pipeline.banned_words()
 
 
 def test_the_imported_tier_validates_and_renders(catalog):

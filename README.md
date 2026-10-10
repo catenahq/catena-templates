@@ -176,6 +176,10 @@ uv run build/import_registry.py --format <format> [--dry-run] \
     'https://api.github.com/repos/<owner>/<repo>/git/trees/<commit>?recursive=1'
 ```
 
+- **Names.** An entry whose title or id holds a word on the banned-word
+  list `check:unicode` reads (`contracts/banned-words.json`, in the
+  sibling checkout) is skipped, and the import stops when that list
+  cannot be read.
 - **Licence.** Read from GitHub's licence API for the repository the
   compose file is copied from (the registry's own repository for a
   single-container entry), or, for a per-app directory, the app's own
@@ -191,7 +195,9 @@ uv run build/import_registry.py --format <format> [--dry-run] \
   `vps.route.host`/`vps.route.port`, Traefik labels go, and the app
   checker's `--fix` (catena-admin `payload/cmd/catena-applint`, named by
   `--applint` or `CATENA_APPLINT`) corrects the rest. Without the
-  checker the import warns and records that it did not run. A further
+  checker the import warns and records that it did not run. `make lint`
+  fails on that record and on each error the checker leaves, until a
+  person settles it. A further
   address, a file the registry writes beside the stack and a value the
   host cannot mint are recorded as choices.
 - **Settings.** Every variable the registry or the compose names is an
