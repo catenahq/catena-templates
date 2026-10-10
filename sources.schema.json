@@ -236,7 +236,7 @@
             "migrate",
             "timeout_seconds"
           ],
-          "description": "Commands the host runs inside one service around a schema change: after every image update the update lane applies, and after a FORWARD restore once the database replay has put the snapshot's contents back. Declare it when the application keeps a schema its new code expects migrated. A migration the application runs at container start is not enough on a restore: it runs against the pre-replay database and the replay then overwrites it. Every command is an argv array executed through docker exec, never a shell.",
+          "description": "Commands the host runs inside one service around a schema change: around every image update the update lane applies, the migration only when the update moves that service's image, and after a FORWARD restore once the database replay has put the snapshot's contents back. Declare it when the application keeps a schema its new code expects migrated. A migration the application runs at container start is not enough on a restore: it runs against the pre-replay database and the replay then overwrites it. Every command is an argv array executed through docker exec, never a shell.",
           "properties": {
             "service": {
               "type": "string",

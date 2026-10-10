@@ -204,8 +204,9 @@ it.
    `sources/nextcloud-s3-oidc.json` (maintenance mode),
    `sources/rocketchat-oidc.json` (MongoDB fsync lock).
 5. If the application keeps a schema its new code expects migrated, add
-   `x-catena.lifecycle`: `migrate` runs after every image update the host
-   applies and after a forward restore (a start-time migration runs
+   `x-catena.lifecycle`: `migrate` runs after every update the host applies
+   to the image of the service it names, and after a forward restore (a
+   start-time migration runs
    against the pre-replay database, which the replay then overwrites).
    `before_update` / `after_update` wrap an update, for an application
    with a maintenance mode. `ready` is one command the update lane runs
