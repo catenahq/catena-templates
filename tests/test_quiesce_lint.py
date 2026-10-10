@@ -259,18 +259,51 @@ def test_a_sign_in_label_the_host_cannot_use_is_refused(
     assert needle in capsys.readouterr().out
 
 
-def test_sign_in_labels_off_the_route_service_are_refused(monkeypatch, tmp_path, capsys):
-    """The host reads sign-in labels from the route service alone, so labels
-    on another service ask for nothing."""
-    compose = _SIGNIN_COMPOSE.replace(
-        '      - "vps.auth.oidc=true"\n'
-        '      - "vps.auth.oidc.redirect_uris=https://${DOMAIN_HOST}/cb"\n', ""
-    ) + ('    labels:\n      - "vps.auth.oidc=true"\n'
-         '      - "vps.auth.oidc.redirect_uris=https://x.example.com/cb"\n')
-    _synthetic_sources(monkeypatch, tmp_path, {}, compose)
+_SIGNIN = ["vps.auth.oidc=true", "vps.auth.oidc.redirect_uris=https://${DOMAIN_HOST}/cb"]
+_HOST = "vps.route.host=${DOMAIN_HOST}"
+_ADMIN_HOST = "vps.route.host=admin.${DOMAIN_HOST}"
+_MAIN = "vps.route.main=true"
+_OFF_MAIN = ("carries sign-in labels, but the host reads them only from the main "
+             "address's service, ")
+
+
+def _compose(services: dict[str, list[str]]) -> str:
+    lines = ["services:"]
+    for name, labels in services.items():
+        lines += [f"  {name}:", "    image: acme/app:1.0.0"]
+        if labels:
+            lines += ["    labels:"] + [f'      - "{label}"' for label in labels]
+    return "\n".join(lines) + "\n"
+
+
+def test_sign_in_labels_on_the_marked_main_address_pass(monkeypatch, tmp_path, capsys):
+    _synthetic_sources(monkeypatch, tmp_path, {}, _compose({
+        "app": [_HOST, _MAIN, "vps.auth.mode=public", *_SIGNIN],
+        "admin": [_ADMIN_HOST, "vps.auth.mode=admin-only"],
+    }))
+    assert L.lint_all() == 0, capsys.readouterr().out
+
+
+@pytest.mark.parametrize("services,needle", [
+    ({"app": [_HOST], "worker": _SIGNIN}, "synthetic-bad:worker: " + _OFF_MAIN + "app"),
+    ({"app": [_HOST, _MAIN], "admin": [_ADMIN_HOST, *_SIGNIN]},
+     "synthetic-bad:admin: " + _OFF_MAIN + "app"),
+    ({"app": [_HOST, *_SIGNIN], "admin": [_ADMIN_HOST]},
+     "synthetic-bad:app: " + _OFF_MAIN + "and the app has none: 0 of its addresses "
+     "(admin, app) carry vps.route.main=true"),
+    ({"app": [_HOST, _MAIN, *_SIGNIN], "admin": [_ADMIN_HOST, _MAIN]},
+     "synthetic-bad:app: " + _OFF_MAIN + "and the app has none: 2 of its addresses"),
+    ({"app": _SIGNIN}, "synthetic-bad:app: " + _OFF_MAIN + "and the app has none: "
+     "no service carries vps.route.host"),
+])
+def test_sign_in_labels_off_the_main_address_are_refused(
+        monkeypatch, tmp_path, capsys, services, needle):
+    """The host reads sign-in labels from the main address's service alone:
+    the one address, or of several the one marked vps.route.main=true. Labels
+    anywhere else, or in an app with no main address, ask for nothing."""
+    _synthetic_sources(monkeypatch, tmp_path, {}, _compose(services))
     assert L.lint_all() == 1
-    assert ("synthetic-bad:worker: carries sign-in labels but no vps.route.host"
-            in capsys.readouterr().out)
+    assert needle in capsys.readouterr().out
 
 
 def test_the_database_match_reads_the_image_name_only():

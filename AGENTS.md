@@ -145,15 +145,22 @@ and the blueprint directory name.
 
 The host knows an app by its stack name and a service by its key in the
 compose: swarm stamps both on every task (`com.docker.stack.namespace`,
-`com.docker.swarm.service.name=<app_name>_<service>`). The route service is
-the one service that declares `vps.route.host`, and the host reads the
-app-level labels (`vps.route.*`, `vps.auth.*`, `vps.health.*`) from it alone;
-it joins `catena-network`, where Traefik and the app's oauth2-proxy reach it
-by its swarm name `<app_name>_<service>`. The host runs a quiesce or
-lifecycle command in the container of the service the block names, and
-`make lint` checks that a quiesce block's `service` is a service the compose
-actually defines -- because a service no container runs under fails the
-quiesce on every host, and the backup is then taken without it.
+`com.docker.swarm.service.name=<app_name>_<service>`). Each service that
+declares `vps.route.host` is an address of the app, and the host reads that
+address's labels (`vps.route.port`, `vps.auth.mode`, `vps.auth.groups`,
+`vps.health.*`) from that service; it joins `catena-network`, where Traefik
+and the address's oauth2-proxy reach it by its swarm name
+`<app_name>_<service>`. The main address is the only one, or, of several, the
+one whose service also carries `vps.route.main=true`, and `x-catena.domain`
+names it. The host reads the app-wide labels (the sign-in labels
+`vps.auth.oidc*`, `vps.auth.protected`, `vps.display-name`,
+`vps.homepage.*`) from the main address's service alone.
+
+The host runs a quiesce or lifecycle command in the container of the service
+the block names, and `make lint` checks that a quiesce block's `service` is a
+service the compose actually defines -- because a service no container runs
+under fails the quiesce on every host, and the backup is then taken without
+it.
 
 ## Validation layers
 
@@ -171,7 +178,7 @@ quiesce on every host, and the backup is then taken without it.
 4. `make lint` -- the quiesce and lifecycle argv allowlists, the
    quiesce service check, the versioned volume check (a top-level volume
    that only long-running services other than a database mount), the
-   sign-in labels (on the route service, `redirect_uris` beside
+   sign-in labels (on the main address's service, `redirect_uris` beside
    `vps.auth.oidc=true`, and no catalog default for the three `OIDC_*`
    values the host's settings sync writes),
    central Postgres pin enforcement, and the

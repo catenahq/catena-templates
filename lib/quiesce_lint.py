@@ -29,9 +29,10 @@ sources.schema.json and run on every render. This module adds:
     whose dump it replays instead, and the host refuses every update of a
     stack where one mounts the volume. A one-shot service, which a
     rollback does not stop either, is refused outright by the swarm lint.
-  - Sign-in labels sit on the route service (the one carrying
-    vps.route.host), which is the only service the host reads them from;
-    each is one the host knows; `vps.auth.oidc=true` comes with the return
+  - Sign-in labels sit on the main address's service, the only service
+    the host reads them from: the one service carrying vps.route.host, or,
+    of several, the one also carrying vps.route.main=true. Each is one the
+    host knows; `vps.auth.oidc=true` comes with the return
     addresses; and the template declares none of the three values the sync
     writes (OIDC_CLIENT_ID, OIDC_CLIENT_SECRET, OIDC_ISSUER_URL) in
     env_defaults or env_managed_keys, so each has one writer.
@@ -159,10 +160,26 @@ def service_labels(service: dict) -> dict[str, str]:
 
 def lint_signin(entry) -> list[str]:
     doc = yaml.safe_load(entry.compose_path.read_text(encoding="utf-8")) or {}
+    services = {name: service_labels(service or {})
+                for name, service in (doc.get("services") or {}).items()}
+    # The main address as catena-admin payload/lib/app_intent.py row picks it.
+    addresses = sorted(name for name, labels in services.items()
+                       if labels.get("vps.route.host", "").strip())
+    marked = [name for name in addresses
+              if services[name].get("vps.route.main", "").strip().lower() in _TRUE]
+    main = (addresses[0] if len(addresses) == 1
+            else marked[0] if len(marked) == 1 else None)
+    if main:
+        where = main
+    elif addresses:
+        where = (f"and the app has none: {len(marked)} of its addresses "
+                 f"({', '.join(addresses)}) carry vps.route.main=true, "
+                 "where exactly one must")
+    else:
+        where = "and the app has none: no service carries vps.route.host"
     errors: list[str] = []
     asks = False
-    for name, service in (doc.get("services") or {}).items():
-        labels = service_labels(service or {})
+    for name, labels in services.items():
         signin = {key for key in labels if key.startswith("vps.auth.oidc")}
         if not signin:
             continue
@@ -170,9 +187,9 @@ def lint_signin(entry) -> list[str]:
         for key in sorted(signin - SIGNIN_LABELS):
             errors.append(f"{label}: {key} is not a sign-in label the host reads "
                           f"({', '.join(sorted(SIGNIN_LABELS))})")
-        if not labels.get("vps.route.host", "").strip():
-            errors.append(f"{label}: carries sign-in labels but no vps.route.host; "
-                          f"the host reads them from the route service only")
+        if name != main:
+            errors.append(f"{label}: carries sign-in labels, but the host reads them "
+                          f"only from the main address's service, {where}")
             continue
         if labels.get("vps.auth.oidc", "").strip().lower() not in _TRUE:
             continue
