@@ -73,6 +73,12 @@
       "service": "roundcube",
       "versioned_volumes": ["roundcube-db"],
       "timeout_seconds": 300
+    },
+    "quiesce": {
+      "service": "roundcube",
+      "pre": [["pkill", "-STOP", "-x", "apache2"]],
+      "post": [["pkill", "-CONT", "-x", "apache2"]],
+      "timeout_seconds": 10
     }
   }
 }

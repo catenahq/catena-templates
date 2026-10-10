@@ -31,6 +31,7 @@
       "migrate": [
         ["php", "rebuild.php"]
       ],
+      "versioned_volumes": ["custom"],
       "timeout_seconds": 900
     },
     "bench": {

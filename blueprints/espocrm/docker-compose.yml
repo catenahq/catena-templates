@@ -37,8 +37,14 @@ services:
       ESPOCRM_CONFIG_OIDC_SYNC: "true"
       ESPOCRM_CONFIG_OIDC_FALLBACK: "true"
       ESPOCRM_CONFIG_OIDC_ALLOW_ADMIN_USER: "true"
+    # The image's own layout: data/ holds the config and the attachments,
+    # custom/ and client/custom/ what the admin screens make (fields,
+    # layouts, entities, extensions). The rest of /var/www/html comes from
+    # the image, so a new version replaces it.
     volumes:
       - server-data:/var/www/html/data
+      - custom:/var/www/html/custom
+      - client-custom:/var/www/html/client/custom
     labels:
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=80"
@@ -59,7 +65,9 @@ services:
       placement:
         constraints:
           - node.labels.catena.role==data
-    entrypoint: docker-cron.sh
+    # The image's job runner: it exits until the espocrm service has
+    # installed the application, then runs EspoCRM's daemon.php.
+    entrypoint: docker-daemon.sh
     environment:
       ESPOCRM_DATABASE_PLATFORM: Mysql
       ESPOCRM_DATABASE_HOST: db
@@ -69,6 +77,8 @@ services:
       ESPOCRM_DATABASE_PASSWORD: ${DB_PASSWORD}
     volumes:
       - server-data:/var/www/html/data
+      - custom:/var/www/html/custom
+      - client-custom:/var/www/html/client/custom
     labels:
       - "vps.auto-update=patch"
     networks:
@@ -102,6 +112,8 @@ services:
 
 volumes:
   server-data:
+  custom:
+  client-custom:
   db-data:
 
 networks:

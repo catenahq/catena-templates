@@ -1,7 +1,7 @@
 """Per-template facts a host or an action relies on and no generic gate
-checks: what a template's backup mode does, the Rocket.Chat settings its
-Keycloak sign-in needs, and the user_oidc release the Nextcloud wiring is
-written for.
+checks: what a template's backup mode does, where EspoCRM keeps what its
+admin screens make, the Rocket.Chat settings its Keycloak sign-in needs, and
+the user_oidc release the Nextcloud wiring is written for.
 """
 from __future__ import annotations
 
@@ -41,6 +41,50 @@ def test_actual_budget_holds_its_server_still_for_the_backup():
     }
     actual = _service("actualbudget", "actual")
     assert "entrypoint" not in actual and "command" not in actual
+
+
+def test_the_webmail_holds_its_server_still_for_the_backup():
+    """Roundcube keeps its users' settings and sessions in SQLite with a
+    write-ahead log, and the nightly backup and the pre-update copy read the
+    files. Its apache processes stop before the copy and continue after it,
+    so the copy holds the database and its log at one instant. The hold is
+    in the webmail's service alone: dms goes on receiving mail. docker-init
+    runs as PID 1, because a namespace's first process ignores a SIGSTOP sent
+    from inside it, and the healthcheck passes a stopped master, because
+    swarm replaces a task that turns unhealthy. The name matches only while
+    the service runs the image's own apache2-foreground."""
+    assert _entry("mailserver").quiesce == {
+        "service": "roundcube",
+        "pre": [["pkill", "-STOP", "-x", "apache2"]],
+        "post": [["pkill", "-CONT", "-x", "apache2"]],
+        "timeout_seconds": 10,
+    }
+    roundcube = _service("mailserver", "roundcube")
+    assert roundcube["init"] is True
+    assert "entrypoint" not in roundcube and "command" not in roundcube
+    assert roundcube["healthcheck"]["test"][1].startswith(
+        "grep -qs '^State:[[:space:]]*T' /proc/$$(pgrep -o -x apache2)/status || ")
+
+
+def test_espocrm_keeps_what_its_admin_screens_make_in_volumes():
+    """EspoCRM writes the fields, layouts, entities and extensions its admin
+    screens make under custom/ and client/custom/, and the database columns
+    of those fields in MariaDB. A path left in the container is lost each
+    time swarm recreates the task, which every update does. The job runner
+    reads the same tree. A minor version's migration rewrites the metadata
+    under custom/ in place, so an update copies it and a rollback puts it
+    back."""
+    mounts = {"server-data:/var/www/html/data", "custom:/var/www/html/custom",
+              "client-custom:/var/www/html/client/custom"}
+    for service in ("espocrm", "cron"):
+        assert mounts <= set(_service("espocrm", service)["volumes"])
+    assert _entry("espocrm").lifecycle["versioned_volumes"] == ["custom"]
+
+
+def test_espocrm_runs_its_jobs_with_the_images_job_runner():
+    """The image's job runner is docker-daemon.sh. An entrypoint the image
+    does not ship keeps the task from starting, and no scheduled job runs."""
+    assert _service("espocrm", "cron")["entrypoint"] == "docker-daemon.sh"
 
 
 def test_rocket_chat_sends_the_userinfo_token_in_the_header():

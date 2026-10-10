@@ -661,7 +661,10 @@
         ],
         "service": "espocrm",
         "timeout_seconds": 900,
-        "user": "www-data"
+        "user": "www-data",
+        "versioned_volumes": [
+          "custom"
+        ]
       },
       "sizing": {
         "disk_baseline_mb": 200,
@@ -1609,6 +1612,26 @@
         "versioned_volumes": [
           "roundcube-db"
         ]
+      },
+      "quiesce": {
+        "post": [
+          [
+            "pkill",
+            "-CONT",
+            "-x",
+            "apache2"
+          ]
+        ],
+        "pre": [
+          [
+            "pkill",
+            "-STOP",
+            "-x",
+            "apache2"
+          ]
+        ],
+        "service": "roundcube",
+        "timeout_seconds": 10
       },
       "sizing": {
         "disk_baseline_mb": 600,

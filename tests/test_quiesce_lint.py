@@ -37,6 +37,7 @@ def test_quiesce_argv_allows_the_declared_shapes():
     assert _quiesce(["php", "occ", "maintenance:mode", "--on"]) == []
     assert _quiesce(["mongosh", "--quiet", "--eval", "db.fsyncLock()"]) == []
     assert _quiesce(["pkill", "-STOP", "-x", "node"]) == []
+    assert _quiesce(["pkill", "-CONT", "-x", "apache2"]) == []
 
 
 def test_quiesce_argv_rejects_a_hostile_command():

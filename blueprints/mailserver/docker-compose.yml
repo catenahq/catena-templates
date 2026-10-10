@@ -89,6 +89,12 @@ services:
 
   roundcube:
     image: roundcube/roundcubemail:1.7.3-apache
+    # docker-init runs as PID 1, so the backup mode (x-catena.quiesce in
+    # sources/mailserver.json) can stop apache's master: a PID namespace's
+    # first process ignores a SIGSTOP sent from inside it, and a running
+    # master can fork fresh children that serve, and write, while the held
+    # ones wait.
+    init: true
     deploy:
       restart_policy:
         condition: any
@@ -109,7 +115,9 @@ services:
       # ops drops oauth.inc.php (Keycloak oauth_provider config) here.
       - roundcube-config:/var/roundcube/config
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost/ >/dev/null || exit 1"]
+      # A master the backup mode stopped (state T) passes: swarm replaces a
+      # task that turns unhealthy, and the hold has to last the whole backup.
+      test: ["CMD-SHELL", "grep -qs '^State:[[:space:]]*T' /proc/$$(pgrep -o -x apache2)/status || curl -fsS http://localhost/ >/dev/null || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5

@@ -57,7 +57,7 @@ from .model import SourceError, load_sources
 ALLOWED_QUIESCE_COMMANDS = frozenset({
     "php",                  # Nextcloud
     "mongosh",              # MongoDB
-    "pkill",                # Actual Budget: stops and continues its server
+    "pkill",                # Actual Budget, Roundcube: stop and continue their servers
 })
 
 ALLOWED_MIGRATE_COMMANDS = frozenset({
