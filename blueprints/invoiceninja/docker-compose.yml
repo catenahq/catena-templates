@@ -1,6 +1,6 @@
 services:
   app:
-    image: invoiceninja/invoiceninja-debian:5.13.43
+    image: invoiceninja/invoiceninja-debian:5.13.47
     deploy:
       restart_policy:
         condition: any
@@ -51,7 +51,7 @@ services:
       - default
 
   nginx:
-    image: nginx:1.31.5-alpine
+    image: nginx:1.31.6-alpine
     deploy:
       restart_policy:
         condition: any
@@ -175,7 +175,7 @@ services:
       - default
 
   redis:
-    image: redis:8.10.1-alpine
+    image: redis:8.10.2-alpine
     deploy:
       restart_policy:
         condition: any
