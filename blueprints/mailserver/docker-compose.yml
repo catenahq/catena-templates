@@ -1,3 +1,19 @@
+x-catena:
+  schema: 1
+  lifecycle:
+    service: "roundcube"
+    versioned_volumes: ["roundcube-db"]
+    timeout_seconds: 300
+  quiesce:
+    service: "roundcube"
+    pre:
+      - ["pkill", "-STOP", "-x", "apache2"]
+    post:
+      - ["pkill", "-CONT", "-x", "apache2"]
+    timeout_seconds: 10
+  managed_env:
+    RELAY_PASSWORD: "{{ mailserver_relay_password }}"
+
 services:
   dms:
     image: ghcr.io/docker-mailserver/docker-mailserver:16.0.1
@@ -89,8 +105,8 @@ services:
 
   roundcube:
     image: roundcube/roundcubemail:1.7.3-apache
-    # docker-init runs as PID 1, so the backup mode (x-catena.quiesce in
-    # sources/mailserver.json) can stop apache's master: a PID namespace's
+    # docker-init runs as PID 1, so the backup mode (x-catena.quiesce at the
+    # top of this file) can stop apache's master: a PID namespace's
     # first process ignores a SIGSTOP sent from inside it, and a running
     # master can fork fresh children that serve, and write, while the held
     # ones wait.

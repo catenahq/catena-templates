@@ -7,10 +7,10 @@
 # runs this after each bump, so the generated artifacts in the PR it opens
 # match the inputs and render-idempotency passes.
 #
-# This installs nothing, so it also works where there is a python3 and no uv or
-# pip: lib/model.py treats jsonschema as optional and skips the JSON Schema
-# layer without it, and the render-idempotency job re-renders under uv and
-# compares. uv is preferred where it exists, because that is what
+# This installs nothing, so it also works where there is a python3 with PyYAML
+# (it reads each compose's x-catena block) and no uv or pip: lib/model.py treats
+# jsonschema as optional and skips the JSON Schema layer without it, and the
+# render-idempotency job re-renders under uv and compares. uv is preferred where it exists, because that is what
 # `make render` uses and the two must not be able to disagree.
 set -euo pipefail
 

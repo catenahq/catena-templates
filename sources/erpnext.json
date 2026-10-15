@@ -24,32 +24,6 @@
       "DB_ROOT_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
       "FRAPPE_APPS=erpnext,telephony,helpdesk"
     ],
-    "lifecycle": {
-      "service": "backend",
-      "before_update": [
-        [
-          "bench",
-          "set-maintenance-mode",
-          "on"
-        ]
-      ],
-      "migrate": [
-        [
-          "bench",
-          "--site",
-          "all",
-          "migrate"
-        ]
-      ],
-      "after_update": [
-        [
-          "bench",
-          "set-maintenance-mode",
-          "off"
-        ]
-      ],
-      "timeout_seconds": 3600
-    },
     "bench": {
       "pack": "mariadb",
       "hostname_baked": true

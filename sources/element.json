@@ -30,9 +30,9 @@
       "SYNAPSE_FORM_SECRET={{ lookup('password', '/dev/null length=48 chars=ascii_letters,digits') }}",
       "ALLOW_PUBLIC_REGISTRATION=false",
       "FEDERATION_DOMAIN_WHITELIST=",
-      "VPS_PUBLIC_IP={{ public_ip }}",
-      "TURN_HOSTNAME={{ coturn_hostname | default('turn.' ~ cloudflare_zone) }}",
-      "TURN_STATIC_AUTH_SECRET={{ turn_static_auth_secret }}",
+      "VPS_PUBLIC_IP=",
+      "TURN_HOSTNAME=",
+      "TURN_STATIC_AUTH_SECRET=",
       "JITSI_JICOFO_AUTH_PASSWORD={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}",
       "JITSI_JICOFO_COMPONENT_SECRET={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}",
       "JITSI_JVB_AUTH_PASSWORD={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}",
@@ -79,11 +79,6 @@
       "compose_description": "Element + serveur Matrix. Chat (E2EE), voix, visio de groupe. SSO Keycloak pr\u00e9-c\u00e2bl\u00e9. F\u00e9d\u00e9ration d\u00e9sactiv\u00e9e par d\u00e9faut.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/element/README.md\n",
       "setup_steps": "1. Cliquez **Deploy**. Le premier d\u00e9marrage prend ~3 min (Synapse g\u00e9n\u00e8re ses cl\u00e9s de signature, postgres s'initialise, les composants Jitsi s'enregistrent). Dans les minutes qui suivent le premier d\u00e9ploiement, le serveur cr\u00e9e l'entr\u00e9e de connexion propre \u00e0 Element dans Keycloak, inscrit ses valeurs (`OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_ISSUER_URL`) dans l'onglet Environment, et le homeserver red\u00e9marre une fois avec elles.\n2. Ouvrez `element.<votre-domaine>` -- le client web Element s'ouvre. Cliquez **Se connecter avec Keycloak**.\n3. Le premier utilisateur Keycloak arrive comme utilisateur Matrix normal. Pour le promouvoir admin du homeserver, ouvrez `synapseadmin.<votre-domaine>` (r\u00e9serv\u00e9 aux administrateurs, prot\u00e9g\u00e9 par le groupe admin Keycloak), trouvez l'utilisateur, et activez l'indicateur admin.\n4. *(Optionnel)* Ouvrez la f\u00e9d\u00e9ration : \u00e9ditez `FEDERATION_DOMAIN_WHITELIST` dans l'onglet Environment (ex : `\"matrix.org\",\"example.com\"`) puis red\u00e9ployez. Par d\u00e9faut vide (pas de f\u00e9d\u00e9ration -- le homeserver ne parle qu'\u00e0 lui-m\u00eame).\n",
       "extra_notes": "### Chiffrement de bout en bout\n\nLes nouveaux messages directs et les nouveaux salons sur invitation sont chiffr\u00e9s par d\u00e9faut. Les salons publics restent en clair (le E2EE dans des salons publics nombreux d\u00e9grade la synchro mobile). Chaque utilisateur est invit\u00e9 \u00e0 configurer le **Coffre-fort de r\u00e9cup\u00e9ration** lors de sa premi\u00e8re connexion -- une cl\u00e9 de 24 caract\u00e8res qui lui permet de lire l'historique chiffr\u00e9 depuis un nouvel appareil. Perdre la cl\u00e9 verrouille l'utilisateur hors de ses anciens messages chiffr\u00e9s ; sauvegardez-la comme un mot de passe ma\u00eetre.\n\n### Voix et vid\u00e9o\n\n- **Appels 1:1** utilisent le moteur d'appel Element/Matrix et le serveur TURN/STUN partag\u00e9 `turn.<votre-domaine>` pour relayer les m\u00e9dias en r\u00e9seau restrictif.\n- **Appels de groupe** s'ouvrent dans un widget Jitsi embarqu\u00e9 sur `elementmeet.<votre-domaine>` (l'instance Jitsi embarqu\u00e9e). Les appels ne quittent jamais le serveur -- pas de repli sur `meet.jit.si`.\n\n### Applications mobiles\n\nLes apps iOS et Android d'Element se connectent directement au homeserver. Les utilisateurs touchent **Utiliser un serveur personnalis\u00e9** au premier lancement et saisissent `matrix.<votre-domaine>`. La connexion via Keycloak fonctionne dans l'app.\n"
-    },
-    "env_managed_keys": [
-      "VPS_PUBLIC_IP",
-      "TURN_HOSTNAME",
-      "TURN_STATIC_AUTH_SECRET"
-    ]
+    }
   }
 }

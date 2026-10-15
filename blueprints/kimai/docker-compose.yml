@@ -29,7 +29,7 @@ services:
       default: {}
 
   db:
-    image: mariadb:13.0.2
+    image: mariadb:12.3.3
     deploy:
       restart_policy:
         condition: any

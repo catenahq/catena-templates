@@ -4,10 +4,11 @@ Single source of truth for the Catena template catalog: one directory
 per application holding its compose file and its README, one JSON file
 per application holding its metadata and prose, and the build pipeline
 that renders them into Portainer App Templates (`templates.json`, format
-v3) and the machine catalog (`catalog.json`). Every consumer reads `main`,
-fetched raw: catena-admin and the ops tooling read `catalog.json`, and
-Portainer itself can point its App Templates URL at
-`templates.json`.
+v3) and the machine catalog (`catalog.json`). The catalog seeds a new
+install: catena-admin and the ops tooling read `catalog.json` from `main`,
+fetched raw, and Portainer itself can point its App Templates URL at
+`templates.json`. A merge reaches every new deploy; a deployed app keeps the
+compose, and the `x-catena` block in it, that it was deployed with.
 
 **What this repo promises and how that is enforced:** [SPEC.md](SPEC.md)
 -- hand-written intent plus machine-checked invariants, each citing the
@@ -19,18 +20,19 @@ resolve.
 ```
 blueprints/              # ONE directory per template -- what Portainer clones
   <id>/
-    docker-compose.yml   # HAND-EDITED; the type-2 stackfile
+    docker-compose.yml   # HAND-EDITED; the type-2 stackfile, whose root
+                         # x-catena block declares the app's backup mode,
+                         # update and restore commands, object-store check
+                         # and managed env expressions
     logo.png             # HAND-PLACED; optional
     README.md            # generated from the source prose, EN then FR
     logo.svg             # generated placeholder, absent a logo.png
-    quiesce.yml          # generated, if the entry declares quiesce commands
 
 sources/                 # hand-edited metadata
   _meta.json             # postgres_default_image + sizing measurement header
   <id>.json              # ONE file per template: the Portainer fields a human
                          # owns, plus x-catena for everything that format
-                         # cannot carry (SSO mode, quiesce commands,
-                         # lifecycle commands, bench membership,
+                         # cannot carry (SSO mode, bench membership,
                          # sizing, EN/FR prose)
 
 lib/                     # the build library
@@ -50,6 +52,7 @@ build/                   # thin entrypoints
   lint_swarm.py  import_registry.py
 
 sources.schema.json      # schema for a sources/<id>.json
+block.schema.json        # schema for the x-catena block of a compose
 Schema.json              # schema for the generated templates.json
 
 templates.json           # generated; the Portainer App Templates index (v3)
@@ -61,9 +64,9 @@ Dockerfile               # nginx image serving the generated catalog
 ```
 
 Three things are human-edited: `sources/<id>.json`, the compose in
-`blueprints/<id>/`, and an optional logo beside it. Everything else
-listed as generated is a committed build artifact; CI re-renders on
-every PR and fails if the committed copies drift.
+`blueprints/<id>/` with its `x-catena` block, and an optional logo beside
+it. Everything else listed as generated is a committed build artifact; CI
+re-renders on every PR and fails if the committed copies drift.
 
 ## Two consumer paths
 
@@ -84,7 +87,9 @@ swarm.
 
 catena-admin (`shell/marketplace`, `payload/engines/catalog`) and the
 ops tooling read `catalog.json` -- one fetch,
-every template, with the fields Portainer's format has no slot for. A
+every template, with the fields Portainer's format has no slot for (the
+compose block's quiesce, lifecycle and object-store check included, lifted
+from each compose). A
 managed VPS reads it to render its OWN copy of `templates.json`, which is
 what its Portainer actually serves (see the sentinel section below).
 
@@ -110,8 +115,8 @@ address, or the one marked `vps.route.main=true`), and the compose reads
 them as `${OIDC_CLIENT_ID:-}`.
 
 Portainer has no per-deploy secret generator and no template engine, so
-three classes of value collapse to the sentinel: declared
-`env_managed_keys`, Ansible `lookup('password', ...)` expressions, and
+three classes of value collapse to the sentinel: the keys of the compose
+block's `managed_env`, Ansible `lookup('password', ...)` expressions, and
 any value still carrying Jinja after render.
 
 **Nothing resolves the sentinel in THIS file, and nothing is meant to.**
@@ -143,7 +148,8 @@ input, not a catalog to deploy from.
    numbers stay null until a measured run.
 5. If the application keeps live state that a file-level snapshot can
    tear and the backup's own Postgres and MariaDB dumps do not cover,
-   add `x-catena.quiesce` with `service`, `pre`, `timeout_seconds` and
+   add `quiesce` to the `x-catena` block at the top of the compose (it
+   starts with `schema: 1`), with `service`, `pre`, `timeout_seconds` and
    optionally `user` and `post`. Each command is an argv array the
    nightly maintenance runs inside that service with `docker exec`, no
    shell; `post` must succeed when `pre` never ran. Real examples:
@@ -162,7 +168,8 @@ input, not a catalog to deploy from.
 8. Open a PR. CI runs `build-and-verify.yml`, `check:unicode` and `check:prose`.
 
 A merge to `main` is live for every new deploy as soon as the consumers
-next fetch the catalog; there are no releases to cut.
+next fetch the catalog; there are no releases to cut. An app already
+deployed keeps the block it was deployed with.
 
 ## Import from a registry
 

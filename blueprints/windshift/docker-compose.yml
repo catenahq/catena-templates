@@ -1,3 +1,9 @@
+x-catena:
+  schema: 1
+  managed_env:
+    DOMAIN_HOST: "work.{{ cloudflare_zone }}"
+    WINDSHIFT_HOSTNAME: "work.{{ cloudflare_zone }}"
+
 services:
   windshift:
     image: ghcr.io/windshiftapp/windshift:v0.8.9
@@ -105,7 +111,7 @@ services:
       retries: 5
       start_period: 10m
     labels:
-      - "vps.auto-update=patch"
+      - "vps.auto-update=minor"
     networks:
       - default
 

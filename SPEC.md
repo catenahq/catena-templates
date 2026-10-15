@@ -17,18 +17,23 @@ rendered: the per-app README, the Portainer App Templates v3
 - **Hand-edited vs rendered.** The hand-edited files are
   `sources/<id>.json`, `blueprints/<id>/docker-compose.yml` and an
   optional `blueprints/<id>/logo.png`. Everything else is a build
-  output, committed and drift-gated: the per-app `README.md`,
-  `quiesce.yml` and placeholder logo, plus `templates.json`,
-  `catalog.json` and `index.html`. Editing one of those directly fails
-  CI.
+  output, committed and drift-gated: the per-app `README.md` and
+  placeholder logo, plus `templates.json`, `catalog.json` and
+  `index.html`. Editing one of those directly fails CI.
+- **The app carries its own declarations.** What the server needs to back
+  up, update and restore an app is the `x-catena` block at the root of the
+  app's compose. Portainer stores the compose byte for byte, so a deployed
+  app keeps the block it was deployed with and the server does not read
+  this catalog to manage it. A merge to `main` reaches every new deploy.
 - **One directory per template.** `blueprints/<id>/` is the unit
   Portainer clones and deploys, so it is also where that template's
   compose, README and logo live. Nothing about a template is duplicated
   elsewhere in the repository.
 - **Two output formats, one input.** `templates.json` is the Portainer
   App Templates index and carries only what that format defines;
-  `catalog.json` carries the rest (SSO mode, backup quiesce hooks, bench
-  membership, sizing, bilingual prose) for the Catena side.
+  `catalog.json` carries the rest (SSO mode, the compose block's backup
+  quiesce hooks and update commands, bench membership, sizing, bilingual
+  prose) for the Catena side.
 - **Secrets.** Compose files carry sentinel placeholders only; real
   values are injected at deploy time on the target server.
 - **Public by necessity.** Portainer fetches `templates.json` from this

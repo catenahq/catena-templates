@@ -1,3 +1,15 @@
+x-catena:
+  schema: 1
+  lifecycle:
+    service: "backend"
+    before_update:
+      - ["bench", "set-maintenance-mode", "on"]
+    migrate:
+      - ["bench", "--site", "all", "migrate"]
+    after_update:
+      - ["bench", "set-maintenance-mode", "off"]
+    timeout_seconds: 3600
+
 x-common: &frappe-env
   SITE_NAME: ${ERPNEXT_HOSTNAME}
   DB_HOST: db

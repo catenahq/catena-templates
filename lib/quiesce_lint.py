@@ -1,7 +1,7 @@
 """Security lint over what a client host acts on unattended (CI gate).
 
-Two families of commands, both declared in `x-catena` and both executed on
-a client box with no one present: the quiesce commands the nightly
+Two families of commands, both declared in the compose's `x-catena` block
+and both executed on a client box with no one present: the quiesce commands the nightly
 maintenance runs around its backup, and the lifecycle commands (migration,
 before and after an update, and the ready question asked before each of
 those). Both are argv arrays the host runs inside one service's container
@@ -10,9 +10,13 @@ the host's settings sync makes a Keycloak client and writes its values into
 the app's stack env. And what the registry importer left on an imported
 entry, which reaches every host's app catalog.
 
-Schema-level checks (argv shape, required keys, timeout caps) live in
-sources.schema.json and run on every render. This module adds:
+Schema-level checks (argv shape, required keys including the block's
+`schema`, timeout caps) live in block.schema.json and sources.schema.json and
+run on every render. This module adds:
 
+  - A block holds no `$` and names no image of its compose: Docker
+    interpolates every value under a top-level x- key when it deploys the
+    file, and the update lane rewrites each image reference it finds.
   - A command allowlist per family on the first word of each argv, so a
     template cannot smuggle `curl evil.com` into a command that runs on
     every client host.
@@ -30,13 +34,14 @@ sources.schema.json and run on every render. This module adds:
     whose dump it replays instead, and the host refuses every update of a
     stack where one mounts the volume. A one-shot service, which a
     rollback does not stop either, is refused outright by the swarm lint.
+  - A vps.auto-update label holds a policy the update engine knows.
   - Sign-in labels sit on the main address's service, the only service
     the host reads them from: the one service carrying vps.route.host, or,
     of several, the one also carrying vps.route.main=true. Each is one the
     host knows; `vps.auth.oidc=true` comes with the return
     addresses; and the template declares none of the three values the sync
     writes (OIDC_CLIENT_ID, OIDC_CLIENT_SECRET, OIDC_ISSUER_URL) in
-    env_defaults or env_managed_keys, so each has one writer.
+    env_defaults, so each has one writer.
   - An imported entry's pending findings hold no app checker error and no
     record that the checker did not run: catena-admin CI runs
     catena-applint --catalog over every blueprint and fails on an error.
@@ -205,13 +210,73 @@ def lint_signin(entry) -> list[str]:
                           f"accept no return address")
     if asks:
         declared = {kv.split("=", 1)[0] for kv in entry.catena["env_defaults"]}
-        declared |= set(entry.catena.get("env_managed_keys") or [])
         for key in SIGNIN_KEYS:
             if key in declared:
                 errors.append(
-                    f"{entry.slug}: {key} is declared in env_defaults or "
-                    f"env_managed_keys, but the settings sync writes it from the "
-                    f"app's sign-in entry; a second writer would undo the first")
+                    f"{entry.slug}: {key} is declared in env_defaults, but the "
+                    f"settings sync writes it from the app's sign-in entry; a "
+                    f"second writer would undo the first")
+    return errors
+
+
+def block_strings(node, path: str = ""):
+    """Every key and string value of a block, with the path it sits at."""
+    if isinstance(node, dict):
+        for key, value in node.items():
+            where = f"{path}.{key}" if path else str(key)
+            yield where, str(key)
+            yield from block_strings(value, where)
+    elif isinstance(node, list):
+        for idx, value in enumerate(node):
+            yield from block_strings(value, f"{path}[{idx}]")
+    elif isinstance(node, str):
+        yield path, node
+
+
+def tagged_images(services: dict) -> set[str]:
+    """The image references of a compose's services that carry a tag and no
+    digest: what the update lane rewrites."""
+    images = set()
+    for service in services.values():
+        image = str((service or {}).get("image", "")).split("@", 1)[0]
+        if ":" in image.rsplit("/", 1)[-1]:
+            images.add(image)
+    return images
+
+
+def lint_block(entry) -> list[str]:
+    if not entry.block:
+        return []
+    doc = yaml.safe_load(entry.compose_path.read_text(encoding="utf-8")) or {}
+    images = tagged_images(doc.get("services") or {})
+    errors: list[str] = []
+    for where, text in block_strings(entry.block):
+        label = f"{entry.slug}.x-catena.{where}"
+        if "$" in text:
+            errors.append(f"{label}: holds a $, which Docker reads as a variable "
+                          f"when it deploys the file")
+        for image in sorted(images):
+            if image in text:
+                errors.append(f"{label}: names the image {image}, which an update "
+                              f"rewrites wherever the file names it")
+    return errors
+
+
+# The values of the vps.auto-update label the update engine reads
+# (catena-admin payload/engines/stackupdate/policy.go); any other value it
+# silently replaces with its default.
+AUTO_UPDATE_POLICIES = frozenset({"off", "patch", "minor", "patch+minor", "major"})
+
+
+def lint_auto_update(entry) -> list[str]:
+    doc = yaml.safe_load(entry.compose_path.read_text(encoding="utf-8")) or {}
+    errors = []
+    for name, service in (doc.get("services") or {}).items():
+        value = service_labels(service or {}).get("vps.auto-update")
+        if value is not None and value.strip().lower() not in AUTO_UPDATE_POLICIES:
+            errors.append(f"{entry.slug}:{name}: vps.auto-update={value} is not one of "
+                          f"{', '.join(sorted(AUTO_UPDATE_POLICIES))}; the update engine "
+                          f"would ignore it")
     return errors
 
 
@@ -245,6 +310,8 @@ def lint_all() -> int:
     for entry in entries:
         all_errors.extend(lint_signin(entry))
         all_errors.extend(lint_pending(entry))
+        all_errors.extend(lint_block(entry))
+        all_errors.extend(lint_auto_update(entry))
         lifecycle = entry.lifecycle
         if lifecycle:
             with_lifecycle += 1

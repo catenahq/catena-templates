@@ -7,24 +7,31 @@ per-template. Everything else in the repo is rendered from these.
 
 The compose sits in the blueprint directory because that directory is
 what Portainer clones and deploys: one file, in the place that serves
-it, with the app's README and logo beside it.
+it, with the app's README and logo beside it. Its root `x-catena` block
+declares what the host needs to back up, update and restore the deployed
+app (lifecycle, quiesce, s3_reconcile, managed_env); the loader reads it
+beside the source.
 
 Validation runs in two layers:
 
-  1. JSON Schema (`sources.schema.json`) -- shape, enums, required keys.
-     Catches the mechanical mistakes at the field level.
+  1. JSON Schema (`sources.schema.json` for the source, `block.schema.json`
+     for the compose block) -- shape, enums, required keys. Catches the
+     mechanical mistakes at the field level.
   2. Cross-file invariants below -- id/filename agreement, compose file
-     present, duplicate slugs, unknown env_managed_keys. A schema cannot
-     see across files, and these are exactly the failures that reach a
-     client's Portainer as a broken template when nothing checks them.
+     present, duplicate slugs, managed_env keys the source does not list.
+     A schema cannot see across files, and these are exactly the failures
+     that reach a client's Portainer as a broken template when nothing
+     checks them.
 """
 from __future__ import annotations
 
 import json
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+
+import yaml
 
 try:
     import jsonschema
@@ -35,8 +42,10 @@ ROOT = Path(__file__).resolve().parent.parent
 SOURCES = ROOT / "sources"
 BLUEPRINTS = ROOT / "blueprints"
 COMPOSE_NAME = "docker-compose.yml"
+BLOCK_KEY = "x-catena"
 META_NAME = "_meta.json"
 SOURCE_SCHEMA = ROOT / "sources.schema.json"
+BLOCK_SCHEMA = ROOT / "block.schema.json"
 OUTPUT_SCHEMA = ROOT / "Schema.json"
 
 
@@ -47,11 +56,13 @@ class SourceError(Exception):
 
 @dataclass(frozen=True)
 class Entry:
-    """One template, normalized. `raw` is the source document as written;
-    the properties below are the accessors render/lint paths use so a
-    future key rename lands here instead of in five call sites."""
+    """One template, normalized. `raw` is the source document as written
+    and `block` the compose's x-catena block (empty when it has none); the
+    properties below are the accessors render/lint paths use so a future
+    key rename lands here instead of in five call sites."""
 
     raw: dict[str, Any]
+    block: dict[str, Any] = field(default_factory=dict)
 
     @property
     def slug(self) -> str:
@@ -63,8 +74,8 @@ class Entry:
 
     @property
     def app_dir(self) -> Path:
-        """The directory Portainer clones: the compose, the README, the
-        logo, and the quiesce hooks for this one template."""
+        """The directory Portainer clones: the compose, the README and the
+        logo of this one template."""
         return BLUEPRINTS / self.slug
 
     @property
@@ -80,11 +91,32 @@ class Entry:
 
     @property
     def quiesce(self) -> dict[str, Any] | None:
-        return self.catena.get("quiesce")
+        return self.block.get("quiesce")
 
     @property
     def lifecycle(self) -> dict[str, Any] | None:
-        return self.catena.get("lifecycle")
+        return self.block.get("lifecycle")
+
+    @property
+    def s3_reconcile(self) -> dict[str, Any] | None:
+        return self.block.get("s3_reconcile")
+
+    @property
+    def managed_env(self) -> dict[str, str]:
+        """The env keys the host keeps set, each with the expression its
+        value is rendered from."""
+        return self.block.get("managed_env") or {}
+
+    @property
+    def env_defaults(self) -> list[str]:
+        """The source's env_defaults with each managed key's line carrying
+        the expression from the block."""
+        managed = self.managed_env
+        lines = []
+        for line in self.catena["env_defaults"]:
+            key = line.split("=", 1)[0]
+            lines.append(f"{key}={managed[key]}" if key in managed else line)
+        return lines
 
     @property
     def sizing(self) -> dict[str, Any]:
@@ -148,6 +180,20 @@ def _validate_schema(doc: dict[str, Any], schema: dict[str, Any], label: str) ->
     return errors
 
 
+def _read_block(path: Path, schema: dict[str, Any], label: str) -> tuple[dict[str, Any], list[str]]:
+    """The compose's x-catena block and the problems with it: an empty block
+    for a compose that has none."""
+    try:
+        doc = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except yaml.YAMLError as exc:
+        return {}, [f"{label}: invalid YAML: {exc}"]
+    block = doc.get(BLOCK_KEY) if isinstance(doc, dict) else None
+    if block is None:
+        return {}, []
+    errors = _validate_schema(block, schema, label)
+    return (block if not errors else {}), errors
+
+
 def load_sources() -> list[Entry]:
     """Return every template in catalog order, or raise SourceError with
     the full problem list.
@@ -168,6 +214,7 @@ def load_sources() -> list[Entry]:
             file=sys.stderr,
         )
     schema = _schema(SOURCE_SCHEMA)
+    block_schema = _schema(BLOCK_SCHEMA)
     errors: list[str] = []
     entries: list[Entry] = []
     seen: dict[str, Path] = {}
@@ -203,13 +250,23 @@ def load_sources() -> list[Entry]:
                 f"{label}: {entry.compose_file} does not exist -- every "
                 f"template needs its compose in its own blueprint directory"
             )
+        else:
+            block, block_errors = _read_block(
+                entry.compose_path, block_schema, entry.compose_file)
+            errors.extend(block_errors)
+            entry = Entry(doc, block)
 
-        declared = {kv.split("=", 1)[0] for kv in entry.catena["env_defaults"]}
-        for key in entry.catena.get("env_managed_keys", []):
-            if key not in declared:
+        values = dict(kv.split("=", 1) for kv in entry.catena["env_defaults"])
+        for key in entry.managed_env:
+            if key not in values:
                 errors.append(
-                    f"{label}: env_managed_keys names {key!r}, which is not "
-                    f"in env_defaults -- it would render nowhere"
+                    f"{label}: managed_env in {entry.compose_file} names {key!r}, "
+                    f"which is not in env_defaults -- it would render nowhere"
+                )
+            elif values[key]:
+                errors.append(
+                    f"{label}: env_defaults gives the managed key {key!r} a value; "
+                    f"the expression lives in managed_env, so the line is {key}="
                 )
         entries.append(entry)
 

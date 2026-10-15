@@ -19,8 +19,8 @@
       "port": 80
     },
     "env_defaults": [
-      "DOMAIN_HOST=nextcloud.{{ cloudflare_zone }}",
-      "NEXTCLOUD_HOSTNAME=nextcloud.{{ cloudflare_zone }}",
+      "DOMAIN_HOST=",
+      "NEXTCLOUD_HOSTNAME=",
       "NEXTCLOUD_ADMIN_USER=admin",
       "NEXTCLOUD_ADMIN_PASSWORD={{ lookup('password', '/dev/null length=24 chars=ascii_letters,digits') }}",
       "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
@@ -35,11 +35,11 @@
       "S3_SSL=true",
       "S3_ACCESS_KEY=",
       "S3_SECRET_KEY=",
-      "SIGNALING_HOSTNAME=signaling.{{ cloudflare_zone }}",
+      "SIGNALING_HOSTNAME=",
       "SIGNALING_SECRET={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}",
       "TALK_INTERNAL_SECRET={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}",
-      "TURN_HOSTNAME={{ coturn_hostname | default('turn.' ~ cloudflare_zone) }}",
-      "TURN_STATIC_AUTH_SECRET={{ turn_static_auth_secret }}"
+      "TURN_HOSTNAME=",
+      "TURN_STATIC_AUTH_SECRET="
     ],
     "bench": {
       "pack": "postgres",
@@ -77,37 +77,6 @@
       "compose_description": "Partage de fichiers + collaboration auto-h\u00e9berg\u00e9s. Remplace Google Drive / Dropbox / OneDrive.\n\nConfiguration initiale :\n1. Remplissez les variables S3_* dans l'onglet Environment.\n2. Cliquez sur Deploy.\n3. Ouvrez le tableau de bord des actions et cliquez \"C\u00e2bler l'OIDC pour Nextcloud\" -- enregistre le SSO Keycloak dans Nextcloud (idempotent, peut \u00eatre recliqu\u00e9).\n4. Connexion avec \"Se connecter avec keycloak\" sur le domaine Nextcloud.\n\nDoc compl\u00e8te : https://github.com/catenahq/catena-templates/blob/main/blueprints/nextcloud-s3-oidc/README.md\n",
       "setup_steps": "1. Ouvrez l'onglet **Environment** et remplissez `S3_BUCKET`, `S3_REGION`, `S3_HOST`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` avec les coordonn\u00e9es du seau S3. (Le reste est pr\u00e9-rempli -- `NEXTCLOUD_HOSTNAME`, identifiants admin/DB.)\n2. Cliquez **Deploy**. Patientez ~2 min pour le premier d\u00e9marrage. Dans les minutes qui suivent le premier d\u00e9ploiement, le serveur cr\u00e9e l'entr\u00e9e de connexion propre \u00e0 Nextcloud dans Keycloak, inscrit ses valeurs (`OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_ISSUER_URL`) dans l'onglet Environment, et Nextcloud red\u00e9marre une fois avec elles.\n3. C\u00e2blez le SSO une fois ces valeurs pr\u00e9sentes : ouvrez `dash.<votre-domaine>`, allez dans l'onglet **Actions** puis cliquez **C\u00e2bler l'OIDC pour Nextcloud**. L'action enregistre Keycloak comme fournisseur OIDC \u00e0 l'int\u00e9rieur de Nextcloud (idempotent -- peut \u00eatre relanc\u00e9e sans risque apr\u00e8s un red\u00e9ploiement ou une rotation de secret).\n4. Connexion sur le domaine Nextcloud avec **Se connecter avec keycloak** (utilise l'identit\u00e9 g\u00e9r\u00e9e), ou repli sur `NEXTCLOUD_ADMIN_USER` / `NEXTCLOUD_ADMIN_PASSWORD` de l'onglet Environment.\n",
       "extra_notes": "### Connexion avec Keycloak -- c\u00e2bl\u00e9e par une action catena-admin\n\nApr\u00e8s le premier d\u00e9ploiement de Nextcloud, le bouton\n**C\u00e2bler l'OIDC pour Nextcloud** de l'onglet **Actions** sur\n`dash.<votre-domaine>` active l'application\n`user_oidc` de Nextcloud et enregistre un fournisseur\n`keycloak` avec les valeurs OIDC de l'onglet Environment. La\npage de connexion Nextcloud affiche alors **Se connecter\navec keycloak** \u00e0 la visite suivante. La connexion admin\nlocale (`NEXTCLOUD_ADMIN_USER` / `NEXTCLOUD_ADMIN_PASSWORD`)\ncontinue de fonctionner en parall\u00e8le comme issue de secours.\n\nRelancez l'action chaque fois que la configuration OIDC\nd\u00e9rive (apr\u00e8s une rotation de secret, un red\u00e9ploiement\ndestructif, etc.). Elle est idempotente -- relancer ne fait que\nrafra\u00eechir l'enregistrement du fournisseur.\n\n### Le partage de fichiers par lien courriel fonctionne toujours\n\nL'authentification Keycloak gouverne la **connexion des\nutilisateurs** \u00e0 Nextcloud. Elle ne restreint **pas** les\nliens de partage publics anonymes -- les URL\n`/s/<jeton>` g\u00e9n\u00e9r\u00e9es depuis Nextcloud\nrestent accessibles aux destinataires qui n'ont pas de\ncompte Keycloak.\n\nLe flux courant fonctionne donc tel quel :\n\n1. Un membre de l'\u00e9quipe (utilisateur connect\u00e9) cr\u00e9e un\n   lien de partage dans Nextcloud, avec un mot de passe et\n   une date d'expiration s'il le souhaite.\n2. Nextcloud envoie le lien par courriel au destinataire.\n3. Le destinataire clique le lien. Cloudflare Tunnel\n   achemine la requ\u00eate directement \u00e0 Nextcloud ; Nextcloud\n   sert la page de partage publique (ou l'invite de mot de\n   passe, lorsqu'un mot de passe a \u00e9t\u00e9 d\u00e9fini). Pas de\n   redirection Keycloak, pas de connexion requise.\n\nCela fonctionne parce que Nextcloud est atteint via son\npropre code d'authentification, sans proxy SSO\ndevant lui. Le module `user_oidc` ne g\u00e8re que le flux de\nconnexion pour *les membres de l'\u00e9quipe* ; les points\nd'acc\u00e8s des partages publics restent anonymes par\nconception.\n\nLe verrouillage complet des partages publics est un\ncontr\u00f4le interne \u00e0 Nextcloud (Param\u00e8tres -> Partage ->\n\"Autoriser le partage par lien public\"), pas au niveau\nr\u00e9seau.\n"
-    },
-    "env_managed_keys": [
-      "DOMAIN_HOST",
-      "NEXTCLOUD_HOSTNAME",
-      "SIGNALING_HOSTNAME",
-      "TURN_HOSTNAME",
-      "TURN_STATIC_AUTH_SECRET"
-    ],
-    "s3_reconcile": {
-      "service": "app",
-      "user": "www-data",
-      "check": "nextcloud-objectstore",
-      "db_service": "db"
-    },
-    "lifecycle": {
-      "service": "app",
-      "user": "www-data",
-      "ready": ["php", "occ", "status", "--exit-code"],
-      "migrate": [
-        ["php", "occ", "db:add-missing-indices"],
-        ["php", "occ", "maintenance:repair", "--include-expensive"]
-      ],
-      "versioned_volumes": ["nc-html", "nc-config", "nc-apps"],
-      "timeout_seconds": 1800
-    },
-    "quiesce": {
-      "service": "app",
-      "user": "www-data",
-      "pre": [["php", "occ", "maintenance:mode", "--on"]],
-      "post": [["php", "occ", "maintenance:mode", "--off"]],
-      "timeout_seconds": 30
     }
   }
 }

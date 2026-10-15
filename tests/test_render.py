@@ -9,8 +9,6 @@ import re
 import sys
 from pathlib import Path
 
-import yaml
-
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
@@ -47,10 +45,9 @@ def test_managed_keys_render_as_sentinel_with_a_description():
         "id": "x", "type": 3, "title": "X", "name": "x",
         "categories": ["Testing"], "platform": "linux",
         "x-catena": {
-            "env_defaults": ["DOMAIN_HOST=x.example.com", "OIDC_CLIENT_SECRET=placeholder"],
-            "env_managed_keys": ["OIDC_CLIENT_SECRET"],
+            "env_defaults": ["DOMAIN_HOST=x.example.com", "OIDC_CLIENT_SECRET="],
         },
-    })
+    }, {"schema": 1, "managed_env": {"OIDC_CLIENT_SECRET": "placeholder"}})
     env = {f["name"]: f for f in render.render_env(entry)}
     assert env["DOMAIN_HOST"]["default"] == "x.example.com"
     assert "description" not in env["DOMAIN_HOST"]
@@ -123,15 +120,38 @@ def test_catalog_json_and_templates_json_cover_the_same_ids():
     assert len(templates) == len(catalog)
 
 
-def test_quiesce_yaml_is_emitted_for_every_declaring_entry():
-    """One JSON argv per line reads back as the declared block."""
+def test_the_blocks_managed_env_reaches_the_catalog_as_env_lines_and_keys():
+    """The managed key's line keeps its place in env_defaults and carries the
+    block's expression, and env_managed_keys lists the keys in the block's
+    order; the host's render and the Portainer sentinel both read them."""
+    catalog = {
+        e["id"]: e for e in json.loads((ROOT / "catalog.json").read_text())["templates"]
+    }
+    managed = 0
     for entry in model.load_sources():
-        path = ROOT / "blueprints" / entry.slug / "quiesce.yml"
-        assert path.exists() == bool(entry.quiesce), entry.slug
-        if entry.quiesce:
-            doc = yaml.safe_load(path.read_text())
-            assert doc.pop("id") == entry.slug
-            assert doc == entry.quiesce, entry.slug
+        published = catalog[entry.slug]
+        assert published["env_defaults"] == entry.env_defaults, entry.slug
+        assert published.get("env_managed_keys") == (list(entry.managed_env) or None), entry.slug
+        for key, expression in entry.managed_env.items():
+            assert f"{key}={expression}" in published["env_defaults"], entry.slug
+            managed += 1
+    assert managed > 0
+
+
+def test_s3_reconcile_reaches_the_catalog_unchanged():
+    catalog = {
+        e["id"]: e for e in json.loads((ROOT / "catalog.json").read_text())["templates"]
+    }
+    declared = 0
+    for entry in model.load_sources():
+        assert catalog[entry.slug].get("s3_reconcile") == entry.s3_reconcile, entry.slug
+        declared += bool(entry.s3_reconcile)
+    assert declared > 0
+
+
+def test_no_blueprint_carries_a_generated_quiesce_file():
+    """The block in the compose is the one home of a backup mode."""
+    assert not list((ROOT / "blueprints").glob("*/quiesce.yml"))
 
 
 def test_quiesce_reaches_the_catalog_unchanged():
@@ -214,7 +234,7 @@ def _requiring(entry: model.Entry, version: str | None) -> model.Entry:
     raw["x-catena"].pop("requires_catena", None)
     if version:
         raw["x-catena"]["requires_catena"] = version
-    return model.Entry(raw)
+    return model.Entry(raw, entry.block)
 
 
 def test_an_entry_needing_a_newer_catena_says_so_in_its_description_and_readme():
@@ -271,6 +291,15 @@ def test_rendering_does_not_touch_the_hand_edited_compose():
     before = compose.read_bytes()
     render.render_all()
     assert compose.read_bytes() == before
+
+
+def test_rendering_twice_gives_identical_artifacts():
+    render.render_all()
+    first = {path: path.read_bytes()
+             for path in (render.TEMPLATES_JSON, render.CATALOG_JSON, render.INDEX_HTML)}
+    render.render_all()
+    for path, content in first.items():
+        assert path.read_bytes() == content, path.name
 
 
 def test_a_blueprint_with_no_source_file_is_dropped(tmp_path, monkeypatch):

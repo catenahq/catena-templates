@@ -1,3 +1,17 @@
+x-catena:
+  schema: 1
+  quiesce:
+    service: "mongodb"
+    pre:
+      - ["mongosh", "--quiet", "--eval", "db.fsyncLock()"]
+    post:
+      - ["mongosh", "--quiet", "--eval", "while (db.adminCommand({currentOp:1}).fsyncLock) { db.fsyncUnlock() }"]
+    timeout_seconds: 60
+  managed_env:
+    VPS_PUBLIC_IP: "{{ public_ip }}"
+    TURN_HOSTNAME: "{{ coturn_hostname | default('turn.' ~ cloudflare_zone) }}"
+    TURN_STATIC_AUTH_SECRET: "{{ turn_static_auth_secret }}"
+
 services:
   mongodb:
     image: mongo:8.3.11

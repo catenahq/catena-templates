@@ -1,3 +1,8 @@
+x-catena:
+  schema: 1
+  managed_env:
+    DOMAIN_HOST: "office.{{ cloudflare_zone }}"
+
 services:
   collabora:
     image: collabora/code:26.04.4.2.1

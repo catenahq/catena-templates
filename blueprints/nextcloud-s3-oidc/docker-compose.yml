@@ -1,3 +1,34 @@
+x-catena:
+  schema: 1
+  lifecycle:
+    service: "app"
+    user: "www-data"
+    ready: ["php", "occ", "status", "--exit-code"]
+    migrate:
+      - ["php", "occ", "db:add-missing-indices"]
+      - ["php", "occ", "maintenance:repair", "--include-expensive"]
+    versioned_volumes: ["nc-html", "nc-config", "nc-apps"]
+    timeout_seconds: 1800
+  quiesce:
+    service: "app"
+    user: "www-data"
+    pre:
+      - ["php", "occ", "maintenance:mode", "--on"]
+    post:
+      - ["php", "occ", "maintenance:mode", "--off"]
+    timeout_seconds: 30
+  s3_reconcile:
+    service: "app"
+    user: "www-data"
+    check: "nextcloud-objectstore"
+    db_service: "db"
+  managed_env:
+    DOMAIN_HOST: "nextcloud.{{ cloudflare_zone }}"
+    NEXTCLOUD_HOSTNAME: "nextcloud.{{ cloudflare_zone }}"
+    SIGNALING_HOSTNAME: "signaling.{{ cloudflare_zone }}"
+    TURN_HOSTNAME: "{{ coturn_hostname | default('turn.' ~ cloudflare_zone) }}"
+    TURN_STATIC_AUTH_SECRET: "{{ turn_static_auth_secret }}"
+
 services:
   app:
     image: nextcloud:34.0.0-apache
@@ -375,7 +406,7 @@ services:
       retries: 30
       start_period: 10m
     labels:
-      - "vps.auto-update=patch"
+      - "vps.auto-update=minor"
     networks:
       - default
 

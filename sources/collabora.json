@@ -18,10 +18,7 @@
       "port": 9980
     },
     "env_defaults": [
-      "DOMAIN_HOST=office.{{ cloudflare_zone }}"
-    ],
-    "env_managed_keys": [
-      "DOMAIN_HOST"
+      "DOMAIN_HOST="
     ],
     "bench": {
       "pack": "nodb",

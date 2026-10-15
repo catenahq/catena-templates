@@ -1,7 +1,7 @@
 #!/usr/bin/env -S uv run --quiet
 # /// script
 # requires-python = ">=3.11"
-# dependencies = ["jsonschema>=4.23"]
+# dependencies = ["jsonschema>=4.23", "pyyaml>=6.0"]
 # ///
 """Render sources/ into blueprints/ + templates.json + catalog.json + index.html.
 

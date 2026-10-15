@@ -1,3 +1,13 @@
+x-catena:
+  schema: 1
+  lifecycle:
+    service: "espocrm"
+    user: "www-data"
+    migrate:
+      - ["php", "rebuild.php"]
+    versioned_volumes: ["custom"]
+    timeout_seconds: 900
+
 services:
   espocrm:
     image: espocrm/espocrm:10.0.8
@@ -85,7 +95,7 @@ services:
       - default
 
   db:
-    image: mariadb:13.0.2
+    image: mariadb:12.3.3
     deploy:
       restart_policy:
         condition: any

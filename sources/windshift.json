@@ -18,14 +18,10 @@
       "port": 8080
     },
     "env_defaults": [
-      "DOMAIN_HOST=work.{{ cloudflare_zone }}",
-      "WINDSHIFT_HOSTNAME=work.{{ cloudflare_zone }}",
+      "DOMAIN_HOST=",
+      "WINDSHIFT_HOSTNAME=",
       "SSO_SECRET={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}",
       "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
-    ],
-    "env_managed_keys": [
-      "DOMAIN_HOST",
-      "WINDSHIFT_HOSTNAME"
     ],
     "bench": {
       "pack": "postgres",
