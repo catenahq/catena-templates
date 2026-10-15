@@ -146,6 +146,20 @@ TREE = {"sha": "def456", "truncated": False, "tree": [
 ] + [{"path": f"blueprints/{ident}/{name}", "type": "blob"}
      for ident in BLUEPRINTS for name in dokploy.FILES]}
 
+# A registry of apps whose upstream is on another forge or is an owner's
+# page, each with a compose file that publishes a port to route.
+FORGE_BLUEPRINTS = {
+    "lab": ("Lab", "https://gitlab.com/example/lab", ""),
+    "orgapp": ("Org App", "https://github.com/example-org/", ""),
+    "lonely": ("Lonely", "https://codeberg.org/example-group", ""),
+    "mono": ("Mono", "https://github.com/example/mono/tree/main/server", ""),
+}
+FORGE_TREE = {"sha": "def456", "truncated": False, "tree": [
+    {"path": f"blueprints/{ident}/{name}", "type": "blob"}
+    for ident in FORGE_BLUEPRINTS for name in dokploy.FILES]}
+ROUTED_COMPOSE = "services:\n  app:\n    image: example/app:1.0.0\n    ports:\n      - 8080:80\n"
+LAB_API = "https://gitlab.com/api/v4/projects/example%2Flab"
+
 WEB = {
     REGISTRY: json.dumps(TREE).encode(),
     f"{API}/repos/example/templates/license": _licence(
@@ -153,15 +167,26 @@ WEB = {
     f"{API}/repos/example/webapp/license": _licence(
         "example/webapp", "MIT", "MIT License\n\nCopyright (c) 2025 Example Web\n"),
     f"{API}/repos/example/gpl-app/license": _licence("example/gpl-app", "GPL-3.0", "GNU GPL\n"),
+    f"{API}/repos/example/bare": json.dumps({"full_name": "example/bare"}).encode(),
     f"{API}/repos/example/tool/license": _licence(
         "example/tool", "Apache-2.0", "Apache License\n"),
+    f"{API}/repos/example-org/orgapp/license": _licence(
+        "example-org/orgapp", "BSD-2-Clause", "BSD 2-Clause License\n\nCopyright (c) 2020, Org\n"),
+    f"{API}/repos/example/mono/license": _licence("example/mono", "Apache-2.0", "Apache License\n"),
+    f"{LAB_API}?license=true": json.dumps({
+        "path_with_namespace": "example/lab", "web_url": "https://gitlab.com/example/lab",
+        "default_branch": "main", "license_url": "https://gitlab.com/example/lab/-/blob/main/LICENSE",
+        "license": {"key": "mit", "name": "MIT License"}}).encode(),
+    f"{LAB_API}/repository/files/LICENSE/raw": b"MIT License\n\nCopyright (c) 2023 Lab Example\n",
     f"{RAW}/webapp/template.toml": WEBAPP_TOML.encode(),
     f"{RAW}/webapp/docker-compose.yml": WEBAPP_COMPOSE.encode(),
     f"{RAW}/worker/template.toml": WORKER_TOML.encode(),
     f"{RAW}/worker/docker-compose.yml": WORKER_COMPOSE.encode(),
     f"{RAW}/half/meta.json": _meta("half", "Half", "https://github.com/example/webapp"),
 }
-for _ident, (_name, _github, _website) in BLUEPRINTS.items():
+for _ident in FORGE_BLUEPRINTS:
+    WEB[f"{RAW}/{_ident}/docker-compose.yml"] = ROUTED_COMPOSE.encode()
+for _ident, (_name, _github, _website) in {**BLUEPRINTS, **FORGE_BLUEPRINTS}.items():
     WEB[f"{RAW}/{_ident}/meta.json"] = _meta(_ident, _name, _github, _website)
     WEB.setdefault(f"{RAW}/{_ident}/template.toml", WORKER_TOML.encode())
     WEB.setdefault(f"{RAW}/{_ident}/docker-compose.yml", WORKER_COMPOSE.encode())
@@ -328,8 +353,7 @@ def test_the_apps_licence_admits_an_entry_and_the_registrys_notice_joins_it(cata
     out = capsys.readouterr().out
     assert "skipped, licence not permitted: 1\n  Copyleft: GPL-3.0 (example/gpl-app)" in out
     assert "skipped, licence unknown: 2" in out
-    assert ("Offsite: its upstream https://gitlab.com/example/app is not a GitHub repository, so "
-            "the app's licence is unknown") in out
+    assert "Offsite: no repository example/app on gitlab.com" in out
     assert "Bare: GitHub finds no licence file in example/bare" in out
     assert "half: the registry has no template.toml or docker-compose.yml for it" in out
     assert "Worker: no service publishes a TCP port to route" in out
@@ -337,6 +361,31 @@ def test_the_apps_licence_admits_an_entry_and_the_registrys_notice_joins_it(cata
     for slug in ("copyleft", "offsite", "bare"):
         assert f"{RAW}/{slug}/docker-compose.yml" not in calls
         assert not (model.SOURCES / f"{slug}.json").exists()
+
+
+def test_an_upstream_on_another_forge_or_an_owners_page_has_its_licence_read(
+        catalog, capsys, monkeypatch):
+    monkeypatch.setitem(WEB, REGISTRY, json.dumps(FORGE_TREE).encode())
+    assert _run() == 0
+    out = capsys.readouterr().out
+    assert "imported: 3\n  lab (Lab)\n  mono (Mono)\n  orgapp (Org App)\n" in out
+    assert _cat("lab")["origin"]["licence"] == "MIT"
+    assert _cat("lab")["origin"]["attribution"] == (
+        "Copyright (c) 2023 Lab Example; compose file and settings, MIT: "
+        "Copyright (c) 2024 Example Templates")
+    # A /tree/ address reads as its repository.
+    assert _cat("mono")["origin"]["licence"] == "Apache-2.0"
+    # An owner's page reads as its repository named as the entry, which a
+    # person confirms.
+    org = _cat("orgapp")
+    assert org["origin"]["licence"] == "BSD-2-Clause"
+    assert ("upstream repository: the registry links the owner's page "
+            "https://github.com/example-org, and the licence is read from example-org/orgapp, its "
+            "repository named as the entry: confirm it holds the app") in org["pending"]["to_choose"]
+    assert not any(c.startswith("upstream repository:") for c in _cat("lab")["pending"]["to_choose"])
+    assert ("skipped, licence unknown: 1\n  Lonely: https://codeberg.org/example-group is an "
+            "owner's page, read as codeberg.org/example-group/lonely: no repository "
+            "example-group/lonely on codeberg.org\n") in out
 
 
 def test_a_registry_whose_own_licence_is_not_permitted_is_refused(catalog, capsys, monkeypatch):

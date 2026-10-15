@@ -184,10 +184,19 @@ uv run build/import_registry.py --format <format> [--dry-run] \
   compose file is copied from (the registry's own repository for a
   single-container entry), or, for a per-app directory, the app's own
   repository its `meta.json` links; that registry's own licence must be
-  permitted too, and its notice joins the attribution. Only MIT,
+  permitted too, and its notice joins the attribution. The app's own
+  repository is read on its forge: GitHub (a `/tree/<ref>/<path>` link
+  reads as its repository), GitLab through its project API, or Gitea
+  through its repository API. Forgejo, Codeberg's forge, shares Gitea's
+  API, and its answer names no licence, so an app there reads as licence
+  unknown. Any host other than github.com, gitlab.com and codeberg.org
+  is asked through Gitea's API, then GitLab's. A link
+  to an owner's page on one of those three reads as the owner's
+  repository named as the entry's id, which the entry asks a person to
+  confirm; with no such repository the licence is unknown. Only MIT,
   Apache-2.0 and BSD-2/3-Clause sources are imported; any other licence,
-  or one GitHub cannot name, skips the entry and the report lists it.
-  `GITHUB_TOKEN` lifts the API's rate limit.
+  or one the forge cannot name, skips the entry and the report lists it.
+  `GITHUB_TOKEN` lifts GitHub's rate limit.
 - **Compose.** A stack entry's file is fetched from its repository; a
   single-container entry gets a one-service file from its image, ports,
   volumes, env and labels. The address the registry routes (the first

@@ -108,6 +108,7 @@ WEB = {
         "example/stacks", "Apache-2.0",
         "Apache License\n\n      Copyright [yyyy] [name of copyright owner]\n"),
     f"{API}/repos/example/gpl/license": _licence("example/gpl", "GPL-3.0", "GNU GPL\n"),
+    f"{API}/repos/example/bare": json.dumps({"full_name": "example/bare"}).encode(),
     "https://raw.githubusercontent.com/example/stacks/HEAD/web/docker-compose.yml":
         STACK_COMPOSE.encode(),
 }
@@ -510,3 +511,158 @@ def test_registry_text_is_made_plain():
 ])
 def test_a_container_entry_points_at_its_image_page(image, page):
     assert portainer.image_page(image) == page
+
+
+@pytest.mark.parametrize("url,repo", [
+    ("https://github.com/example/app", ("github.com", "example/app")),
+    ("https://github.com/example/app.git", ("github.com", "example/app")),
+    ("https://github.com/example/app/tree/main", ("github.com", "example/app")),
+    ("https://github.com/example/app/tree/v2.1/server/", ("github.com", "example/app")),
+    ("https://github.com/example-org/", ("github.com", "example-org")),
+    ("https://gitlab.com/group/sub/project.git", ("gitlab.com", "group/sub/project")),
+    ("https://codeberg.org/owner", ("codeberg.org", "owner")),
+    ("https://www.Git.Example.org/owner/app/", ("git.example.org", "owner/app")),
+    ("https://github.com/example/app/blob/main/README.md", None),
+    ("https://example.org/docs/", None),
+    ("https://example.org", None),
+    ("", None),
+])
+def test_an_upstream_address_names_its_repository(url, repo):
+    found = pipeline.upstream_repo(url)
+    assert (found and (found.host, found.path)) == repo
+
+
+def _gitlab_project(host: str, path: str, key: str | None) -> bytes:
+    """GitLab's answer to GET /projects/:id?license=true."""
+    web = f"https://{host}/{path}"
+    return json.dumps({
+        "path_with_namespace": path, "web_url": web, "default_branch": "trunk",
+        "license_url": f"{web}/-/blob/trunk/LICENSE" if key else None,
+        "license": {"key": key, "name": key} if key else None,
+    }).encode()
+
+
+def _gitea_repo(host: str, path: str, licenses: list[str] | None) -> bytes:
+    """Gitea's answer to GET /repos/{owner}/{repo}; Forgejo's when licenses
+    is None."""
+    doc = {"full_name": path, "html_url": f"https://{host}/{path}", "default_branch": "main"}
+    if licenses is not None:
+        doc["licenses"] = licenses
+    return json.dumps(doc).encode()
+
+
+GITLAB = "https://gitlab.com/api/v4/projects"
+SELF_GITLAB = "https://lab.example.org/api/v4/projects"
+GITEA = "https://git.example.org/api/v1/repos"
+FORGE_WEB = {
+    f"{GITLAB}/example%2Flab?license=true": _gitlab_project("gitlab.com", "example/lab", "mit"),
+    f"{GITLAB}/example%2Flab/repository/files/LICENSE/raw":
+        b"MIT License\n\nCopyright (c) 2023 Lab Example\n",
+    f"{GITLAB}/example%2Fgpl?license=true": _gitlab_project("gitlab.com", "example/gpl", "gpl-3.0"),
+    f"{GITLAB}/example%2Fgpl/repository/files/LICENSE/raw": b"GNU GPL\n",
+    f"{GITLAB}/example%2Fodd?license=true": _gitlab_project("gitlab.com", "example/odd", "other"),
+    f"{GITLAB}/example%2Fplain?license=true": _gitlab_project("gitlab.com", "example/plain", None),
+    f"{SELF_GITLAB}/group%2Fsub%2Ftool?license=true":
+        _gitlab_project("lab.example.org", "group/sub/tool", "apache-2.0"),
+    f"{SELF_GITLAB}/group%2Fsub%2Ftool/repository/files/LICENSE/raw":
+        b"Apache License\n\n      Copyright [yyyy] [name of copyright owner]\n",
+    # A GitLab sends an address it does not serve to its sign-in page, or a
+    # proxy in front of it refuses it.
+    "https://lab.example.org/api/v1/repos/owner/app": b"<!DOCTYPE html><title>Sign in</title>",
+    f"{SELF_GITLAB}/owner%2Fapp?license=true": _gitlab_project("lab.example.org", "owner/app", "mit"),
+    f"{SELF_GITLAB}/owner%2Fapp/repository/files/LICENSE/raw": b"MIT License\n",
+    "https://lab.example.org/api/v1/repos/owner/other":
+        pipeline.FetchError("https://lab.example.org/api/v1/repos/owner/other: HTTP 403", 403),
+    f"{SELF_GITLAB}/owner%2Fother?license=true":
+        _gitlab_project("lab.example.org", "owner/other", "bsd-2-clause"),
+    f"{SELF_GITLAB}/owner%2Fother/repository/files/LICENSE/raw": b"BSD 2-Clause License\n",
+    f"{GITEA}/example/tea": _gitea_repo("git.example.org", "example/tea", ["BSD-2-Clause"]),
+    f"{GITEA}/example/tea/contents/LICENSE?ref=main": json.dumps({
+        "html_url": "https://git.example.org/example/tea/src/branch/main/LICENSE",
+        "encoding": "base64",
+        "content": base64.b64encode(b"BSD 2-Clause License\n\nCopyright (c) 2021 Tea Example\n").decode(),
+    }).encode(),
+    f"{GITEA}/example/two": _gitea_repo("git.example.org", "example/two", ["MIT", "Apache-2.0"]),
+    f"{GITEA}/example/none": _gitea_repo("git.example.org", "example/none", None),
+    "https://codeberg.org/api/v1/repos/example/fj": _gitea_repo("codeberg.org", "example/fj", None),
+    f"{API}/repos/example/bare": json.dumps({"full_name": "example/bare"}).encode(),
+}
+
+
+@pytest.fixture
+def forges(monkeypatch):
+    """The fixture network of forge answers, a failure where FORGE_WEB holds
+    one; anything else is a 404."""
+    calls: list[str] = []
+
+    def fake_fetch(url, headers=None):
+        calls.append(url)
+        if url not in FORGE_WEB:
+            raise pipeline.FetchError(f"{url}: HTTP 404", 404)
+        if isinstance(FORGE_WEB[url], pipeline.FetchError):
+            raise FORGE_WEB[url]
+        return FORGE_WEB[url]
+
+    monkeypatch.setattr(pipeline, "fetch", fake_fetch)
+    return calls
+
+
+def _read(host: str, path: str) -> pipeline.Licence:
+    return pipeline.repo_licence(pipeline.Repo(host, path))
+
+
+def test_gitlab_names_the_licence_and_its_file_the_copyright(forges):
+    assert _read("gitlab.com", "example/lab") == pipeline.Licence(
+        "MIT", "Copyright (c) 2023 Lab Example")
+    # A licence outside the permitted list keeps GitLab's key, for the report.
+    assert _read("gitlab.com", "example/gpl").spdx == "gpl-3.0"
+    assert _read("gitlab.com", "example/odd").problem == (
+        "GitLab cannot name the licence in https://gitlab.com/example/odd/-/blob/trunk/LICENSE")
+    assert _read("gitlab.com", "example/plain").problem == (
+        "GitLab finds no licence file in gitlab.com/example/plain")
+    assert _read("gitlab.com", "example/gone").problem == "no repository example/gone on gitlab.com"
+    # gitlab.com is asked through GitLab's API alone.
+    assert not any("/api/v1/" in url for url in forges)
+
+
+def test_gitea_names_the_licence_and_forgejo_names_none(forges):
+    assert _read("git.example.org", "example/tea") == pipeline.Licence(
+        "BSD-2-Clause", "Copyright (c) 2021 Tea Example")
+    assert _read("git.example.org", "example/two").problem == (
+        "Gitea names MIT, Apache-2.0 in the LICENSE file of git.example.org/example/two")
+    for host, path in (("codeberg.org", "example/fj"), ("git.example.org", "example/none")):
+        assert _read(host, path).problem == f"the API at {host} names no licence for {path}"
+    # codeberg.org is asked through Gitea's API alone.
+    assert not any("codeberg.org/api/v4/" in url for url in forges)
+
+
+def test_a_host_the_importer_does_not_know_is_asked_as_gitea_then_gitlab(forges):
+    assert _read("lab.example.org", "owner/app").spdx == "MIT"
+    assert forges[:2] == ["https://lab.example.org/api/v1/repos/owner/app",
+                          f"{SELF_GITLAB}/owner%2Fapp?license=true"]
+    assert _read("lab.example.org", "owner/other").spdx == "BSD-2-Clause"
+    forges.clear()
+    # The Apache text carries only its appendix's line to fill in. A path
+    # with groups is no Gitea repository, so GitLab is asked alone.
+    assert _read("lab.example.org", "group/sub/tool") == pipeline.Licence(
+        "Apache-2.0", "https://lab.example.org/group/sub/tool/-/blob/trunk/LICENSE")
+    assert not any("/api/v1/" in url for url in forges)
+    assert _read("elsewhere.example", "owner/app").problem == (
+        "no repository owner/app on elsewhere.example, through Gitea's API or GitLab's")
+
+
+def test_only_copyright_notices_make_the_attribution():
+    text = ("Apache License\n"
+            "      copyright notice that is included in or attached to the work\n"
+            "      copyright license to reproduce, prepare Derivative Works of,\n"
+            "Copyright 2019 The Tool Authors\n"
+            "Copyright (c) [year] [fullname]\n"
+            "Copyright © 2021 Other Authors\n")
+    assert pipeline._attribution(text, "LICENSE") == (
+        "Copyright 2019 The Tool Authors; Copyright 2021 Other Authors")
+    assert pipeline._attribution(text.split("Copyright 2019")[0], "LICENSE") == "LICENSE"
+
+
+def test_github_tells_a_missing_repository_from_one_without_a_licence_file(forges):
+    assert _read("github.com", "example/bare").problem == "GitHub finds no licence file in example/bare"
+    assert _read("github.com", "example/gone").problem == "no repository example/gone on GitHub"

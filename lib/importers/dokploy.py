@@ -11,7 +11,8 @@ The fields read are those the registry's own processor reads (Dokploy/dokploy
 packages/server/src/templates/processors.ts):
 
   meta.json           name, description, tags, links.github (the app's own
-                      repository, whose licence applies), links.website
+                      repository, on GitHub or another forge, whose licence
+                      applies), links.website
   [variables]         name = value; ${name} in a value is another variable or
                       a helper
   [config] env        KEY=value lines, a list or a table, written to the .env
@@ -57,7 +58,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from . import pipeline
-from .pipeline import Candidate, github_repo, lookup, plain, slugify
+from .pipeline import Candidate, Repo, lookup, plain, slugify, upstream_repo
 
 FILES = ("meta.json", "template.toml", "docker-compose.yml")
 
@@ -97,7 +98,7 @@ def read(doc: Any, registry_url: str) -> list[Candidate]:
     if doc.get("truncated"):
         raise ValueError("GitHub's file listing is truncated")
     owner, repo, ref = m.groups()
-    notice = _notice((owner, repo))
+    notice = _notice(Repo("github.com", f"{owner}/{repo}"))
     paths = {str(e.get("path")) for e in doc["tree"] if isinstance(e, dict) and e.get("type") == "blob"}
     ids = sorted({p.split("/")[1] for p in paths if re.match(r"^blueprints/[^/]+/", p)})
     return [_candidate(ident, paths, notice,
@@ -106,7 +107,7 @@ def read(doc: Any, registry_url: str) -> list[Candidate]:
             for ident in ids]
 
 
-def _notice(repo: tuple[str, str]) -> str:
+def _notice(repo: Repo) -> str:
     licence = pipeline.repo_licence(repo)
     if not licence.spdx:
         raise ValueError(f"the registry's own licence is unknown: {licence.problem}")
@@ -142,10 +143,10 @@ def _candidate(ident: str, paths: set[str], notice: str, base: str, source: str)
     c.description = plain(meta.get("description")) or c.title
     c.categories = [tag for tag in (plain(x) for x in meta.get("tags") or []) if tag]
     c.upstream_url = str(links.get("website") or "").strip() or upstream or source
-    c.licence_repo = github_repo(upstream)
+    c.licence_repo = upstream_repo(upstream)
     if c.licence_repo is None:
-        c.licence_problem = (f"its upstream {upstream or '(none)'} is not a GitHub repository, "
-                             f"so the app's licence is unknown")
+        c.licence_problem = (f"its upstream {upstream or '(none)'} names no repository, so the "
+                             f"app's licence is unknown")
     c.compose_url = f"{base}/docker-compose.yml"
     _configure(c, template)
     return c

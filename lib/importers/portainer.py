@@ -25,7 +25,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from .pipeline import Candidate, github_repo, plain, raw_url, slugify
+from .pipeline import Candidate, Repo, github_repo, plain, raw_url, slugify
 
 # Portainer's restart_policy values as swarm restart conditions. Portainer
 # restarts a container always when the entry names no policy.
@@ -41,8 +41,7 @@ def read(doc: Any, registry_url: str) -> list[Candidate]:
             for t in doc["templates"] if isinstance(t, dict)]
 
 
-def _candidate(t: dict[str, Any], registry_url: str,
-               registry_repo: tuple[str, str] | None) -> Candidate:
+def _candidate(t: dict[str, Any], registry_url: str, registry_repo: Repo | None) -> Candidate:
     title = plain(t.get("title"))
     c = Candidate(
         entry=title or f"entry {t.get('id', '?')}",
@@ -89,13 +88,13 @@ def _stack(c: Candidate, t: dict[str, Any]) -> None:
     elif repo is None:
         c.licence_problem = f"the repository {url or '(none)'} is not on GitHub"
     else:
-        c.source = c.upstream_url = f"https://github.com/{repo[0]}/{repo[1]}"
+        c.source = c.upstream_url = f"https://github.com/{repo.path}"
         c.licence_repo = repo
         c.compose_url = raw_url(repo, stackfile)
 
 
 def _container(c: Candidate, t: dict[str, Any], registry_url: str,
-               registry_repo: tuple[str, str] | None) -> None:
+               registry_repo: Repo | None) -> None:
     image = str(t.get("image") or "").strip()
     if not image:
         c.skip = "the entry names no image"

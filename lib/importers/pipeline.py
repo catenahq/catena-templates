@@ -7,12 +7,14 @@ An adapter reads one registry format into Candidates. For each, in order:
             directory already holds it: the importer never overwrites. An
             entry whose title or id holds a word on the banned-word list
             check:unicode reads is skipped too.
-  licence   GitHub's licence API, for the repository whose text the entry
-            copies: the one a stack entry's compose file sits in, or the
+  licence   the licence the forge detects for the repository the adapter
+            names: the one a stack entry's compose file sits in, the
             registry's own for a compose the adapter writes from the
-            registry's fields. A licence outside sources.schema.json's
-            origin.licence list skips the entry; so does a licence the API
-            cannot name, and a source off GitHub.
+            registry's fields, or the app's own. GitHub's, GitLab's and
+            Gitea's APIs are read (repo_licence). A licence outside
+            sources.schema.json's origin.licence list skips the entry; so
+            does a licence the forge cannot name, and an upstream on no
+            forge the importer reads.
   compose   fetched for a stack entry, or the adapter's, changed by the
             adapter where its registry's format asks, then made into a
             catalog stack file: no version key, no Traefik labels, a restart
@@ -44,6 +46,7 @@ import sys
 import tempfile
 import unicodedata
 import urllib.error
+import urllib.parse
 import urllib.request
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -81,11 +84,11 @@ class Candidate:
     `compose_url` is where a stack entry's file is fetched from, and
     `convert` is the adapter's own change to that file, made first. `route`
     is the service and port the registry routes, when it names one. The
-    licence that applies is the one of `licence_repo` on GitHub; an adapter
-    that has no repository to name says why in `licence_problem`. `notice`
-    is a further copyright notice the attribution carries: the registry's,
-    when the licence that applies is the app's. A non-empty `skip` keeps the
-    entry out, with that reason."""
+    licence that applies is the one of `licence_repo` on its forge; an
+    adapter that has no repository to name says why in `licence_problem`.
+    `notice` is a further copyright notice the attribution carries: the
+    registry's, when the licence that applies is the app's. A non-empty
+    `skip` keeps the entry out, with that reason."""
 
     entry: str
     slug: str = ""
@@ -97,7 +100,7 @@ class Candidate:
     compose_url: str = ""
     convert: Callable[[dict[str, Any]], dict[str, Any]] | None = None
     route: tuple[str, int] | None = None
-    licence_repo: tuple[str, str] | None = None
+    licence_repo: Repo | None = None
     licence_problem: str = ""
     notice: str = ""
     source: str = ""
@@ -158,22 +161,55 @@ def slugify(text: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
 
 
+@dataclass(frozen=True)
+class Repo:
+    """A repository on a forge: the forge's `host`, and the repository's
+    `path`, its owner and name, or a GitLab project's groups and name. A
+    `path` of one segment is an owner's page, which the importer reads as
+    the owner's repository named as the entry's id."""
+
+    host: str
+    path: str
+
+    def __str__(self) -> str:
+        return self.path if self.host == "github.com" else f"{self.host}/{self.path}"
+
+
 _GITHUB_REPO = re.compile(
-    r"^https?://(?:www\.)?github\.com/([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+?)(?:\.git)?/?$")
+    r"^https?://(?:www\.)?github\.com/([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+?)(?:\.git)?"
+    r"(?:/tree/[^?#]+)?/?$")
 _RAW_FILE = re.compile(r"^https?://raw\.githubusercontent\.com/([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+)/")
 
 
-def github_repo(url: str) -> tuple[str, str] | None:
-    """(owner, repository) of a GitHub repository address or of a raw file
-    in one; None for anything else."""
+def github_repo(url: str) -> Repo | None:
+    """The GitHub repository of a repository address, of a /tree/<ref>/<path>
+    address in one, or of a raw file in one; None for anything else."""
     m = _GITHUB_REPO.match(url.strip()) or _RAW_FILE.match(url.strip())
-    return (m.group(1), m.group(2)) if m else None
+    return Repo("github.com", f"{m.group(1)}/{m.group(2)}") if m else None
 
 
-def raw_url(repo: tuple[str, str], path: str) -> str:
-    """A file on the repository's default branch."""
+def upstream_repo(url: str) -> Repo | None:
+    """The repository an app's upstream address names: a GitHub one as
+    github_repo reads it, or the address's path on another host. A path of
+    one segment, an owner's page, counts only on a host FORGES names. None
+    for any other address."""
+    found = github_repo(url)
+    if found:
+        return found
+    parts = urllib.parse.urlsplit(url.strip())
+    host = parts.netloc.lower().removeprefix("www.")
+    path = parts.path.strip("/").removesuffix(".git")
+    if parts.scheme not in ("http", "https") or not host or not path:
+        return None
+    if "/" not in path:
+        return Repo(host, path) if host in FORGES else None
+    return None if host == "github.com" else Repo(host, path)
+
+
+def raw_url(repo: Repo, path: str) -> str:
+    """A file on the GitHub repository's default branch."""
     rel = path.strip().removeprefix("./").lstrip("/")
-    return f"{RAW_GITHUB}/{repo[0]}/{repo[1]}/HEAD/{rel}"
+    return f"{RAW_GITHUB}/{repo.path}/HEAD/{rel}"
 
 
 @dataclass(frozen=True)
@@ -185,40 +221,144 @@ class Licence:
     problem: str = ""
 
 
-_COPYRIGHT = re.compile(r"^copyright\b", re.IGNORECASE)
-# The Apache licence's appendix carries a copyright line to fill in.
+# A copyright notice: the word, then (c) or a year. Lines of a licence's
+# own text that start with the word go on with other words ("copyright
+# notice that is included in...").
+_COPYRIGHT = re.compile(r"^copyright\s+(?:\(c\)|\d{4})", re.IGNORECASE)
+# A licence template's copyright line to fill in.
 _PLACEHOLDER = re.compile(r"\[yyyy\]|\{yyyy\}|\[year\]|<year>", re.IGNORECASE)
 
 
-def repo_licence(repo: tuple[str, str]) -> Licence:
-    """The licence GitHub detects for the repository, with the copyright
-    lines of its licence file. GITHUB_TOKEN, when set, lifts the API's rate
-    limit for anonymous callers."""
-    owner, name = repo
-    headers = {"Accept": "application/vnd.github+json"}
-    token = os.environ.get("GITHUB_TOKEN", "").strip()
-    if token:
-        headers["Authorization"] = f"Bearer {token}"
-    try:
-        doc = json.loads(fetch(f"{GITHUB_API}/repos/{owner}/{name}/license", headers))
-    except FetchError as exc:
-        if exc.status == 404:
-            return Licence("", "", f"GitHub finds no licence file in {owner}/{name}")
-        return Licence("", "", f"the licence of {owner}/{name} cannot be read: {exc}")
-    except ValueError:
-        return Licence("", "", f"GitHub's licence answer for {owner}/{name} is not JSON")
-    spdx = str((doc.get("license") or {}).get("spdx_id") or "")
-    url = str(doc.get("html_url") or f"https://github.com/{owner}/{name}")
-    if spdx in ("", "NOASSERTION"):
-        return Licence("", "", f"GitHub cannot name the licence in {url}")
-    text = ""
-    if doc.get("encoding") == "base64":
-        text = base64.b64decode(doc.get("content") or "").decode("utf-8", "replace")
+def _attribution(text: str, url: str) -> str:
+    """The licence file's copyright lines, three at most, or the file's
+    address when it carries none."""
     lines: list[str] = []
     for line in (plain(raw) for raw in text.splitlines()):
         if _COPYRIGHT.match(line) and not _PLACEHOLDER.search(line) and line not in lines:
             lines.append(line)
-    return Licence(spdx, "; ".join(lines[:3]) or url)
+    return "; ".join(lines[:3]) or url
+
+
+def _file_text(doc: dict[str, Any]) -> str:
+    """A file's text as GitHub's and Gitea's APIs hand it over."""
+    if doc.get("encoding") != "base64":
+        return ""
+    return base64.b64decode(doc.get("content") or "").decode("utf-8", "replace")
+
+
+def _answer(url: str, key: str, headers: dict[str, str] | None = None) -> dict[str, Any] | None:
+    """The JSON object a forge's API answers, or None for a 404 or for an
+    answer that is no object holding `key`: that API holds no such
+    repository. Any other failure raises FetchError."""
+    try:
+        doc = json.loads(fetch(url, headers))
+    except FetchError as exc:
+        if exc.status == 404:
+            return None
+        raise
+    except ValueError:
+        return None
+    return doc if isinstance(doc, dict) and key in doc else None
+
+
+def _github(repo: Repo) -> Licence | None:
+    """GitHub's licence API, which hands over the licence file. Its 404
+    answers a repository with no licence file and a missing one alike, so
+    the repository is then asked for. GITHUB_TOKEN, when set, lifts the
+    API's rate limit for anonymous callers."""
+    headers = {"Accept": "application/vnd.github+json"}
+    token = os.environ.get("GITHUB_TOKEN", "").strip()
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    doc = _answer(f"{GITHUB_API}/repos/{repo.path}/license", "license", headers)
+    if doc is None:
+        if _answer(f"{GITHUB_API}/repos/{repo.path}", "full_name", headers) is None:
+            return None
+        return Licence("", "", f"GitHub finds no licence file in {repo}")
+    spdx = str((doc.get("license") or {}).get("spdx_id") or "")
+    url = str(doc.get("html_url") or f"https://github.com/{repo.path}")
+    if spdx in ("", "NOASSERTION"):
+        return Licence("", "", f"GitHub cannot name the licence in {url}")
+    return Licence(spdx, _attribution(_file_text(doc), url))
+
+
+def _gitlab(repo: Repo) -> Licence | None:
+    """GitLab's project API. `license.key` is the SPDX id of the licence it
+    detects, in lower case, or "other" for a licence file it cannot name;
+    `license_url` is that file's page on the default branch, and the
+    repository files API serves its text."""
+    api = f"https://{repo.host}/api/v4/projects/{urllib.parse.quote(repo.path, safe='')}"
+    doc = _answer(f"{api}?license=true", "path_with_namespace")
+    if doc is None:
+        return None
+    key = str((doc.get("license") or {}).get("key") or "")
+    url = str(doc.get("license_url") or "")
+    if not key:
+        return Licence("", "", f"GitLab finds no licence file in {repo}")
+    if key == "other":
+        return Licence("", "", f"GitLab cannot name the licence in {url}")
+    spdx = {name.lower(): name for name in permissive_licences()}.get(key, key)
+    page = f"{doc.get('web_url')}/-/blob/{doc.get('default_branch')}/"
+    text = ""
+    if url.startswith(page):
+        file = urllib.parse.quote(url.removeprefix(page), safe="")
+        text = fetch(f"{api}/repository/files/{file}/raw").decode("utf-8", "replace")
+    return Licence(spdx, _attribution(text, url))
+
+
+def _gitea(repo: Repo) -> Licence | None:
+    """Gitea's repository API, which Forgejo shares. Gitea names the
+    licences it detects in the LICENSE file at the root under `licenses`,
+    as SPDX ids, and its contents API hands over that file. Forgejo's
+    answer, and Gitea's before 1.23, carry no `licenses`."""
+    if repo.path.count("/") != 1:
+        return None
+    api = f"https://{repo.host}/api/v1/repos/{repo.path}"
+    doc = _answer(api, "full_name")
+    if doc is None:
+        return None
+    if "licenses" not in doc:
+        return Licence("", "", f"the API at {repo.host} names no licence for {repo.path}")
+    names = [str(name) for name in doc["licenses"] or []]
+    if len(names) != 1:
+        found = f"names {', '.join(names)}" if names else "finds no licence"
+        return Licence("", "", f"Gitea {found} in the LICENSE file of {repo}")
+    branch = urllib.parse.quote(str(doc.get("default_branch") or ""), safe="")
+    file = _answer(f"{api}/contents/LICENSE?ref={branch}", "content") or {}
+    url = str(file.get("html_url") or doc.get("html_url") or "")
+    return Licence(names[0], _attribution(_file_text(file), url))
+
+
+# The reader of each host whose forge the importer knows. Codeberg runs
+# Forgejo, which shares Gitea's API.
+FORGES: dict[str, Callable[[Repo], Licence | None]] = {
+    "github.com": _github, "gitlab.com": _gitlab, "codeberg.org": _gitea}
+
+
+def repo_licence(repo: Repo) -> Licence:
+    """The licence the repository's forge detects, with the copyright lines
+    of its licence file. A host FORGES leaves out is asked through Gitea's
+    API and, when that holds no such repository or fails, through
+    GitLab's."""
+    readers = [FORGES[repo.host]] if repo.host in FORGES else [_gitea, _gitlab]
+    error: FetchError | None = None
+    for reader in readers:
+        try:
+            licence = reader(repo)
+        except FetchError as exc:
+            error = exc
+            continue
+        if licence is not None:
+            return licence
+    if error:
+        return Licence("", "", f"the licence of {repo} cannot be read: {error}")
+    if repo.host == "github.com":
+        where = "GitHub"
+    elif repo.host in FORGES:
+        where = repo.host
+    else:
+        where = f"{repo.host}, through Gitea's API or GitLab's"
+    return Licence("", "", f"no repository {repo.path} on {where}")
 
 
 def permissive_licences() -> tuple[str, ...]:
@@ -586,19 +726,31 @@ class Importer:
             (model.SOURCES / model.META_NAME).write_text(json.dumps(meta, indent=2) + "\n")
         return report
 
-    def _licence(self, candidate: Candidate) -> Licence:
+    def _licence(self, candidate: Candidate) -> tuple[Licence, list[str]]:
+        """The licence that admits the entry, and what a person checks about
+        the repository it is read from: an owner's page reads as the owner's
+        repository named as the entry's id."""
         repo = candidate.licence_repo
         if repo is None:
             raise Skip(candidate.licence_problem or "no repository names its licence", "unknown")
-        key = (repo[0].lower(), repo[1].lower())
+        page = ""
+        checks: list[str] = []
+        if "/" not in repo.path:
+            page = f"https://{repo.host}/{repo.path}"
+            repo = Repo(repo.host, f"{repo.path}/{candidate.slug}")
+            checks.append(f"upstream repository: the registry links the owner's page {page}, and "
+                          f"the licence is read from {repo}, its repository named as the entry: "
+                          f"confirm it holds the app")
+        key = (repo.host, repo.path.lower())
         if key not in self.licences:
             self.licences[key] = repo_licence(repo)
         licence = self.licences[key]
         if not licence.spdx:
-            raise Skip(licence.problem, "unknown")
+            where = f"{page} is an owner's page, read as {repo}: " if page else ""
+            raise Skip(where + licence.problem, "unknown")
         if licence.spdx not in self.allowed:
-            raise Skip(f"{licence.spdx} ({repo[0]}/{repo[1]})", "licence")
-        return licence
+            raise Skip(f"{licence.spdx} ({repo})", "licence")
+        return licence, checks
 
     def _compose(self, candidate: Candidate) -> dict[str, Any]:
         if candidate.compose is not None:
@@ -627,7 +779,7 @@ class Importer:
         if (slug in self.taken or (model.SOURCES / f"{slug}.json").exists()
                 or (model.BLUEPRINTS / slug).exists()):
             raise Skip(f"the id {slug} is already in the catalog")
-        licence = self._licence(c)
+        licence, licence_checks = self._licence(c)
         stack = make_stack(self._compose(c), c.route)
         host = f"{slug}.{ZONE}"
         env = [(name, value if render.LOOKUP_PASSWORD_RE.search(value)
@@ -653,7 +805,7 @@ class Importer:
         secrets = [name for name, value in env if render.LOOKUP_PASSWORD_RE.search(value)]
         images = ", ".join(f"{svc.get('image', '?')} (service {name})"
                            for name, svc in stack.doc["services"].items())
-        to_choose = stack.to_choose + c.to_choose + [
+        to_choose = stack.to_choose + c.to_choose + licence_checks + [
             f"pinned version: {images}",
             f"access mode: no vps.auth.mode label, so only administrators reach {slug}.<domain>",
             f"host name: {slug}.<domain> is a placeholder",
