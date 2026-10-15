@@ -20,6 +20,11 @@ for layout, consumer model, and BASE URL setup.
   read as written, beside that construct.
 - Every consumer reads `main`, fetched raw: a merge reaches every new
   deploy at once, so `main` stays deployable.
+- An entry that an older Catena release deploys in a shape it cannot
+  serve names the oldest release it works on in
+  `x-catena.requires_catena`, the one place that release is written: the
+  render puts it in the Portainer description and the README, so the
+  prose never repeats it.
 - Every image pin is a version the update engine can order (catena-admin
   `payload/engines/stackupdate`): no floating or partial tags. The engine
   moves the pins; a template whose tag scheme it cannot order yet gets an

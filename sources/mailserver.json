@@ -11,6 +11,7 @@
   "x-catena": {
     "app_name": "catena-mailserver",
     "upstream_url": "https://docker-mailserver.github.io/",
+    "requires_catena": "0.11.0",
     "sso_mode": "auto",
     "domain": {
       "host": "webmail.{{ cloudflare_zone }}",

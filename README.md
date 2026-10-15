@@ -152,10 +152,14 @@ input, not a catalog to deploy from.
    `-CONT` on the server process). `make lint` holds each command to an
    allowlist of the application's own admin clients, plus `pkill` for an
    application with no admin client that can hold its writes.
-6. `make` -- renders, lints, and runs the tests. Commit the regenerated
+6. If the entry works only on a Catena release newer than some servers
+   run, `x-catena.requires_catena` names the oldest one it works on
+   (`0.11.0`). The render opens the entry's Portainer description and its
+   README with that release.
+7. `make` -- renders, lints, and runs the tests. Commit the regenerated
    `blueprints/<id>/README.md`, `templates.json`, `catalog.json` and
    `index.html` with the source change.
-7. Open a PR. CI runs `build-and-verify.yml`, `check:unicode` and `check:prose`.
+8. Open a PR. CI runs `build-and-verify.yml`, `check:unicode` and `check:prose`.
 
 A merge to `main` is live for every new deploy as soon as the consumers
 next fetch the catalog; there are no releases to cut.

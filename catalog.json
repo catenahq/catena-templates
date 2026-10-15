@@ -124,6 +124,7 @@
         "timeout_seconds": 30,
         "user": "www-data"
       },
+      "requires_catena": "0.11.0",
       "s3_reconcile": {
         "check": "nextcloud-objectstore",
         "db_service": "db",
@@ -382,6 +383,7 @@
         "service": "mongodb",
         "timeout_seconds": 60
       },
+      "requires_catena": "0.11.0",
       "sizing": {
         "disk_baseline_mb": 180,
         "idle_cpu_pct": 3,
@@ -424,6 +426,7 @@
         "ELEMENT_HOSTNAME=element.{{ cloudflare_zone }}",
         "MATRIX_HOSTNAME=matrix.{{ cloudflare_zone }}",
         "ELEMENT_JITSI_HOSTNAME=elementmeet.{{ cloudflare_zone }}",
+        "SYNAPSE_ADMIN_HOSTNAME=synapseadmin.{{ cloudflare_zone }}",
         "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
         "SYNAPSE_REGISTRATION_SHARED_SECRET={{ lookup('password', '/dev/null length=48 chars=ascii_letters,digits') }}",
         "SYNAPSE_MACAROON_SECRET={{ lookup('password', '/dev/null length=48 chars=ascii_letters,digits') }}",
@@ -461,6 +464,7 @@
       },
       "hostname_baked": true,
       "id": "element",
+      "requires_catena": "0.11.0",
       "sizing": {
         "disk_baseline_mb": null,
         "idle_cpu_pct": null,
@@ -1633,6 +1637,7 @@
         "service": "roundcube",
         "timeout_seconds": 10
       },
+      "requires_catena": "0.11.0",
       "sizing": {
         "disk_baseline_mb": 600,
         "idle_cpu_pct": 3,

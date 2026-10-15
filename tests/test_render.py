@@ -3,6 +3,7 @@ client's Portainer shows, and what catenahq/ops reads back.
 """
 from __future__ import annotations
 
+import copy
 import json
 import re
 import sys
@@ -13,7 +14,7 @@ import yaml
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from lib import model, render  # noqa: E402
+from lib import model, readme, render  # noqa: E402
 
 
 def test_password_lookup_collapses_to_the_sentinel():
@@ -206,6 +207,60 @@ def test_a_readme_has_no_root_relative_link():
     for entry in model.load_sources():
         body = (ROOT / "blueprints" / entry.slug / "README.md").read_text()
         assert "](/" not in body, entry.slug
+
+
+def _requiring(entry: model.Entry, version: str | None) -> model.Entry:
+    raw = copy.deepcopy(entry.raw)
+    raw["x-catena"].pop("requires_catena", None)
+    if version:
+        raw["x-catena"]["requires_catena"] = version
+    return model.Entry(raw)
+
+
+def test_an_entry_needing_a_newer_catena_says_so_in_its_description_and_readme():
+    """A server on an older release deploys such an entry in a shape its
+    panel cannot serve. The client reads the description in Portainer's
+    gallery and the README in the blueprint, so both name the release."""
+    entry = model.load_sources()[0]
+    needs = _requiring(entry, "0.11.0")
+    description = render.render_portainer_template(needs, "logo.svg")["description"]
+    assert description.startswith("Requires Catena 0.11.0 or later. ")
+    assert render.render_portainer_template(needs, "logo.svg")["note"].startswith(
+        "<p>Requires Catena 0.11.0 or later.</p>"
+    )
+    assert render.render_catalog_entry(needs)["requires_catena"] == "0.11.0"
+    assert "Requires Catena 0.11.0 or later. " in render.render_index_html([needs], model.load_meta())
+    body = readme.render_readme(needs)
+    assert "**Requires Catena 0.11.0 or later.**" in body
+    assert "**Requiert Catena 0.11.0 ou une version ultérieure.**" in body
+
+    plain = _requiring(entry, None)
+    assert "Requires Catena" not in render.render_portainer_template(plain, "logo.svg")["description"]
+    assert "requires_catena" not in render.render_catalog_entry(plain)
+    assert "Catena 0.11.0" not in readme.render_readme(plain)
+
+
+def test_the_required_release_is_a_full_version():
+    schema = model._schema(model.SOURCE_SCHEMA)
+    entry = model.load_sources()[0]
+    assert model._validate_schema(_requiring(entry, "0.11.0").raw, schema, "x") == []
+    for version in ("0.11", "v0.11.0", "latest"):
+        errors = model._validate_schema(_requiring(entry, version).raw, schema, "x")
+        assert errors and "requires_catena" in errors[0], version
+
+
+def test_the_published_catalog_names_each_required_release():
+    """The committed artifacts carry what each source requires."""
+    templates = {t["name"]: t for t in json.loads((ROOT / "templates.json").read_text())["templates"]}
+    required = 0
+    for entry in model.load_sources():
+        if not entry.requires_catena:
+            continue
+        required += 1
+        sentence = f"Requires Catena {entry.requires_catena} or later."
+        assert templates[entry.raw["name"]]["description"].startswith(sentence), entry.slug
+        assert f"**{sentence}**" in (entry.app_dir / "README.md").read_text(), entry.slug
+    assert required > 0
 
 
 def test_rendering_does_not_touch_the_hand_edited_compose():

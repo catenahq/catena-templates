@@ -35,7 +35,7 @@ from pathlib import Path
 from typing import Any
 
 from .model import BLUEPRINTS, ROOT, Entry, load_meta, load_sources, validate_output
-from .readme import render_readme
+from .readme import REQUIRES_CATENA, render_readme
 TEMPLATES_JSON = ROOT / "templates.json"
 CATALOG_JSON = ROOT / "catalog.json"
 INDEX_HTML = ROOT / "index.html"
@@ -151,13 +151,23 @@ def render_env(entry: Entry) -> list[dict[str, str]]:
     return env
 
 
+def requires_sentence(entry: Entry) -> str:
+    """The release sentence of an entry that needs a newer Catena, else empty."""
+    if not entry.requires_catena:
+        return ""
+    return REQUIRES_CATENA[0].format(version=entry.requires_catena)
+
+
 def render_note(entry: Entry) -> str:
     """The note is Portainer's detail panel. It gets what the gallery
     description has no room for: the one-line pitch, what it replaces,
-    and the docs link. An imported entry says so first, and an entry with an
-    origin names its template source and licence."""
+    and the docs link. An entry that needs a newer Catena says so first, then
+    an imported entry says so, and an entry with an origin names its template
+    source and licence."""
     en = entry.prose("en")
     parts = []
+    if entry.requires_catena:
+        parts.append(f"<p>{requires_sentence(entry)}</p>")
     if entry.imported:
         parts.append(f"<p>{IMPORTED_MARK}: not yet tested on a Catena server.</p>")
     parts.append(f"<p>{html.escape(en['what_it_is'])}</p>")
@@ -187,6 +197,8 @@ def render_note(entry: Entry) -> str:
 def render_portainer_template(entry: Entry, logo_filename: str) -> dict[str, Any]:
     en = entry.prose("en")
     description = en["compose_description"].strip().split("\n")[0]
+    if entry.requires_catena:
+        description = f"{requires_sentence(entry)} {description}"
     if entry.imported:
         description = f"{IMPORTED_MARK}: {description}"
     return {
@@ -236,6 +248,8 @@ def render_catalog_entry(entry: Entry) -> dict[str, Any]:
         out["status"] = cat["status"]
     if entry.origin:
         out["origin"] = dict(entry.origin)
+    if entry.requires_catena:
+        out["requires_catena"] = entry.requires_catena
     if cat.get("env_managed_keys"):
         out["env_managed_keys"] = list(cat["env_managed_keys"])
     if cat.get("env_required_when"):
@@ -331,11 +345,12 @@ def render_index_html(entries: list[Entry], meta: dict[str, Any]) -> str:
         name = en["display_name"]
         if entry.imported:
             name = f"{name} ({IMPORTED_MARK.lower()})"
+        what = " ".join(s for s in (requires_sentence(entry), en["what_it_is"]) if s)
         rows.append(
             "      <tr>"
             f"<td><code>{html.escape(entry.slug)}</code></td>"
             f"<td>{html.escape(name)}</td>"
-            f"<td>{html.escape(en['what_it_is'])}</td>"
+            f"<td>{html.escape(what)}</td>"
             f"<td>{html.escape(cats)}</td>"
             f"<td>{html.escape(entry.catena['sso_mode'])}</td>"
             f"<td><a href=\"{html.escape(entry.catena['upstream_url'])}\">upstream</a></td>"

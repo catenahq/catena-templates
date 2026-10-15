@@ -100,6 +100,12 @@ class Entry:
     def origin(self) -> dict[str, Any] | None:
         return self.catena.get("origin")
 
+    @property
+    def requires_catena(self) -> str | None:
+        """The oldest Catena release the entry works on, when it needs a newer
+        one than some servers run: named in its description and its README."""
+        return self.catena.get("requires_catena")
+
     def prose(self, lang: str) -> dict[str, Any]:
         return self.catena[lang]
 

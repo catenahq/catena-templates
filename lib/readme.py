@@ -84,6 +84,12 @@ IMPORTED_NOTICE = (
     "**Importé, non testé.** Ce modèle vient du registre <{registry}> et n'a "
     "pas encore été testé sur un serveur Catena.",
 )
+# The oldest Catena release an entry works on (x-catena.requires_catena),
+# (EN, FR). The EN sentence also opens the entry's Portainer description.
+REQUIRES_CATENA = (
+    "Requires Catena {version} or later.",
+    "Requiert Catena {version} ou une version ultérieure.",
+)
 
 DOCS_SITE = "https://docs.catena.run"
 
@@ -168,10 +174,13 @@ def _section(entry: Entry, locale: str) -> str:
     domain = catena["domain"]
     lang = 0 if locale == "en" else 1
     sso = SSO_LABEL.get(catena["sso_mode"], ("?", "?"))[lang]
-    notice = ""
+    notices = []
+    if entry.requires_catena:
+        notices.append(f"**{REQUIRES_CATENA[lang].format(version=entry.requires_catena)}**")
     if entry.imported:
         sso = IMPORTED_SSO[lang]
-        notice = "\n" + IMPORTED_NOTICE[lang].format(registry=entry.origin["registry"]) + "\n"
+        notices.append(IMPORTED_NOTICE[lang].format(registry=entry.origin["registry"]))
+    notice = "".join(f"\n{n}\n" for n in notices)
     source = ""
     if entry.origin:
         origin = entry.origin

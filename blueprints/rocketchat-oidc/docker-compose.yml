@@ -99,6 +99,7 @@ services:
     labels:
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=3000"
+      - "vps.route.main=true"
       - "vps.auth.mode=public"
       - "vps.auth.oidc=true"
       - "vps.auth.groups=staff"
@@ -248,6 +249,10 @@ services:
       XMPP_RECORDER_DOMAIN: recorder.meet.jitsi
       TZ: Etc/UTC
     labels:
+      # The host PUBLIC_URL names and the rocketchat service's JITSI_HOSTNAME.
+      - "vps.route.host=meet.${ROCKETCHAT_HOSTNAME_BASE}"
+      - "vps.route.port=80"
+      - "vps.auth.mode=public"
       - "vps.auto-update=patch"
     networks:
       catena-network:

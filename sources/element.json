@@ -11,6 +11,7 @@
   "x-catena": {
     "app_name": "catena-element",
     "upstream_url": "https://element.io/",
+    "requires_catena": "0.11.0",
     "sso_mode": "pre-wired",
     "domain": {
       "host": "element.{{ cloudflare_zone }}",
@@ -22,6 +23,7 @@
       "ELEMENT_HOSTNAME=element.{{ cloudflare_zone }}",
       "MATRIX_HOSTNAME=matrix.{{ cloudflare_zone }}",
       "ELEMENT_JITSI_HOSTNAME=elementmeet.{{ cloudflare_zone }}",
+      "SYNAPSE_ADMIN_HOSTNAME=synapseadmin.{{ cloudflare_zone }}",
       "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
       "SYNAPSE_REGISTRATION_SHARED_SECRET={{ lookup('password', '/dev/null length=48 chars=ascii_letters,digits') }}",
       "SYNAPSE_MACAROON_SECRET={{ lookup('password', '/dev/null length=48 chars=ascii_letters,digits') }}",

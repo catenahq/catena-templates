@@ -231,6 +231,12 @@ services:
     volumes:
       - element-synapse-data:/data
     labels:
+      # The homeserver host: the web and mobile clients and Keycloak's return
+      # address reach Synapse here, and Synapse checks its own access tokens.
+      - "vps.route.host=${MATRIX_HOSTNAME}"
+      - "vps.route.port=8008"
+      - "vps.auth.mode=public"
+      - "vps.health.path=/health"
       - "vps.auto-update=patch"
     networks:
       catena-network:
@@ -320,9 +326,10 @@ services:
     labels:
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=80"
+      - "vps.route.main=true"
       - "vps.auth.mode=public"
-      # The sign-in entry is read from the route service; Synapse, on the
-      # homeserver host, is what Keycloak returns the browser to.
+      # The sign-in entry is read from the main address's service; Synapse,
+      # on the homeserver host, is what Keycloak returns the browser to.
       - "vps.auth.oidc=true"
       - "vps.auth.groups=staff"
       - "vps.auth.oidc.redirect_uris=https://${MATRIX_HOSTNAME}/_synapse/client/oidc/callback"
@@ -342,6 +349,9 @@ services:
       # Restricts the admin UI to managing THIS homeserver only.
       REACT_APP_SERVER: https://${MATRIX_HOSTNAME}
     labels:
+      - "vps.route.host=${SYNAPSE_ADMIN_HOSTNAME}"
+      - "vps.route.port=80"
+      - "vps.auth.mode=admin-only"
       - "vps.auto-update=patch"
     networks:
       catena-network:
@@ -488,6 +498,9 @@ services:
       XMPP_RECORDER_DOMAIN: recorder.meet.jitsi
       TZ: Etc/UTC
     labels:
+      - "vps.route.host=${ELEMENT_JITSI_HOSTNAME}"
+      - "vps.route.port=80"
+      - "vps.auth.mode=public"
       - "vps.auto-update=patch"
     networks:
       catena-network:

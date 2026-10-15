@@ -332,6 +332,7 @@ services:
     labels:
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=80"
+      - "vps.route.main=true"
       - "vps.auth.mode=public"
       - "vps.auth.oidc=true"
       - "vps.auth.groups=staff"
@@ -493,7 +494,9 @@ services:
   #      The bundled eturnal stays unused.
   #
   # Public exposure: only the signaling HTTP endpoint (port 8081
-  # inside the container) needs to be reachable.
+  # inside the container), the app's address at ${SIGNALING_HOSTNAME}.
+  # It is open without the sign-in gate, since the signaling server
+  # checks every caller itself; its welcome endpoint is the status check.
   #
   # Tag: pinned to a dated upstream build. Bump by listing
   # `ghcr.io/nextcloud-releases/aio-talk` tags and picking the
@@ -535,6 +538,10 @@ services:
       TALK_MAX_STREAM_BITRATE: "1048576"
       TALK_MAX_SCREEN_BITRATE: "2097152"
     labels:
+      - "vps.route.host=${SIGNALING_HOSTNAME}"
+      - "vps.route.port=8081"
+      - "vps.auth.mode=public"
+      - "vps.health.path=/api/v1/welcome"
       - "vps.auto-update=patch"
     networks:
       catena-network:
