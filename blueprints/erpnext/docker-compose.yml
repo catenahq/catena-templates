@@ -224,7 +224,7 @@ services:
       - default
 
   redis-cache:
-    image: redis:8.6.3-alpine3.23
+    image: redis:8.6.7-alpine3.23
     deploy:
       restart_policy:
         condition: any
@@ -234,7 +234,7 @@ services:
       - default
 
   redis-queue:
-    image: redis:8.6.3-alpine3.23
+    image: redis:8.6.7-alpine3.23
     deploy:
       restart_policy:
         condition: any
