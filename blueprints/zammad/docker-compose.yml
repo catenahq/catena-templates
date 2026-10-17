@@ -131,6 +131,8 @@ services:
       - "vps.auth.groups=staff"
       - "vps.auth.oidc.redirect_uris=https://${ZAMMAD_HOSTNAME}/auth/openid_connect/callback"
       - "vps.auto-update=patch"
+    cap_drop:
+      - NET_RAW
     networks:
       catena-network: {}
       default: {}

@@ -22,6 +22,8 @@ services:
       - "vps.route.port=3000"
       - "vps.auth.mode=public"
       - "vps.auto-update=patch"
+    cap_drop:
+      - NET_RAW
     networks:
       catena-network: {}
       default: {}

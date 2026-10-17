@@ -86,6 +86,8 @@ services:
       - "vps.auth.groups=staff"
       - "vps.auth.oidc.redirect_uris=https://${IMMICH_HOSTNAME}/auth/login,https://${IMMICH_HOSTNAME}/user-settings,app.immich:///oauth-callback"
       - "vps.auto-update=patch"
+    cap_drop:
+      - NET_RAW
     networks:
       catena-network: {}
       default: {}

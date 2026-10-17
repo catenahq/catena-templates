@@ -28,6 +28,8 @@ services:
       # page instead of the document.
       - "vps.auth.mode=public"
       - "vps.auto-update=patch"
+    cap_drop:
+      - NET_RAW
     networks:
       catena-network: {}
       default: {}

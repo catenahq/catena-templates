@@ -146,6 +146,8 @@ services:
       # public at the proxy layer, OIDC enforced by the app.
       - "vps.auth.mode=public"
       - "vps.auto-update=patch"
+    cap_drop:
+      - NET_RAW
     networks:
       catena-network:
         aliases:
@@ -202,6 +204,8 @@ services:
       - "vps.health.path=/.well-known/mta-sts.txt"
       - "vps.health.expect=STSv1"
       - "vps.auto-update=patch"
+    cap_drop:
+      - NET_RAW
     networks:
       catena-network:
         aliases:

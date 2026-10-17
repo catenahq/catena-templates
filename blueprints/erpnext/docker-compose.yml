@@ -101,6 +101,8 @@ services:
       - "vps.health.path=/api/method/ping"
       - "vps.health.expect=pong"
       - "vps.auto-update=minor"
+    cap_drop:
+      - NET_RAW
     networks:
       catena-network: {}
       default: {}

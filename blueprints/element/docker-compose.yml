@@ -245,6 +245,8 @@ services:
       - "vps.auth.mode=public"
       - "vps.health.path=/health"
       - "vps.auto-update=patch"
+    cap_drop:
+      - NET_RAW
     networks:
       catena-network:
         aliases:
@@ -341,6 +343,8 @@ services:
       - "vps.auth.groups=staff"
       - "vps.auth.oidc.redirect_uris=https://${MATRIX_HOSTNAME}/_synapse/client/oidc/callback"
       - "vps.auto-update=patch"
+    cap_drop:
+      - NET_RAW
     networks:
       catena-network:
         aliases:
@@ -360,6 +364,8 @@ services:
       - "vps.route.port=80"
       - "vps.auth.mode=admin-only"
       - "vps.auto-update=patch"
+    cap_drop:
+      - NET_RAW
     networks:
       catena-network:
         aliases:
@@ -509,6 +515,8 @@ services:
       - "vps.route.port=80"
       - "vps.auth.mode=public"
       - "vps.auto-update=patch"
+    cap_drop:
+      - NET_RAW
     networks:
       catena-network:
         aliases:

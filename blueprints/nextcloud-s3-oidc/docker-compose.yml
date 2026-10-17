@@ -376,6 +376,8 @@ services:
       - "vps.auth.groups=staff"
       - "vps.auth.oidc.redirect_uris=https://${NEXTCLOUD_HOSTNAME}/apps/user_oidc/code"
       - "vps.auto-update=patch"
+    cap_drop:
+      - NET_RAW
     networks:
       catena-network: {}
       default: {}
@@ -581,6 +583,8 @@ services:
       - "vps.auth.mode=public"
       - "vps.health.path=/api/v1/welcome"
       - "vps.auto-update=patch"
+    cap_drop:
+      - NET_RAW
     networks:
       catena-network:
         aliases:
