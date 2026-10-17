@@ -37,6 +37,7 @@ services:
       SECRET_KEY: ${OUTLINE_SECRET_KEY}
       UTILS_SECRET: ${OUTLINE_UTILS_SECRET}
       DATABASE_URL: postgres://outline:${DB_PASSWORD}@db:5432/outline
+      PGSSLMODE: disable
       REDIS_URL: redis://redis:6379
       URL: https://${OUTLINE_HOSTNAME}
       PORT: "3000"
