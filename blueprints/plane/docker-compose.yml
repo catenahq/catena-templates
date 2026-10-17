@@ -44,6 +44,7 @@ services:
     environment: &backend-env
       DEBUG: "0"
       SECRET_KEY: ${PLANE_SECRET_KEY}
+      LIVE_SERVER_SECRET_KEY: ${PLANE_LIVE_SECRET_KEY}
       WEB_URL: https://${PLANE_HOSTNAME}
       CORS_ALLOWED_ORIGINS: https://${PLANE_HOSTNAME}
       DOCKERIZED: "1"
@@ -100,6 +101,8 @@ services:
         condition: any
     environment:
       API_BASE_URL: http://api:8000
+      LIVE_SERVER_SECRET_KEY: ${PLANE_LIVE_SECRET_KEY}
+      REDIS_URL: redis://redis:6379/
     labels:
       - "vps.auto-update=patch"
     networks:
@@ -111,6 +114,7 @@ services:
       restart_policy:
         condition: any
     environment:
+      SITE_ADDRESS: ":80"
       FILE_SIZE_LIMIT: "5242880"
       BUCKET_NAME: uploads
     labels:
@@ -181,8 +185,11 @@ services:
       - minio-data:/export
     labels:
       - "vps.auto-update=off"
+    # The proxy's Caddyfile reaches the bucket by this name.
     networks:
-      - default
+      default:
+        aliases:
+          - plane-minio
 
 volumes:
   db-data:

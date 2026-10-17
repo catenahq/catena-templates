@@ -709,6 +709,12 @@
         {
           "default": "__CATENA_OPERATOR_WIRED__",
           "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
+          "label": "Plane live secret key",
+          "name": "PLANE_LIVE_SECRET_KEY"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "Database password",
           "name": "DB_PASSWORD"
         },
