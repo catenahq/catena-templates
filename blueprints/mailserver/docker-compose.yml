@@ -111,6 +111,21 @@ services:
     # master can fork fresh children that serve, and write, while the held
     # ones wait.
     init: true
+    # The mail server is reached as dms but its certificate names the mail
+    # host, so peer verification stays on and checks that name. The image
+    # includes every php file of the config volume; this one is rewritten at
+    # each start, then the image's own entrypoint runs.
+    entrypoint:
+      - /bin/sh
+      - -ec
+      - |
+        cat > /var/roundcube/config/catena-tls.inc.php <<'EOF'
+        <?php
+        $$tls = ['ssl' => ['verify_peer' => true, 'verify_peer_name' => true, 'peer_name' => '${MAIL_HOSTNAME}']];
+        $$config['imap_conn_options'] = $$tls;
+        $$config['smtp_conn_options'] = $$tls;
+        EOF
+        exec /docker-entrypoint.sh apache2-foreground
     deploy:
       restart_policy:
         condition: any

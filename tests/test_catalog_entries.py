@@ -53,7 +53,7 @@ def test_the_webmail_holds_its_server_still_for_the_backup():
     runs as PID 1, because a namespace's first process ignores a SIGSTOP sent
     from inside it, and the healthcheck passes a stopped master, because
     swarm replaces a task that turns unhealthy. The name matches only while
-    the service runs the image's own apache2-foreground."""
+    the service ends in the image's own entrypoint running apache2-foreground."""
     assert _entry("mailserver").quiesce == {
         "service": "roundcube",
         "pre": [["pkill", "-STOP", "-x", "apache2"]],
@@ -62,9 +62,28 @@ def test_the_webmail_holds_its_server_still_for_the_backup():
     }
     roundcube = _service("mailserver", "roundcube")
     assert roundcube["init"] is True
-    assert "entrypoint" not in roundcube and "command" not in roundcube
+    assert "command" not in roundcube
+    assert roundcube["entrypoint"][-1].strip().endswith("exec /docker-entrypoint.sh apache2-foreground")
     assert roundcube["healthcheck"]["test"][1].startswith(
         "grep -qs '^State:[[:space:]]*T' /proc/$$(pgrep -o -x apache2)/status || ")
+
+
+def test_the_webmail_verifies_the_mail_server_by_the_mail_hosts_name():
+    """Roundcube connects to the service name dms, while the mail server's
+    certificate names the mail host, so verification on its own fails on the
+    name. The webmail's entrypoint writes a config file the image includes,
+    with both connection options verifying the peer against ${MAIL_HOSTNAME}
+    (Docker fills it in at deploy). Each $ of the PHP is written $$, which
+    Docker reads as one $, and the heredoc is quoted so the shell leaves it."""
+    script = _service("mailserver", "roundcube")["entrypoint"][-1]
+    assert "<<'EOF'" in script
+    assert "/var/roundcube/config/catena-tls.inc.php" in script
+    for option in ("imap_conn_options", "smtp_conn_options"):
+        assert f"$$config['{option}'] = $$tls;" in script
+    for setting in ("'verify_peer' => true", "'verify_peer_name' => true",
+                    "'peer_name' => '${MAIL_HOSTNAME}'"):
+        assert setting in script
+    assert "$" not in script.replace("$$", "").replace("${MAIL_HOSTNAME}", "")
 
 
 def test_espocrm_keeps_what_its_admin_screens_make_in_volumes():
