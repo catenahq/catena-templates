@@ -7,10 +7,13 @@ services:
       placement:
         constraints:
           - node.labels.catena.role==data
-    # The image runs its command through `bash -c`. IMMICH_SIGNIN_JS runs
-    # beside the server: Immich keeps its sign-in settings in its own
-    # database, where only an administrator can change them.
-    command: ["node -e \"$$IMMICH_SIGNIN_JS\" & exec start.sh"]
+    # The image runs its command through `bash -c`. Swarm registers the name
+    # db only once its task is healthy, and the server exits on a name that
+    # does not resolve, so the command waits (up to 5 minutes) for it first.
+    # IMMICH_SIGNIN_JS runs beside the server: Immich keeps its sign-in
+    # settings in its own database, where only an administrator can change
+    # them.
+    command: ["n=0; until getent hosts db >/dev/null || [ $$n -ge 150 ]; do n=$$((n+1)); sleep 2; done; node -e \"$$IMMICH_SIGNIN_JS\" & exec start.sh"]
     environment:
       DB_HOSTNAME: db
       DB_USERNAME: immich
