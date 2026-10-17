@@ -148,10 +148,17 @@ services:
         # idempotently FIRST flips KeyManager into master-key mode for
         # every subsequent occ + Apache request.
         php occ config:app:set encryption useMasterKey --value=1
-        if [ "$$(php occ config:app:get encryption useMasterKey 2>/dev/null)" != "1" ]; then
-          printf 'y\n' | php occ encryption:enable-master-key
+        # The encryption commands exit 1 while maintenance mode is on, as it
+        # is in config copied from a backup; they run on the next start
+        # after maintenance is off.
+        if [ "$$(php occ config:system:get maintenance 2>/dev/null)" = "true" ]; then
+          echo "catena: maintenance mode is on; skipping encryption setup" >&2
+        else
+          if [ "$$(php occ config:app:get encryption useMasterKey 2>/dev/null)" != "1" ]; then
+            printf 'y\n' | php occ encryption:enable-master-key
+          fi
+          php occ encryption:enable
         fi
-        php occ encryption:enable
         # --- Catena SSE diagnostic sentinel ------------------------------
         # Captures the bytes that would diverge under the three Bad-
         # Signature theories (secret rotation, hook ordering, S3 master-
