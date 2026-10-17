@@ -587,7 +587,8 @@
       "lifecycle": {
         "migrate": [
           [
-            "yarn",
+            "node",
+            "node_modules/.bin/sequelize",
             "db:migrate",
             "--env",
             "production-ssl-disabled"

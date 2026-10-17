@@ -59,7 +59,7 @@ def test_allowed_migrate_commands_lock():
     unattended inside an application around an update or after a forward
     restore, so widening this is a review decision."""
     assert L.ALLOWED_MIGRATE_COMMANDS == frozenset({
-        "php", "occ", "yarn", "npm", "npx", "bench",
+        "php", "occ", "node", "yarn", "npm", "npx", "bench",
     })
 
 

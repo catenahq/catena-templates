@@ -3,7 +3,7 @@ x-catena:
   lifecycle:
     service: "outline"
     migrate:
-      - ["yarn", "db:migrate", "--env", "production-ssl-disabled"]
+      - ["node", "node_modules/.bin/sequelize", "db:migrate", "--env", "production-ssl-disabled"]
     timeout_seconds: 900
 
 services:
@@ -30,8 +30,8 @@ services:
           export OIDC_USERINFO_URI="$$OIDC_ISSUER_URL/protocol/openid-connect/userinfo"
           export OIDC_LOGOUT_URI="$$OIDC_ISSUER_URL/protocol/openid-connect/logout"
         fi
-        yarn db:migrate --env production-ssl-disabled
-        exec yarn start
+        node_modules/.bin/sequelize db:migrate --env production-ssl-disabled
+        exec node build/server/index.js
     environment:
       NODE_ENV: production
       SECRET_KEY: ${OUTLINE_SECRET_KEY}

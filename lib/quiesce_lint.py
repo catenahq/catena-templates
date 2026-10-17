@@ -67,7 +67,7 @@ ALLOWED_QUIESCE_COMMANDS = frozenset({
 
 ALLOWED_MIGRATE_COMMANDS = frozenset({
     "php", "occ",           # Nextcloud, EspoCRM
-    "yarn", "npm", "npx",   # the node applications
+    "node", "yarn", "npm", "npx",   # the node applications
     "bench",                # Frappe / ERPNext
 })
 
