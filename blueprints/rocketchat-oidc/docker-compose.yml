@@ -25,7 +25,10 @@ services:
     # mongod with --replSet enables the rs; the healthcheck calls
     # rs.initiate() on first boot (idempotent: subsequent runs hit the
     # catch branch and just report status). Single-node rs is fine for
-    # small SMB deployments.
+    # small SMB deployments. The member host is mongodb:27017, and swarm
+    # registers the service name only once the task is healthy, so the
+    # container's own hostname is mongodb to let the healthcheck resolve it.
+    hostname: mongodb
     command: ["mongod", "--replSet", "rs0", "--bind_ip_all", "--oplogSize", "128"]
     healthcheck:
       test: |
