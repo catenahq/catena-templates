@@ -234,6 +234,69 @@ services:
           fi
           sleep 2
         done
+        # Nextcloud names the storage that holds its object store after the
+        # bucket (oc_storages id object::store:amazon::<bucket>, or the md5 of
+        # that when it is longer than 64 characters), and the master encryption
+        # key files live on that storage. A start on a bucket whose name matches
+        # no storage creates an empty one and generates a new master key that
+        # cannot open the existing share keys. So, before the upstream
+        # entrypoint can touch the object store, the lone root storage is
+        # renamed to the configured bucket's id. The root storage is found by
+        # its id prefix, or, when the id is hashed, as the storage that holds
+        # the appdata folder of this instance. The UPDATE changes a row only
+        # while no storage has the new id, so a restart changes nothing.
+        # When two root storages exist (a start on the new bucket already made
+        # one), neither is changed and the start is refused (exit 3): running
+        # on the new, empty one would write files under a master key that
+        # cannot read the old ones. The log names the ids and the choice.
+        # The cron service renames nothing: it runs its jobs only while the
+        # configured bucket's storage is the one root storage.
+        root_store_id() {
+          id="object::store:amazon::$${OBJECTSTORE_S3_BUCKET}"
+          if [ "$${#id}" -gt 64 ]; then
+            id="$$(printf '%s' "$$id" | md5sum | cut -d' ' -f1)"
+          fi
+          printf '%s' "$$id"
+        }
+        rename_root_storage() {
+          CATENA_ROOT_STORE_ID="$$(root_store_id)" php -r '
+            $$bucket = getenv("OBJECTSTORE_S3_BUCKET");
+            if ($$bucket === false || $$bucket === "") { exit(0); }
+            $$cfg = "/var/www/html/config/config.php";
+            if (!is_file($$cfg)) { exit(0); }
+            include $$cfg;
+            if (empty($$CONFIG["instanceid"])) { exit(0); }
+            $$prefix = !empty($$CONFIG["dbtableprefix"]) ? $$CONFIG["dbtableprefix"] : "oc_";
+            $$t = $$prefix . "storages";
+            $$f = $$prefix . "filecache";
+            $$new = getenv("CATENA_ROOT_STORE_ID");
+            $$refuse = function ($$ids) use ($$bucket, $$prefix, $$t) {
+              fwrite(STDERR, "catena: refusing to start: " . count($$ids) . " root object stores exist (" . implode(", ", $$ids) . ") and the configured bucket is " . $$bucket . ". The master encryption key of each store opens only the files written under it, so the files of the old store are unreadable while the new one is in use, and every file written meanwhile widens the split. To choose: count the rows of " . $$prefix . "filecache per store (" . $$prefix . "filecache.storage = " . $$t . ".numeric_id), delete the rows of the store you do not keep from " . $$prefix . "filecache and from " . $$t . ", and set the bucket to the one the kept store belongs to. A kept store under another bucket name is renamed to the configured bucket at the next start.\n");
+              exit(3);
+            };
+            try {
+              $$db = new PDO(
+                "pgsql:host=".getenv("POSTGRES_HOST").";dbname=".getenv("POSTGRES_DB"),
+                getenv("POSTGRES_USER"), getenv("POSTGRES_PASSWORD"),
+                [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
+              );
+              $$sel = $$db->prepare("SELECT s.id, s.numeric_id FROM $$t s WHERE s.id LIKE ? OR (s.id NOT LIKE ? AND LENGTH(s.id) = 32 AND EXISTS (SELECT 1 FROM $$f f WHERE f.storage = s.numeric_id AND f.path_hash = ?))");
+              $$sel->execute(["object::store:amazon::%", "%:%", md5("appdata_" . $$CONFIG["instanceid"])]);
+              $$rows = $$sel->fetchAll(PDO::FETCH_NUM);
+              if (count($$rows) > 1) {
+                $$refuse(array_column($$rows, 0));
+              } elseif (count($$rows) === 1 && $$rows[0][0] !== $$new) {
+                $$up = $$db->prepare("UPDATE $$t SET id = ? WHERE numeric_id = ? AND NOT EXISTS (SELECT 1 FROM $$t WHERE id = ?)");
+                $$up->execute([$$new, $$rows[0][1], $$new]);
+                if ($$up->rowCount() !== 1) { $$refuse([$$rows[0][0], $$new]); }
+                echo "catena: root object store " . $$rows[0][0] . " renamed to " . $$new . "\n";
+              }
+            } catch (Throwable $$e) {
+              fwrite(STDERR, "catena: root object store rename skipped: " . $$e->getMessage() . "\n");
+            }
+          '
+        }
+        rename_root_storage || { rc=$$?; [ "$$rc" -ne 3 ] || exit 3; echo "catena: root object store rename failed" >&2; }
         exec /entrypoint.sh "$$@"
       - --
     command: ["apache2-foreground"]
@@ -461,7 +524,55 @@ services:
           fi
           sleep 2
         done
-        exec /cron.sh
+        # The image's cron.sh only starts crond, so the ticks run from this
+        # loop, as the image's crontab does (every 5 minutes, as www-data), with
+        # a guard in front: a tick runs only while the configured bucket's
+        # storage is the one root object store (see the app service's
+        # entrypoint). A cron task started before or after an update, with
+        # either bucket in its env, therefore never creates a root storage for
+        # a bucket that is not the live one. The guard reads and never writes.
+        root_store_id() {
+          id="object::store:amazon::$${OBJECTSTORE_S3_BUCKET}"
+          if [ "$${#id}" -gt 64 ]; then
+            id="$$(printf '%s' "$$id" | md5sum | cut -d' ' -f1)"
+          fi
+          printf '%s' "$$id"
+        }
+        cron_guard() {
+          CATENA_ROOT_STORE_ID="$$(root_store_id)" php -r '
+            $$cfg = "/var/www/html/config/config.php";
+            if (!is_file($$cfg)) { fwrite(STDERR, "catena: background jobs skipped: not installed yet\n"); exit(4); }
+            include $$cfg;
+            if (empty($$CONFIG["instanceid"])) { fwrite(STDERR, "catena: background jobs skipped: not installed yet\n"); exit(4); }
+            $$prefix = !empty($$CONFIG["dbtableprefix"]) ? $$CONFIG["dbtableprefix"] : "oc_";
+            $$t = $$prefix . "storages";
+            $$f = $$prefix . "filecache";
+            $$new = getenv("CATENA_ROOT_STORE_ID");
+            try {
+              $$db = new PDO(
+                "pgsql:host=".getenv("POSTGRES_HOST").";dbname=".getenv("POSTGRES_DB"),
+                getenv("POSTGRES_USER"), getenv("POSTGRES_PASSWORD"),
+                [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
+              );
+              $$sel = $$db->prepare("SELECT s.id, s.numeric_id FROM $$t s WHERE s.id LIKE ? OR (s.id NOT LIKE ? AND LENGTH(s.id) = 32 AND EXISTS (SELECT 1 FROM $$f f WHERE f.storage = s.numeric_id AND f.path_hash = ?))");
+              $$sel->execute(["object::store:amazon::%", "%:%", md5("appdata_" . $$CONFIG["instanceid"])]);
+              $$ids = array_column($$sel->fetchAll(PDO::FETCH_NUM), 0);
+            } catch (Throwable $$e) {
+              fwrite(STDERR, "catena: background jobs skipped: " . $$e->getMessage() . "\n");
+              exit(4);
+            }
+            if ($$ids === [$$new]) { exit(0); }
+            fwrite(STDERR, "catena: background jobs skipped: the root object stores are [" . implode(", ", $$ids) . "] and the configured one is " . $$new . "\n");
+            exit(4);
+          '
+        }
+        trap 'exit 0' TERM INT
+        while true; do
+          if cron_guard; then
+            su -s /bin/sh www-data -c 'php -f /var/www/html/cron.php' || echo "catena: background job run failed" >&2
+          fi
+          sleep 300 & wait $$!
+        done
     environment:
       POSTGRES_HOST: db
       POSTGRES_DB: nextcloud
@@ -493,10 +604,10 @@ services:
       # (file scanning, preview generation, etc.) write to the same
       # /var/www/html/data tree the app reads from.
       - nc-data:/var/www/html/data
-    # No command override on cron: the entrypoint above waits and then
-    # execs /cron.sh, a thin runner for occ background-jobs. The app service
-    # writes zz-catena.config.php into the shared nc-config volume on its
-    # own startup; cron picks it up via the shared mount.
+    # No command override on cron: the entrypoint above waits and then runs
+    # the background-job loop. The app service writes zz-catena.config.php
+    # into the shared nc-config volume on its own startup; cron picks it up
+    # via the shared mount.
     networks:
       - default
       # Background virus scans (files_antivirus job) run here too, so

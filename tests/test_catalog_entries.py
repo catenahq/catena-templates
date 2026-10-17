@@ -2,10 +2,16 @@
 checks: what a template's backup mode does, where EspoCRM keeps what its
 admin screens make, the Rocket.Chat settings its Keycloak sign-in needs, how
 WordPress's mail plugin reads its relay password, and the user_oidc release
-the Nextcloud wiring is written for.
+the Nextcloud wiring is written for, and how Nextcloud's start-up keeps its
+master encryption key when the bucket changes.
 """
 from __future__ import annotations
 
+import hashlib
+import os
+import re
+import sqlite3
+import subprocess
 import sys
 from pathlib import Path
 
@@ -148,3 +154,261 @@ def test_nextcloud_names_the_user_oidc_release_its_wiring_is_written_for():
     command against the new release."""
     env = _service("nextcloud-s3-oidc", "app")["environment"]
     assert env["NEXTCLOUD_USER_OIDC_VERSION"] == "8.11.0"
+
+
+def _wrapper(service: str) -> str:
+    return _service("nextcloud-s3-oidc", service)["entrypoint"][2]
+
+
+def _function(script: str, name: str) -> str:
+    """A shell function of a wrapper, from its header to its closing brace."""
+    start = script.index(f"{name}() {{")
+    end = script.index("\n}\n", start) + len("\n}")
+    return script[start:end]
+
+
+def _shell(script: str) -> str:
+    """What the shell runs after Docker reads each $$ as one $."""
+    return script.replace("$$", "$")
+
+
+def _sql(service: str, verb: str) -> str:
+    """The statement of a wrapper that starts with `verb`, table names filled in."""
+    found = re.search(rf'prepare\("({verb} [^"]*)"\)', _wrapper(service))
+    assert found, verb
+    return found.group(1).replace("$$t", "oc_storages").replace("$$f", "oc_filecache")
+
+
+ROOT = "object::store:amazon::"
+INSTANCE_ID = "ocabc123"
+APPDATA_HASH = hashlib.md5(f"appdata_{INSTANCE_ID}".encode()).hexdigest()
+
+
+def _long_id(bucket: str) -> str:
+    """Nextcloud's Storage::adjustStorageId: an id over 64 characters is stored
+    as its md5."""
+    id_ = ROOT + bucket
+    return hashlib.md5(id_.encode()).hexdigest() if len(id_) > 64 else id_
+
+
+def _db(stores: dict[str, bool]) -> sqlite3.Connection:
+    """oc_storages and oc_filecache holding `stores`: id -> holds the appdata folder."""
+    db = sqlite3.connect(":memory:")
+    db.execute("CREATE TABLE oc_storages (id TEXT UNIQUE, numeric_id INTEGER PRIMARY KEY)")
+    db.execute("CREATE TABLE oc_filecache (storage INTEGER, path_hash TEXT)")
+    for id_, appdata in stores.items():
+        n = db.execute("INSERT INTO oc_storages (id) VALUES (?)", (id_,)).lastrowid
+        if appdata:
+            db.execute("INSERT INTO oc_filecache VALUES (?, ?)", (n, APPDATA_HASH))
+    return db
+
+
+def _roots(db: sqlite3.Connection, service: str = "app") -> list[str]:
+    rows = db.execute(_sql(service, "SELECT"), [ROOT + "%", "%:%", APPDATA_HASH])
+    return sorted(r[0] for r in rows)
+
+
+def _rename(stores: dict[str, bool], bucket: str) -> list[str]:
+    db = _db(stores)
+    new = _long_id(bucket)
+    rows = db.execute(_sql("app", "SELECT"), [ROOT + "%", "%:%", APPDATA_HASH]).fetchall()
+    if len(rows) == 1 and rows[0][0] != new:
+        db.execute(_sql("app", "UPDATE"), [new, rows[0][1], new])
+    return sorted(r[0] for r in db.execute("SELECT id FROM oc_storages"))
+
+
+def test_nextcloud_renames_the_root_storage_to_the_configured_bucket():
+    """The master encryption key files sit on the root object store, which
+    Nextcloud names after the bucket. A lone root store under another bucket's
+    name takes the configured bucket's id, so the keys are found; the users'
+    stores are untouched, and running it again changes nothing."""
+    stores = {ROOT + "old": True, "object::user:alice": False, "home::bob": False}
+    once = _rename(stores, "new")
+    assert once == sorted([ROOT + "new", "object::user:alice", "home::bob"])
+    assert _rename({i: i == ROOT + "new" for i in once}, "new") == once
+
+
+def test_nextcloud_finds_a_hashed_root_store_by_its_appdata_folder():
+    """A bucket name over 42 characters makes the id longer than 64, and
+    Nextcloud stores its md5, which the id prefix never matches. The root
+    store is then the 32-character, colon-free id that holds this instance's
+    appdata folder; a hashed store without it (a user's) is not one."""
+    old = _long_id("o" * 45)
+    user = hashlib.md5(b"object::user:" + b"u" * 60).hexdigest()
+    db = _db({old: True, user: False, "object::user:alice": False})
+    assert _roots(db) == [old]
+
+
+def test_nextcloud_renames_to_a_hashed_id_for_a_bucket_over_42_characters():
+    new_bucket = "n" * 45
+    assert len(ROOT + new_bucket) > 64 and _long_id(new_bucket) != ROOT + new_bucket
+    once = _rename({ROOT + "old": True, "object::user:alice": False}, new_bucket)
+    assert _long_id(new_bucket) in once and ROOT + "old" not in once
+    hashed_old = _long_id("o" * 45)
+    again = _rename({hashed_old: True}, "p" * 45)
+    assert again == [_long_id("p" * 45)]
+
+
+def test_nextcloud_changes_neither_of_two_root_storages():
+    """A start on the new bucket already made an empty root store, with a
+    master key of its own. Neither row is changed."""
+    stores = {ROOT + "old": True, ROOT + "new": True, "object::user:alice": False}
+    assert _rename(stores, "new") == sorted(stores)
+
+
+def test_nextcloud_update_never_takes_an_id_that_exists():
+    """An empty store that holds no appdata folder still owns its id: the
+    UPDATE changes no row, which the wrapper turns into a refusal."""
+    db = _db({ROOT + "old": True, _long_id("n" * 45): False})
+    cur = db.execute(_sql("app", "UPDATE"), [_long_id("n" * 45), 1, _long_id("n" * 45)])
+    assert cur.rowcount == 0
+
+
+def test_nextcloud_renames_nothing_on_a_fresh_install():
+    assert _rename({"object::user:alice": False}, "new") == ["object::user:alice"]
+
+
+def _run_step(tmp_path, script: str, php_exit: int, tail: str = "echo continued"):
+    """A shell snippet under the wrapper's `sh -ec`, with a php that exits
+    `php_exit`."""
+    bindir = tmp_path / "bin"
+    bindir.mkdir(parents=True)
+    (bindir / "php").write_text(f"#!/bin/sh\nexit {php_exit}\n")
+    (bindir / "php").chmod(0o755)
+    return subprocess.run(
+        ["sh", "-ec", _shell(script) + "\n" + tail],
+        capture_output=True, text=True, timeout=30,
+        env=dict(os.environ, PATH=f"{bindir}:{os.environ['PATH']}"),
+    )
+
+
+def _rename_step() -> str:
+    script = _wrapper("app")
+    start = script.index("root_store_id() {")
+    return script[start:script.index("\n", script.index("rename_root_storage ||"))]
+
+
+def test_nextcloud_refuses_to_start_on_two_root_storages(tmp_path):
+    """Running on the new, empty store would write files under a master key
+    that cannot read the old ones, so the app exits 3 (the php step's
+    refusal) and the start fails where the health checks see it."""
+    r = _run_step(tmp_path, _rename_step(), php_exit=3)
+    assert r.returncode == 3
+    assert "continued" not in r.stdout
+
+
+def test_nextcloud_goes_on_when_the_rename_step_cannot_run(tmp_path):
+    for code, note in ((0, ""), (1, "rename failed")):
+        r = _run_step(tmp_path / str(code), _rename_step(), php_exit=code)
+        assert r.returncode == 0, r.stderr
+        assert "continued" in r.stdout
+        assert note in r.stderr
+
+
+def test_nextcloud_refusal_names_both_stores_and_the_way_out():
+    script = _wrapper("app")
+    for text in ("refusing to start", 'implode(", ", $$ids)',
+                 "files of the old store are unreadable while the new one is in use",
+                 "delete the rows of the store you do not keep",
+                 "set the bucket to the one the kept store belongs to", "exit(3)"):
+        assert text in script, text
+
+
+def test_nextcloud_store_id_is_hashed_over_64_characters(tmp_path):
+    """The shell computes the id the rename and the cron guard compare with,
+    by Nextcloud's rule: the md5 of an id longer than 64 characters."""
+    for service in ("app", "cron"):
+        function = _function(_wrapper(service), "root_store_id")
+        for bucket in ("b" * 42, "b" * 43, "b" * 63):
+            r = subprocess.run(
+                ["sh", "-ec", _shell(function) + "\nroot_store_id"],
+                capture_output=True, text=True, timeout=30,
+                env=dict(os.environ, OBJECTSTORE_S3_BUCKET=bucket),
+            )
+            assert r.stdout == _long_id(bucket), (service, len(bucket))
+
+
+def test_nextcloud_renames_before_the_upstream_entrypoint_runs():
+    """The upstream entrypoint's upgrade step reads the object store, so the
+    rename comes after the database wait and before the exec."""
+    script = _wrapper("app")
+    assert (script.index("until wait_for_db")
+            < script.rindex("rename_root_storage")
+            < script.index("exec /entrypoint.sh"))
+
+
+def test_nextcloud_app_service_is_stop_first():
+    """Swarm's default update order is stop-first and the app has no
+    update_config, so no second app task runs beside the one being replaced."""
+    assert "update_config" not in _service("nextcloud-s3-oidc", "app")["deploy"]
+
+
+def test_nextcloud_cron_only_reads_the_storages():
+    """A cron task, old env or new, must not insert or rename a root store."""
+    script = _wrapper("cron")
+    for verb in ("INSERT", "UPDATE", "DELETE", "rename_root_storage"):
+        assert verb not in script, verb
+
+
+def test_nextcloud_cron_guard_reads_the_same_roots_as_the_app():
+    app, cron = _wrapper("app"), _wrapper("cron")
+    assert _sql("cron", "SELECT") == _sql("app", "SELECT")
+    assert _function(app, "root_store_id") == _function(cron, "root_store_id")
+
+
+def _cron_loop() -> str:
+    script = _wrapper("cron")
+    return script[script.index("trap 'exit 0' TERM INT"):]
+
+
+def _run_cron_tick(tmp_path, guard_exit: int):
+    """One pass of the cron loop: the guard's php exits `guard_exit`; su
+    logs the job it is asked to run; sleep ends the loop."""
+    bindir = tmp_path / "bin"
+    bindir.mkdir(parents=True)
+    log = tmp_path / "ran"
+    stubs = {
+        "php": f"exit {guard_exit}",
+        "su": f'echo "$@" >> "{log}"',
+        "sleep": "exit 99",
+    }
+    for name, body in stubs.items():
+        (bindir / name).write_text(f"#!/bin/sh\n{body}\n")
+        (bindir / name).chmod(0o755)
+    cron = _wrapper("cron")
+    script = _shell("\n".join([_function(cron, "root_store_id"),
+                               _function(cron, "cron_guard"), _cron_loop()]))
+    r = subprocess.run(
+        ["sh", "-ec", script], capture_output=True, text=True, timeout=30,
+        env=dict(os.environ, PATH=f"{bindir}:{os.environ['PATH']}"),
+    )
+    return r, log.read_text() if log.exists() else ""
+
+
+def test_nextcloud_cron_runs_a_tick_only_when_the_guard_passes(tmp_path):
+    _, ran = _run_cron_tick(tmp_path / "ok", guard_exit=0)
+    assert "www-data" in ran and "cron.php" in ran
+    _, ran = _run_cron_tick(tmp_path / "skip", guard_exit=4)
+    assert ran == ""
+
+
+def test_nextcloud_cron_loop_replaces_the_images_cron_script():
+    script = _wrapper("cron")
+    assert "exec /cron.sh" not in script
+    assert script.index("cron_guard; then") < script.index("cron.php")
+
+
+def _guard_passes(stores: dict[str, bool], bucket: str) -> bool:
+    """The guard's decision on the rows its SELECT returns."""
+    rows = _roots(_db(stores), "cron")
+    return rows == [_long_id(bucket)]
+
+
+def test_nextcloud_cron_guard_passes_only_for_the_one_configured_root_store():
+    stores = {ROOT + "live": True, "object::user:alice": False}
+    assert _guard_passes(stores, "live")
+    assert not _guard_passes(stores, "other")
+    assert not _guard_passes({**stores, ROOT + "other": True}, "live")
+    assert not _guard_passes({"object::user:alice": False}, "live")
+    hashed = {_long_id("h" * 45): True}
+    assert _guard_passes(hashed, "h" * 45)
