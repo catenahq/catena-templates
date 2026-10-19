@@ -1,0 +1,15 @@
+# trivy suppressions for this repo's scans. scanctl passes this file to the fs
+# scan and to every image scan (scanctl README, the .trivyignore.yaml section).
+# Each entry names exact paths, says why, and lapses on its expiry date.
+
+secrets:
+  # mautic/mautic ships its twig cache warmed with compiled copies of mautic's
+  # own public test fixtures: ConfigSubscriberTest.php (sample RSA and
+  # encrypted keys) and the S/MIME test key admin@test-beta.mautibot.com.pem.
+  # Neither is a credential.
+  - id: private-key
+    paths:
+      - /var/www/html/var/tmp/twig/39/3980f0ee548b3f3b66afdf16b6e8874f.php
+      - /var/www/html/var/tmp/twig/f8/f83a7b592602d081cc1bb24945f124af.php
+    statement: mautic test fixtures compiled into the image's twig cache
+    expired_at: 2027-04-19
