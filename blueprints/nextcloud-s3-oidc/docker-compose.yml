@@ -54,7 +54,7 @@ services:
           # nc-config / nc-apps / nc-data are node-local named volumes. Off
           # this node swarm would create them empty rather than fail.
           - node.labels.catena.role==data
-    # Two-stage delivery for the loglevel override:
+    # Two-stage delivery for the Catena config overlay (zz-catena.config.php):
     #
     #   1. The entrypoint wrapper writes a `before-starting` hook
     #      script into the container's writable layer (image-baked
@@ -63,7 +63,7 @@ services:
     #   3. Upstream entrypoint populates /var/www/html/config (rsync
     #      from /usr/src/nextcloud/config/), runs occ install / occ
     #      upgrade, then iterates `before-starting/*.sh` -- our hook
-    #      runs as www-data and drops zz-loglevel.config.php into the
+    #      runs as www-data and drops zz-catena.config.php into the
     #      already-populated config dir.
     #
     # The hook runs after upstream's populate.sh because populate.sh
