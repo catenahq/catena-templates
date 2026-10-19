@@ -13,6 +13,10 @@ on:
         description: Build even when no input moved
         type: boolean
         default: false
+      publish:
+        description: Publish the image after it passes its test
+        type: boolean
+        default: true
   push:
     branches: [main]
     paths: ["images/erpnext/**"]
@@ -58,5 +62,5 @@ jobs:
         if: steps.resolve.outputs.build == 'true'
         run: python3 build.py test
       - name: Publish
-        if: steps.resolve.outputs.build == 'true'
+        if: steps.resolve.outputs.build == 'true' && (github.event_name != 'workflow_dispatch' || inputs.publish)
         run: python3 build.py publish

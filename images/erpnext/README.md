@@ -44,6 +44,9 @@ is built only when one of them moved: a Frappe, ERPNext or Helpdesk release, a
 telephony commit, a frappe_docker commit pinned here, or the build-time steps
 `build.py` adds to frappe_docker's Containerfile (the `recipe` input).
 
+A manual run of the workflow with `force` builds and tests without a moved
+input, and with `publish` off it stops before the image is pushed.
+
 Tags are `v<erpnext version>-<n>`: `v1.2.3-1` is the first build of
 ERPNext 1.2.3, `v1.2.3-2` the next build of it with another input moved.
 The Catena update engine orders them (`build_suffix` in catena-admin
