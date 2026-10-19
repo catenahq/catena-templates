@@ -3,9 +3,9 @@ name: security
 # Bundled FOSS security scan via catenahq/scanctl (profile full), through its
 # reusable workflow. Every finding in this repo's tree gates on every run. The
 # catalog images come from scanctl.yml's image pins: a change gates on the
-# CVEs it introduces in the blueprints it touches, and the daily run reports
-# every image, which is where a CVE published against an untouched image
-# surfaces. The Docker Hub login keeps that sweep under the account's pull
+# CVEs it introduces in the blueprints it touches, and the daily run fails on
+# every CVE with a fix in any catalog image, which is where a CVE published
+# against an untouched image surfaces. The Docker Hub login keeps that sweep under the account's pull
 # limit; without the secrets the pulls run anonymously.
 
 on:

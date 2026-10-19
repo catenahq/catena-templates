@@ -2,7 +2,8 @@
 
 # Every image the blueprints pin, read from the compose files that declare
 # them. A pull request scans only the blueprints it touches, on both sides, and
-# gates on the CVEs it introduces; the scheduled run reports every image.
+# gates on the CVEs it introduces; the scheduled run gates on every CVE with a
+# fix in every image.
 image_pins:
   - file: blueprints/*/docker-compose.yml
     pattern: '(?m)^\s*image:\s*["'']?([^"''\s#]+)'
