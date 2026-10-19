@@ -2,6 +2,7 @@ x-catena:
   schema: 1
   lifecycle:
     service: "roundcube"
+    ready: ["php", "-r", "exit(@fsockopen('127.0.0.1', 80) ? 0 : 1);"]
     versioned_volumes: ["roundcube-db"]
     timeout_seconds: 300
   quiesce:

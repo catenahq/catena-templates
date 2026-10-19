@@ -34,6 +34,9 @@ run on every render. This module adds:
     whose dump it replays instead, and the host refuses every update of a
     stack where one mounts the volume. A one-shot service, which a
     rollback does not stop either, is refused outright by the swarm lint.
+  - Every lifecycle block declares ready, and an object_store block names
+    env keys the source lists and the compose reads, with a switch that runs
+    in a service the compose defines.
   - A vps.auto-update label holds a policy the update engine knows.
   - Sign-in labels sit on the main address's service, the only service
     the host reads them from: the one service carrying vps.route.host, or,
@@ -49,6 +52,8 @@ run on every render. This module adds:
 Exit codes: 0 clean, 1 lint failures, 2 structural error.
 """
 from __future__ import annotations
+
+import re
 
 import yaml
 
@@ -70,6 +75,13 @@ ALLOWED_MIGRATE_COMMANDS = frozenset({
     "node", "yarn", "npm", "npx",   # the node applications
     "bench",                # Frappe / ERPNext
 })
+
+# The ready question is a probe of the service's own server, which may be a
+# bash /dev/tcp check where the image has no other client.
+ALLOWED_READY_COMMANDS = ALLOWED_MIGRATE_COMMANDS | {"bash"}
+
+# The placeholders an object-store switch command can carry.
+SWITCH_PLACEHOLDERS = frozenset({"{old_bucket}", "{new_bucket}"})
 
 # The argv lists a lifecycle block can carry.
 LIFECYCLE_LISTS = ("before_update", "migrate", "after_update")
@@ -262,6 +274,43 @@ def lint_block(entry) -> list[str]:
     return errors
 
 
+def lint_object_store(entry) -> list[str]:
+    """The env keys an object_store block names are stack env keys the
+    source lists and the compose reads, and its switch runs in a service the
+    compose defines, as allowlisted argv with only the placeholders the host
+    fills."""
+    store = entry.object_store
+    if not store:
+        return []
+    errors: list[str] = []
+    text = entry.compose_path.read_text(encoding="utf-8")
+    declared = {kv.split("=", 1)[0] for kv in entry.catena["env_defaults"]}
+    for setting, key in store["env"].items():
+        label = f"{entry.slug}.object_store.env.{setting}"
+        if key not in declared:
+            errors.append(f"{label}: {key!r} is not in env_defaults")
+        if "${" + key not in text:
+            errors.append(f"{label}: the compose never reads {key!r}")
+    switch = store.get("switch")
+    if not switch:
+        return errors
+    services = compose_services(entry)
+    if switch["service"] not in services:
+        errors.append(
+            f"{entry.slug}.object_store.switch.service: {switch['service']!r} is not a "
+            f"service in this template's compose ({sorted(services)})")
+    for idx, argv in enumerate(switch["commands"]):
+        label = f"{entry.slug}.object_store.switch.commands[{idx}]"
+        errors.extend(lint_migrate_argv(argv, label=label, allowed=ALLOWED_MIGRATE_COMMANDS))
+        for tok in argv:
+            for found in re.findall(r"\{[^{}]*\}", str(tok)):
+                if found not in SWITCH_PLACEHOLDERS:
+                    errors.append(
+                        f"{label}: {found!r} is not a placeholder the host fills "
+                        f"({', '.join(sorted(SWITCH_PLACEHOLDERS))})")
+    return errors
+
+
 # The values of the vps.auto-update label the update engine reads
 # (catena-admin payload/engines/stackupdate/policy.go); any other value it
 # silently replaces with its default.
@@ -312,6 +361,7 @@ def lint_all() -> int:
         all_errors.extend(lint_pending(entry))
         all_errors.extend(lint_block(entry))
         all_errors.extend(lint_auto_update(entry))
+        all_errors.extend(lint_object_store(entry))
         lifecycle = entry.lifecycle
         if lifecycle:
             with_lifecycle += 1
@@ -323,7 +373,11 @@ def lint_all() -> int:
             if lifecycle.get("ready"):
                 all_errors.extend(lint_migrate_argv(
                     lifecycle["ready"], label=f"{entry.slug}.lifecycle.ready",
-                    allowed=ALLOWED_MIGRATE_COMMANDS))
+                    allowed=ALLOWED_READY_COMMANDS))
+            else:
+                all_errors.append(
+                    f"{entry.slug}.lifecycle.ready: missing; every lifecycle declares the "
+                    f"command that exits 0 once its service can run the lifecycle commands")
             if lifecycle.get("versioned_volumes"):
                 all_errors.extend(lint_versioned_volumes(
                     entry, lifecycle["versioned_volumes"]))

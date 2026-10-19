@@ -88,7 +88,7 @@ swarm.
 catena-admin (`shell/marketplace`, `payload/engines/catalog`) and the
 ops tooling read `catalog.json` -- one fetch,
 every template, with the fields Portainer's format has no slot for (the
-compose block's quiesce, lifecycle and object-store check included, lifted
+compose block's quiesce, lifecycle, object-store check and object-store switch included, lifted
 from each compose). A
 managed VPS reads it to render its OWN copy of `templates.json`, which is
 what its Portainer actually serves (see the sentinel section below).

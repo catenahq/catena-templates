@@ -161,6 +161,113 @@ def test_lint_all_rejects_a_foreign_ready_command(monkeypatch, tmp_path, capsys)
     assert "synthetic-bad.lifecycle.ready: starts with non-allowlisted" in out
 
 
+def test_allowed_ready_commands_lock():
+    """The ready question adds bash to the lifecycle allowlist, for a probe
+    of the server's port where the image has no other client."""
+    assert L.ALLOWED_READY_COMMANDS == L.ALLOWED_MIGRATE_COMMANDS | {"bash"}
+    assert "bash" not in L.ALLOWED_MIGRATE_COMMANDS
+
+
+@pytest.mark.parametrize("lifecycle", [
+    {"migrate": [["php", "occ", "db:add-missing-indices"]]},
+    {"versioned_volumes": ["code"]},
+    {"before_update": [["php", "occ", "maintenance:mode", "--on"]],
+     "migrate": [["php", "occ", "db:add-missing-indices"]]},
+])
+def test_a_lifecycle_without_ready_is_refused(monkeypatch, tmp_path, capsys, lifecycle):
+    """The update lane asks ready before each phase; a lifecycle that does
+    not declare it runs its commands against a container whose entrypoint
+    may still be copying the application."""
+    _synthetic_sources(monkeypatch, tmp_path, {}, _VERSIONED_COMPOSE, block={
+        "schema": 1,
+        "lifecycle": {"service": "app", "timeout_seconds": 60, **lifecycle},
+    })
+    assert L.lint_all() == 1
+    assert "synthetic-bad.lifecycle.ready: missing" in capsys.readouterr().out
+
+
+def test_a_bash_ready_probe_passes(monkeypatch, tmp_path, capsys):
+    _synthetic_sources(monkeypatch, tmp_path, {}, block={
+        "schema": 1,
+        "lifecycle": {"service": "app", "timeout_seconds": 60,
+                      "ready": ["bash", "-c", ": > /dev/tcp/127.0.0.1/8000"],
+                      "migrate": [["bench", "--site", "all", "migrate"]]},
+    })
+    assert L.lint_all() == 0, capsys.readouterr().out
+
+
+def test_bash_is_not_a_migrate_command(monkeypatch, tmp_path, capsys):
+    _synthetic_sources(monkeypatch, tmp_path, {}, block={
+        "schema": 1,
+        "lifecycle": {"service": "app", "timeout_seconds": 60,
+                      "ready": ["php", "occ", "status"],
+                      "migrate": [["bash", "-c", "true"]]},
+    })
+    assert L.lint_all() == 1
+    assert "synthetic-bad.lifecycle.migrate[0]: starts with non-allowlisted command 'bash'" \
+        in capsys.readouterr().out
+
+
+_STORE_COMPOSE = """\
+services:
+  app:
+    image: acme/app:1.0.0
+    environment:
+      BUCKET: ${S3_BUCKET}
+      KEY: ${S3_ACCESS_KEY}
+      SECRET: ${S3_SECRET_KEY}
+"""
+_STORE_ENV = ["DOMAIN_HOST=x.example.com", "S3_BUCKET=", "S3_ACCESS_KEY=", "S3_SECRET_KEY="]
+
+
+def _object_store(**changes) -> dict:
+    store = {
+        "env": {"bucket": "S3_BUCKET", "access_key": "S3_ACCESS_KEY",
+                "secret_key": "S3_SECRET_KEY"},
+        "switch": {"service": "app", "user": "www-data",
+                   "commands": [["php", "occ", "files:scan", "{new_bucket}"]]},
+    }
+    return {"schema": 1, "object_store": {**store, **changes}}
+
+
+def test_an_object_store_the_compose_reads_passes(monkeypatch, tmp_path, capsys):
+    _synthetic_sources(monkeypatch, tmp_path, {"env_defaults": _STORE_ENV},
+                       _STORE_COMPOSE, block=_object_store())
+    assert L.lint_all() == 0, capsys.readouterr().out
+
+
+@pytest.mark.parametrize("env_defaults,compose,needle", [
+    (["DOMAIN_HOST=x.example.com", "S3_BUCKET=", "S3_ACCESS_KEY="], _STORE_COMPOSE,
+     "synthetic-bad.object_store.env.secret_key: 'S3_SECRET_KEY' is not in env_defaults"),
+    (_STORE_ENV, _STORE_COMPOSE.replace("${S3_SECRET_KEY}", "fixed"),
+     "synthetic-bad.object_store.env.secret_key: the compose never reads 'S3_SECRET_KEY'"),
+])
+def test_an_object_store_env_key_the_app_never_reads_is_refused(
+        monkeypatch, tmp_path, capsys, env_defaults, compose, needle):
+    _synthetic_sources(monkeypatch, tmp_path, {"env_defaults": env_defaults},
+                       compose, block=_object_store())
+    assert L.lint_all() == 1
+    assert needle in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("switch,needle", [
+    ({"service": "worker", "commands": [["php", "occ", "status"]]},
+     "synthetic-bad.object_store.switch.service: 'worker' is not a service"),
+    ({"service": "app", "commands": [["curl", "https://evil.example.com"]]},
+     "synthetic-bad.object_store.switch.commands[0]: starts with non-allowlisted command 'curl'"),
+    ({"service": "app", "commands": [["php", "occ", "status", "&&", "php", "occ", "list"]]},
+     "synthetic-bad.object_store.switch.commands[0]: contains the shell operator '&&'"),
+    ({"service": "app", "commands": [["php", "occ", "files:scan", "{bucket}"]]},
+     "synthetic-bad.object_store.switch.commands[0]: '{bucket}' is not a placeholder"),
+])
+def test_an_object_store_switch_the_host_cannot_run_is_refused(
+        monkeypatch, tmp_path, capsys, switch, needle):
+    _synthetic_sources(monkeypatch, tmp_path, {"env_defaults": _STORE_ENV},
+                       _STORE_COMPOSE, block=_object_store(switch=switch))
+    assert L.lint_all() == 1
+    assert needle in capsys.readouterr().out
+
+
 _VERSIONED_COMPOSE = """\
 services:
   app:
@@ -185,6 +292,7 @@ volumes:
 def _versioned(volumes: list[str]) -> dict:
     return {"schema": 1, "lifecycle": {
         "service": "app",
+        "ready": ["php", "occ", "status", "--exit-code"],
         "migrate": [["php", "occ", "db:add-missing-indices"]],
         "versioned_volumes": volumes,
         "timeout_seconds": 60,

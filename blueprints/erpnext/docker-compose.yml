@@ -2,6 +2,7 @@ x-catena:
   schema: 1
   lifecycle:
     service: "backend"
+    ready: ["bash", "-c", ": > /dev/tcp/127.0.0.1/8000"]
     before_update:
       - ["bench", "set-maintenance-mode", "on"]
     migrate:

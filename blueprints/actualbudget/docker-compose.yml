@@ -2,6 +2,7 @@ x-catena:
   schema: 1
   lifecycle:
     service: "actual"
+    ready: ["node", "-e", "require('net').connect(5006, '127.0.0.1').on('connect', () => process.exit(0)).on('error', () => process.exit(1))"]
     versioned_volumes: ["actual-data"]
     timeout_seconds: 300
   quiesce:

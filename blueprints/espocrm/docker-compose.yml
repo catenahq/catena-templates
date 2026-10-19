@@ -3,6 +3,7 @@ x-catena:
   lifecycle:
     service: "espocrm"
     user: "www-data"
+    ready: ["php", "-r", "exit(@fsockopen('127.0.0.1', 80) ? 0 : 1);"]
     migrate:
       - ["php", "rebuild.php"]
     versioned_volumes: ["custom"]

@@ -222,8 +222,8 @@ def render_portainer_template(entry: Entry, logo_filename: str) -> dict[str, Any
 def render_catalog_entry(entry: Entry) -> dict[str, Any]:
     """The flat machine view. Key names match what the consumers join
     on; the nesting in sources/ exists for the human editing it. The
-    compose block's lifecycle, quiesce and s3_reconcile pass through
-    unchanged, its managed_env keys become env_managed_keys, and so do an
+    compose block's lifecycle, quiesce, s3_reconcile and object_store pass
+    through unchanged, its managed_env keys become env_managed_keys, and so do an
     imported entry's status, origin and null stubs."""
     cat = entry.catena
     bench = cat["bench"]
@@ -259,6 +259,8 @@ def render_catalog_entry(entry: Entry) -> dict[str, Any]:
         out["postgres_image_override"] = cat["postgres_image_override"]
     if entry.s3_reconcile:
         out["s3_reconcile"] = entry.s3_reconcile
+    if entry.object_store:
+        out["object_store"] = entry.object_store
     if entry.lifecycle:
         out["lifecycle"] = entry.lifecycle
     if entry.quiesce:

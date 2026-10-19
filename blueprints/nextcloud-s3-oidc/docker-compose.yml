@@ -22,6 +22,20 @@ x-catena:
     user: "www-data"
     check: "nextcloud-objectstore"
     db_service: "db"
+  object_store:
+    env:
+      bucket: "S3_BUCKET"
+      host: "S3_HOST"
+      port: "S3_PORT"
+      ssl: "S3_SSL"
+      region: "S3_REGION"
+      access_key: "S3_ACCESS_KEY"
+      secret_key: "S3_SECRET_KEY"
+    switch:
+      service: "app"
+      user: "www-data"
+      commands:
+        - ["php", "occ", "status", "--exit-code"]
   managed_env:
     DOMAIN_HOST: "nextcloud.{{ cloudflare_zone }}"
     NEXTCLOUD_HOSTNAME: "nextcloud.{{ cloudflare_zone }}"
@@ -52,20 +66,11 @@ services:
     #      runs as www-data and drops zz-loglevel.config.php into the
     #      already-populated config dir.
     #
-    # Why this dance instead of writing the .config.php from the
-    # wrapper directly? Upstream's populate.sh skips rsync'ing
-    # /var/www/html/config when the dir is already non-empty
-    # (`directory_empty` check). A wrapper that writes our file in
-    # /var/www/html/config BEFORE the upstream runs makes the dir
-    # non-empty -> populate skips -> autoconfig.php / redis.config.php
-    # / s3.config.php / etc. never land in the volume -> Apache 503s.
-    # Running our writer in a before-starting HOOK sidesteps that
-    # check entirely.
-    #
-    # Why not the compose-v2 `configs:` block? The inline content-
-    # delivery pipeline produced a script that exited 2 with no
-    # script-side stderr on every start. Materializing the hook
-    # ourselves via the wrapper bypasses that delivery path.
+    # The hook runs after upstream's populate.sh because populate.sh
+    # skips rsync'ing /var/www/html/config when the dir is already
+    # non-empty (`directory_empty` check): a wrapper that wrote our
+    # file there first would keep autoconfig.php / redis.config.php /
+    # s3.config.php from landing in the volume and Apache would 503.
     #
     # `$$X` -> `$X` after compose interpolation. The outer
     # `<<'HOOK'` is single-quoted so the wrapper writes the hook
@@ -134,19 +139,15 @@ services:
         php occ app:enable encryption
         # Force-set the useMasterKey config flag BEFORE any path that
         # might trigger the encryption module's per-user-mode bootstrap.
-        # Bench diag (run 2026-05-31T14-26-35-ad7b nc_s3_hot_recovery)
-        # caught the failure mode this guards against: master_<id>.{pub,
-        # priv}Key files DID land in S3, but useMasterKey stayed empty
-        # in oc_appconfig. Nextcloud's KeyManager::getPrivateKey then
-        # took the per-user branch (because isMasterKeyEnabled returns
-        # false when useMasterKey != "1") and threw PrivateKeyMissing-
-        # Exception for admin -- the admin user has no per-user key
-        # because we never went through that setup. occ encryption:
-        # enable-master-key shorts out with "Master key already enabled"
-        # if the FILES exist, regardless of the config flag, so the
-        # original guard could not self-heal. Setting the flag
-        # idempotently FIRST flips KeyManager into master-key mode for
-        # every subsequent occ + Apache request.
+        # With master_<id>.{pub,priv}Key in S3 but useMasterKey empty in
+        # oc_appconfig, Nextcloud's KeyManager::getPrivateKey takes the
+        # per-user branch (isMasterKeyEnabled returns false when
+        # useMasterKey != "1") and throws PrivateKeyMissingException for
+        # admin, who has no per-user key. occ encryption:enable-master-key
+        # shorts out with "Master key already enabled" when the FILES
+        # exist, whatever the config flag says, so it cannot set the flag.
+        # Setting the flag idempotently FIRST puts KeyManager into
+        # master-key mode for every subsequent occ and Apache request.
         php occ config:app:set encryption useMasterKey --value=1
         # The encryption commands exit 1 while maintenance mode is on, as it
         # is in config copied from a backup; they run on the next start
@@ -196,10 +197,6 @@ services:
         EOF_DIAG
         HOOK
         chmod 0755 /docker-entrypoint-hooks.d/before-starting/zz-catena.sh
-        # Remove the predecessor hook if present from a prior catalog
-        # version so the same key is not declared twice.
-        rm -f /docker-entrypoint-hooks.d/before-starting/zz-loglevel.sh \
-              /var/www/html/config/zz-loglevel.config.php
         # Wait for postgres before handing over to the upstream entrypoint.
         #
         # Swarm has no start ordering, and letting this container crash-loop

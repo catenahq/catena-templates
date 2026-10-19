@@ -192,10 +192,26 @@ def test_a_block_holds_no_field_the_format_lacks(sources):
         model.load_sources()
 
 
+@pytest.mark.parametrize("object_store,needle", [
+    ({"env": {"bucket": "S3_BUCKET", "access_key": "S3_ACCESS_KEY"}}, "secret_key"),
+    ({"env": {"bucket": "S3_BUCKET", "access_key": "S3_ACCESS_KEY",
+              "secret_key": "S3_SECRET_KEY", "endpoint": "S3_URL"}}, "endpoint"),
+    ({"env": {"bucket": "S3 BUCKET", "access_key": "S3_ACCESS_KEY",
+              "secret_key": "S3_SECRET_KEY"}}, "S3 BUCKET"),
+    ({"env": {"bucket": "B", "access_key": "A", "secret_key": "S"},
+      "switch": {"service": "app"}}, "commands"),
+])
+def test_an_object_store_the_format_refuses_is_reported(sources, object_store, needle):
+    _write(sources, _valid_doc())
+    _block({"schema": 1, "object_store": object_store})
+    with pytest.raises(model.SourceError, match=needle):
+        model.load_sources()
+
+
 def test_a_source_holds_none_of_the_blocks_fields(sources):
     """The block in the compose is the one home of these fields."""
     for name, value in (("quiesce", {}), ("lifecycle", {}), ("s3_reconcile", {}),
-                        ("env_managed_keys", ["DOMAIN_HOST"])):
+                        ("object_store", {}), ("env_managed_keys", ["DOMAIN_HOST"])):
         doc = _valid_doc()
         doc["x-catena"][name] = value
         _write(sources, doc)

@@ -149,6 +149,19 @@ def test_s3_reconcile_reaches_the_catalog_unchanged():
     assert declared > 0
 
 
+def test_object_store_reaches_the_catalog_unchanged():
+    """The bucket repair reads the env keys and the switch out of
+    catalog.json; an entry that declares none carries no key."""
+    catalog = {
+        e["id"]: e for e in json.loads((ROOT / "catalog.json").read_text())["templates"]
+    }
+    declared = 0
+    for entry in model.load_sources():
+        assert catalog[entry.slug].get("object_store") == entry.object_store, entry.slug
+        declared += bool(entry.object_store)
+    assert declared > 0
+
+
 def test_no_blueprint_carries_a_generated_quiesce_file():
     """The block in the compose is the one home of a backup mode."""
     assert not list((ROOT / "blueprints").glob("*/quiesce.yml"))

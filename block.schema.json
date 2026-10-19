@@ -57,7 +57,7 @@
         },
         "ready": {
           "$ref": "#/$defs/argv",
-          "description": "A command that exits 0 once the application can run the commands above. Before each phase of an update, the update lane runs it every few seconds until it succeeds, for up to timeout_seconds. Declare it when the image's entrypoint copies or upgrades the application before starting it: the container runs from the moment the entrypoint starts, and every command fails until the entrypoint is done. It has to succeed in the state before_update leaves the application in."
+          "description": "A command that exits 0 once the application can run the commands above. Before each phase of an update, the update lane runs it every few seconds until it succeeds, for up to timeout_seconds. Every lifecycle block declares it: the container runs from the moment the entrypoint starts, and every command fails until an entrypoint that copies or upgrades the application is done. It has to succeed in the state before_update leaves the application in. make lint requires it."
         },
         "versioned_volumes": {
           "type": "array",
@@ -139,6 +139,59 @@
         }
       }
     },
+    "object_store": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "env"
+      ],
+      "description": "How the app reaches its object-store bucket, for the host to point a deployed app at another bucket. env names the stack env keys that hold the bucket's settings. switch is what the host runs once the app runs on the new bucket; its commands may carry the placeholders {old_bucket} and {new_bucket}.",
+      "properties": {
+        "env": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "bucket",
+            "access_key",
+            "secret_key"
+          ],
+          "description": "Stack env key of each setting. host, port, ssl and region are named when the template exposes them.",
+          "properties": {
+            "bucket": { "$ref": "#/$defs/env_key" },
+            "host": { "$ref": "#/$defs/env_key" },
+            "port": { "$ref": "#/$defs/env_key" },
+            "ssl": { "$ref": "#/$defs/env_key" },
+            "region": { "$ref": "#/$defs/env_key" },
+            "access_key": { "$ref": "#/$defs/env_key" },
+            "secret_key": { "$ref": "#/$defs/env_key" }
+          }
+        },
+        "switch": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "service",
+            "commands"
+          ],
+          "description": "Commands run inside one service after the app runs on the new bucket. Every command is an argv array executed through docker exec, never a shell.",
+          "properties": {
+            "service": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Compose service the commands run inside."
+            },
+            "user": {
+              "type": "string",
+              "description": "User to exec as, when the application refuses to run its CLI as root."
+            },
+            "commands": {
+              "$ref": "#/$defs/argv_list",
+              "description": "Run in order, stopping at the first failure."
+            }
+          }
+        }
+      }
+    },
     "managed_env": {
       "type": "object",
       "propertyNames": {
@@ -151,6 +204,10 @@
     }
   },
   "$defs": {
+    "env_key": {
+      "type": "string",
+      "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+    },
     "argv": {
       "type": "array",
       "minItems": 1,

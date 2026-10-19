@@ -102,7 +102,7 @@ claims it any more.
 - `catalog.json` -- the machine view the seeding consumers read, in one
   fetch: the flat per-template fields, `sizing`, the EN/FR prose, and the
   compose block lifted under the keys `lifecycle`, `quiesce`,
-  `s3_reconcile` and `env_managed_keys`, with each managed key's
+  `s3_reconcile`, `object_store` and `env_managed_keys`, with each managed key's
   expression on its `env_defaults` line.
 - `index.html` -- a static preview of the catalog.
 
@@ -234,8 +234,9 @@ it.
    `before_update` / `after_update` wrap an update, for an application
    with a maintenance mode. `ready` is one command the update lane runs
    before each phase, and a forward restore before its migration, until
-   it exits 0, for an image whose entrypoint
-   copies or upgrades the application before starting it. Commands are
+   it exits 0; every lifecycle declares it (the application's own status
+   command, or a probe of the port its server opens last), and `make lint`
+   fails one without it. Commands are
    argv arrays -- `docker exec` gives them no shell. `versioned_volumes`
    names the volumes the new version of that service upgrades in place
    and the old one refuses to start on or misreads (code tree,
@@ -248,6 +249,15 @@ it.
    `timeout_seconds` alone. Real examples: the compose blocks of
    `blueprints/outline`, `blueprints/nextcloud-s3-oidc`,
    `blueprints/erpnext` and `blueprints/actualbudget`.
+   If the application keeps its files in an object-store bucket that the
+   host can point at another bucket, add `object_store` to the block:
+   `env` names the stack env keys that hold the bucket, its access key and
+   secret (and host, port, ssl and region when the template exposes them),
+   and `switch` (`service`, `user`, argv `commands`, which may carry the
+   placeholders `{old_bucket}` and `{new_bucket}`) runs once the app runs on
+   the new bucket. `make lint` checks that the compose reads each key and
+   that `switch` runs in one of its services. Real example:
+   `blueprints/nextcloud-s3-oidc`.
 6. `make` -- render + lint + test. Commit the regenerated artifacts.
 7. Open a PR. CI must pass `build-and-verify.yml`, `check:unicode` and `check:prose`.
 
