@@ -105,7 +105,7 @@ services:
       catena-clamav: {}
 
   roundcube:
-    image: roundcube/roundcubemail:1.7.3-apache
+    image: roundcube/roundcubemail:1.7.5-apache
     # docker-init runs as PID 1, so the backup mode (x-catena.quiesce at the
     # top of this file) can stop apache's master: a PID namespace's
     # first process ignores a SIGSTOP sent from inside it, and a running
@@ -175,7 +175,7 @@ services:
   # mta-sts.<zone>/.well-known/mta-sts.txt.
   # The policy is baked from MAIL_HOSTNAME at container start.
   mta-sts:
-    image: nginx:1.31.6-alpine
+    image: nginx:1.31.7-alpine
     deploy:
       restart_policy:
         condition: any
