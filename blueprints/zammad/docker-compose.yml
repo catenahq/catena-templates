@@ -20,7 +20,7 @@ services:
   # on each request, so they need no restart for them. A step that fails
   # exits, and swarm starts the task again; TERM ends the wait at once.
   zammad-init:
-    image: zammad/zammad:7.0.1-0035
+    image: zammad/zammad:7.0.2-0000
     deploy:
       restart_policy:
         condition: any
@@ -66,7 +66,7 @@ services:
       - default
 
   zammad-railsserver:
-    image: zammad/zammad:7.0.1-0035
+    image: zammad/zammad:7.0.2-0000
     deploy:
       restart_policy:
         condition: any
@@ -83,7 +83,7 @@ services:
       - default
 
   zammad-websocket:
-    image: zammad/zammad:7.0.1-0035
+    image: zammad/zammad:7.0.2-0000
     deploy:
       restart_policy:
         condition: any
@@ -95,7 +95,7 @@ services:
       - default
 
   zammad-scheduler:
-    image: zammad/zammad:7.0.1-0035
+    image: zammad/zammad:7.0.2-0000
     deploy:
       restart_policy:
         condition: any
@@ -113,7 +113,7 @@ services:
 
   # Public-facing: fronts railsserver + websocket under a single vhost.
   zammad-nginx:
-    image: zammad/zammad:7.0.1-0035
+    image: zammad/zammad:7.0.2-0000
     deploy:
       restart_policy:
         condition: any
@@ -164,7 +164,7 @@ services:
       - default
 
   redis:
-    image: redis:8.6.3-alpine3.23
+    image: redis:8.6.7-alpine3.23
     deploy:
       restart_policy:
         condition: any
@@ -185,7 +185,7 @@ services:
       - default
 
   elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.19.15
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.19.23
     deploy:
       restart_policy:
         condition: any
