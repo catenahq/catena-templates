@@ -45,7 +45,7 @@ x-catena:
 
 services:
   app:
-    image: nextcloud:34.0.0-apache
+    image: nextcloud:34.0.5-apache
     deploy:
       restart_policy:
         condition: any
@@ -480,7 +480,7 @@ services:
       - default
 
   redis:
-    image: redis:7.4.9-alpine
+    image: redis:7.4.11-alpine
     deploy:
       restart_policy:
         condition: any
@@ -490,7 +490,7 @@ services:
       - default
 
   cron:
-    image: nextcloud:34.0.0-apache
+    image: nextcloud:34.0.5-apache
     deploy:
       restart_policy:
         condition: any
@@ -650,7 +650,7 @@ services:
   # `ghcr.io/nextcloud-releases/aio-talk` tags and picking the
   # most recent stable one (the upstream tag scheme is YYYYMMDD_HHMMSS).
   talk-hpb:
-    image: ghcr.io/nextcloud-releases/aio-talk:20260409_094910
+    image: ghcr.io/nextcloud-releases/aio-talk:20261014_095932
     init: true
     deploy:
       restart_policy:
