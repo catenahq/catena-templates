@@ -11,5 +11,9 @@ Modules:
   quiesce_lint  -- security lint over the backup quiesce hooks
   postgres_pins -- central Postgres image pin enforcement
   swarm_lint    -- swarm stack file compatibility gate
+  changes       -- changed paths -> the app ids they touch
+  provenance    -- an image's project: age and releases
+  app_checks    -- the per-app pull-request checks' commands
+  versions      -- app version tags and the one-app scope check
   importers     -- write untested entries from a third-party registry
 """

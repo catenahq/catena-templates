@@ -1,0 +1,182 @@
+name: app-ci
+
+# The cheap checks every app pull request passes before the bench lifecycle
+# runs, on GitHub-hosted runners, for forks too (no secrets, a read-only
+# token). `repo` checks the catalog as a whole; `app` checks each app the
+# change touches: its stack file, its licence, its images' CVEs, provenance and
+# files. App ids come from changed file names, so they reach scripts through
+# env: only, and the plan job refuses an id that is not a plain slug.
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  repo:
+    name: make and app checker
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+      - name: make (render, lint, test)
+        run: make
+      - name: catena-applint over the catalog
+        # The checker ships in the public catena-admin image, so a fork's run
+        # needs no credential to get it. Two nodes, as every catalog check runs.
+        run: |
+          docker run --rm -v "$PWD:/work:ro" \
+            --entrypoint /usr/local/share/catena-ee/bin/catena-applint \
+            ghcr.io/catenahq/catena-admin:latest --catalog --nodes 2 /work/blueprints
+
+  scope:
+    # One pull request changes one app, so one merge is one tag.
+    name: scope
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+      - name: The change touches at most one app
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: git diff --name-only "$BASE_SHA" HEAD | uv run build/versions.py scope
+
+  plan:
+    name: changed apps
+    runs-on: ubuntu-latest
+    outputs:
+      apps: ${{ steps.changed.outputs.apps }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+      - name: Apps the change touches, and still has
+        id: changed
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          git diff --name-only "$BASE_SHA" HEAD > "$RUNNER_TEMP/paths.txt"
+          uv run build/app_check.py changed < "$RUNNER_TEMP/paths.txt" > "$RUNNER_TEMP/ids.txt"
+          apps=()
+          for id in $(cat "$RUNNER_TEMP/ids.txt"); do
+            # An app the change deletes has nothing left to check.
+            if [ -f "blueprints/$id/docker-compose.yml" ]; then apps+=("$id"); fi
+          done
+          json="$(printf '%s\n' "${apps[@]}" | jq -Rsc 'split("\n") | map(select(length > 0))')"
+          echo "apps=$json" >> "$GITHUB_OUTPUT"
+
+  app:
+    name: app (${{ matrix.app }})
+    needs: plan
+    if: needs.plan.outputs.apps != '[]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        app: ${{ fromJSON(needs.plan.outputs.apps) }}
+    env:
+      APP: ${{ matrix.app }}
+      BASE_SHA: ${{ github.event.pull_request.base.sha }}
+      # The feature tag carries the databases the image shipped with.
+      CLAMAV_IMAGE: clamav/clamav:1.5
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+      - name: Swarm loader reads the stack file
+        run: docker stack config --skip-interpolation -c "blueprints/$APP/docker-compose.yml" > /dev/null
+      - name: Licence
+        run: |
+          set -euo pipefail
+          new=()
+          if ! git cat-file -e "$BASE_SHA:sources/$APP.json" 2>/dev/null; then new=(--new); fi
+          uv run build/app_check.py licence "$APP" "${new[@]}"
+      - name: Pull the app's images
+        run: |
+          set -euo pipefail
+          uv run build/app_check.py images "$APP" > "$RUNNER_TEMP/images.txt"
+          while read -r image; do docker pull "$image"; done < "$RUNNER_TEMP/images.txt"
+      - name: Provenance (project age and releases)
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: uv run build/app_check.py provenance "$APP"
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version: stable
+      - name: scanctl on the app's images
+        # Only trivy runs, over the one compose file's images. GITHUB_ACTIONS
+        # is unset for the run so scanctl grades no change: every image
+        # vulnerability at or above high that has a fix fails, whether or not
+        # this pull request introduced it. security.yml grades the change.
+        run: |
+          set -euo pipefail
+          go install github.com/catenahq/scanctl/cmd/scanctl@latest
+          cat > "$RUNNER_TEMP/scanctl-app.yml" <<EOF
+          profile: sellable
+          gate:
+            floor: high
+          tools:
+            osv-scanner: {enabled: false}
+            govulncheck: {enabled: false}
+            gosec: {enabled: false}
+            gitleaks: {enabled: false}
+            semgrep: {enabled: false}
+            zizmor: {enabled: false}
+            guarddog: {enabled: false}
+            trivy-license: {enabled: false}
+          image_pins:
+            - file: blueprints/$APP/docker-compose.yml
+              pattern: '(?m)^\s*image:\s*["'']?([^"''\s#]+)'
+          EOF
+          env -u GITHUB_ACTIONS "$(go env GOPATH)/bin/scanctl" run \
+            -config "$RUNNER_TEMP/scanctl-app.yml" \
+            -out "$RUNNER_TEMP/scanctl.sarif" \
+            -summary "$RUNNER_TEMP/scanctl-summary.md" .
+      - name: Scan summary
+        if: always()
+        run: cat "$RUNNER_TEMP/scanctl-summary.md" >> "$GITHUB_STEP_SUMMARY" || true
+      - name: ClamAV over each image's files
+        run: |
+          set -euo pipefail
+          while read -r image; do
+            echo "== $image"
+            work="$(mktemp -d)"
+            cid="$(docker create "$image")"
+            docker export "$cid" | sudo tar -x --no-same-owner -C "$work"
+            docker rm "$cid" > /dev/null
+            sudo chmod -R a+rX "$work"
+            docker run --rm --user 0 -v "$work:/scan:ro" --entrypoint clamscan \
+              "$CLAMAV_IMAGE" --recursive --infected --no-summary /scan
+            sudo rm -rf "$work"
+          done < "$RUNNER_TEMP/images.txt"
+
+  app-checks:
+    # One name for the branch ruleset to require: the per-app jobs are named
+    # after their app, and a skipped job (no app changed) counts as passed.
+    name: app-checks
+    needs: [repo, plan, app]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Every job passed or had nothing to do
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          for result in $RESULTS; do
+            if [ "$result" != success ] && [ "$result" != skipped ]; then
+              echo "a job finished $result"
+              exit 1
+            fi
+          done

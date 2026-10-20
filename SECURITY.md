@@ -11,5 +11,13 @@ from raw.githubusercontent.com. A compose change that
 weakens a template's isolation (network exposure, dropped auth labels,
 privileged mounts) is squarely in scope.
 
+Every pull request, from a fork too, runs `.github/workflows/app-ci.yml`
+before a person reviews it: the app checker, the swarm loader, a licence
+rule, scanctl on the app's images (a fixable high or critical vulnerability
+fails), image provenance (a source repository at least a year old with three
+releases) and ClamAV over each image's files. The workflow holds
+`contents: read` only and passes pull-request text to scripts through
+environment variables.
+
 Vulnerabilities in the upstream applications the templates deploy
 belong upstream; we track and ship the fixed versions.
