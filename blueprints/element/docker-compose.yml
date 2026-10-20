@@ -254,7 +254,7 @@ services:
       default: {}
 
   element-web:
-    image: vectorim/element-web:v1.12.29
+    image: vectorim/element-web:v1.12.32
     deploy:
       restart_policy:
         condition: any
