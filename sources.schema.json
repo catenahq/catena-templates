@@ -56,7 +56,6 @@
         "upstream_url",
         "sso_mode",
         "domain",
-        "env_defaults",
         "bench",
         "sizing",
         "en",
@@ -177,14 +176,6 @@
               "maximum": 65535
             }
           }
-        },
-        "env_defaults": {
-          "type": "array",
-          "items": {
-            "type": "string",
-            "pattern": "^[A-Za-z_][A-Za-z0-9_]*="
-          },
-          "description": "KEY=value lines, in the order the deploy form shows them. A key the compose block's managed_env sets is written KEY= with no value: the block holds the expression."
         },
         "postgres_image_override": {
           "type": "string",

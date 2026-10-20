@@ -1,5 +1,18 @@
 x-catena:
-  schema: 1
+  schema: 2
+  env:
+    DOMAIN_HOST:
+      setting: {default: "crm.{{ cloudflare_zone }}"}
+    ESPOCRM_HOSTNAME:
+      setting: {default: "crm.{{ cloudflare_zone }}"}
+    ESPOCRM_ADMIN_USERNAME:
+      setting: {default: "admin"}
+    ESPOCRM_ADMIN_PASSWORD:
+      generated: {length: 24, alphabet: alnum}
+    DB_PASSWORD:
+      generated: {length: 32, alphabet: alnum}
+    DB_ROOT_PASSWORD:
+      generated: {length: 32, alphabet: alnum}
   lifecycle:
     service: "espocrm"
     user: "www-data"

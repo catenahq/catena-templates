@@ -17,8 +17,8 @@ At the repo root, everything is generated:
 Two consumers, two artifacts, on purpose. Portainer reads
 `templates.json` and can only carry what its format defines; catena-admin
 on each host and the ops tooling read `catalog.json`, which carries the
-SSO mode, the compose's x-catena block (quiesce and lifecycle commands,
-object-store check, managed env), bench membership, sizing, and the
+SSO mode, the compose's x-catena block (env, quiesce and lifecycle commands,
+object-store check), bench membership, sizing, and the
 bilingual prose alongside the same ids. Neither file is hand-edited.
 
 Idempotency is the contract: rendering twice produces byte-identical
@@ -136,7 +136,7 @@ def render_env(entry: Entry) -> list[dict[str, str]]:
     for kv in entry.env_defaults:
         key, raw_value = kv.split("=", 1)
         key = key.strip()
-        field: dict[str, str] = {"name": key, "label": env_label(key)}
+        field: dict[str, str] = {"name": key, "label": entry.env_label(key) or env_label(key)}
         default = SENTINEL_MANAGED if key in managed else strip_jinja_for_portainer(raw_value)
         # Anything still carrying Jinja is by definition something only
         # the host's render can resolve -- Portainer has no template engine,
@@ -222,9 +222,10 @@ def render_portainer_template(entry: Entry, logo_filename: str) -> dict[str, Any
 def render_catalog_entry(entry: Entry) -> dict[str, Any]:
     """The flat machine view. Key names match what the consumers join
     on; the nesting in sources/ exists for the human editing it. The
-    compose block's lifecycle, quiesce, s3_reconcile and object_store pass
-    through unchanged, its managed_env keys become env_managed_keys, and so do an
-    imported entry's status, origin and null stubs."""
+    compose block's env, lifecycle, quiesce, s3_reconcile and object_store
+    pass through unchanged, and its managed env keys become env_managed_keys.
+    env_defaults is the env as KEY=value lines. An imported entry's status,
+    origin and null stubs pass through too."""
     cat = entry.catena
     bench = cat["bench"]
     out: dict[str, Any] = {
@@ -251,6 +252,7 @@ def render_catalog_entry(entry: Entry) -> dict[str, Any]:
         out["origin"] = dict(entry.origin)
     if entry.requires_catena:
         out["requires_catena"] = entry.requires_catena
+    out["env"] = entry.env
     if entry.managed_env:
         out["env_managed_keys"] = list(entry.managed_env)
     if cat.get("env_required_when"):

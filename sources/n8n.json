@@ -16,14 +16,6 @@
       "service": "n8n",
       "port": 5678
     },
-    "env_defaults": [
-      "DOMAIN_HOST=automate.{{ cloudflare_zone }}",
-      "N8N_HOSTNAME=automate.{{ cloudflare_zone }}",
-      "N8N_TIMEZONE=UTC",
-      "N8N_ENCRYPTION_KEY={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}",
-      "N8N_JWT_SECRET={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}",
-      "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
-    ],
     "bench": {
       "pack": "postgres",
       "hostname_baked": true

@@ -17,12 +17,6 @@
       "service": "server",
       "port": 3000
     },
-    "env_defaults": [
-      "DOMAIN_HOST=twenty.{{ cloudflare_zone }}",
-      "TWENTY_HOSTNAME=twenty.{{ cloudflare_zone }}",
-      "TWENTY_APP_SECRET={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}",
-      "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
-    ],
     "bench": {
       "pack": "postgres",
       "hostname_baked": true

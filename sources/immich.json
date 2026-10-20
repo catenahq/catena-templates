@@ -17,14 +17,6 @@
       "service": "immich-server",
       "port": 2283
     },
-    "env_defaults": [
-      "DOMAIN_HOST=photos.{{ cloudflare_zone }}",
-      "IMMICH_HOSTNAME=photos.{{ cloudflare_zone }}",
-      "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
-      "UPLOAD_LOCATION=immich-library",
-      "IMMICH_ADMIN_EMAIL={{ admin_email }}",
-      "IMMICH_ADMIN_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
-    ],
     "bench": {
       "pack": "postgres",
       "hostname_baked": false

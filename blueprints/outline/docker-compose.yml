@@ -1,5 +1,16 @@
 x-catena:
-  schema: 1
+  schema: 2
+  env:
+    DOMAIN_HOST:
+      setting: {default: "wiki.{{ cloudflare_zone }}"}
+    OUTLINE_HOSTNAME:
+      setting: {default: "wiki.{{ cloudflare_zone }}"}
+    OUTLINE_SECRET_KEY:
+      generated: {length: 64, alphabet: hex}
+    OUTLINE_UTILS_SECRET:
+      generated: {length: 64, alphabet: hex}
+    DB_PASSWORD:
+      generated: {length: 32, alphabet: alnum}
   lifecycle:
     service: "outline"
     ready: ["node", "-e", "require('net').connect(3000, '127.0.0.1').on('connect', () => process.exit(0)).on('error', () => process.exit(1))"]

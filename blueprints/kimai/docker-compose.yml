@@ -1,3 +1,25 @@
+x-catena:
+  schema: 2
+  env:
+    DOMAIN_HOST:
+      setting: {default: "time.{{ cloudflare_zone }}"}
+    KIMAI_HOSTNAME:
+      setting: {default: "time.{{ cloudflare_zone }}"}
+    KIMAI_ADMIN_EMAIL:
+      setting: {default: "admin@{{ cloudflare_zone }}"}
+    KIMAI_ADMIN_PASSWORD:
+      generated: {length: 24, alphabet: alnum}
+    KIMAI_APP_SECRET:
+      generated: {length: 64, alphabet: alnum}
+    DB_PASSWORD:
+      generated: {length: 32, alphabet: alnum}
+    DB_ROOT_PASSWORD:
+      generated: {length: 32, alphabet: alnum}
+    KIMAI_MAIL_FROM:
+      setting: {default: "time@{{ cloudflare_zone }}"}
+    KIMAI_MAIL_URL:
+      setting: {default: "null://localhost"}
+
 services:
   kimai:
     image: kimai/kimai2:2.67.0

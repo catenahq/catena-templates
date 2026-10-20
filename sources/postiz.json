@@ -17,12 +17,6 @@
       "service": "postiz",
       "port": 5000
     },
-    "env_defaults": [
-      "DOMAIN_HOST=social.{{ cloudflare_zone }}",
-      "POSTIZ_HOSTNAME=social.{{ cloudflare_zone }}",
-      "JWT_SECRET={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}",
-      "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
-    ],
     "bench": {
       "pack": "postgres",
       "hostname_baked": true

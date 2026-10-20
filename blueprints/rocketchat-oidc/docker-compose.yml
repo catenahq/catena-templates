@@ -1,5 +1,31 @@
 x-catena:
-  schema: 1
+  schema: 2
+  env:
+    DOMAIN_HOST:
+      setting: {default: "chat.{{ cloudflare_zone }}"}
+    ROCKETCHAT_HOSTNAME:
+      setting: {default: "chat.{{ cloudflare_zone }}"}
+    ROCKETCHAT_HOSTNAME_BASE:
+      setting: {default: "{{ cloudflare_zone }}"}
+    ADMIN_USERNAME:
+      setting: {default: "admin"}
+    ADMIN_PASS:
+      setting: {default: "{{ admin_password }}"}
+    ADMIN_EMAIL:
+      setting: {default: "{{ admin_email }}"}
+    VPS_PUBLIC_IP:
+      managed: {expr: "{{ public_ip }}"}
+    TURN_HOSTNAME:
+      managed: {expr: "{{ coturn_hostname | default('turn.' ~ cloudflare_zone) }}"}
+    TURN_STATIC_AUTH_SECRET:
+      managed: {expr: "{{ turn_static_auth_secret }}"}
+    JITSI_JICOFO_AUTH_PASSWORD:
+      generated: {length: 64, alphabet: alnum}
+    JITSI_JICOFO_COMPONENT_SECRET:
+      generated: {length: 64, alphabet: alnum}
+    JITSI_JVB_AUTH_PASSWORD:
+      generated: {length: 64, alphabet: alnum}
+  secrets: [turn_static_auth_secret]
   quiesce:
     service: "mongodb"
     pre:
@@ -7,10 +33,6 @@ x-catena:
     post:
       - ["mongosh", "--quiet", "--eval", "while (db.adminCommand({currentOp:1}).fsyncLock) { db.fsyncUnlock() }"]
     timeout_seconds: 60
-  managed_env:
-    VPS_PUBLIC_IP: "{{ public_ip }}"
-    TURN_HOSTNAME: "{{ coturn_hostname | default('turn.' ~ cloudflare_zone) }}"
-    TURN_STATIC_AUTH_SECRET: "{{ turn_static_auth_secret }}"
 
 services:
   mongodb:

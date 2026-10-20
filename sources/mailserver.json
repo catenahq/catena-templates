@@ -18,17 +18,6 @@
       "service": "roundcube",
       "port": 80
     },
-    "env_defaults": [
-      "DOMAIN_HOST=webmail.{{ cloudflare_zone }}",
-      "MAIL_HOSTNAME=mail.{{ cloudflare_zone }}",
-      "MAIL_DOMAIN={{ cloudflare_zone }}",
-      "WEBMAIL_HOSTNAME=webmail.{{ cloudflare_zone }}",
-      "OIDC_INTROSPECTION_URL=https://{{ keycloak_hostname | default('auth.' ~ cloudflare_zone) }}/realms/{{ keycloak_realm | default('vps') }}/protocol/openid-connect/token/introspect",
-      "RELAY_HOST=",
-      "RELAY_PORT=587",
-      "RELAY_USER=",
-      "RELAY_PASSWORD="
-    ],
     "bench": {
       "pack": "nodb",
       "hostname_baked": true

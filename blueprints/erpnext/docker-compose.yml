@@ -1,5 +1,16 @@
 x-catena:
-  schema: 1
+  schema: 2
+  env:
+    DOMAIN_HOST:
+      setting: {default: "erp.{{ cloudflare_zone }}"}
+    ERPNEXT_HOSTNAME:
+      setting: {default: "erp.{{ cloudflare_zone }}"}
+    ERPNEXT_ADMIN_PASSWORD:
+      generated: {length: 24, alphabet: alnum}
+    DB_ROOT_PASSWORD:
+      generated: {length: 32, alphabet: alnum}
+    FRAPPE_APPS:
+      setting: {default: "erpnext,telephony,helpdesk"}
   lifecycle:
     service: "backend"
     ready: ["bash", "-c", ": > /dev/tcp/127.0.0.1/8000"]

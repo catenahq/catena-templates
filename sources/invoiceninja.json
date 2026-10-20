@@ -17,21 +17,6 @@
       "service": "nginx",
       "port": 80
     },
-    "env_defaults": [
-      "DOMAIN_HOST=invoice.{{ cloudflare_zone }}",
-      "INVOICENINJA_HOSTNAME=invoice.{{ cloudflare_zone }}",
-      "INVOICENINJA_APP_KEY=",
-      "INVOICENINJA_ADMIN_EMAIL=admin@{{ cloudflare_zone }}",
-      "INVOICENINJA_ADMIN_PASSWORD={{ lookup('password', '/dev/null length=24 chars=ascii_letters,digits') }}",
-      "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
-      "DB_ROOT_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
-      "INVOICENINJA_SMTP_HOST=",
-      "INVOICENINJA_SMTP_PORT=587",
-      "INVOICENINJA_SMTP_USERNAME=",
-      "INVOICENINJA_SMTP_PASSWORD=",
-      "INVOICENINJA_MAIL_FROM=invoice@{{ cloudflare_zone }}",
-      "INVOICENINJA_MAIL_FROM_NAME=Invoicing"
-    ],
     "bench": {
       "pack": "mariadb",
       "hostname_baked": true

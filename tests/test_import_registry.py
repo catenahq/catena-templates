@@ -222,6 +222,20 @@ def test_a_stack_entry_is_imported_from_its_repository(catalog):
     assert any("depends_on" in f for f in pending["findings"])
 
 
+def _env(slug: str) -> dict[str, str]:
+    env = _compose(slug)["x-catena"]["env"]
+    return {key: model.env_value(spec) for key, spec in env.items()}
+
+
+def test_the_imported_compose_starts_with_a_block_that_holds_its_env(catalog):
+    assert _run() == 0
+    block = _compose("notes")["x-catena"]
+    assert block["schema"] == 2
+    assert block["env"]["ADMIN_PASSWORD"] == {"generated": {"length": 32, "alphabet": "alnum"}}
+    assert block["env"]["TZ"] == {"setting": {"default": "UTC"}}
+    assert "env_defaults" not in _source("notes")["x-catena"]
+
+
 def test_a_single_container_entry_becomes_a_one_service_compose(catalog):
     assert _run() == 0
     compose = _compose("notes")
@@ -243,7 +257,7 @@ def test_a_single_container_entry_becomes_a_one_service_compose(catalog):
     assert cat["origin"]["source"] == REGISTRY
     assert cat["origin"]["licence"] == "MIT"
     assert cat["origin"]["attribution"] == "Copyright (c) 2024 Example Registry"
-    assert "MODE=b" in cat["env_defaults"]
+    assert _compose("notes")["x-catena"]["env"]["MODE"] == {"setting": {"default": "b"}}
     to_choose = cat["pending"]["to_choose"]
     assert any(c.startswith("bind mount /opt/notes in service notes") for c in to_choose)
     assert any(c.startswith("ports service notes publishes on the server (53/udp)") for c in to_choose)
@@ -271,13 +285,13 @@ def test_an_unknown_licence_is_skipped_and_listed(catalog, capsys):
 
 def test_settings_named_like_a_password_secret_or_key_are_minted(catalog):
     assert _run() == 0
-    notes = dict(kv.split("=", 1) for kv in _source("notes")["x-catena"]["env_defaults"])
+    notes = _env("notes")
     assert list(notes)[0] == "DOMAIN_HOST"
     assert notes["ADMIN_PASSWORD"] == pipeline.minted("ADMIN_PASSWORD")
     assert "length=32" in notes["ADMIN_PASSWORD"]
     assert "length=64" in notes["APP_SECRET_KEY"]
     assert notes["TZ"] == "UTC"
-    web = dict(kv.split("=", 1) for kv in _source("web-stack")["x-catena"]["env_defaults"])
+    web = _env("web-stack")
     assert web["SITE_TITLE"] == "Hello"
     assert web["APP_PORT"] == "80"
     # The value is one the public catalog collapses to its sentinel, and the

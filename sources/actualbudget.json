@@ -16,9 +16,6 @@
       "service": "actual",
       "port": 5006
     },
-    "env_defaults": [
-      "DOMAIN_HOST="
-    ],
     "bench": {
       "pack": "embedded",
       "hostname_baked": false

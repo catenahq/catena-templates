@@ -17,13 +17,6 @@
       "service": "nginx",
       "port": 80
     },
-    "env_defaults": [
-      "DOMAIN_HOST=www.{{ cloudflare_zone }}",
-      "WORDPRESS_HOSTNAME=",
-      "WPMS_SMTP_PASS=",
-      "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
-      "DB_ROOT_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
-    ],
     "bench": {
       "pack": "mariadb",
       "hostname_baked": true

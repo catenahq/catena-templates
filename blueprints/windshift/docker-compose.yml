@@ -1,8 +1,14 @@
 x-catena:
-  schema: 1
-  managed_env:
-    DOMAIN_HOST: "work.{{ cloudflare_zone }}"
-    WINDSHIFT_HOSTNAME: "work.{{ cloudflare_zone }}"
+  schema: 2
+  env:
+    DOMAIN_HOST:
+      managed: {expr: "work.{{ cloudflare_zone }}"}
+    WINDSHIFT_HOSTNAME:
+      managed: {expr: "work.{{ cloudflare_zone }}"}
+    SSO_SECRET:
+      generated: {length: 64, alphabet: alnum}
+    DB_PASSWORD:
+      generated: {length: 32, alphabet: alnum}
 
 services:
   windshift:

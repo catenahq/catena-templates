@@ -44,12 +44,18 @@ def test_managed_keys_render_as_sentinel_with_a_description():
     entry = model.Entry({
         "id": "x", "type": 3, "title": "X", "name": "x",
         "categories": ["Testing"], "platform": "linux",
-        "x-catena": {
-            "env_defaults": ["DOMAIN_HOST=x.example.com", "OIDC_CLIENT_SECRET="],
-        },
-    }, {"schema": 1, "managed_env": {"OIDC_CLIENT_SECRET": "placeholder"}})
+        "x-catena": {},
+    }, {"schema": 2, "env": {
+        "DOMAIN_HOST": {"setting": {"default": "x.example.com",
+                                    "label": {"en": "Address", "fr": "Adresse"}}},
+        "DB_PASSWORD": {"generated": {"length": 32, "alphabet": "alnum"}},
+        "OIDC_CLIENT_SECRET": {"managed": {"expr": "placeholder"}},
+    }})
     env = {f["name"]: f for f in render.render_env(entry)}
     assert env["DOMAIN_HOST"]["default"] == "x.example.com"
+    assert env["DOMAIN_HOST"]["label"] == "Address"
+    assert env["DB_PASSWORD"]["label"] == "Database password"
+    assert env["DB_PASSWORD"]["default"] == render.SENTINEL_MANAGED
     assert "description" not in env["DOMAIN_HOST"]
     assert env["OIDC_CLIENT_SECRET"]["default"] == render.SENTINEL_MANAGED
     # The description says where the real value comes from. It must not promise

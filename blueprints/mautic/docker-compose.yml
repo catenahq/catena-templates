@@ -1,3 +1,25 @@
+x-catena:
+  schema: 2
+  env:
+    DOMAIN_HOST:
+      setting: {default: "marketing.{{ cloudflare_zone }}"}
+    MAUTIC_HOSTNAME:
+      setting: {default: "marketing.{{ cloudflare_zone }}"}
+    DB_PASSWORD:
+      generated: {length: 32, alphabet: alnum}
+    DB_ROOT_PASSWORD:
+      generated: {length: 32, alphabet: alnum}
+    SMTP_HOST:
+      setting: {default: ""}
+    SMTP_PORT:
+      setting: {default: "587"}
+    SMTP_USERNAME:
+      setting: {default: ""}
+    SMTP_PASSWORD:
+      setting: {default: ""}
+    SMTP_FROM_ADDRESS:
+      setting: {default: ""}
+
 services:
   mautic_web:
     image: mautic/mautic:7.2.1-apache

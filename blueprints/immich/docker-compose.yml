@@ -1,3 +1,19 @@
+x-catena:
+  schema: 2
+  env:
+    DOMAIN_HOST:
+      setting: {default: "photos.{{ cloudflare_zone }}"}
+    IMMICH_HOSTNAME:
+      setting: {default: "photos.{{ cloudflare_zone }}"}
+    DB_PASSWORD:
+      generated: {length: 32, alphabet: alnum}
+    UPLOAD_LOCATION:
+      setting: {default: "immich-library"}
+    IMMICH_ADMIN_EMAIL:
+      setting: {default: "{{ admin_email }}"}
+    IMMICH_ADMIN_PASSWORD:
+      generated: {length: 32, alphabet: alnum}
+
 services:
   immich-server:
     image: ghcr.io/immich-app/immich-server:v3.2.2

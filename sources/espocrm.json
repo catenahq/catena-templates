@@ -17,14 +17,6 @@
       "service": "espocrm",
       "port": 80
     },
-    "env_defaults": [
-      "DOMAIN_HOST=crm.{{ cloudflare_zone }}",
-      "ESPOCRM_HOSTNAME=crm.{{ cloudflare_zone }}",
-      "ESPOCRM_ADMIN_USERNAME=admin",
-      "ESPOCRM_ADMIN_PASSWORD={{ lookup('password', '/dev/null length=24 chars=ascii_letters,digits') }}",
-      "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
-      "DB_ROOT_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
-    ],
     "bench": {
       "pack": "mariadb",
       "hostname_baked": true

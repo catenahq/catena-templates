@@ -9,8 +9,8 @@ The compose sits in the blueprint directory because that directory is
 what Portainer clones and deploys: one file, in the place that serves
 it, with the app's README and logo beside it. Its root `x-catena` block
 declares what the host needs to back up, update and restore the deployed
-app (lifecycle, quiesce, s3_reconcile, object_store, managed_env); the loader reads it
-beside the source.
+app (env, lifecycle, quiesce, s3_reconcile, object_store, hooks and the rest of
+block.schema.json); the loader reads it beside the source.
 
 Validation runs in two layers:
 
@@ -18,7 +18,7 @@ Validation runs in two layers:
      for the compose block) -- shape, enums, required keys. Catches the
      mechanical mistakes at the field level.
   2. Cross-file invariants below -- id/filename agreement, compose file
-     present, duplicate slugs, managed_env keys the source does not list.
+     present with a block that declares an env, duplicate slugs.
      A schema cannot see across files, and these are exactly the failures
      that reach a client's Portainer as a broken template when nothing
      checks them.
@@ -106,21 +106,28 @@ class Entry:
         return self.block.get("object_store")
 
     @property
+    def env(self) -> dict[str, Any]:
+        """The block's env: each key one of setting, generated or managed."""
+        return self.block.get("env") or {}
+
+    @property
     def managed_env(self) -> dict[str, str]:
         """The env keys the host keeps set, each with the expression its
         value is rendered from."""
-        return self.block.get("managed_env") or {}
+        return {key: spec["managed"]["expr"] for key, spec in self.env.items()
+                if "managed" in spec}
 
     @property
     def env_defaults(self) -> list[str]:
-        """The source's env_defaults with each managed key's line carrying
-        the expression from the block."""
-        managed = self.managed_env
-        lines = []
-        for line in self.catena["env_defaults"]:
-            key = line.split("=", 1)[0]
-            lines.append(f"{key}={managed[key]}" if key in managed else line)
-        return lines
+        """KEY=value lines in env order: a setting's default, the lookup
+        expression that mints a generated secret, a managed key's
+        expression."""
+        return [f"{key}={env_value(spec)}" for key, spec in self.env.items()]
+
+    def env_label(self, key: str) -> str | None:
+        """The English label the block gives a setting, if it gives one."""
+        label = (self.env[key].get("setting") or {}).get("label")
+        return label["en"] if label else None
 
     @property
     def sizing(self) -> dict[str, Any]:
@@ -144,6 +151,21 @@ class Entry:
 
     def prose(self, lang: str) -> dict[str, Any]:
         return self.catena[lang]
+
+
+GENERATED_CHARS = {"alnum": "ascii_letters,digits", "hex": "hexdigits"}
+
+
+def env_value(spec: dict[str, Any]) -> str:
+    """The catalog's spelling of one env key's value."""
+    if "setting" in spec:
+        return spec["setting"]["default"]
+    if "managed" in spec:
+        return spec["managed"]["expr"]
+    gen = spec["generated"]
+    lower = " | lower" if gen["alphabet"] == "hex" else ""
+    return (f"{{{{ lookup('password', '/dev/null length={gen['length']} "
+            f"chars={GENERATED_CHARS[gen['alphabet']]}'){lower} }}}}")
 
 
 def load_meta() -> dict[str, Any]:
@@ -260,18 +282,11 @@ def load_sources() -> list[Entry]:
             errors.extend(block_errors)
             entry = Entry(doc, block)
 
-        values = dict(kv.split("=", 1) for kv in entry.catena["env_defaults"])
-        for key in entry.managed_env:
-            if key not in values:
-                errors.append(
-                    f"{label}: managed_env in {entry.compose_file} names {key!r}, "
-                    f"which is not in env_defaults -- it would render nowhere"
-                )
-            elif values[key]:
-                errors.append(
-                    f"{label}: env_defaults gives the managed key {key!r} a value; "
-                    f"the expression lives in managed_env, so the line is {key}="
-                )
+        if entry.compose_path.exists() and not entry.env:
+            errors.append(
+                f"{label}: {entry.compose_file} declares no x-catena env -- every "
+                f"template lists the keys its deploy form shows"
+            )
         entries.append(entry)
 
     if not entries and not errors:

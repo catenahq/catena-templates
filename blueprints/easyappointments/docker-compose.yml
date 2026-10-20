@@ -1,3 +1,15 @@
+x-catena:
+  schema: 2
+  env:
+    DOMAIN_HOST:
+      setting: {default: "book.{{ cloudflare_zone }}"}
+    EASYAPPOINTMENTS_HOSTNAME:
+      setting: {default: "book.{{ cloudflare_zone }}"}
+    DB_PASSWORD:
+      generated: {length: 32, alphabet: alnum}
+    DB_ROOT_PASSWORD:
+      generated: {length: 32, alphabet: alnum}
+
 services:
   easyappointments:
     image: alextselegidis/easyappointments:1.6.1

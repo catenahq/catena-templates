@@ -113,7 +113,7 @@ def test_lint_all_rejects_a_hostile_quiesce_command(monkeypatch, tmp_path, capsy
     """A synthetic sources/ tree with a hostile command must fail. Proves
     the gate is reading sources, not a cached artifact."""
     _synthetic_sources(monkeypatch, tmp_path, {}, block={
-        "schema": 1,
+        "schema": 2,
         "quiesce": {
             "service": "app",
             "pre": [["curl", "https://evil.example.com"]],
@@ -132,7 +132,7 @@ def test_lint_all_rejects_a_service_the_compose_does_not_define(
     compose does not define fails the quiesce on every host, and the
     backup runs without it."""
     _synthetic_sources(monkeypatch, tmp_path, {}, block={
-        "schema": 1,
+        "schema": 2,
         "quiesce": {
             "service": "db",
             "pre": [["mongosh", "--quiet", "--eval", "db.fsyncLock()"]],
@@ -148,7 +148,7 @@ def test_lint_all_rejects_a_foreign_ready_command(monkeypatch, tmp_path, capsys)
     """The ready question runs inside the application container before
     every update phase, so it gets the lifecycle allowlist too."""
     _synthetic_sources(monkeypatch, tmp_path, {}, block={
-        "schema": 1,
+        "schema": 2,
         "lifecycle": {
             "service": "app",
             "ready": ["curl", "https://evil.example.com"],
@@ -179,7 +179,7 @@ def test_a_lifecycle_without_ready_is_refused(monkeypatch, tmp_path, capsys, lif
     not declare it runs its commands against a container whose entrypoint
     may still be copying the application."""
     _synthetic_sources(monkeypatch, tmp_path, {}, _VERSIONED_COMPOSE, block={
-        "schema": 1,
+        "schema": 2,
         "lifecycle": {"service": "app", "timeout_seconds": 60, **lifecycle},
     })
     assert L.lint_all() == 1
@@ -188,7 +188,7 @@ def test_a_lifecycle_without_ready_is_refused(monkeypatch, tmp_path, capsys, lif
 
 def test_a_bash_ready_probe_passes(monkeypatch, tmp_path, capsys):
     _synthetic_sources(monkeypatch, tmp_path, {}, block={
-        "schema": 1,
+        "schema": 2,
         "lifecycle": {"service": "app", "timeout_seconds": 60,
                       "ready": ["bash", "-c", ": > /dev/tcp/127.0.0.1/8000"],
                       "migrate": [["bench", "--site", "all", "migrate"]]},
@@ -198,7 +198,7 @@ def test_a_bash_ready_probe_passes(monkeypatch, tmp_path, capsys):
 
 def test_bash_is_not_a_migrate_command(monkeypatch, tmp_path, capsys):
     _synthetic_sources(monkeypatch, tmp_path, {}, block={
-        "schema": 1,
+        "schema": 2,
         "lifecycle": {"service": "app", "timeout_seconds": 60,
                       "ready": ["php", "occ", "status"],
                       "migrate": [["bash", "-c", "true"]]},
@@ -217,7 +217,8 @@ services:
       KEY: ${S3_ACCESS_KEY}
       SECRET: ${S3_SECRET_KEY}
 """
-_STORE_ENV = ["DOMAIN_HOST=x.example.com", "S3_BUCKET=", "S3_ACCESS_KEY=", "S3_SECRET_KEY="]
+_STORE_ENV = {key: {"setting": {"default": ""}}
+              for key in ("DOMAIN_HOST", "S3_BUCKET", "S3_ACCESS_KEY", "S3_SECRET_KEY")}
 
 
 def _object_store(**changes) -> dict:
@@ -227,25 +228,23 @@ def _object_store(**changes) -> dict:
         "switch": {"service": "app", "user": "www-data",
                    "commands": [["php", "occ", "files:scan", "{new_bucket}"]]},
     }
-    return {"schema": 1, "object_store": {**store, **changes}}
+    return {"schema": 2, "env": _STORE_ENV, "object_store": {**store, **changes}}
 
 
 def test_an_object_store_the_compose_reads_passes(monkeypatch, tmp_path, capsys):
-    _synthetic_sources(monkeypatch, tmp_path, {"env_defaults": _STORE_ENV},
-                       _STORE_COMPOSE, block=_object_store())
+    _synthetic_sources(monkeypatch, tmp_path, {}, _STORE_COMPOSE, block=_object_store())
     assert L.lint_all() == 0, capsys.readouterr().out
 
 
-@pytest.mark.parametrize("env_defaults,compose,needle", [
-    (["DOMAIN_HOST=x.example.com", "S3_BUCKET=", "S3_ACCESS_KEY="], _STORE_COMPOSE,
-     "synthetic-bad.object_store.env.secret_key: 'S3_SECRET_KEY' is not in env_defaults"),
+@pytest.mark.parametrize("env,compose,needle", [
+    ({k: v for k, v in _STORE_ENV.items() if k != "S3_SECRET_KEY"}, _STORE_COMPOSE,
+     "synthetic-bad.object_store.env.secret_key: 'S3_SECRET_KEY' is not in the block's env"),
     (_STORE_ENV, _STORE_COMPOSE.replace("${S3_SECRET_KEY}", "fixed"),
      "synthetic-bad.object_store.env.secret_key: the compose never reads 'S3_SECRET_KEY'"),
 ])
 def test_an_object_store_env_key_the_app_never_reads_is_refused(
-        monkeypatch, tmp_path, capsys, env_defaults, compose, needle):
-    _synthetic_sources(monkeypatch, tmp_path, {"env_defaults": env_defaults},
-                       compose, block=_object_store())
+        monkeypatch, tmp_path, capsys, env, compose, needle):
+    _synthetic_sources(monkeypatch, tmp_path, {}, compose, block={**_object_store(), "env": env})
     assert L.lint_all() == 1
     assert needle in capsys.readouterr().out
 
@@ -262,8 +261,8 @@ def test_an_object_store_env_key_the_app_never_reads_is_refused(
 ])
 def test_an_object_store_switch_the_host_cannot_run_is_refused(
         monkeypatch, tmp_path, capsys, switch, needle):
-    _synthetic_sources(monkeypatch, tmp_path, {"env_defaults": _STORE_ENV},
-                       _STORE_COMPOSE, block=_object_store(switch=switch))
+    _synthetic_sources(monkeypatch, tmp_path, {}, _STORE_COMPOSE,
+                       block=_object_store(switch=switch))
     assert L.lint_all() == 1
     assert needle in capsys.readouterr().out
 
@@ -290,7 +289,7 @@ volumes:
 
 
 def _versioned(volumes: list[str]) -> dict:
-    return {"schema": 1, "lifecycle": {
+    return {"schema": 2, "lifecycle": {
         "service": "app",
         "ready": ["php", "occ", "status", "--exit-code"],
         "migrate": [["php", "occ", "db:add-missing-indices"]],
@@ -354,13 +353,11 @@ def test_a_sign_in_value_the_sync_writes_has_no_second_writer(
     """The settings sync writes the three values from the app's own
     Keycloak client; a catalog default or a managed key would write the
     same key from somewhere else."""
-    line = f"{key}=" if managed else f"{key}=from-the-catalog"
-    block = {"schema": 1, "managed_env": {key: "x"}} if managed else None
-    _synthetic_sources(monkeypatch, tmp_path, {
-        "env_defaults": ["DOMAIN_HOST=x.example.com", line],
-    }, _SIGNIN_COMPOSE, block=block)
+    spec = {"managed": {"expr": "x"}} if managed else {"setting": {"default": "from-the-catalog"}}
+    _synthetic_sources(monkeypatch, tmp_path, {}, _SIGNIN_COMPOSE, block={
+        "env": {"DOMAIN_HOST": {"setting": {"default": "x.example.com"}}, key: spec}})
     assert L.lint_all() == 1
-    assert f"synthetic-bad: {key} is declared in env_defaults" in capsys.readouterr().out
+    assert f"synthetic-bad: {key} is declared in the block's env" in capsys.readouterr().out
 
 
 def _auto_update(value: str) -> str:
@@ -385,18 +382,18 @@ def test_an_unknown_auto_update_policy_is_refused(monkeypatch, tmp_path, capsys,
 
 
 def test_a_block_with_no_dollar_and_no_image_passes(monkeypatch, tmp_path, capsys):
-    _synthetic_sources(monkeypatch, tmp_path, {"env_defaults": ["DOMAIN_HOST="]}, block={
-        "schema": 1, "managed_env": {"DOMAIN_HOST": "x.{{ cloudflare_zone }}"}})
+    _synthetic_sources(monkeypatch, tmp_path, {}, block={
+        "env": {"DOMAIN_HOST": {"managed": {"expr": "x.{{ cloudflare_zone }}"}}}})
     assert L.lint_all() == 0, capsys.readouterr().out
 
 
 @pytest.mark.parametrize("block,needle", [
-    ({"managed_env": {"DOMAIN_HOST": "x.${ZONE}"}},
-     "synthetic-bad.x-catena.managed_env.DOMAIN_HOST: holds a $"),
+    ({"env": {"DOMAIN_HOST": {"managed": {"expr": "x.${ZONE}"}}}},
+     "synthetic-bad.x-catena.env.DOMAIN_HOST.managed.expr: holds a $"),
     ({"quiesce": {"service": "app", "pre": [["pkill", "-x", "$$PID"]], "timeout_seconds": 10}},
      "synthetic-bad.x-catena.quiesce.pre[0][2]: holds a $"),
-    ({"managed_env": {"DOMAIN_HOST": "acme/app:1.0.0"}},
-     "synthetic-bad.x-catena.managed_env.DOMAIN_HOST: names the image acme/app:1.0.0"),
+    ({"env": {"DOMAIN_HOST": {"managed": {"expr": "acme/app:1.0.0"}}}},
+     "synthetic-bad.x-catena.env.DOMAIN_HOST.managed.expr: names the image acme/app:1.0.0"),
     ({"lifecycle": {"service": "app", "ready": ["acme/app:1.0.0", "run"],
                     "migrate": [["php", "occ", "status"]], "timeout_seconds": 60}},
      "synthetic-bad.x-catena.lifecycle.ready[0]: names the image acme/app:1.0.0"),
@@ -406,9 +403,8 @@ def test_a_block_with_a_dollar_or_an_image_is_refused(
     """Docker interpolates every value under a top-level x- key when it
     deploys the file, and the update lane rewrites each image reference it
     finds in the file."""
-    _synthetic_sources(monkeypatch, tmp_path, {"env_defaults": ["DOMAIN_HOST="]},
-                       "services:\n  app:\n    image: acme/app:1.0.0\n",
-                       block={"schema": 1, **block})
+    _synthetic_sources(monkeypatch, tmp_path, {},
+                       "services:\n  app:\n    image: acme/app:1.0.0\n", block=block)
     assert L.lint_all() == 1
     assert needle in capsys.readouterr().out
 
@@ -529,13 +525,15 @@ def _synthetic_sources(monkeypatch, tmp_path, catena: dict,
                        block: dict | None = None) -> None:
     """Point the loader at a one-template sources/ tree whose compose is
     `compose` (one service, `app`, by default) behind `block` as its x-catena
-    block, and whose source x-catena block carries `catena` over the required
-    fields."""
+    block (the env defaults to one DOMAIN_HOST setting), and whose source x-catena
+    block carries `catena` over the required fields."""
     sources = tmp_path / "sources"
-    sources.mkdir()
+    sources.mkdir(parents=True)
     blueprint = tmp_path / "blueprints" / "synthetic-bad"
     blueprint.mkdir(parents=True)
-    head = yaml.safe_dump({model.BLOCK_KEY: block}) + "\n" if block else ""
+    block = {"schema": 2, "env": {"DOMAIN_HOST": {"setting": {"default": "x.example.com"}}},
+             **(block or {})}
+    head = yaml.safe_dump({model.BLOCK_KEY: block}) + "\n"
     (blueprint / model.COMPOSE_NAME).write_text(head + compose)
     doc = {
         "id": "synthetic-bad",
@@ -549,7 +547,6 @@ def _synthetic_sources(monkeypatch, tmp_path, catena: dict,
             "upstream_url": "https://example.com",
             "sso_mode": "none",
             "domain": {"host": "x.example.com", "service": "app", "port": 80},
-            "env_defaults": ["DOMAIN_HOST=x.example.com"],
             "bench": {"pack": "nodb"},
             "sizing": {"peak_ram_mb": 128},
             "en": {
@@ -575,3 +572,78 @@ def _synthetic_sources(monkeypatch, tmp_path, catena: dict,
     )
     monkeypatch.setattr(model, "SOURCES", sources)
     monkeypatch.setattr(model, "BLUEPRINTS", tmp_path / "blueprints")
+
+
+def test_a_hooks_body_writes_each_dollar_doubled(monkeypatch, tmp_path, capsys):
+    hooks = {"service": "app", "configure": [["sh", "-c", "echo $$HOME"]]}
+    _synthetic_sources(monkeypatch, tmp_path, {}, block={"hooks": hooks})
+    assert L.lint_all() == 0, capsys.readouterr().out
+    hooks["configure"] = [["sh", "-c", "echo $HOME"]]
+    _synthetic_sources(monkeypatch, tmp_path / "bare", {}, block={"hooks": hooks})
+    assert L.lint_all() == 1
+    assert "synthetic-bad.x-catena.hooks.configure[0][2]: holds a $" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("hooks,needle", [
+    ({"service": "web", "verify": [["php", "occ", "status"]]},
+     "synthetic-bad.hooks.service: 'web' is not a service"),
+    ({"service": "app", "verify": [["curl", "https://evil.example.com"]]},
+     "synthetic-bad.hooks.verify[0]: starts with non-allowlisted command 'curl'"),
+    ({"service": "app", "users": [["php", "occ", "list", "&&", "php", "occ", "status"]]},
+     "synthetic-bad.hooks.users[0]: contains the shell operator '&&'"),
+    ({"service": "app", "configure": [["sh", "-c", "if true; then"]]},
+     "synthetic-bad.hooks.configure[0]: does not parse as sh"),
+    ({"service": "app", "configure": [["python3", "-c", "def ("]]},
+     "synthetic-bad.hooks.configure[0]: does not parse as Python"),
+])
+def test_a_hooks_body_the_host_cannot_run_is_refused(monkeypatch, tmp_path, capsys, hooks, needle):
+    _synthetic_sources(monkeypatch, tmp_path, {}, block={"hooks": hooks})
+    assert L.lint_all() == 1
+    assert needle in capsys.readouterr().out
+
+
+def test_a_hooks_script_that_parses_passes(monkeypatch, tmp_path, capsys):
+    _synthetic_sources(monkeypatch, tmp_path, {}, block={"hooks": {
+        "service": "app",
+        "configure": [["sh", "-c", "set -e\nfor f in a b; do echo $$f; done"],
+                      ["python3", "-c", "print(1)"]],
+        "verify": [["php", "occ", "status"]]}})
+    assert L.lint_all() == 0, capsys.readouterr().out
+
+
+def _managed(expr: str, **block) -> dict:
+    return {"env": {"DOMAIN_HOST": {"setting": {"default": "x.example.com"}},
+                    "TURN_SECRET": {"managed": {"expr": expr}}}, **block}
+
+
+def test_a_managed_expression_reads_the_secrets_the_block_lists(monkeypatch, tmp_path, capsys):
+    _synthetic_sources(monkeypatch, tmp_path, {},
+                       block=_managed("{{ turn_static_auth_secret }}",
+                                      secrets=["turn_static_auth_secret"]))
+    assert L.lint_all() == 0, capsys.readouterr().out
+    _synthetic_sources(monkeypatch, tmp_path / "host", {},
+                       block=_managed("{{ coturn_hostname | default('turn.' ~ cloudflare_zone) }}"))
+    assert L.lint_all() == 0, capsys.readouterr().out
+
+
+def test_a_managed_expression_reading_an_unlisted_secret_is_refused(monkeypatch, tmp_path, capsys):
+    _synthetic_sources(monkeypatch, tmp_path, {}, block=_managed("{{ turn_static_auth_secret }}"))
+    assert L.lint_all() == 1
+    assert ("synthetic-bad.x-catena.env.TURN_SECRET.managed.expr: reads the store secret "
+            "'turn_static_auth_secret', which the block's secrets does not list"
+            ) in capsys.readouterr().out
+
+
+def test_a_managed_expression_reading_a_denied_secret_is_refused(monkeypatch, tmp_path, capsys):
+    _synthetic_sources(monkeypatch, tmp_path, {},
+                       block=_managed("{{ admin_password }}", secrets=["admin_password"]))
+    assert L.lint_all() == 1
+    assert "reads 'admin_password', a secret no managed expression may read" in capsys.readouterr().out
+
+
+def test_the_names_an_expression_reads():
+    assert L.expression_names("a.{{ zone }}") == {"zone"}
+    assert L.expression_names("{{ x | default('lit' ~ other_name) }}") == {"x", "other_name"}
+    assert L.expression_names(
+        "{{ lookup('password', '/dev/null length=8 chars=hexdigits') | lower }}") == set()
+    assert L.expression_names("plain") == set()

@@ -228,8 +228,8 @@ def _run(*args: str) -> int:
 
 
 def _env(slug: str) -> dict[str, str]:
-    source = json.loads((model.SOURCES / f"{slug}.json").read_text())
-    return dict(kv.split("=", 1) for kv in source["x-catena"]["env_defaults"])
+    env = _compose(slug)["x-catena"]["env"]
+    return {key: model.env_value(spec) for key, spec in env.items()}
 
 
 def _cat(slug: str) -> dict:

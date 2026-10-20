@@ -487,6 +487,28 @@ def lookup(length: int, chars: str = "ascii_letters,digits", lower: bool = False
     return f"{{{{ lookup('password', '/dev/null length={length} chars={chars}'){pipe} }}}}"
 
 
+_GENERATED = re.compile(
+    r"^\{\{ lookup\('password', '/dev/null length=(\d+) chars=(?:(ascii_letters,digits)'\)"
+    r"|(hexdigits)'\) \| lower) \}\}$")
+
+
+def env_spec(value: str) -> dict[str, Any]:
+    """The block's env entry for one env value: an expression that mints letters
+    and digits, or lowercase hex digits, is a generated secret; anything else,
+    a lowercased lookup included, is a setting the host's render evaluates."""
+    m = _GENERATED.match(value)
+    if m:
+        return {"generated": {"length": int(m.group(1)),
+                              "alphabet": "alnum" if m.group(2) else "hex"}}
+    return {"setting": {"default": value}}
+
+
+def block_head(env: list[tuple[str, str]]) -> str:
+    """The x-catena block an imported compose starts with: its env."""
+    block = {model.BLOCK_KEY: {"schema": 2, "env": {name: env_spec(value) for name, value in env}}}
+    return yaml.safe_dump(block, sort_keys=False, allow_unicode=True, width=4096) + "\n"
+
+
 def minted(name: str) -> str:
     """The catalog's minted value for a setting named like a credential: 32
     characters for a password, 64 for a secret or a key."""
@@ -588,7 +610,7 @@ def make_stack(doc: dict[str, Any], route: tuple[str, int] | None = None) -> Sta
         env_files = service.get("env_file") or []
         for env_file in env_files if isinstance(env_files, list) else [env_files]:
             to_choose.append(f"service {name} reads the env file {env_file}, which no deploy "
-                             f"carries: its settings belong in env_defaults")
+                             f"carries: its settings belong in the block's env")
         for key, value in _environment(service).items():
             if secret_like(key) and isinstance(value, str) and value and "$" not in value:
                 to_choose.append(f"service {name} sets {key} to a fixed value in the compose "
@@ -842,7 +864,6 @@ class Importer:
                 "upstream_url": c.upstream_url,
                 "sso_mode": "none",
                 "domain": {"host": host, "service": stack.service, "port": stack.port},
-                "env_defaults": [f"{name}={value}" for name, value in env],
                 "origin": {
                     "registry": self.registry,
                     "entry": c.entry,
@@ -869,7 +890,7 @@ class Importer:
                 },
             },
         }
-        return slug, source, compose
+        return slug, source, block_head(env) + compose
 
 
 def main(argv: list[str], adapters: dict[str, Callable[[Any, str], list[Candidate]]]) -> int:

@@ -1,3 +1,19 @@
+x-catena:
+  schema: 2
+  env:
+    DOMAIN_HOST:
+      setting: {default: "automate.{{ cloudflare_zone }}"}
+    N8N_HOSTNAME:
+      setting: {default: "automate.{{ cloudflare_zone }}"}
+    N8N_TIMEZONE:
+      setting: {default: "UTC"}
+    N8N_ENCRYPTION_KEY:
+      generated: {length: 64, alphabet: alnum}
+    N8N_JWT_SECRET:
+      generated: {length: 64, alphabet: alnum}
+    DB_PASSWORD:
+      generated: {length: 32, alphabet: alnum}
+
 services:
   n8n:
     image: n8nio/n8n:2.41.7

@@ -1,5 +1,8 @@
 x-catena:
-  schema: 1
+  schema: 2
+  env:
+    DOMAIN_HOST:
+      managed: {expr: "budget.{{ cloudflare_zone }}"}
   lifecycle:
     service: "actual"
     ready: ["node", "-e", "require('net').connect(5006, '127.0.0.1').on('connect', () => process.exit(0)).on('error', () => process.exit(1))"]
@@ -12,8 +15,6 @@ x-catena:
     post:
       - ["pkill", "-CONT", "-x", "node"]
     timeout_seconds: 10
-  managed_env:
-    DOMAIN_HOST: "budget.{{ cloudflare_zone }}"
 
 services:
   actual:

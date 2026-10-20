@@ -17,17 +17,6 @@
       "service": "mautic_web",
       "port": 80
     },
-    "env_defaults": [
-      "DOMAIN_HOST=marketing.{{ cloudflare_zone }}",
-      "MAUTIC_HOSTNAME=marketing.{{ cloudflare_zone }}",
-      "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
-      "DB_ROOT_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
-      "SMTP_HOST=",
-      "SMTP_PORT=587",
-      "SMTP_USERNAME=",
-      "SMTP_PASSWORD=",
-      "SMTP_FROM_ADDRESS="
-    ],
     "bench": {
       "pack": "mariadb",
       "hostname_baked": true

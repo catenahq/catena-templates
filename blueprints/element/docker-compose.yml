@@ -1,10 +1,50 @@
 x-catena:
-  schema: 1
-  managed_env:
-    VPS_PUBLIC_IP: "{{ public_ip }}"
-    TURN_HOSTNAME: "{{ coturn_hostname | default('turn.' ~ cloudflare_zone) }}"
-    TURN_STATIC_AUTH_SECRET: "{{ turn_static_auth_secret }}"
+  schema: 2
+  env:
+    DOMAIN_HOST:
+      setting: {default: "element.{{ cloudflare_zone }}"}
+    ELEMENT_HOSTNAME:
+      setting: {default: "element.{{ cloudflare_zone }}"}
+    MATRIX_HOSTNAME:
+      setting: {default: "matrix.{{ cloudflare_zone }}"}
+    ELEMENT_JITSI_HOSTNAME:
+      setting: {default: "elementmeet.{{ cloudflare_zone }}"}
+    SYNAPSE_ADMIN_HOSTNAME:
+      setting: {default: "synapseadmin.{{ cloudflare_zone }}"}
+    DB_PASSWORD:
+      generated: {length: 32, alphabet: alnum}
+    SYNAPSE_REGISTRATION_SHARED_SECRET:
+      generated: {length: 48, alphabet: alnum}
+    SYNAPSE_MACAROON_SECRET:
+      generated: {length: 48, alphabet: alnum}
+    SYNAPSE_FORM_SECRET:
+      generated: {length: 48, alphabet: alnum}
+    ALLOW_PUBLIC_REGISTRATION:
+      setting: {default: "false"}
+    FEDERATION_DOMAIN_WHITELIST:
+      setting: {default: ""}
+    VPS_PUBLIC_IP:
+      managed: {expr: "{{ public_ip }}"}
+    TURN_HOSTNAME:
+      managed: {expr: "{{ coturn_hostname | default('turn.' ~ cloudflare_zone) }}"}
+    TURN_STATIC_AUTH_SECRET:
+      managed: {expr: "{{ turn_static_auth_secret }}"}
+    JITSI_JICOFO_AUTH_PASSWORD:
+      generated: {length: 64, alphabet: alnum}
+    JITSI_JICOFO_COMPONENT_SECRET:
+      generated: {length: 64, alphabet: alnum}
+    JITSI_JVB_AUTH_PASSWORD:
+      generated: {length: 64, alphabet: alnum}
+    JIGASI_XMPP_PASSWORD:
+      generated: {length: 64, alphabet: alnum}
+    JIGASI_SIP_URI:
+      setting: {default: ""}
+    JIGASI_SIP_PASSWORD:
+      setting: {default: ""}
+    JIGASI_SIP_SERVER:
+      setting: {default: ""}
 
+  secrets: [turn_static_auth_secret]
 x-synapse-image: &synapse_image
   image: matrixdotorg/synapse:v1.161.0
 

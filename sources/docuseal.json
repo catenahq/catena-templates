@@ -17,18 +17,6 @@
       "service": "docuseal",
       "port": 3000
     },
-    "env_defaults": [
-      "DOMAIN_HOST=sign.{{ cloudflare_zone }}",
-      "DOCUSEAL_HOSTNAME=sign.{{ cloudflare_zone }}",
-      "SECRET_KEY_BASE={{ lookup('password', '/dev/null length=128 chars=hexdigits') | lower }}",
-      "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
-      "SMTP_HOST=",
-      "SMTP_PORT=587",
-      "SMTP_USERNAME=",
-      "SMTP_PASSWORD=",
-      "SMTP_FROM_ADDRESS=",
-      "SMTP_AUTH=plain"
-    ],
     "bench": {
       "pack": "postgres",
       "hostname_baked": true

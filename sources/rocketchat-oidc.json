@@ -18,20 +18,6 @@
       "service": "rocketchat",
       "port": 3000
     },
-    "env_defaults": [
-      "DOMAIN_HOST=chat.{{ cloudflare_zone }}",
-      "ROCKETCHAT_HOSTNAME=chat.{{ cloudflare_zone }}",
-      "ROCKETCHAT_HOSTNAME_BASE={{ cloudflare_zone }}",
-      "ADMIN_USERNAME=admin",
-      "ADMIN_PASS={{ admin_password }}",
-      "ADMIN_EMAIL={{ admin_email }}",
-      "VPS_PUBLIC_IP=",
-      "TURN_HOSTNAME=",
-      "TURN_STATIC_AUTH_SECRET=",
-      "JITSI_JICOFO_AUTH_PASSWORD={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}",
-      "JITSI_JICOFO_COMPONENT_SECRET={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}",
-      "JITSI_JVB_AUTH_PASSWORD={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}"
-    ],
     "bench": {
       "pack": "mongo",
       "hostname_baked": true
@@ -67,7 +53,7 @@
       ],
       "compose_description": "Messagerie d'\u00e9quipe + vid\u00e9o. Keycloak SSO pr\u00e9-c\u00e2bl\u00e9. Remplace Slack / Microsoft Teams.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/rocketchat-oidc/README.md\n",
       "setup_steps": "1. Cliquez **Deploy**. Rien \u00e0 remplir dans l'onglet Environment, sauf un autre nom de domaine le cas \u00e9ch\u00e9ant.\n2. Attendez les valeurs de connexion. Dans les minutes qui suivent le premier d\u00e9ploiement, le serveur cr\u00e9e l'entr\u00e9e de connexion propre \u00e0 Rocket.Chat dans Keycloak, inscrit ses valeurs (`OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_ISSUER_URL`) dans l'onglet Environment, et Rocket.Chat red\u00e9marre une fois avec elles. La page de connexion affiche alors **Sign in with Keycloak**.\n3. Connectez-vous avec Keycloak. L'administrateur de l'espace de travail est le compte cr\u00e9\u00e9 au premier d\u00e9marrage avec l'adresse courriel d'administration du serveur (`ADMIN_EMAIL`) : la connexion Keycloak de cette personne l'ouvre. Les autres personnes re\u00e7oivent un compte \u00e0 leur premi\u00e8re connexion.\n4. *(Optionnel, ~30 s)* Joindre des fichiers Nextcloud : Administration -> Apps -> Marketplace -> cherchez `Nextcloud` -> installez -> indiquez le domaine Nextcloud. Les utilisateurs tapent ensuite `/nextcloud` dans un chat pour parcourir et joindre des fichiers.\n",
-      "extra_notes": "### Applications mobiles\n\nLes apps iOS et Android de Rocket.Chat se connectent directement au serveur. Les utilisateurs collent `https://chat.<votre-domaine>` au premier lancement et se connectent via Keycloak.\n\n### Codes de connexion par courriel\n\nUn compte qui se connecte avec Keycloak ne reçoit aucun code par courriel de Rocket.Chat : la connexion Keycloak et son propre second facteur font la vérification. Vous pouvez réactiver les codes par courriel pour ces comptes dans **Administration** -> **Settings** -> **Accounts** -> **Two Factor Authentication** -> **Make two factor via email available for oAuth users** ; votre choix est conservé lors des redémarrages et des mises à jour.\n"
+      "extra_notes": "### Applications mobiles\n\nLes apps iOS et Android de Rocket.Chat se connectent directement au serveur. Les utilisateurs collent `https://chat.<votre-domaine>` au premier lancement et se connectent via Keycloak.\n\n### Codes de connexion par courriel\n\nUn compte qui se connecte avec Keycloak ne re\u00e7oit aucun code par courriel de Rocket.Chat : la connexion Keycloak et son propre second facteur font la v\u00e9rification. Vous pouvez r\u00e9activer les codes par courriel pour ces comptes dans **Administration** -> **Settings** -> **Accounts** -> **Two Factor Authentication** -> **Make two factor via email available for oAuth users** ; votre choix est conserv\u00e9 lors des red\u00e9marrages et des mises \u00e0 jour.\n"
     }
   }
 }

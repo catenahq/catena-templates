@@ -18,29 +18,6 @@
       "service": "app",
       "port": 80
     },
-    "env_defaults": [
-      "DOMAIN_HOST=",
-      "NEXTCLOUD_HOSTNAME=",
-      "NEXTCLOUD_ADMIN_USER=admin",
-      "NEXTCLOUD_ADMIN_PASSWORD={{ lookup('password', '/dev/null length=24 chars=ascii_letters,digits') }}",
-      "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
-      "NEXTCLOUD_LOGLEVEL=3",
-      "NEXTCLOUD_VERSIONS_RETENTION=auto, 7",
-      "NEXTCLOUD_TRASH_RETENTION=30, 30",
-      "NEXTCLOUD_MAX_CHUNK_SIZE=83886080",
-      "S3_BUCKET=",
-      "S3_REGION=bhs",
-      "S3_HOST=s3.bhs.io.cloud.ovh.net",
-      "S3_PORT=443",
-      "S3_SSL=true",
-      "S3_ACCESS_KEY=",
-      "S3_SECRET_KEY=",
-      "SIGNALING_HOSTNAME=",
-      "SIGNALING_SECRET={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}",
-      "TALK_INTERNAL_SECRET={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}",
-      "TURN_HOSTNAME=",
-      "TURN_STATIC_AUTH_SECRET="
-    ],
     "bench": {
       "pack": "postgres",
       "hostname_baked": false

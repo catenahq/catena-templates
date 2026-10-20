@@ -1,5 +1,25 @@
 x-catena:
-  schema: 1
+  schema: 2
+  env:
+    DOMAIN_HOST:
+      setting: {default: "webmail.{{ cloudflare_zone }}"}
+    MAIL_HOSTNAME:
+      setting: {default: "mail.{{ cloudflare_zone }}"}
+    MAIL_DOMAIN:
+      setting: {default: "{{ cloudflare_zone }}"}
+    WEBMAIL_HOSTNAME:
+      setting: {default: "webmail.{{ cloudflare_zone }}"}
+    OIDC_INTROSPECTION_URL:
+      setting: {default: "https://{{ keycloak_hostname | default('auth.' ~ cloudflare_zone) }}/realms/{{ keycloak_realm | default('vps') }}/protocol/openid-connect/token/introspect"}
+    RELAY_HOST:
+      setting: {default: ""}
+    RELAY_PORT:
+      setting: {default: "587"}
+    RELAY_USER:
+      setting: {default: ""}
+    RELAY_PASSWORD:
+      managed: {expr: "{{ mailserver_relay_password }}"}
+  secrets: [mailserver_relay_password]
   lifecycle:
     service: "roundcube"
     ready: ["php", "-r", "exit(@fsockopen('127.0.0.1', 80) ? 0 : 1);"]
@@ -12,8 +32,6 @@ x-catena:
     post:
       - ["pkill", "-CONT", "-x", "apache2"]
     timeout_seconds: 10
-  managed_env:
-    RELAY_PASSWORD: "{{ mailserver_relay_password }}"
 
 services:
   dms:

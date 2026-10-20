@@ -17,12 +17,6 @@
       "service": "windshift",
       "port": 8080
     },
-    "env_defaults": [
-      "DOMAIN_HOST=",
-      "WINDSHIFT_HOSTNAME=",
-      "SSO_SECRET={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}",
-      "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
-    ],
     "bench": {
       "pack": "postgres",
       "hostname_baked": false

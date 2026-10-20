@@ -1,9 +1,18 @@
 x-catena:
-  schema: 1
-  managed_env:
-    WORDPRESS_HOSTNAME: "www.{{ cloudflare_zone }}"
-    WPMS_SMTP_PASS: "{{ smtp_password | default('') }}"
+  schema: 2
+  env:
+    DOMAIN_HOST:
+      setting: {default: "www.{{ cloudflare_zone }}"}
+    WORDPRESS_HOSTNAME:
+      managed: {expr: "www.{{ cloudflare_zone }}"}
+    WPMS_SMTP_PASS:
+      managed: {expr: "{{ smtp_password | default('') }}"}
+    DB_PASSWORD:
+      generated: {length: 32, alphabet: alnum}
+    DB_ROOT_PASSWORD:
+      generated: {length: 32, alphabet: alnum}
 
+  secrets: [smtp_password]
 services:
   wp:
     image: wordpress:7.1.3-fpm-alpine

@@ -1,5 +1,49 @@
 x-catena:
-  schema: 1
+  schema: 2
+  env:
+    DOMAIN_HOST:
+      managed: {expr: "nextcloud.{{ cloudflare_zone }}"}
+    NEXTCLOUD_HOSTNAME:
+      managed: {expr: "nextcloud.{{ cloudflare_zone }}"}
+    NEXTCLOUD_ADMIN_USER:
+      setting: {default: "admin"}
+    NEXTCLOUD_ADMIN_PASSWORD:
+      generated: {length: 24, alphabet: alnum}
+    DB_PASSWORD:
+      generated: {length: 32, alphabet: alnum}
+    NEXTCLOUD_LOGLEVEL:
+      setting: {default: "3"}
+    NEXTCLOUD_VERSIONS_RETENTION:
+      setting: {default: "auto, 7"}
+    NEXTCLOUD_TRASH_RETENTION:
+      setting: {default: "30, 30"}
+    NEXTCLOUD_MAX_CHUNK_SIZE:
+      setting: {default: "83886080"}
+    S3_BUCKET:
+      setting: {default: ""}
+    S3_REGION:
+      setting: {default: "bhs"}
+    S3_HOST:
+      setting: {default: "s3.bhs.io.cloud.ovh.net"}
+    S3_PORT:
+      setting: {default: "443"}
+    S3_SSL:
+      setting: {default: "true"}
+    S3_ACCESS_KEY:
+      setting: {default: ""}
+    S3_SECRET_KEY:
+      setting: {default: ""}
+    SIGNALING_HOSTNAME:
+      managed: {expr: "signaling.{{ cloudflare_zone }}"}
+    SIGNALING_SECRET:
+      generated: {length: 64, alphabet: alnum}
+    TALK_INTERNAL_SECRET:
+      generated: {length: 64, alphabet: alnum}
+    TURN_HOSTNAME:
+      managed: {expr: "{{ coturn_hostname | default('turn.' ~ cloudflare_zone) }}"}
+    TURN_STATIC_AUTH_SECRET:
+      managed: {expr: "{{ turn_static_auth_secret }}"}
+  secrets: [turn_static_auth_secret]
   lifecycle:
     service: "app"
     user: "www-data"
@@ -36,12 +80,6 @@ x-catena:
       user: "www-data"
       commands:
         - ["php", "occ", "status", "--exit-code"]
-  managed_env:
-    DOMAIN_HOST: "nextcloud.{{ cloudflare_zone }}"
-    NEXTCLOUD_HOSTNAME: "nextcloud.{{ cloudflare_zone }}"
-    SIGNALING_HOSTNAME: "signaling.{{ cloudflare_zone }}"
-    TURN_HOSTNAME: "{{ coturn_hostname | default('turn.' ~ cloudflare_zone) }}"
-    TURN_STATIC_AUTH_SECRET: "{{ turn_static_auth_secret }}"
 
 services:
   app:

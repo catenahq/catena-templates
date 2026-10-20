@@ -16,11 +16,14 @@ for layout, consumer model, and BASE URL setup.
 - What the server needs to back up, update and restore an app (backup
   mode, update and restore commands, object-store check, the env
   expressions Catena keeps set) is the root `x-catena:` block of the
-  app's own `blueprints/<id>/docker-compose.yml`, and nowhere else.
+  app's own `blueprints/<id>/docker-compose.yml`, and nowhere else. That
+  includes the app's env: every key the deploy form shows, and how each is
+  set.
   Portainer stores that file byte for byte, so the block travels with the
   deployed app and the server never reads this catalog to manage it. The
-  block holds no `$` (Docker interpolates it at deploy) and no image
-  reference (an update rewrites those); it starts with `schema: 1`.
+  block holds no `$` (Docker interpolates it at deploy), except in a
+  `hooks` body, which writes each `$` as `$$`, and no image reference (an
+  update rewrites those); it starts with `schema: 2`.
   `block.schema.json` is its format; catena-admin
   `payload/engines/appdecl` reads it.
 - A compose file carries no descriptive header. What the template is,
@@ -96,14 +99,15 @@ claims it any more.
   title/name/description/note/categories/logo, `repository{url,
   stackfile}` pointing at `blueprints/<id>/`, and `env` with human
   labels. Three classes of value render to the sentinel: the block's
-  `managed_env` keys, `lookup('password', ...)` expressions, and
+  `managed` env keys, `lookup('password', ...)` expressions, and
   anything still carrying Jinja (Portainer has no template engine, so an
   unresolved expression would become the app's literal secret).
 - `catalog.json` -- the machine view the seeding consumers read, in one
   fetch: the flat per-template fields, `sizing`, the EN/FR prose, and the
-  compose block lifted under the keys `lifecycle`, `quiesce`,
-  `s3_reconcile`, `object_store` and `env_managed_keys`, with each managed key's
-  expression on its `env_defaults` line.
+  compose block lifted under the keys `env`, `lifecycle`, `quiesce`,
+  `s3_reconcile`, `object_store` and `env_managed_keys`. `env_defaults` is the
+  env as `KEY=value` lines: a setting's default, the `lookup('password', ...)`
+  expression of a generated key, a managed key's expression.
 - `index.html` -- a static preview of the catalog.
 
 The render must be idempotent: running it twice produces byte-identical
@@ -187,16 +191,19 @@ it.
    imported tier (an imported entry names its origin and its pending
    list; only a curated one has to carry a bench pack and a measured
    peak). `block.schema.json` -- the compose's `x-catena` block: its
-   `schema`, the quiesce timeout cap, argv shapes. Both run on every
-   load, not just in CI.
+   `schema`, the env shapes, the env key deny list (`DOCKER_*`, `PATH`,
+   `HOME`, `LD_*`, `*_PROXY`), the quiesce timeout cap, argv shapes. Both run
+   on every load, not just in CI.
 2. Cross-file invariants in `lib/model.py` -- id matches filename, no
-   duplicate slug, the compose file exists, no `managed_env` key that
-   `env_defaults` does not list (as `KEY=`, its value in the block).
+   duplicate slug, the compose file exists and its block declares an env.
 3. `Schema.json` -- the generated `templates.json` against the published
    Portainer App Templates format, because that file is what a client's
    Portainer fetches.
-4. `make lint` -- the block holds no `$` and no image reference of its
-   compose, the quiesce and lifecycle argv allowlists, the
+4. `make lint` -- the block holds no `$` (outside a hooks body) and no
+   image reference of its compose, the quiesce, lifecycle and hooks argv
+   allowlists, a hooks script that parses in the interpreter it names, a
+   managed expression that reads no store secret outside the block's
+   `secrets` and none on the deny list, the
    quiesce service check, the versioned volume check (a top-level volume
    that only long-running services other than a database mount), the
    sign-in labels (on the main address's service, `redirect_uris` beside
@@ -212,11 +219,11 @@ it.
 
 1. `sources/<id>.json`. Required: `id`, `type` (2), `title`, `name`,
    `categories`, `platform`, and the `x-catena` block (`app_name`,
-   `upstream_url`, `sso_mode`, `domain`, `compose_file`, `env_defaults`,
+   `upstream_url`, `sso_mode`, `domain`,
    `bench.pack`, `sizing.peak_ram_mb`, `en`, `fr`).
 2. `blueprints/<id>/docker-compose.yml` (Jinja stays in place; the
-   render never writes into it). Its root `x-catena:` block holds steps
-   4 and 5 and the managed env expressions, written by hand.
+   render never writes into it). Its root `x-catena:` block holds the
+   env and steps 4 and 5, written by hand.
 3. `blueprints/<id>/logo.png` (512x512 PNG, max 100KB). Optional.
 4. If the application keeps live state that a file-level snapshot can
    tear and the backup's own Postgres and MariaDB dumps do not cover,
@@ -259,7 +266,7 @@ it.
    that `switch` runs in one of its services. Real example:
    `blueprints/nextcloud-s3-oidc`.
 6. `make` -- render + lint + test. Commit the regenerated artifacts.
-7. Open a PR. CI must pass `build-and-verify.yml`, `check:unicode` and `check:prose`.
+7. Open a PR. CI must pass `build-and-verify.yml`, `app-ci.yml`, `check:unicode` and `check:prose`.
 
 ## Changing catalog.json
 

@@ -1,3 +1,15 @@
+x-catena:
+  schema: 2
+  env:
+    DOMAIN_HOST:
+      setting: {default: "support.{{ cloudflare_zone }}"}
+    CHATWOOT_HOSTNAME:
+      setting: {default: "support.{{ cloudflare_zone }}"}
+    SECRET_KEY_BASE:
+      generated: {length: 128, alphabet: hex}
+    DB_PASSWORD:
+      generated: {length: 32, alphabet: alnum}
+
 services:
   rails:
     image: chatwoot/chatwoot:v4.17.1-ce

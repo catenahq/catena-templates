@@ -17,9 +17,6 @@
       "service": "collabora",
       "port": 9980
     },
-    "env_defaults": [
-      "DOMAIN_HOST="
-    ],
     "bench": {
       "pack": "nodb",
       "fixture": "skip",

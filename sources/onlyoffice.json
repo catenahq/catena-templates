@@ -17,10 +17,6 @@
       "service": "documentserver",
       "port": 80
     },
-    "env_defaults": [
-      "DOMAIN_HOST=",
-      "JWT_SECRET={{ lookup('password', '/dev/null length=48 chars=ascii_letters,digits') }}"
-    ],
     "bench": {
       "pack": "embedded",
       "hostname_baked": false

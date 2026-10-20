@@ -44,12 +44,16 @@ lib/                     # the build library
                          # unattended: quiesce + lifecycle commands,
                          # sign-in labels
   postgres_pins.py       # central Postgres image enforcement
+  changes.py             # changed paths -> the app ids they touch
+  provenance.py          # an image's project: age, releases (pull-request check)
+  app_checks.py          # the per-app pull-request checks' commands
+  versions.py            # app version tags and the one-app scope check
   importers/             # the registry importer: pipeline.py, plus one
                          # adapter per registry format
 
 build/                   # thin entrypoints
   render.py  validate.py  lint_quiesce.py  lint_postgres_pins.py
-  lint_swarm.py  import_registry.py
+  lint_swarm.py  import_registry.py  app_check.py  versions.py
 
 sources.schema.json      # schema for a sources/<id>.json
 block.schema.json        # schema for the x-catena block of a compose
@@ -116,8 +120,9 @@ them as `${OIDC_CLIENT_ID:-}`.
 
 Portainer has no per-deploy secret generator and no template engine, so
 three classes of value collapse to the sentinel: the keys of the compose
-block's `managed_env`, Ansible `lookup('password', ...)` expressions, and
-any value still carrying Jinja after render.
+block's `managed` env keys, Ansible `lookup('password', ...)` expressions
+(the block's `generated` env keys), and any value still carrying Jinja after
+render.
 
 **Nothing resolves the sentinel in THIS file, and nothing is meant to.**
 This repository is public: one `templates.json` serves every client, so
@@ -140,7 +145,11 @@ input, not a catalog to deploy from.
    shape is enforced by `sources.schema.json`; the validator names the
    field and the reason on failure.
 2. `blueprints/<id>/docker-compose.yml` -- found by the directory name,
-   so there is no path to keep in step with it.
+   so there is no path to keep in step with it. Its `x-catena` block
+   starts with `schema: 2` and lists the app's `env`: each key is one of
+   a `setting` (`default`, and a `label` in `en` and `fr`), a `generated`
+   secret (`length`, `alphabet` of `alnum` or `hex`) or a `managed`
+   expression (`expr`). The deploy form shows the keys in that order.
 3. `blueprints/<id>/logo.png` -- optional, square, 512x512. Without it
    the render emits a deterministic `logo.svg` placeholder.
 4. `x-catena.sizing.peak_ram_mb` is required: the bench scheduler
@@ -148,8 +157,7 @@ input, not a catalog to deploy from.
    numbers stay null until a measured run.
 5. If the application keeps live state that a file-level snapshot can
    tear and the backup's own Postgres and MariaDB dumps do not cover,
-   add `quiesce` to the `x-catena` block at the top of the compose (it
-   starts with `schema: 1`), with `service`, `pre`, `timeout_seconds` and
+   add `quiesce` to the `x-catena` block at the top of the compose, with `service`, `pre`, `timeout_seconds` and
    optionally `user` and `post`. Each command is an argv array the
    nightly maintenance runs inside that service with `docker exec`, no
    shell; `post` must succeed when `pre` never ran. Real examples:
@@ -165,11 +173,70 @@ input, not a catalog to deploy from.
 7. `make` -- renders, lints, and runs the tests. Commit the regenerated
    `blueprints/<id>/README.md`, `templates.json`, `catalog.json` and
    `index.html` with the source change.
-8. Open a PR. CI runs `build-and-verify.yml`, `check:unicode` and `check:prose`.
+8. Open a PR. CI runs `build-and-verify.yml`, `app-ci.yml` (see "Checks on
+   every pull request"), `check:unicode` and `check:prose`.
 
 A merge to `main` is live for every new deploy as soon as the consumers
 next fetch the catalog; there are no releases to cut. An app already
 deployed keeps the block it was deployed with.
+
+## Checks on every pull request
+
+`.github/workflows/app-ci.yml` runs on GitHub-hosted runners for every pull
+request, forks included (no secret, a read-only token). The bench lifecycle
+runs later and elsewhere. One job covers the catalog:
+
+- `make` (render, lint, tests) and `catena-applint --catalog --nodes 2` over
+  `blueprints/`, run from the public catena-admin image.
+
+Then one job per app the change touches (`blueprints/<id>/**` or
+`sources/<id>.json`), each running:
+
+- `docker stack config` on the app's compose file.
+- The licence rule: a new app names a licence from the importer's list
+  (`x-catena.origin.licence`, the `sources.schema.json` enum); an app already
+  in the catalog may name none, and one it names must be on the list.
+- scanctl on the app's images: any vulnerability at high or above that has a
+  fixed version fails, introduced by the change or not.
+- Provenance (`lib/provenance.py`): each image's `org.opencontainers.image.source`
+  repository on GitHub is at least a year old and has three releases (the
+  GitHub API, with the run's `GITHUB_TOKEN`). An image with no GitHub source
+  that lives on Docker Hub passes on its Docker Hub repository: registered at
+  least a year ago, three pushed tags. Any other image fails naming itself,
+  because GHCR and the other registries expose no dates.
+- ClamAV over each image's exported files (`docker create`, `docker export`),
+  with the databases the pinned `clamav/clamav` feature tag ships.
+
+App ids come from changed file names, so the workflow hands them to scripts
+through `env:` only and refuses an id that is not a lowercase slug.
+`uv run build/app_check.py` runs the per-app checks locally (`images ID`,
+`licence ID [--new]`, `provenance ID` after pulling the images).
+
+## Versions
+
+No file holds a version string: versions are git tags. A tested app is tagged
+`<app>/<version>-<revision>` (`nextcloud-s3-oidc/31.0.8-1`).
+
+- **Version.** The numeric part of the image tag of the app's main address
+  service: the service `x-catena.domain.service` names in the source, or the
+  compose block's `version_from` service when it has one (`34.0.5-apache` is
+  `34.0.5`).
+- **Revision.** 1 plus the number of tags the app already has at that version,
+  so a change that leaves the image alone still gets a new tag. Tags order by
+  version, then revision, as numbers.
+- **When.** `app-tag.yml` runs on the `app-tests` commit status the bench
+  lifecycle posts. A success on a commit `main` contains tags each app that
+  commit changed, through the API with the CI GitHub App's token (secrets
+  `RENOVATE_APP_CLIENT_ID` and `RENOVATE_APP_PRIVATE_KEY`). A tag ruleset
+  (catenahq/renovate `scripts/apply-rulesets.sh`) lets only that App create,
+  move or delete a `*/*` tag.
+- **Scope.** The `scope` check fails a pull request that changes more than one
+  app (distinct ids across `blueprints/<id>/**` and `sources/<id>.json`), so
+  one merge is one tag. `app-checks`, `scope` and `app-tests` are required on
+  `main`.
+
+`uv run build/versions.py next <app>` prints the next tag from the existing tags
+on stdin; `uv run build/versions.py scope` checks changed paths on stdin.
 
 ## Import from a registry
 

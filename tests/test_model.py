@@ -29,7 +29,6 @@ def _valid_doc(slug: str = "example") -> dict:
             "upstream_url": "https://example.com",
             "sso_mode": "none",
             "domain": {"host": "x.example.com", "service": "app", "port": 80},
-            "env_defaults": ["DOMAIN_HOST=x.example.com", "DB_PASSWORD=secret"],
             "bench": {"pack": "nodb"},
             "sizing": {"peak_ram_mb": 256},
             "en": {
@@ -65,16 +64,25 @@ def sources(tmp_path, monkeypatch):
     return src
 
 
+ENV = {
+    "DOMAIN_HOST": {"setting": {"default": "x.example.com"}},
+    "DB_PASSWORD": {"setting": {"default": "secret"}},
+}
+
+
 def _blueprint(blueprints: Path, slug: str) -> None:
     app_dir = blueprints / slug
     app_dir.mkdir(parents=True, exist_ok=True)
-    (app_dir / model.COMPOSE_NAME).write_text("services: {}\n")
+    (app_dir / model.COMPOSE_NAME).write_text(
+        yaml.safe_dump({model.BLOCK_KEY: {"schema": 2, "env": ENV}, "services": {}}))
 
 
 def _block(block: dict, slug: str = "example") -> None:
-    """Put `block` at the top of the blueprint's compose as its x-catena block."""
+    """Put `block` at the top of the blueprint's compose as its x-catena block;
+    a block with no env gets the default one."""
     path = model.BLUEPRINTS / slug / model.COMPOSE_NAME
-    path.write_text(yaml.safe_dump({model.BLOCK_KEY: block, "services": {}}))
+    block = {"env": ENV, **block}
+    path.write_text(yaml.safe_dump({model.BLOCK_KEY: block, "services": {}}, sort_keys=False))
 
 
 def _meta(sources: Path, order: list[str]) -> None:
@@ -92,7 +100,7 @@ def test_valid_source_loads(sources):
     entries = model.load_sources()
     assert [e.slug for e in entries] == ["example"]
     assert entries[0].sizing["peak_ram_mb"] == 256
-    assert entries[0].block == {}
+    assert entries[0].block == {"schema": 2, "env": ENV}
     assert entries[0].quiesce is None
     assert entries[0].managed_env == {}
 
@@ -151,43 +159,100 @@ def test_compose_file_is_derived_from_the_id(sources):
     assert entry.compose_path == model.BLUEPRINTS / "example" / "docker-compose.yml"
 
 
-def test_env_managed_key_must_exist_in_env_defaults(sources):
-    """A managed key that names nothing renders nowhere, so the converge
-    would silently never inject it."""
+def test_a_compose_without_an_env_is_an_error(sources):
+    """The deploy form lists the keys of the block's env; a template with
+    none lists nothing."""
     _write(sources, _valid_doc())
-    _block({"schema": 1, "managed_env": {"NOT_DECLARED": "x"}})
-    with pytest.raises(model.SourceError, match="not in env_defaults"):
+    (model.BLUEPRINTS / "example" / model.COMPOSE_NAME).write_text("services: {}\n")
+    with pytest.raises(model.SourceError, match="declares no x-catena env"):
         model.load_sources()
 
 
-def test_managed_env_gives_the_value_and_env_defaults_keeps_the_place(sources):
-    """The source lists a managed key with no value, so the deploy form keeps
-    its order; the block holds the expression, and the entry joins them."""
-    doc = _valid_doc()
-    doc["x-catena"]["env_defaults"] = ["DOMAIN_HOST=", "DB_PASSWORD=secret"]
-    _write(sources, doc)
-    _block({"schema": 1, "managed_env": {"DOMAIN_HOST": "x.{{ cloudflare_zone }}"}})
+def test_env_defaults_are_the_env_as_key_value_lines(sources):
+    """A setting gives its default, a generated secret the lookup expression
+    that mints it, a managed key its expression; the order is the block's."""
+    _write(sources, _valid_doc())
+    _block({"schema": 2, "env": {
+        "DOMAIN_HOST": {"managed": {"expr": "x.{{ cloudflare_zone }}"}},
+        "NAME": {"setting": {"default": "auto, 7", "label": {"en": "Name", "fr": "Nom"}}},
+        "DB_PASSWORD": {"generated": {"length": 32, "alphabet": "alnum"}},
+        "KEY": {"generated": {"length": 64, "alphabet": "hex"}},
+    }})
     entry = model.load_sources()[0]
-    assert entry.env_defaults == ["DOMAIN_HOST=x.{{ cloudflare_zone }}", "DB_PASSWORD=secret"]
-    doc["x-catena"]["env_defaults"] = ["DOMAIN_HOST=x.example.com", "DB_PASSWORD=secret"]
-    _write(sources, doc)
-    with pytest.raises(model.SourceError, match="gives the managed key 'DOMAIN_HOST' a value"):
+    assert entry.env_defaults == [
+        "DOMAIN_HOST=x.{{ cloudflare_zone }}",
+        "NAME=auto, 7",
+        "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
+        "KEY={{ lookup('password', '/dev/null length=64 chars=hexdigits') | lower }}",
+    ]
+    assert entry.managed_env == {"DOMAIN_HOST": "x.{{ cloudflare_zone }}"}
+    assert entry.env_label("NAME") == "Name"
+    assert entry.env_label("DB_PASSWORD") is None
+
+
+@pytest.mark.parametrize("env,needle", [
+    ({"A": {}}, "env/A"),
+    ({"A": {"setting": {"default": "x"}, "managed": {"expr": "y"}}}, "env/A"),
+    ({"A": {"setting": {"default": "x", "label": {"en": "A"}}}}, "label"),
+    ({"A": {"generated": {"length": 0, "alphabet": "hex"}}}, "length"),
+    ({"A": {"generated": {"length": 8, "alphabet": "base64"}}}, "alphabet"),
+    ({"1A": {"setting": {"default": "x"}}}, "1A"),
+    ({"DOCKER_HOST": {"setting": {"default": "x"}}}, "DOCKER_HOST"),
+    ({"path": {"setting": {"default": "x"}}}, "path"),
+    ({"HOME": {"setting": {"default": "x"}}}, "HOME"),
+    ({"LD_PRELOAD": {"setting": {"default": "x"}}}, "LD_PRELOAD"),
+    ({"https_proxy": {"setting": {"default": "x"}}}, "https_proxy"),
+])
+def test_an_env_the_format_refuses_is_reported(sources, env, needle):
+    _write(sources, _valid_doc())
+    _block({"schema": 2, "env": env})
+    with pytest.raises(model.SourceError, match=needle):
         model.load_sources()
+
+
+def test_the_other_schema_2_fields_are_checked(sources):
+    _write(sources, _valid_doc())
+    good = {
+        "version_from": "app",
+        "hooks": {"service": "app", "configure": [["sh", "-c", "true"]], "timeout_seconds": 60},
+        "needs": {"certificate": {"names": ["a.example.com"], "volume": "certs"},
+                  "dns": [{"type": "MX", "name": "example.com", "value": "mail", "priority": 10}]},
+        "data": {"db": {"volume": "db-data", "upgrade": "dump_restore"}},
+        "write_hold": "backup_mode",
+        "images": {"app": {"policy": "minor", "rule": {"kind": "semver", "stops": ["1.0.0"]}}},
+        "secrets": ["turn_secret"],
+        "stops": ["1.0.0"],
+        "egress": ["api.example.com"],
+        "privileges": ["host_network"],
+    }
+    _block({"schema": 2, **good})
+    assert model.load_sources()[0].block["write_hold"] == "backup_mode"
+    for field, bad in (("write_hold", "never"), ("privileges", ["root"]),
+                       ("images", {"app": {"policy": "sometimes"}}),
+                       ("images", {"app": {"rule": {"kind": "bogus"}}}),
+                       ("data", {"db": {"volume": "v", "upgrade": "copy"}}),
+                       ("needs", {"dns": [{"type": "NS", "name": "a", "value": "b"}]}),
+                       ("hooks", {"service": "app"}),
+                       ("version_from", "")):
+        _block({"schema": 2, **good, field: bad})
+        with pytest.raises(model.SourceError, match=field):
+            model.load_sources()
 
 
 def test_a_block_names_its_format(sources):
     _write(sources, _valid_doc())
-    _block({"managed_env": {"DOMAIN_HOST": "x"}})
+    path = model.BLUEPRINTS / "example" / model.COMPOSE_NAME
+    path.write_text(yaml.safe_dump({model.BLOCK_KEY: {"env": ENV}, "services": {}}))
     with pytest.raises(model.SourceError, match="'schema' is a required property"):
         model.load_sources()
-    _block({"schema": 2})
+    _block({"schema": 1})
     with pytest.raises(model.SourceError, match="schema"):
         model.load_sources()
 
 
 def test_a_block_holds_no_field_the_format_lacks(sources):
     _write(sources, _valid_doc())
-    _block({"schema": 1, "pause_during_migrate_cutover": True})
+    _block({"schema": 2, "pause_during_migrate_cutover": True})
     with pytest.raises(model.SourceError, match="pause_during_migrate_cutover"):
         model.load_sources()
 
@@ -203,7 +268,7 @@ def test_a_block_holds_no_field_the_format_lacks(sources):
 ])
 def test_an_object_store_the_format_refuses_is_reported(sources, object_store, needle):
     _write(sources, _valid_doc())
-    _block({"schema": 1, "object_store": object_store})
+    _block({"schema": 2, "object_store": object_store})
     with pytest.raises(model.SourceError, match=needle):
         model.load_sources()
 
@@ -246,25 +311,25 @@ def test_quiesce_commands_are_argv_lists(sources):
         "pre": "php occ maintenance:mode --on",
         "timeout_seconds": 30,
     }
-    _block({"schema": 1, "quiesce": quiesce})
+    _block({"schema": 2, "quiesce": quiesce})
     with pytest.raises(model.SourceError, match="quiesce/pre"):
         model.load_sources()
     quiesce["pre"] = [["php", "occ", "maintenance:mode", "--on"]]
-    _block({"schema": 1, "quiesce": quiesce})
+    _block({"schema": 2, "quiesce": quiesce})
     assert model.load_sources()[0].quiesce["pre"] == [
         ["php", "occ", "maintenance:mode", "--on"]]
 
 
 def test_quiesce_names_its_service(sources):
     _write(sources, _valid_doc())
-    _block({"schema": 1, "quiesce": {"pre": [["php", "occ", "status"]], "timeout_seconds": 10}})
+    _block({"schema": 2, "quiesce": {"pre": [["php", "occ", "status"]], "timeout_seconds": 10}})
     with pytest.raises(model.SourceError, match="'service' is a required property"):
         model.load_sources()
 
 
 def test_quiesce_timeout_cap(sources):
     _write(sources, _valid_doc())
-    _block({"schema": 1, "quiesce": {
+    _block({"schema": 2, "quiesce": {
         "service": "app", "pre": [["php", "occ", "status"]], "timeout_seconds": 600}})
     with pytest.raises(model.SourceError, match="timeout_seconds"):
         model.load_sources()
@@ -280,11 +345,11 @@ def test_lifecycle_ready_is_one_argv(sources):
         "migrate": [["php", "occ", "db:add-missing-indices"]],
         "timeout_seconds": 60,
     }
-    _block({"schema": 1, "lifecycle": lifecycle})
+    _block({"schema": 2, "lifecycle": lifecycle})
     with pytest.raises(model.SourceError, match="ready"):
         model.load_sources()
     lifecycle["ready"] = ["php", "occ", "status"]
-    _block({"schema": 1, "lifecycle": lifecycle})
+    _block({"schema": 2, "lifecycle": lifecycle})
     assert model.load_sources()[0].lifecycle["ready"] == ["php", "occ", "status"]
 
 
@@ -299,11 +364,11 @@ def test_lifecycle_versioned_volumes_are_distinct_volume_names(sources, volumes)
         "versioned_volumes": volumes,
         "timeout_seconds": 60,
     }
-    _block({"schema": 1, "lifecycle": lifecycle})
+    _block({"schema": 2, "lifecycle": lifecycle})
     with pytest.raises(model.SourceError, match="versioned_volumes"):
         model.load_sources()
     lifecycle["versioned_volumes"] = ["code", "conf.d"]
-    _block({"schema": 1, "lifecycle": lifecycle})
+    _block({"schema": 2, "lifecycle": lifecycle})
     assert model.load_sources()[0].lifecycle["versioned_volumes"] == ["code", "conf.d"]
 
 
@@ -313,10 +378,10 @@ def test_a_lifecycle_declares_a_migration_or_versioned_volumes(sources):
     with neither gives the host nothing to do."""
     _write(sources, _valid_doc())
     lifecycle = {"service": "app", "versioned_volumes": ["data"], "timeout_seconds": 300}
-    _block({"schema": 1, "lifecycle": lifecycle})
+    _block({"schema": 2, "lifecycle": lifecycle})
     assert model.load_sources()[0].lifecycle == lifecycle
     del lifecycle["versioned_volumes"]
-    _block({"schema": 1, "lifecycle": lifecycle})
+    _block({"schema": 2, "lifecycle": lifecycle})
     with pytest.raises(model.SourceError, match="lifecycle"):
         model.load_sources()
 
@@ -340,8 +405,8 @@ def test_the_cross_file_invariants_still_run_without_jsonschema(sources, monkeyp
     not."""
     monkeypatch.setattr(model, "jsonschema", None)
     _write(sources, _valid_doc())
-    _block({"schema": 1, "managed_env": {"NOT_IN_DEFAULTS": "x"}})
-    with pytest.raises(model.SourceError, match="managed_env"):
+    (model.BLUEPRINTS / "example" / model.COMPOSE_NAME).write_text("services: {}\n")
+    with pytest.raises(model.SourceError, match="declares no x-catena env"):
         model.load_sources()
     assert "the JSON Schema layer is skipped" in capsys.readouterr().err
 

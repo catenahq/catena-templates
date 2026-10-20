@@ -17,12 +17,6 @@
       "service": "rails",
       "port": 3000
     },
-    "env_defaults": [
-      "DOMAIN_HOST=support.{{ cloudflare_zone }}",
-      "CHATWOOT_HOSTNAME=support.{{ cloudflare_zone }}",
-      "SECRET_KEY_BASE={{ lookup('password', '/dev/null length=128 chars=hexdigits') | lower }}",
-      "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
-    ],
     "bench": {
       "pack": "postgres",
       "hostname_baked": true

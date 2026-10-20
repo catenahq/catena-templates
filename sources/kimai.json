@@ -17,17 +17,6 @@
       "service": "kimai",
       "port": 8001
     },
-    "env_defaults": [
-      "DOMAIN_HOST=time.{{ cloudflare_zone }}",
-      "KIMAI_HOSTNAME=time.{{ cloudflare_zone }}",
-      "KIMAI_ADMIN_EMAIL=admin@{{ cloudflare_zone }}",
-      "KIMAI_ADMIN_PASSWORD={{ lookup('password', '/dev/null length=24 chars=ascii_letters,digits') }}",
-      "KIMAI_APP_SECRET={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}",
-      "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
-      "DB_ROOT_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
-      "KIMAI_MAIL_FROM=time@{{ cloudflare_zone }}",
-      "KIMAI_MAIL_URL=null://localhost"
-    ],
     "bench": {
       "pack": "mariadb",
       "hostname_baked": true

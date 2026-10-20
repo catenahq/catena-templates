@@ -1,11 +1,12 @@
 """Security lint over what a client host acts on unattended (CI gate).
 
-Two families of commands, both declared in the compose's `x-catena` block
-and both executed on a client box with no one present: the quiesce commands the nightly
-maintenance runs around its backup, and the lifecycle commands (migration,
+Three families of commands, all declared in the compose's `x-catena` block
+and all executed on a client box with no one present: the quiesce commands the nightly
+maintenance runs around its backup, the lifecycle commands (migration,
 before and after an update, and the ready question asked before each of
-those). Both are argv arrays the host runs inside one service's container
-through `docker exec`, with no shell. And the sign-in labels, from which
+those) and the hooks (configure, verify, users). All are argv arrays the host
+runs inside one service's container through `docker exec`, with no shell of
+their own. And the sign-in labels, from which
 the host's settings sync makes a Keycloak client and writes its values into
 the app's stack env. And what the registry importer left on an imported
 entry, which reaches every host's app catalog.
@@ -16,7 +17,13 @@ run on every render. This module adds:
 
   - A block holds no `$` and names no image of its compose: Docker
     interpolates every value under a top-level x- key when it deploys the
-    file, and the update lane rewrites each image reference it finds.
+    file, and the update lane rewrites each image reference it finds. A hooks
+    body writes each `$` as `$$`.
+  - A hooks body is offered to the interpreter it names (`sh -n`, `bash -n`
+    or Python's compiler), as an inline script of a compose service is, and
+    runs in a service the compose defines.
+  - A managed env expression reads no store secret the block's `secrets` does
+    not list, and none on the deny list.
   - A command allowlist per family on the first word of each argv, so a
     template cannot smuggle `curl evil.com` into a command that runs on
     every client host.
@@ -44,7 +51,7 @@ run on every render. This module adds:
     host knows; `vps.auth.oidc=true` comes with the return
     addresses; and the template declares none of the three values the sync
     writes (OIDC_CLIENT_ID, OIDC_CLIENT_SECRET, OIDC_ISSUER_URL) in
-    env_defaults, so each has one writer.
+    the block's env, so each has one writer.
   - An imported entry's pending findings hold no app checker error and no
     record that the checker did not run: catena-admin CI runs
     catena-applint --catalog over every blueprint and fails on an error.
@@ -58,6 +65,7 @@ import re
 import yaml
 
 from .importers.pipeline import CHECKER_ERROR, CHECKER_NOT_RUN
+from . import swarm_lint
 from .model import SourceError, load_sources
 
 # Each family runs inside one application container and gets that
@@ -82,6 +90,27 @@ ALLOWED_READY_COMMANDS = ALLOWED_MIGRATE_COMMANDS | {"bash"}
 
 # The placeholders an object-store switch command can carry.
 SWITCH_PLACEHOLDERS = frozenset({"{old_bucket}", "{new_bucket}"})
+
+# The commands a hooks body may start with: the lifecycle commands and the
+# interpreters of an inline script.
+ALLOWED_HOOK_COMMANDS = ALLOWED_MIGRATE_COMMANDS | {"sh", "bash", "python", "python3"}
+
+# The argv lists a hooks block can carry.
+HOOK_LISTS = ("configure", "verify", "users")
+
+# Store secrets no managed expression reads: they open the host itself.
+DENIED_SECRETS = frozenset({
+    "admin_password", "catena_license", "cloudflare_api_token", "keycloak_admin_password",
+    "portainer_admin_password", "restic_password", "vault_password",
+})
+
+# A name in an expression is a store secret when it ends like one (readme.py
+# recognises them the same way).
+SECRET_NAME = re.compile(r"_(?:secret|password)$")
+EXPRESSION = re.compile(r"\{\{(.*?)\}\}", re.DOTALL)
+QUOTED = re.compile(r"'[^']*'")
+IDENTIFIER = re.compile(r"[a-z_][a-z0-9_]*")
+EXPRESSION_WORDS = frozenset({"default", "lower", "lookup", "password"})
 
 # The argv lists a lifecycle block can carry.
 LIFECYCLE_LISTS = ("before_update", "migrate", "after_update")
@@ -221,11 +250,10 @@ def lint_signin(entry) -> list[str]:
                           f"vps.auth.oidc.redirect_uris; the sign-in entry would "
                           f"accept no return address")
     if asks:
-        declared = {kv.split("=", 1)[0] for kv in entry.catena["env_defaults"]}
         for key in SIGNIN_KEYS:
-            if key in declared:
+            if key in entry.env:
                 errors.append(
-                    f"{entry.slug}: {key} is declared in env_defaults, but the "
+                    f"{entry.slug}: {key} is declared in the block's env, but the "
                     f"settings sync writes it from the app's sign-in entry; a "
                     f"second writer would undo the first")
     return errors
@@ -264,13 +292,66 @@ def lint_block(entry) -> list[str]:
     errors: list[str] = []
     for where, text in block_strings(entry.block):
         label = f"{entry.slug}.x-catena.{where}"
-        if "$" in text:
+        if where.startswith("hooks."):
+            text_checked = text.replace("$$", "")
+            hint = " (write $$ for a literal $)"
+        else:
+            text_checked = text
+            hint = ""
+        if "$" in text_checked:
             errors.append(f"{label}: holds a $, which Docker reads as a variable "
-                          f"when it deploys the file")
+                          f"when it deploys the file{hint}")
         for image in sorted(images):
             if image in text:
                 errors.append(f"{label}: names the image {image}, which an update "
                               f"rewrites wherever the file names it")
+    return errors
+
+
+def expression_names(expr: str) -> set[str]:
+    """The bare names the `{{ ... }}` parts of an expression read."""
+    names: set[str] = set()
+    for body in EXPRESSION.findall(expr):
+        for name in IDENTIFIER.findall(QUOTED.sub("", body)):
+            if name not in EXPRESSION_WORDS:
+                names.add(name)
+    return names
+
+
+def lint_managed_secrets(entry) -> list[str]:
+    """A managed expression reads only the store secrets the block lists in
+    `secrets`, and never one on the deny list."""
+    allowed = set(entry.block.get("secrets") or [])
+    errors: list[str] = []
+    for key, expr in entry.managed_env.items():
+        label = f"{entry.slug}.x-catena.env.{key}.managed.expr"
+        for name in sorted(expression_names(expr)):
+            if name in DENIED_SECRETS:
+                errors.append(f"{label}: reads {name!r}, a secret no managed expression may read")
+            elif SECRET_NAME.search(name) and name not in allowed:
+                errors.append(f"{label}: reads the store secret {name!r}, which the block's "
+                              f"secrets does not list")
+    return errors
+
+
+def lint_hooks(entry) -> list[str]:
+    """The hooks run in a service the compose defines, as argv whose first
+    word the allowlist knows, with no shell operator, and an inline script
+    parses in the interpreter it names."""
+    hooks = entry.block.get("hooks")
+    if not hooks:
+        return []
+    errors: list[str] = []
+    services = compose_services(entry)
+    if hooks["service"] not in services:
+        errors.append(
+            f"{entry.slug}.hooks.service: {hooks['service']!r} is not a "
+            f"service in this template's compose ({sorted(services)})")
+    for name in HOOK_LISTS:
+        for idx, argv in enumerate(hooks.get(name) or []):
+            label = f"{entry.slug}.hooks.{name}[{idx}]"
+            errors.extend(lint_migrate_argv(argv, label=label, allowed=ALLOWED_HOOK_COMMANDS))
+            errors.extend(swarm_lint.lint_entrypoint(argv, label=label))
     return errors
 
 
@@ -284,11 +365,10 @@ def lint_object_store(entry) -> list[str]:
         return []
     errors: list[str] = []
     text = entry.compose_path.read_text(encoding="utf-8")
-    declared = {kv.split("=", 1)[0] for kv in entry.catena["env_defaults"]}
     for setting, key in store["env"].items():
         label = f"{entry.slug}.object_store.env.{setting}"
-        if key not in declared:
-            errors.append(f"{label}: {key!r} is not in env_defaults")
+        if key not in entry.env:
+            errors.append(f"{label}: {key!r} is not in the block's env")
         if "${" + key not in text:
             errors.append(f"{label}: the compose never reads {key!r}")
     switch = store.get("switch")
@@ -362,6 +442,8 @@ def lint_all() -> int:
         all_errors.extend(lint_block(entry))
         all_errors.extend(lint_auto_update(entry))
         all_errors.extend(lint_object_store(entry))
+        all_errors.extend(lint_hooks(entry))
+        all_errors.extend(lint_managed_secrets(entry))
         lifecycle = entry.lifecycle
         if lifecycle:
             with_lifecycle += 1

@@ -1,7 +1,8 @@
 x-catena:
-  schema: 1
-  managed_env:
-    DOMAIN_HOST: "office.{{ cloudflare_zone }}"
+  schema: 2
+  env:
+    DOMAIN_HOST:
+      managed: {expr: "office.{{ cloudflare_zone }}"}
 
 services:
   collabora:

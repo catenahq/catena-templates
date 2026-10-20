@@ -1,3 +1,33 @@
+x-catena:
+  schema: 2
+  env:
+    DOMAIN_HOST:
+      setting: {default: "invoice.{{ cloudflare_zone }}"}
+    INVOICENINJA_HOSTNAME:
+      setting: {default: "invoice.{{ cloudflare_zone }}"}
+    INVOICENINJA_APP_KEY:
+      setting: {default: ""}
+    INVOICENINJA_ADMIN_EMAIL:
+      setting: {default: "admin@{{ cloudflare_zone }}"}
+    INVOICENINJA_ADMIN_PASSWORD:
+      generated: {length: 24, alphabet: alnum}
+    DB_PASSWORD:
+      generated: {length: 32, alphabet: alnum}
+    DB_ROOT_PASSWORD:
+      generated: {length: 32, alphabet: alnum}
+    INVOICENINJA_SMTP_HOST:
+      setting: {default: ""}
+    INVOICENINJA_SMTP_PORT:
+      setting: {default: "587"}
+    INVOICENINJA_SMTP_USERNAME:
+      setting: {default: ""}
+    INVOICENINJA_SMTP_PASSWORD:
+      setting: {default: ""}
+    INVOICENINJA_MAIL_FROM:
+      setting: {default: "invoice@{{ cloudflare_zone }}"}
+    INVOICENINJA_MAIL_FROM_NAME:
+      setting: {default: "Invoicing"}
+
 services:
   app:
     image: invoiceninja/invoiceninja-debian:5.13.49

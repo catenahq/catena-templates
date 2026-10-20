@@ -1,3 +1,27 @@
+x-catena:
+  schema: 2
+  env:
+    DOMAIN_HOST:
+      setting: {default: "sign.{{ cloudflare_zone }}"}
+    DOCUSEAL_HOSTNAME:
+      setting: {default: "sign.{{ cloudflare_zone }}"}
+    SECRET_KEY_BASE:
+      generated: {length: 128, alphabet: hex}
+    DB_PASSWORD:
+      generated: {length: 32, alphabet: alnum}
+    SMTP_HOST:
+      setting: {default: ""}
+    SMTP_PORT:
+      setting: {default: "587"}
+    SMTP_USERNAME:
+      setting: {default: ""}
+    SMTP_PASSWORD:
+      setting: {default: ""}
+    SMTP_FROM_ADDRESS:
+      setting: {default: ""}
+    SMTP_AUTH:
+      setting: {default: "plain"}
+
 services:
   docuseal:
     image: docuseal/docuseal:3.2.6

@@ -1,3 +1,15 @@
+x-catena:
+  schema: 2
+  env:
+    DOMAIN_HOST:
+      setting: {default: "social.{{ cloudflare_zone }}"}
+    POSTIZ_HOSTNAME:
+      setting: {default: "social.{{ cloudflare_zone }}"}
+    JWT_SECRET:
+      generated: {length: 64, alphabet: alnum}
+    DB_PASSWORD:
+      generated: {length: 32, alphabet: alnum}
+
 services:
   postiz:
     image: ghcr.io/gitroomhq/postiz-app:v2.24.0

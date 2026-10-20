@@ -17,13 +17,6 @@
       "service": "outline",
       "port": 3000
     },
-    "env_defaults": [
-      "DOMAIN_HOST=wiki.{{ cloudflare_zone }}",
-      "OUTLINE_HOSTNAME=wiki.{{ cloudflare_zone }}",
-      "OUTLINE_SECRET_KEY={{ lookup('password', '/dev/null length=64 chars=hexdigits') | lower }}",
-      "OUTLINE_UTILS_SECRET={{ lookup('password', '/dev/null length=64 chars=hexdigits') | lower }}",
-      "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
-    ],
     "bench": {
       "pack": "postgres",
       "hostname_baked": true

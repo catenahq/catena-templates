@@ -30,6 +30,117 @@
         "setup_steps": "1. Open the **Environment** tab and fill `S3_BUCKET`, `S3_REGION`, `S3_HOST`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` with the bucket's coordinates. (Everything else is pre-filled -- `NEXTCLOUD_HOSTNAME`, admin/DB credentials.)\n2. Click **Deploy**. Wait ~2 minutes for the first boot. Within a few minutes of the first deploy, the server creates Nextcloud's own sign-in entry in Keycloak, writes its values (`OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_ISSUER_URL`) into the Environment tab, and Nextcloud restarts once with them.\n3. Wire SSO once those values are there: open `dash.<your-domain>`, go to the **Actions** tab and click **Wire Nextcloud OIDC**. The action registers Keycloak as an OIDC provider inside Nextcloud (idempotent -- safe to re-run after redeploys or secret rotations).\n4. Sign in at the Nextcloud domain with **Log in with keycloak** (which uses the managed identity), or fall back to `NEXTCLOUD_ADMIN_USER` / `NEXTCLOUD_ADMIN_PASSWORD` from the Environment tab.\n",
         "what_it_is": "Self-hosted file sharing and collaboration -- the file hub that other templates plug into."
       },
+      "env": {
+        "DB_PASSWORD": {
+          "generated": {
+            "alphabet": "alnum",
+            "length": 32
+          }
+        },
+        "DOMAIN_HOST": {
+          "managed": {
+            "expr": "nextcloud.{{ cloudflare_zone }}"
+          }
+        },
+        "NEXTCLOUD_ADMIN_PASSWORD": {
+          "generated": {
+            "alphabet": "alnum",
+            "length": 24
+          }
+        },
+        "NEXTCLOUD_ADMIN_USER": {
+          "setting": {
+            "default": "admin"
+          }
+        },
+        "NEXTCLOUD_HOSTNAME": {
+          "managed": {
+            "expr": "nextcloud.{{ cloudflare_zone }}"
+          }
+        },
+        "NEXTCLOUD_LOGLEVEL": {
+          "setting": {
+            "default": "3"
+          }
+        },
+        "NEXTCLOUD_MAX_CHUNK_SIZE": {
+          "setting": {
+            "default": "83886080"
+          }
+        },
+        "NEXTCLOUD_TRASH_RETENTION": {
+          "setting": {
+            "default": "30, 30"
+          }
+        },
+        "NEXTCLOUD_VERSIONS_RETENTION": {
+          "setting": {
+            "default": "auto, 7"
+          }
+        },
+        "S3_ACCESS_KEY": {
+          "setting": {
+            "default": ""
+          }
+        },
+        "S3_BUCKET": {
+          "setting": {
+            "default": ""
+          }
+        },
+        "S3_HOST": {
+          "setting": {
+            "default": "s3.bhs.io.cloud.ovh.net"
+          }
+        },
+        "S3_PORT": {
+          "setting": {
+            "default": "443"
+          }
+        },
+        "S3_REGION": {
+          "setting": {
+            "default": "bhs"
+          }
+        },
+        "S3_SECRET_KEY": {
+          "setting": {
+            "default": ""
+          }
+        },
+        "S3_SSL": {
+          "setting": {
+            "default": "true"
+          }
+        },
+        "SIGNALING_HOSTNAME": {
+          "managed": {
+            "expr": "signaling.{{ cloudflare_zone }}"
+          }
+        },
+        "SIGNALING_SECRET": {
+          "generated": {
+            "alphabet": "alnum",
+            "length": 64
+          }
+        },
+        "TALK_INTERNAL_SECRET": {
+          "generated": {
+            "alphabet": "alnum",
+            "length": 64
+          }
+        },
+        "TURN_HOSTNAME": {
+          "managed": {
+            "expr": "{{ coturn_hostname | default('turn.' ~ cloudflare_zone) }}"
+          }
+        },
+        "TURN_STATIC_AUTH_SECRET": {
+          "managed": {
+            "expr": "{{ turn_static_auth_secret }}"
+          }
+        }
+      },
       "env_defaults": [
         "DOMAIN_HOST=nextcloud.{{ cloudflare_zone }}",
         "NEXTCLOUD_HOSTNAME=nextcloud.{{ cloudflare_zone }}",
@@ -190,6 +301,40 @@
         "setup_steps": "1. *(Optional)* Keep the library on a separate disk: mount the disk on the server, create a directory on it (for example `/mnt/photos/immich`), and set `UPLOAD_LOCATION` to that path in the **Environment** tab. The directory has to exist before the deploy. Then add the same path under **Settings** -> **Backup** -> extra paths in catena-admin, so the nightly backup includes it.\n2. Click **Deploy**. The first boot takes 2 to 3 minutes while the database initialises. On its first start Immich makes its administrator from the server's admin email (`IMMICH_ADMIN_EMAIL`), with the password `IMMICH_ADMIN_PASSWORD` from the Environment tab.\n3. Wait for the sign-in values. Within a few minutes of the first deploy, the server creates Immich's own sign-in entry in Keycloak, writes its values (`OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_ISSUER_URL`) into the Environment tab, and Immich restarts once and turns on **Sign in with Keycloak**.\n4. Sign in with Keycloak. The server's admin lands in the administrator account, matched by email; everyone else gets an account on their first sign-in. The administrator's password keeps working as a break-glass.\n5. Install the Immich app on each phone, enter the Immich domain as the server address, sign in with Keycloak, and turn on backup.\n",
         "what_it_is": "Photo and video library with automatic backup from phones, albums, sharing, face recognition and search by content."
       },
+      "env": {
+        "DB_PASSWORD": {
+          "generated": {
+            "alphabet": "alnum",
+            "length": 32
+          }
+        },
+        "DOMAIN_HOST": {
+          "setting": {
+            "default": "photos.{{ cloudflare_zone }}"
+          }
+        },
+        "IMMICH_ADMIN_EMAIL": {
+          "setting": {
+            "default": "{{ admin_email }}"
+          }
+        },
+        "IMMICH_ADMIN_PASSWORD": {
+          "generated": {
+            "alphabet": "alnum",
+            "length": 32
+          }
+        },
+        "IMMICH_HOSTNAME": {
+          "setting": {
+            "default": "photos.{{ cloudflare_zone }}"
+          }
+        },
+        "UPLOAD_LOCATION": {
+          "setting": {
+            "default": "immich-library"
+          }
+        }
+      },
       "env_defaults": [
         "DOMAIN_HOST=photos.{{ cloudflare_zone }}",
         "IMMICH_HOSTNAME=photos.{{ cloudflare_zone }}",
@@ -246,6 +391,13 @@
         "setup_steps": "1. Click **Deploy**. Wait ~30 s for the document server to boot.\n2. From the operator dashboard, click the **Wire Nextcloud Collabora** button. The button installs the Nextcloud Office app, points it at this server, and -- where OnlyOffice was previously wired -- removes the OnlyOffice Nextcloud app cleanly.\n3. Open any DOCX/XLSX/PPTX/ODT file in Nextcloud. It opens in the embedded Collabora editor.\n\nSwitching back to OnlyOffice later is one click: stop this Collabora compose, deploy `onlyoffice`, then click the **Wire Nextcloud OnlyOffice** button.\n\nDon't visit the Collabora domain directly in a browser -- it has no UI of its own. Users only ever see it through Nextcloud when they open a document.\n",
         "what_it_is": "Collaborative ODT/DOCX/XLSX/PPTX editing -- bolts into Nextcloud for real-time co-editing. LibreOffice-based; lighter than OnlyOffice; better fidelity for ODF formats."
       },
+      "env": {
+        "DOMAIN_HOST": {
+          "managed": {
+            "expr": "office.{{ cloudflare_zone }}"
+          }
+        }
+      },
       "env_defaults": [
         "DOMAIN_HOST=office.{{ cloudflare_zone }}"
       ],
@@ -297,6 +449,19 @@
         ],
         "setup_steps": "1. Click **Deploy**. Wait ~1 min for the document server to boot.\n2. From the operator dashboard, click the **Wire Nextcloud OnlyOffice** button. The button installs the Nextcloud OnlyOffice app, reads the JWT secret from this template, points the app at this server, and -- where Collabora was previously wired -- removes the Collabora Nextcloud app cleanly.\n3. Open any DOCX/XLSX/PPTX file in Nextcloud. It opens in the embedded OnlyOffice editor.\n\nSwitching to Collabora later is one click: stop this OnlyOffice compose, deploy `collabora`, then click the **Wire Nextcloud Collabora** button.\n\nDon't visit the OnlyOffice domain directly in a browser -- it has no UI of its own. Users only ever see it through Nextcloud when they open a document.\n",
         "what_it_is": "Collaborative DOCX/XLSX/PPTX editing -- bolts into Nextcloud for real-time co-editing with high MS Office fidelity."
+      },
+      "env": {
+        "DOMAIN_HOST": {
+          "managed": {
+            "expr": "office.{{ cloudflare_zone }}"
+          }
+        },
+        "JWT_SECRET": {
+          "generated": {
+            "alphabet": "alnum",
+            "length": 48
+          }
+        }
       },
       "env_defaults": [
         "DOMAIN_HOST=office.{{ cloudflare_zone }}",
@@ -352,6 +517,71 @@
         ],
         "setup_steps": "1. Click **Deploy**. Nothing to fill in the Environment tab except a different hostname, where one is wanted.\n2. Wait for the sign-in values. Within a few minutes of the first deploy, the server creates Rocket.Chat's own sign-in entry in Keycloak, writes its values (`OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_ISSUER_URL`) into the Environment tab, and Rocket.Chat restarts once with them. The login page then shows **Sign in with Keycloak**.\n3. Sign in with Keycloak. The workspace administrator is the account made on the first start with the server's admin email (`ADMIN_EMAIL`): that person's Keycloak sign-in opens it. Everyone else gets an account on their first sign-in.\n4. *(Optional, ~30 s)* Attach Nextcloud files in chats: Administration -> Apps -> Marketplace -> search `Nextcloud` -> install -> set the Nextcloud domain in the app settings. Users can then type `/nextcloud` in any chat to browse and attach files.\n",
         "what_it_is": "Team chat -- channels, direct messages, file sharing, mobile apps, and video calls. Keycloak SSO pre-wired."
+      },
+      "env": {
+        "ADMIN_EMAIL": {
+          "setting": {
+            "default": "{{ admin_email }}"
+          }
+        },
+        "ADMIN_PASS": {
+          "setting": {
+            "default": "{{ admin_password }}"
+          }
+        },
+        "ADMIN_USERNAME": {
+          "setting": {
+            "default": "admin"
+          }
+        },
+        "DOMAIN_HOST": {
+          "setting": {
+            "default": "chat.{{ cloudflare_zone }}"
+          }
+        },
+        "JITSI_JICOFO_AUTH_PASSWORD": {
+          "generated": {
+            "alphabet": "alnum",
+            "length": 64
+          }
+        },
+        "JITSI_JICOFO_COMPONENT_SECRET": {
+          "generated": {
+            "alphabet": "alnum",
+            "length": 64
+          }
+        },
+        "JITSI_JVB_AUTH_PASSWORD": {
+          "generated": {
+            "alphabet": "alnum",
+            "length": 64
+          }
+        },
+        "ROCKETCHAT_HOSTNAME": {
+          "setting": {
+            "default": "chat.{{ cloudflare_zone }}"
+          }
+        },
+        "ROCKETCHAT_HOSTNAME_BASE": {
+          "setting": {
+            "default": "{{ cloudflare_zone }}"
+          }
+        },
+        "TURN_HOSTNAME": {
+          "managed": {
+            "expr": "{{ coturn_hostname | default('turn.' ~ cloudflare_zone) }}"
+          }
+        },
+        "TURN_STATIC_AUTH_SECRET": {
+          "managed": {
+            "expr": "{{ turn_static_auth_secret }}"
+          }
+        },
+        "VPS_PUBLIC_IP": {
+          "managed": {
+            "expr": "{{ public_ip }}"
+          }
+        }
       },
       "env_defaults": [
         "DOMAIN_HOST=chat.{{ cloudflare_zone }}",
@@ -444,6 +674,121 @@
         "setup_steps": "1. Click **Deploy**. First boot takes ~3 minutes (Synapse generates signing keys, postgres initialises, Jitsi components register). Within a few minutes of the first deploy, the server creates Element's own sign-in entry in Keycloak, writes its values (`OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_ISSUER_URL`) into the Environment tab, and the homeserver restarts once with them.\n2. Open `element.<your-domain>` -- the Element web client opens. Click **Sign in with Keycloak**.\n3. The first Keycloak user lands as a regular Matrix user. To promote them to homeserver admin, open `synapseadmin.<your-domain>` (admins only, gated by the Keycloak admin group), find the user, and toggle the admin flag.\n4. *(Optional)* Open federation: edit `FEDERATION_DOMAIN_WHITELIST` in the Environment tab (e.g. `\"matrix.org\",\"example.com\"`) and redeploy. Default is empty (no federation -- the homeserver only talks to itself).\n",
         "what_it_is": "Self-hosted Element + Matrix homeserver -- federated-capable team chat with end-to-end encryption, voice and group video (bundled Jitsi)."
       },
+      "env": {
+        "ALLOW_PUBLIC_REGISTRATION": {
+          "setting": {
+            "default": "false"
+          }
+        },
+        "DB_PASSWORD": {
+          "generated": {
+            "alphabet": "alnum",
+            "length": 32
+          }
+        },
+        "DOMAIN_HOST": {
+          "setting": {
+            "default": "element.{{ cloudflare_zone }}"
+          }
+        },
+        "ELEMENT_HOSTNAME": {
+          "setting": {
+            "default": "element.{{ cloudflare_zone }}"
+          }
+        },
+        "ELEMENT_JITSI_HOSTNAME": {
+          "setting": {
+            "default": "elementmeet.{{ cloudflare_zone }}"
+          }
+        },
+        "FEDERATION_DOMAIN_WHITELIST": {
+          "setting": {
+            "default": ""
+          }
+        },
+        "JIGASI_SIP_PASSWORD": {
+          "setting": {
+            "default": ""
+          }
+        },
+        "JIGASI_SIP_SERVER": {
+          "setting": {
+            "default": ""
+          }
+        },
+        "JIGASI_SIP_URI": {
+          "setting": {
+            "default": ""
+          }
+        },
+        "JIGASI_XMPP_PASSWORD": {
+          "generated": {
+            "alphabet": "alnum",
+            "length": 64
+          }
+        },
+        "JITSI_JICOFO_AUTH_PASSWORD": {
+          "generated": {
+            "alphabet": "alnum",
+            "length": 64
+          }
+        },
+        "JITSI_JICOFO_COMPONENT_SECRET": {
+          "generated": {
+            "alphabet": "alnum",
+            "length": 64
+          }
+        },
+        "JITSI_JVB_AUTH_PASSWORD": {
+          "generated": {
+            "alphabet": "alnum",
+            "length": 64
+          }
+        },
+        "MATRIX_HOSTNAME": {
+          "setting": {
+            "default": "matrix.{{ cloudflare_zone }}"
+          }
+        },
+        "SYNAPSE_ADMIN_HOSTNAME": {
+          "setting": {
+            "default": "synapseadmin.{{ cloudflare_zone }}"
+          }
+        },
+        "SYNAPSE_FORM_SECRET": {
+          "generated": {
+            "alphabet": "alnum",
+            "length": 48
+          }
+        },
+        "SYNAPSE_MACAROON_SECRET": {
+          "generated": {
+            "alphabet": "alnum",
+            "length": 48
+          }
+        },
+        "SYNAPSE_REGISTRATION_SHARED_SECRET": {
+          "generated": {
+            "alphabet": "alnum",
+            "length": 48
+          }
+        },
+        "TURN_HOSTNAME": {
+          "managed": {
+            "expr": "{{ coturn_hostname | default('turn.' ~ cloudflare_zone) }}"
+          }
+        },
+        "TURN_STATIC_AUTH_SECRET": {
+          "managed": {
+            "expr": "{{ turn_static_auth_secret }}"
+          }
+        },
+        "VPS_PUBLIC_IP": {
+          "managed": {
+            "expr": "{{ public_ip }}"
+          }
+        }
+      },
       "env_defaults": [
         "DOMAIN_HOST=element.{{ cloudflare_zone }}",
         "ELEMENT_HOSTNAME=element.{{ cloudflare_zone }}",
@@ -525,6 +870,60 @@
         "setup_steps": "1. Click **Deploy**. Wait ~1 min for the first boot.\n2. Visit the DocuSeal domain and complete the first-run wizard (creates the initial admin account). DocuSeal keeps its own login: each account is created inside DocuSeal.\n3. *(Optional)* Configure SMTP for signature-request emails: fill `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM_ADDRESS` in the Environment tab and redeploy. Without SMTP, recipients only see pending requests in their DocuSeal dashboard.\n",
         "what_it_is": "Default document-signing app in the suite. Upload a PDF, place signature fields, send for signature. Audit trail + signed-PDF generation built-in."
       },
+      "env": {
+        "DB_PASSWORD": {
+          "generated": {
+            "alphabet": "alnum",
+            "length": 32
+          }
+        },
+        "DOCUSEAL_HOSTNAME": {
+          "setting": {
+            "default": "sign.{{ cloudflare_zone }}"
+          }
+        },
+        "DOMAIN_HOST": {
+          "setting": {
+            "default": "sign.{{ cloudflare_zone }}"
+          }
+        },
+        "SECRET_KEY_BASE": {
+          "generated": {
+            "alphabet": "hex",
+            "length": 128
+          }
+        },
+        "SMTP_AUTH": {
+          "setting": {
+            "default": "plain"
+          }
+        },
+        "SMTP_FROM_ADDRESS": {
+          "setting": {
+            "default": ""
+          }
+        },
+        "SMTP_HOST": {
+          "setting": {
+            "default": ""
+          }
+        },
+        "SMTP_PASSWORD": {
+          "setting": {
+            "default": ""
+          }
+        },
+        "SMTP_PORT": {
+          "setting": {
+            "default": "587"
+          }
+        },
+        "SMTP_USERNAME": {
+          "setting": {
+            "default": ""
+          }
+        }
+      },
       "env_defaults": [
         "DOMAIN_HOST=sign.{{ cloudflare_zone }}",
         "DOCUSEAL_HOSTNAME=sign.{{ cloudflare_zone }}",
@@ -586,6 +985,36 @@
         ],
         "setup_steps": "1. Click **Deploy**. Environment defaults are all pre-filled.\n2. Wait for the sign-in values. Within a few minutes of the first deploy, the server creates Outline's own sign-in entry in Keycloak, writes its values (`OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_ISSUER_URL`) into the Environment tab, and Outline restarts once with them. Outline has no password login, so until then its login page offers no way in.\n3. Visit the Outline domain -> click **Sign in with Keycloak**. The first person to sign in creates the workspace and becomes its admin; everyone after joins as a member.\n",
         "what_it_is": "Team wiki / knowledge base. Notion-style pages, collections, nested docs. Keycloak SSO pre-wired."
+      },
+      "env": {
+        "DB_PASSWORD": {
+          "generated": {
+            "alphabet": "alnum",
+            "length": 32
+          }
+        },
+        "DOMAIN_HOST": {
+          "setting": {
+            "default": "wiki.{{ cloudflare_zone }}"
+          }
+        },
+        "OUTLINE_HOSTNAME": {
+          "setting": {
+            "default": "wiki.{{ cloudflare_zone }}"
+          }
+        },
+        "OUTLINE_SECRET_KEY": {
+          "generated": {
+            "alphabet": "hex",
+            "length": 64
+          }
+        },
+        "OUTLINE_UTILS_SECRET": {
+          "generated": {
+            "alphabet": "hex",
+            "length": 64
+          }
+        }
       },
       "env_defaults": [
         "DOMAIN_HOST=wiki.{{ cloudflare_zone }}",
@@ -661,6 +1090,41 @@
         ],
         "setup_steps": "1. Click **Deploy**. Wait ~1 min.\n2. Wait for the sign-in values. Within a few minutes of the first deploy, the server creates EspoCRM's own sign-in entry in Keycloak, writes its values (`OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_ISSUER_URL`) into the Environment tab, and EspoCRM restarts once with them.\n3. Visit the EspoCRM domain and sign in with Keycloak. EspoCRM creates the account on its first sign-in, with the email address as its user name (50 characters at most); the account has no roles until an administrator gives it some under **Administration** -> **Users**.\n4. The local administrator, `ESPOCRM_ADMIN_USERNAME` / `ESPOCRM_ADMIN_PASSWORD` from the Environment tab, keeps signing in with its password as a break-glass.\n",
         "what_it_is": "Default CRM in the suite. Contacts, accounts, opportunities, leads, calendar, email integration, mass mail, workflow automation. Keycloak sign-in pre-wired."
+      },
+      "env": {
+        "DB_PASSWORD": {
+          "generated": {
+            "alphabet": "alnum",
+            "length": 32
+          }
+        },
+        "DB_ROOT_PASSWORD": {
+          "generated": {
+            "alphabet": "alnum",
+            "length": 32
+          }
+        },
+        "DOMAIN_HOST": {
+          "setting": {
+            "default": "crm.{{ cloudflare_zone }}"
+          }
+        },
+        "ESPOCRM_ADMIN_PASSWORD": {
+          "generated": {
+            "alphabet": "alnum",
+            "length": 24
+          }
+        },
+        "ESPOCRM_ADMIN_USERNAME": {
+          "setting": {
+            "default": "admin"
+          }
+        },
+        "ESPOCRM_HOSTNAME": {
+          "setting": {
+            "default": "crm.{{ cloudflare_zone }}"
+          }
+        }
       },
       "env_defaults": [
         "DOMAIN_HOST=crm.{{ cloudflare_zone }}",
@@ -740,6 +1204,30 @@
         "setup_steps": "1. Click **Deploy**. Wait ~1 min.\n2. Visit the Twenty domain and sign up to create the initial workspace + admin user. Twenty keeps its own login: single sign-on is in its paid editions only.\n",
         "what_it_is": "Modern open-source CRM. Contacts, companies, opportunities, email sync, pipelines. Alternative to EspoCRM (the default CRM)."
       },
+      "env": {
+        "DB_PASSWORD": {
+          "generated": {
+            "alphabet": "alnum",
+            "length": 32
+          }
+        },
+        "DOMAIN_HOST": {
+          "setting": {
+            "default": "twenty.{{ cloudflare_zone }}"
+          }
+        },
+        "TWENTY_APP_SECRET": {
+          "generated": {
+            "alphabet": "alnum",
+            "length": 64
+          }
+        },
+        "TWENTY_HOSTNAME": {
+          "setting": {
+            "default": "twenty.{{ cloudflare_zone }}"
+          }
+        }
+      },
       "env_defaults": [
         "DOMAIN_HOST=twenty.{{ cloudflare_zone }}",
         "TWENTY_HOSTNAME=twenty.{{ cloudflare_zone }}",
@@ -794,6 +1282,48 @@
         ],
         "setup_steps": "1. Click **Deploy**. Wait ~2-3 min (several services, MinIO included).\n2. Visit the Plane domain and sign up to create the instance admin + first workspace. Plane keeps its own login: single sign-on is in its paid editions only.\n",
         "what_it_is": "Open-source project management -- issues, cycles, modules, pages, workspaces."
+      },
+      "env": {
+        "DB_PASSWORD": {
+          "generated": {
+            "alphabet": "alnum",
+            "length": 32
+          }
+        },
+        "DOMAIN_HOST": {
+          "setting": {
+            "default": "projects.{{ cloudflare_zone }}"
+          }
+        },
+        "PLANE_HOSTNAME": {
+          "setting": {
+            "default": "projects.{{ cloudflare_zone }}"
+          }
+        },
+        "PLANE_LIVE_SECRET_KEY": {
+          "generated": {
+            "alphabet": "alnum",
+            "length": 64
+          }
+        },
+        "PLANE_MINIO_ACCESS_KEY": {
+          "generated": {
+            "alphabet": "alnum",
+            "length": 20
+          }
+        },
+        "PLANE_MINIO_SECRET_KEY": {
+          "generated": {
+            "alphabet": "alnum",
+            "length": 40
+          }
+        },
+        "PLANE_SECRET_KEY": {
+          "generated": {
+            "alphabet": "alnum",
+            "length": 64
+          }
+        }
       },
       "env_defaults": [
         "DOMAIN_HOST=projects.{{ cloudflare_zone }}",
@@ -854,6 +1384,30 @@
         ],
         "setup_steps": "1. Click **Deploy**. Wait ~1 min (one binary plus its database).\n2. Visit the Windshift domain and create the first administrator account.\n3. Turn on Keycloak sign-in, once. Within a few minutes of the first deploy, the server creates Windshift's own sign-in entry in Keycloak and writes its values (`OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_ISSUER_URL`) into the Environment tab. Then, in Windshift: **Admin** -> **Single Sign-On** -> add an **OpenID Connect** provider named `keycloak` (the entry accepts the return address of that name only), paste the three values, set the scopes to `openid email profile`, and turn on account creation for new sign-ins. Until then Windshift shows no Keycloak button.\n4. *(Optional)* Add a customer portal from the admin area. Portal accounts are separate from internal accounts, and each portal carries its own name, branding, request types, and access rules.\n",
         "what_it_is": "Work management with test runs, time tracking, and branded customer portals."
+      },
+      "env": {
+        "DB_PASSWORD": {
+          "generated": {
+            "alphabet": "alnum",
+            "length": 32
+          }
+        },
+        "DOMAIN_HOST": {
+          "managed": {
+            "expr": "work.{{ cloudflare_zone }}"
+          }
+        },
+        "SSO_SECRET": {
+          "generated": {
+            "alphabet": "alnum",
+            "length": 64
+          }
+        },
+        "WINDSHIFT_HOSTNAME": {
+          "managed": {
+            "expr": "work.{{ cloudflare_zone }}"
+          }
+        }
       },
       "env_defaults": [
         "DOMAIN_HOST=work.{{ cloudflare_zone }}",
@@ -916,6 +1470,24 @@
         "setup_steps": "1. Click **Deploy**. First boot is slow (2-3 min) -- Elasticsearch and Rails migrations run on startup.\n2. Visit the Zammad domain. Complete the setup wizard (admin account, organization name), keeping the system URL it proposes: Keycloak returns the browser to that address.\n3. Within a few minutes of the first deploy, the server creates Zammad's own sign-in entry in Keycloak and writes its values (`OIDC_CLIENT_ID`, `OIDC_ISSUER_URL`; the entry is a public client, with no secret) into the Environment tab. Zammad applies them on its restart, and its login page then offers **Keycloak**.\n4. A person signing in with Keycloak for the first time gets Zammad's default role, Customer; an administrator gives the Agent role under **Users** in the admin settings. A Keycloak sign-in whose email matches an existing Zammad account is linked to that account.\n",
         "what_it_is": "Ticket-first help desk. Email, Telegram, social channels, SLAs, knowledge base. Keycloak sign-in pre-wired."
       },
+      "env": {
+        "DB_PASSWORD": {
+          "generated": {
+            "alphabet": "alnum",
+            "length": 32
+          }
+        },
+        "DOMAIN_HOST": {
+          "setting": {
+            "default": "help.{{ cloudflare_zone }}"
+          }
+        },
+        "ZAMMAD_HOSTNAME": {
+          "setting": {
+            "default": "help.{{ cloudflare_zone }}"
+          }
+        }
+      },
       "env_defaults": [
         "DOMAIN_HOST=help.{{ cloudflare_zone }}",
         "ZAMMAD_HOSTNAME=help.{{ cloudflare_zone }}",
@@ -970,6 +1542,30 @@
         ],
         "setup_steps": "1. Click **Deploy**. Wait ~2 min for the first boot (Rails migrations).\n2. Visit the Chatwoot domain. Complete the setup wizard to create the first admin account.\n3. Add channels: **Settings** -> **Inboxes** -> **Add inbox**. Pick the channel (email, website widget, WhatsApp, etc.) and follow the per-channel instructions.\n",
         "what_it_is": "Conversation-first omnichannel inbox. Email, live-chat widget, WhatsApp, Facebook, Instagram, Twitter/X in one inbox."
+      },
+      "env": {
+        "CHATWOOT_HOSTNAME": {
+          "setting": {
+            "default": "support.{{ cloudflare_zone }}"
+          }
+        },
+        "DB_PASSWORD": {
+          "generated": {
+            "alphabet": "alnum",
+            "length": 32
+          }
+        },
+        "DOMAIN_HOST": {
+          "setting": {
+            "default": "support.{{ cloudflare_zone }}"
+          }
+        },
+        "SECRET_KEY_BASE": {
+          "generated": {
+            "alphabet": "hex",
+            "length": 128
+          }
+        }
       },
       "env_defaults": [
         "DOMAIN_HOST=support.{{ cloudflare_zone }}",
@@ -1026,6 +1622,35 @@
         ],
         "setup_steps": "1. Click **Deploy**. Wait ~1 min for MariaDB + Redis + nginx + WordPress to initialize.\n2. Visit the WordPress domain. Run through the install wizard (site title, admin username, admin password, email).\n3. After the install wizard completes, the server's next configuration run (Settings > Server configuration > **Bring this server up to date**) installs and configures the curated plugin set: kadence-blocks, performance-lab + its seven feature modules (auto-sizes, dominant-color-images, embed-optimizer, image-prioritizer, optimization-detective, speculation-rules, webp-uploads), nginx-cache-purge-and-preload (NPP -- purges + re-warms the FastCGI cache via the Rank Math sitemap), redis-cache (wired to the bundled Redis), wp-mail-smtp (wired to the managed SMTP relay), wp-mail-logging, complianz-gdpr, wp-consent-api, seo-by-rank-math, and Fluent Forms.\n4. Visit `/wp-admin/admin.php?page=rank-math` and `/wp-admin/admin.php?page=cmplz-wizard` to run the Rank Math + Complianz first-run wizards. Their answers are site-specific (industry, EU/non-EU, etc.) and intentionally not pre-filled.\n5. *(Optional)* Wire `/wp-admin` login to Keycloak: **Plugins** -> **Add New** -> search `OpenID Connect Generic` -> **Install** -> **Activate**. Go to **Settings** -> **OpenID Connect Client** and fill:\n   - **Client ID:** `OIDC_CLIENT_ID` from Environment\n   - **Client Secret:** `OIDC_CLIENT_SECRET`\n   - **Login Endpoint URL:** `<OIDC_ISSUER_URL>/authorize/`\n   - **Userinfo Endpoint URL:** `<OIDC_ISSUER_URL>/userinfo/`\n   - **Token Validation Endpoint URL:** `<OIDC_ISSUER_URL>/token/`\n   - **Identity Key:** `preferred_username`\n   - **Link Existing Users:** \u2714\n\n   Save. The login page gains a **Login with OpenID Connect** button. The public-facing site stays anonymous and indexable.\n",
         "what_it_is": "Production-ready public CMS / website platform with FastCGI cache, Redis object cache, and a curated free-tier plugin set pre-installed. The site serves anonymously; admin sign-in runs on /wp-admin and can be wired to Keycloak via a plugin."
+      },
+      "env": {
+        "DB_PASSWORD": {
+          "generated": {
+            "alphabet": "alnum",
+            "length": 32
+          }
+        },
+        "DB_ROOT_PASSWORD": {
+          "generated": {
+            "alphabet": "alnum",
+            "length": 32
+          }
+        },
+        "DOMAIN_HOST": {
+          "setting": {
+            "default": "www.{{ cloudflare_zone }}"
+          }
+        },
+        "WORDPRESS_HOSTNAME": {
+          "managed": {
+            "expr": "www.{{ cloudflare_zone }}"
+          }
+        },
+        "WPMS_SMTP_PASS": {
+          "managed": {
+            "expr": "{{ smtp_password | default('') }}"
+          }
+        }
       },
       "env_defaults": [
         "DOMAIN_HOST=www.{{ cloudflare_zone }}",
@@ -1087,6 +1712,41 @@
         "setup_steps": "1. Click **Deploy**. Wait ~1 min for Postgres + n8n to initialize.\n2. Visit the n8n domain and create the owner account via the setup wizard.\n3. Invite additional users: **Settings** -> **Users** -> **Invite**. Each user receives an email invite.\n4. Start building workflows: **Workflows** -> **+ Add Workflow**. Browse the integrations library for pre-built nodes.\n",
         "what_it_is": "Workflow automation -- visually chain hundreds of integrations (APIs, apps, databases) into no-code/low-code workflows."
       },
+      "env": {
+        "DB_PASSWORD": {
+          "generated": {
+            "alphabet": "alnum",
+            "length": 32
+          }
+        },
+        "DOMAIN_HOST": {
+          "setting": {
+            "default": "automate.{{ cloudflare_zone }}"
+          }
+        },
+        "N8N_ENCRYPTION_KEY": {
+          "generated": {
+            "alphabet": "alnum",
+            "length": 64
+          }
+        },
+        "N8N_HOSTNAME": {
+          "setting": {
+            "default": "automate.{{ cloudflare_zone }}"
+          }
+        },
+        "N8N_JWT_SECRET": {
+          "generated": {
+            "alphabet": "alnum",
+            "length": 64
+          }
+        },
+        "N8N_TIMEZONE": {
+          "setting": {
+            "default": "UTC"
+          }
+        }
+      },
       "env_defaults": [
         "DOMAIN_HOST=automate.{{ cloudflare_zone }}",
         "N8N_HOSTNAME=automate.{{ cloudflare_zone }}",
@@ -1144,6 +1804,35 @@
         ],
         "setup_steps": "1. Click **Deploy**. First boot takes 5-10 min -- the site is created, MariaDB initialized, and the apps listed in `FRAPPE_APPS` installed. The `backend` container logs in Portainer track the progress.\n2. Visit the ERPNext domain. Sign in as `Administrator` / `ERPNEXT_ADMIN_PASSWORD` from the Environment tab.\n3. Complete the setup wizard: company name, fiscal year, base currency, chart of accounts template.\n4. Open the helpdesk at `/helpdesk` on the same domain, then its **Settings**:\n   - **Integrations** -> **ERPNext**: turn the integration on. Each ERPNext customer created from then on gets a linked helpdesk customer, and the two stay in sync.\n   - **Email Settings** -> **Email Accounts**: the support mailbox tickets arrive from.\n   - **App Settings** -> **Agents**: the support team.\n5. *(Optional)* Enable Keycloak SSO: **Integrations** -> **Social Login Keys** -> **New** -> **Provider: OpenID Connect**. Fill:\n   - **Client ID:** `OIDC_CLIENT_ID` from Environment\n   - **Client Secret:** `OIDC_CLIENT_SECRET`\n   - **Base URL:** `OIDC_ISSUER_URL`\n   - Save. The login page shows **Login with OpenID Connect**.\n",
         "what_it_is": "Full open-source ERP suite -- accounting, inventory, HR/payroll, CRM, manufacturing, projects, a built-in website/e-commerce module, and a helpdesk linked to its customers."
+      },
+      "env": {
+        "DB_ROOT_PASSWORD": {
+          "generated": {
+            "alphabet": "alnum",
+            "length": 32
+          }
+        },
+        "DOMAIN_HOST": {
+          "setting": {
+            "default": "erp.{{ cloudflare_zone }}"
+          }
+        },
+        "ERPNEXT_ADMIN_PASSWORD": {
+          "generated": {
+            "alphabet": "alnum",
+            "length": 24
+          }
+        },
+        "ERPNEXT_HOSTNAME": {
+          "setting": {
+            "default": "erp.{{ cloudflare_zone }}"
+          }
+        },
+        "FRAPPE_APPS": {
+          "setting": {
+            "default": "erpnext,telephony,helpdesk"
+          }
+        }
       },
       "env_defaults": [
         "DOMAIN_HOST=erp.{{ cloudflare_zone }}",
@@ -1231,6 +1920,13 @@
         ],
         "setup_steps": "1. Click **Deploy**. Wait ~30 s.\n2. Visit the Actual Budget domain. Set a server password on first visit (it's stored locally; remember it -- no recovery).\n3. Create a new budget or import an existing one (file menu -> Import from YNAB4 / YNAB5 / nYNAB).\n4. *(Optional)* Connect bank accounts via **Settings** -> **Connected Accounts** -> SimpleFIN (USD/CAD, paid) or GoCardless (EUR/GBP, free).\n",
         "what_it_is": "Self-hosted personal finance. Envelope budgeting, bank account syncing via SimpleFIN or GoCardless, encrypted end-to-end."
+      },
+      "env": {
+        "DOMAIN_HOST": {
+          "managed": {
+            "expr": "budget.{{ cloudflare_zone }}"
+          }
+        }
       },
       "env_defaults": [
         "DOMAIN_HOST=budget.{{ cloudflare_zone }}"
@@ -1320,6 +2016,30 @@
         "setup_steps": "1. Click **Deploy**. Wait ~1 min.\n2. Visit the Postiz domain and create the admin account.\n3. Add each social network's app credentials: **Settings** -> pick the network -> paste the developer-app client ID + secret from the network's developer portal. One-time per network.\n",
         "what_it_is": "Schedule and publish social media posts across Twitter/X, LinkedIn, Facebook, Instagram, YouTube, TikTok, and more."
       },
+      "env": {
+        "DB_PASSWORD": {
+          "generated": {
+            "alphabet": "alnum",
+            "length": 32
+          }
+        },
+        "DOMAIN_HOST": {
+          "setting": {
+            "default": "social.{{ cloudflare_zone }}"
+          }
+        },
+        "JWT_SECRET": {
+          "generated": {
+            "alphabet": "alnum",
+            "length": 64
+          }
+        },
+        "POSTIZ_HOSTNAME": {
+          "setting": {
+            "default": "social.{{ cloudflare_zone }}"
+          }
+        }
+      },
       "env_defaults": [
         "DOMAIN_HOST=social.{{ cloudflare_zone }}",
         "POSTIZ_HOSTNAME=social.{{ cloudflare_zone }}",
@@ -1375,6 +2095,30 @@
         ],
         "setup_steps": "1. Click **Deploy**. Wait ~1 min for the first boot (database initializes on first run).\n2. Visit the Easy!Appointments domain and complete the first-run installer (creates the initial admin account, business name, working hours).\n3. Add providers (staff with bookable calendars), services (durations + prices), and customers as needed.\n4. *(Optional)* Configure SMTP under **Settings** -> **Business Logic** -> **Email** to send appointment confirmations and reminders. Without SMTP, customers and staff still see bookings inside the app, but no emails go out.\n5. *(Optional)* Embed the booking page on a website: copy the public booking URL from **Settings** -> **Booking Settings** and link to it from a site or business listing.\n",
         "what_it_is": "Customer-facing booking app for one or many providers (clinic, salon, lessons, repair shop). Public booking page; staff calendars; email + SMS reminders; ICS export."
+      },
+      "env": {
+        "DB_PASSWORD": {
+          "generated": {
+            "alphabet": "alnum",
+            "length": 32
+          }
+        },
+        "DB_ROOT_PASSWORD": {
+          "generated": {
+            "alphabet": "alnum",
+            "length": 32
+          }
+        },
+        "DOMAIN_HOST": {
+          "setting": {
+            "default": "book.{{ cloudflare_zone }}"
+          }
+        },
+        "EASYAPPOINTMENTS_HOSTNAME": {
+          "setting": {
+            "default": "book.{{ cloudflare_zone }}"
+          }
+        }
       },
       "env_defaults": [
         "DOMAIN_HOST=book.{{ cloudflare_zone }}",
@@ -1433,6 +2177,55 @@
         ],
         "setup_steps": "1. Click **Deploy**. Wait ~2 min for the first boot (database migrations run on first start).\n2. Visit the Mautic domain and complete the first-run wizard:\n   - **Database**: pre-filled (host `db`, name `mautic`, user `mautic`, password from the `DB_PASSWORD` env var).\n   - **Admin user**: create the initial admin account.\n   - **Email settings**: paste the managed-relay SMTP credentials (host, port `587`, username, password, from-address). It can also be set later under **Settings** -> **Configuration** -> **Email Settings**.\n3. Verify the cron + worker containers are running in Portainer (Mautic needs `mautic_cron` for scheduled campaigns + `mautic_worker` for the email queue).\n4. Build a first segment: **Segments** -> **New** -> filter by contact attribute.\n5. Build a first email campaign: **Campaigns** -> **New** -> drag the **Send email** action onto a segment trigger.\n",
         "what_it_is": "Open-source marketing automation. Contact segments, email campaigns, drip sequences, landing pages, forms, lead scoring. Replaces Mailchimp / ActiveCampaign / HubSpot Marketing."
+      },
+      "env": {
+        "DB_PASSWORD": {
+          "generated": {
+            "alphabet": "alnum",
+            "length": 32
+          }
+        },
+        "DB_ROOT_PASSWORD": {
+          "generated": {
+            "alphabet": "alnum",
+            "length": 32
+          }
+        },
+        "DOMAIN_HOST": {
+          "setting": {
+            "default": "marketing.{{ cloudflare_zone }}"
+          }
+        },
+        "MAUTIC_HOSTNAME": {
+          "setting": {
+            "default": "marketing.{{ cloudflare_zone }}"
+          }
+        },
+        "SMTP_FROM_ADDRESS": {
+          "setting": {
+            "default": ""
+          }
+        },
+        "SMTP_HOST": {
+          "setting": {
+            "default": ""
+          }
+        },
+        "SMTP_PASSWORD": {
+          "setting": {
+            "default": ""
+          }
+        },
+        "SMTP_PORT": {
+          "setting": {
+            "default": "587"
+          }
+        },
+        "SMTP_USERNAME": {
+          "setting": {
+            "default": ""
+          }
+        }
       },
       "env_defaults": [
         "DOMAIN_HOST=marketing.{{ cloudflare_zone }}",
@@ -1497,6 +2290,57 @@
         "setup_steps": "1. Click **Deploy**. Wait ~1 min for the first boot (database migrations run on first start).\n2. Visit the Kimai domain. Sign in as `KIMAI_ADMIN_EMAIL` / `KIMAI_ADMIN_PASSWORD` from the Environment tab.\n3. *(Optional)* Enable Keycloak SAML SSO: **System** -> **Settings** -> **SAML** -> enable + paste:\n   - **Identity Provider Entity ID:** `<OIDC_ISSUER_URL>/protocol/saml/descriptor` (a SAML client can be minted in Keycloak on request)\n   - **Single Sign-On URL:** `<OIDC_ISSUER_URL>/protocol/saml`\n   - **X.509 Certificate:** from the Keycloak realm metadata\n   - **Username Attribute:** `username` (or `email`)\n   - Save. Local admin login keeps working as break-glass.\n4. Configure the default invoice template under **Invoices** -> **Templates** -> pick one (DOCX / HTML / PDF). Set the company logo, address, and tax rates under **System** -> **Configuration**.\n",
         "what_it_is": "Open-source time tracker. Customers, projects, activities, timesheets, multi-user teams, invoice generation from tracked time. SAML federates with Keycloak via the post-deploy admin UI."
       },
+      "env": {
+        "DB_PASSWORD": {
+          "generated": {
+            "alphabet": "alnum",
+            "length": 32
+          }
+        },
+        "DB_ROOT_PASSWORD": {
+          "generated": {
+            "alphabet": "alnum",
+            "length": 32
+          }
+        },
+        "DOMAIN_HOST": {
+          "setting": {
+            "default": "time.{{ cloudflare_zone }}"
+          }
+        },
+        "KIMAI_ADMIN_EMAIL": {
+          "setting": {
+            "default": "admin@{{ cloudflare_zone }}"
+          }
+        },
+        "KIMAI_ADMIN_PASSWORD": {
+          "generated": {
+            "alphabet": "alnum",
+            "length": 24
+          }
+        },
+        "KIMAI_APP_SECRET": {
+          "generated": {
+            "alphabet": "alnum",
+            "length": 64
+          }
+        },
+        "KIMAI_HOSTNAME": {
+          "setting": {
+            "default": "time.{{ cloudflare_zone }}"
+          }
+        },
+        "KIMAI_MAIL_FROM": {
+          "setting": {
+            "default": "time@{{ cloudflare_zone }}"
+          }
+        },
+        "KIMAI_MAIL_URL": {
+          "setting": {
+            "default": "null://localhost"
+          }
+        }
+      },
       "env_defaults": [
         "DOMAIN_HOST=time.{{ cloudflare_zone }}",
         "KIMAI_HOSTNAME=time.{{ cloudflare_zone }}",
@@ -1559,6 +2403,76 @@
         ],
         "setup_steps": "1. Click **Deploy**. Wait ~2 min for the first boot (Laravel migrations + admin user seeding via `init.sh`).\n2. **One-time: generate APP_KEY**. From a shell on the VPS:\n   ```\n   docker exec $(docker ps --filter label=com.docker.swarm.service.name=catena-invoiceninja_app --format '{{.Names}}' | head -1) \\\n     runuser -u www-data -- php artisan key:generate --show --no-interaction\n   ```\n   Copy the `base64:...` output. In Portainer: edit the **Environment variables** -> set `INVOICENINJA_APP_KEY` to the copied value, then click **Update the stack** to redeploy.\n3. Visit the Invoice Ninja domain. Sign in as `INVOICENINJA_ADMIN_EMAIL` / `INVOICENINJA_ADMIN_PASSWORD` from the Environment tab.\n4. Configure the **company profile** (Settings -> Company Details): logo, address, tax IDs (GST/QST for Canada), default currency.\n5. Wire **Stripe**: Settings -> Online Payments -> Add Gateway -> Stripe. Paste the Stripe publishable + secret keys. The client portal accepts card payments after this.\n6. *(Optional)* Configure SMTP: paste `INVOICENINJA_SMTP_*` in the Environment tab, click Redeploy. Mail send fails silently into the queue until SMTP is wired.\n",
         "what_it_is": "Open-source invoicing with Stripe + PayPal payment gateways, recurring billing, expense tracking, client portal for online payment. Self-hosted gets all Pro + Enterprise features."
+      },
+      "env": {
+        "DB_PASSWORD": {
+          "generated": {
+            "alphabet": "alnum",
+            "length": 32
+          }
+        },
+        "DB_ROOT_PASSWORD": {
+          "generated": {
+            "alphabet": "alnum",
+            "length": 32
+          }
+        },
+        "DOMAIN_HOST": {
+          "setting": {
+            "default": "invoice.{{ cloudflare_zone }}"
+          }
+        },
+        "INVOICENINJA_ADMIN_EMAIL": {
+          "setting": {
+            "default": "admin@{{ cloudflare_zone }}"
+          }
+        },
+        "INVOICENINJA_ADMIN_PASSWORD": {
+          "generated": {
+            "alphabet": "alnum",
+            "length": 24
+          }
+        },
+        "INVOICENINJA_APP_KEY": {
+          "setting": {
+            "default": ""
+          }
+        },
+        "INVOICENINJA_HOSTNAME": {
+          "setting": {
+            "default": "invoice.{{ cloudflare_zone }}"
+          }
+        },
+        "INVOICENINJA_MAIL_FROM": {
+          "setting": {
+            "default": "invoice@{{ cloudflare_zone }}"
+          }
+        },
+        "INVOICENINJA_MAIL_FROM_NAME": {
+          "setting": {
+            "default": "Invoicing"
+          }
+        },
+        "INVOICENINJA_SMTP_HOST": {
+          "setting": {
+            "default": ""
+          }
+        },
+        "INVOICENINJA_SMTP_PASSWORD": {
+          "setting": {
+            "default": ""
+          }
+        },
+        "INVOICENINJA_SMTP_PORT": {
+          "setting": {
+            "default": "587"
+          }
+        },
+        "INVOICENINJA_SMTP_USERNAME": {
+          "setting": {
+            "default": ""
+          }
+        }
       },
       "env_defaults": [
         "DOMAIN_HOST=invoice.{{ cloudflare_zone }}",
@@ -1624,6 +2538,53 @@
         ],
         "setup_steps": "1. **Before deploy -- DNS + relay.** Mail needs DNS records and an outbound relay set up first. The MX, SPF, DKIM, DMARC, reverse-DNS and MTA-STS / TLS-RPT records are set up for the domain, and the relay credentials pasted in, before the first deploy.\n2. **Deploy** is the only step. The server completes the mail wiring on its own -- the TLS certificate, the postmaster mailbox, single sign-on, spam and virus filtering -- within about forty minutes of the deploy, or of the domain being applied on a server that has none yet.\n3. Webmail then answers at its address (`webmail.` followed by the domain). The login goes through Keycloak -- one account for every app in the suite. There is no separate mail password.\n4. Mailboxes are created automatically for staff and client users from Keycloak. A new user can sign in to webmail as soon as their account exists.\n",
         "what_it_is": "Self-hosted email -- inbox storage on the VPS (Postfix + Dovecot + Rspamd) with Roundcube webmail and Keycloak single sign-on. Outbound requires an SMTP relay through a reputable provider (set up before deploy) so messages are not flagged as spam."
+      },
+      "env": {
+        "DOMAIN_HOST": {
+          "setting": {
+            "default": "webmail.{{ cloudflare_zone }}"
+          }
+        },
+        "MAIL_DOMAIN": {
+          "setting": {
+            "default": "{{ cloudflare_zone }}"
+          }
+        },
+        "MAIL_HOSTNAME": {
+          "setting": {
+            "default": "mail.{{ cloudflare_zone }}"
+          }
+        },
+        "OIDC_INTROSPECTION_URL": {
+          "setting": {
+            "default": "https://{{ keycloak_hostname | default('auth.' ~ cloudflare_zone) }}/realms/{{ keycloak_realm | default('vps') }}/protocol/openid-connect/token/introspect"
+          }
+        },
+        "RELAY_HOST": {
+          "setting": {
+            "default": ""
+          }
+        },
+        "RELAY_PASSWORD": {
+          "managed": {
+            "expr": "{{ mailserver_relay_password }}"
+          }
+        },
+        "RELAY_PORT": {
+          "setting": {
+            "default": "587"
+          }
+        },
+        "RELAY_USER": {
+          "setting": {
+            "default": ""
+          }
+        },
+        "WEBMAIL_HOSTNAME": {
+          "setting": {
+            "default": "webmail.{{ cloudflare_zone }}"
+          }
+        }
       },
       "env_defaults": [
         "DOMAIN_HOST=webmail.{{ cloudflare_zone }}",

@@ -17,13 +17,6 @@
       "service": "frontend",
       "port": 8080
     },
-    "env_defaults": [
-      "DOMAIN_HOST=erp.{{ cloudflare_zone }}",
-      "ERPNEXT_HOSTNAME=erp.{{ cloudflare_zone }}",
-      "ERPNEXT_ADMIN_PASSWORD={{ lookup('password', '/dev/null length=24 chars=ascii_letters,digits') }}",
-      "DB_ROOT_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
-      "FRAPPE_APPS=erpnext,telephony,helpdesk"
-    ],
     "bench": {
       "pack": "mariadb",
       "hostname_baked": true

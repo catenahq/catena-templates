@@ -22,7 +22,7 @@ rendered: the per-app README, the Portainer App Templates v3
   `index.html`. Editing one of those directly fails CI.
 - **The app carries its own declarations.** What the server needs to back
   up, update and restore an app is the `x-catena` block at the root of the
-  app's compose. Portainer stores the compose byte for byte, so a deployed
+  app's compose, its env included. Portainer stores the compose byte for byte, so a deployed
   app keeps the block it was deployed with and the server does not read
   this catalog to manage it. A merge to `main` reaches every new deploy.
 - **One directory per template.** `blueprints/<id>/` is the unit

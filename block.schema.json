@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://raw.githubusercontent.com/catenahq/catena-templates/main/block.schema.json",
   "title": "Catena app declaration block",
-  "description": "The x-catena block at the top level of blueprints/<id>/docker-compose.yml: what the host needs to update, back up and restore the deployed app without reading the catalog. Portainer stores the compose byte for byte, so the block travels with the app. catena-admin payload/engines/appdecl reads it. A block holds no $ (Docker interpolates it when it deploys the file) and names no image of its file (an update rewrites those).",
+  "description": "The x-catena block at the top level of blueprints/<id>/docker-compose.yml: what the host needs to update, back up and restore the deployed app without reading the catalog. Portainer stores the compose byte for byte, so the block travels with the app. catena-admin payload/engines/appdecl reads it. A block holds no $ (Docker interpolates it when it deploys the file), except in a hooks script body where each $ is written $$, and names no image of its file (an update rewrites those).",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -10,7 +10,7 @@
   ],
   "properties": {
     "schema": {
-      "const": 1,
+      "const": 2,
       "description": "The block format."
     },
     "lifecycle": {
@@ -192,15 +192,186 @@
         }
       }
     },
-    "managed_env": {
+    "env": {
       "type": "object",
       "propertyNames": {
-        "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+        "allOf": [
+          { "$ref": "#/$defs/env_key" },
+          { "not": { "pattern": "^([Dd][Oo][Cc][Kk][Ee][Rr]_|[Ll][Dd]_)" } },
+          { "not": { "pattern": "^([Pp][Aa][Tt][Hh]|[Hh][Oo][Mm][Ee])$" } },
+          { "not": { "pattern": "_[Pp][Rr][Oo][Xx][Yy]$" } }
+        ]
       },
       "additionalProperties": {
-        "type": "string"
+        "oneOf": [
+          { "required": ["setting"] },
+          { "required": ["generated"] },
+          { "required": ["managed"] }
+        ],
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "setting": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["default"],
+            "description": "A value a person may change. default is its first value; the deploy form shows label when the setting has one and a name made from the key otherwise.",
+            "properties": {
+              "default": { "type": "string" },
+              "label": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["en", "fr"],
+                "properties": {
+                  "en": { "type": "string", "minLength": 1 },
+                  "fr": { "type": "string", "minLength": 1 }
+                }
+              }
+            }
+          },
+          "generated": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["length", "alphabet"],
+            "description": "A secret the host mints on the first deploy: length characters of alphabet.",
+            "properties": {
+              "length": { "type": "integer", "minimum": 1, "maximum": 256 },
+              "alphabet": { "enum": ["alnum", "hex"] }
+            }
+          },
+          "managed": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["expr"],
+            "description": "A key the host's dashboard-sync re-injects into a running stack whenever it drifts from what the panel renders (a rotated credential, a changed domain), with the expression its value is rendered from. In the public catalog it renders to the operator-wired sentinel, never to a real value.",
+            "properties": {
+              "expr": { "type": "string", "minLength": 1 }
+            }
+          }
+        }
       },
-      "description": "Keys the host's dashboard-sync re-injects into a running stack whenever they drift from what the panel renders (a rotated credential, a changed domain), each with the expression its value is rendered from. In the public catalog each renders to the operator-wired sentinel, never to a real value. The key is also listed in the source's env_defaults, with no value."
+      "description": "The application's environment, in the order the deploy form shows it. Each key is exactly one of a setting, a generated secret or a managed expression."
+    },
+    "version_from": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The service whose image tag is the application's version. Empty is the main address's service. It names a service of the file."
+    },
+    "hooks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["service"],
+      "anyOf": [
+        { "required": ["configure"] },
+        { "required": ["verify"] },
+        { "required": ["users"] }
+      ],
+      "description": "Scripts the host runs inside one service: configure after a deploy, verify that the application works, users to seed its accounts. Each body is a list of argv; a $ in one is written $$, which Docker reads back as $.",
+      "properties": {
+        "service": { "type": "string", "minLength": 1 },
+        "user": { "type": "string" },
+        "configure": { "$ref": "#/$defs/argv_list" },
+        "verify": { "$ref": "#/$defs/argv_list" },
+        "users": { "$ref": "#/$defs/argv_list" },
+        "timeout_seconds": { "type": "integer", "minimum": 1, "maximum": 3600 }
+      }
+    },
+    "needs": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "What the application needs of the host: a certificate written into one of its volumes, and DNS records in its zone.",
+      "properties": {
+        "certificate": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["names", "volume"],
+          "properties": {
+            "names": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+            "volume": { "type": "string", "minLength": 1 }
+          }
+        },
+        "dns": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["type", "name", "value"],
+            "properties": {
+              "type": { "enum": ["A", "AAAA", "CNAME", "MX", "TXT", "SRV"] },
+              "name": { "type": "string", "minLength": 1 },
+              "value": { "type": "string", "minLength": 1 },
+              "priority": { "type": "integer", "minimum": 0, "maximum": 65535 }
+            }
+          }
+        }
+      }
+    },
+    "data": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["volume", "upgrade"],
+        "properties": {
+          "volume": { "type": "string", "minLength": 1 },
+          "upgrade": { "enum": ["dump_restore", "in_place"] }
+        }
+      },
+      "description": "Per service, the volume it keeps its data in and how that data upgrades: a dump replayed after the update, or in place."
+    },
+    "write_hold": {
+      "enum": ["lifecycle", "backup_mode", "edge"],
+      "description": "What holds the application's writers still while a backup or an update runs. Absent, the host derives it."
+    },
+    "images": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "policy": { "enum": ["off", "patch", "minor", "major"] },
+          "rule": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind"],
+            "description": "How the tags of the image read as versions (catena-admin payload/engines/tagrule). A tag_pattern is matched against the whole tag, so it carries no anchors, and a block holds no $.",
+            "properties": {
+              "kind": { "enum": ["semver", "partial_line", "build_suffix", "pattern"] },
+              "tag_pattern": { "type": "string" },
+              "order": { "type": "array", "items": { "type": "integer", "minimum": 1 } },
+              "flat": { "type": "boolean" },
+              "registry": { "enum": ["docker.io", "ghcr.io", "quay.io", "github"] },
+              "repo": { "type": "string" },
+              "stops": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+              "migrate_from": { "type": "string" }
+            }
+          }
+        }
+      },
+      "description": "Per service, the bump policy of its image and the rule that reads its tags."
+    },
+    "secrets": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/env_key" },
+      "description": "The store secrets the managed expressions may read."
+    },
+    "stops": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "description": "Application versions an update must pass through."
+    },
+    "egress": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 },
+      "description": "The hostnames the application calls."
+    },
+    "privileges": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "enum": ["host_network", "docker_socket"] },
+      "description": "The host privileges the application asks for."
     }
   },
   "$defs": {
