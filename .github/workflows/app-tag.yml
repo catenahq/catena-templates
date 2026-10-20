@@ -1,0 +1,65 @@
+name: app-tag
+
+# Tags an app `<app>/<version>-<revision>` once the bench lifecycle has passed
+# it on a commit of main: the bench posts the commit status `app-tests`, and a
+# success on a commit main contains is the trigger. The version and revision
+# come from lib/versions.py. The tag is created through the API with the
+# catenahq-renovate GitHub App's token (secrets RENOVATE_APP_CLIENT_ID and
+# RENOVATE_APP_PRIVATE_KEY), the one actor the tag ruleset lets create tags.
+
+on:
+  status:
+
+permissions:
+  contents: read
+
+# One run at a time: two would count the same tags for the next revision.
+concurrency:
+  group: app-tag
+  cancel-in-progress: false
+
+jobs:
+  tag:
+    if: >-
+      github.event.state == 'success' &&
+      github.event.context == 'app-tests' &&
+      contains(github.event.branches.*.name, 'main')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Mint a GitHub App token that can create tags
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ secrets.RENOVATE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RENOVATE_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          permission-contents: write
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          ref: ${{ github.event.sha }}
+          fetch-depth: 2
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+      - name: Tag each app the commit changed
+        env:
+          SHA: ${{ github.event.sha }}
+          REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          set -euo pipefail
+          git diff --name-only "$SHA^" "$SHA" > "$RUNNER_TEMP/paths.txt"
+          uv run build/app_check.py changed < "$RUNNER_TEMP/paths.txt" > "$RUNNER_TEMP/ids.txt"
+          for app in $(cat "$RUNNER_TEMP/ids.txt"); do
+            # An app the commit deletes has nothing to tag.
+            if [ ! -f "blueprints/$app/docker-compose.yml" ]; then continue; fi
+            refs="$(gh api --paginate "repos/$REPO/git/matching-refs/tags/$app/" | jq -s 'add // []')"
+            # The status can arrive more than once for a commit.
+            if jq -e --arg sha "$SHA" 'any(.[]; .object.sha == $sha)' <<< "$refs" > /dev/null; then
+              echo "$app is already tagged at $SHA"
+              continue
+            fi
+            tag="$(jq -r '.[].ref | ltrimstr("refs/tags/")' <<< "$refs" | uv run build/versions.py next "$app")"
+            gh api -X POST "repos/$REPO/git/refs" -f "ref=refs/tags/$tag" -f "sha=$SHA" > /dev/null
+            echo "tagged $tag"
+          done
