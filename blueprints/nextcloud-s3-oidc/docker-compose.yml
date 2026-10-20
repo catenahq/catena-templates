@@ -16,7 +16,7 @@ x-catena:
       - ["php", "occ", "maintenance:mode", "--on"]
     post:
       - ["php", "occ", "maintenance:mode", "--off"]
-    timeout_seconds: 30
+    timeout_seconds: 60
   s3_reconcile:
     service: "app"
     user: "www-data"

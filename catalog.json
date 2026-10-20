@@ -144,7 +144,7 @@
           ]
         ],
         "service": "app",
-        "timeout_seconds": 30,
+        "timeout_seconds": 60,
         "user": "www-data"
       },
       "requires_catena": "0.11.0",
