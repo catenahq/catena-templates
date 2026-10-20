@@ -1,6 +1,6 @@
 services:
   easyappointments:
-    image: alextselegidis/easyappointments:1.6.0
+    image: alextselegidis/easyappointments:1.6.1
     deploy:
       restart_policy:
         condition: any
