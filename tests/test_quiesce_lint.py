@@ -413,8 +413,8 @@ def test_a_block_with_a_dollar_or_an_image_is_refused(
     (('      - "vps.auth.oidc.redirect_uris=https://${DOMAIN_HOST}/cb"\n', ""),
      "synthetic-bad:app: vps.auth.oidc=true without vps.auth.oidc.redirect_uris"),
     (('      - "vps.auth.oidc=true"\n', '      - "vps.auth.oidc=true"\n'
-      '      - "vps.auth.oidc.scopes=openid email"\n'),
-     "synthetic-bad:app: vps.auth.oidc.scopes is not a sign-in label the host reads"),
+      '      - "vps.auth.oidc.audience=app"\n'),
+     "synthetic-bad:app: vps.auth.oidc.audience is not a sign-in label the host reads"),
 ])
 def test_a_sign_in_label_the_host_cannot_use_is_refused(
         monkeypatch, tmp_path, capsys, edit, needle):
@@ -647,3 +647,41 @@ def test_the_names_an_expression_reads():
     assert L.expression_names(
         "{{ lookup('password', '/dev/null length=8 chars=hexdigits') | lower }}") == set()
     assert L.expression_names("plain") == set()
+
+
+def _signin_entry(tmp_path, labels):
+    from types import SimpleNamespace
+    compose = tmp_path / "docker-compose.yml"
+    compose.write_text(yaml.safe_dump({"services": {"web": {"labels": labels}}}), encoding="utf-8")
+    return SimpleNamespace(compose_path=compose, slug="demo", env={})
+
+
+def _signin(extra):
+    return ["vps.route.host=a.example.test", "vps.auth.oidc=true",
+            "vps.auth.oidc.redirect_uris=https://a.example.test/cb", *extra]
+
+
+def test_the_scopes_and_introspect_labels_are_labels_the_host_reads(tmp_path):
+    entry = _signin_entry(tmp_path, _signin(
+        ["vps.auth.oidc.scopes=offline_access, api", "vps.auth.oidc.introspect=true"]))
+    assert L.lint_signin(entry) == []
+
+
+def test_a_scope_that_is_no_name_and_introspection_on_a_public_entry_are_refused(tmp_path):
+    errs = L.lint_signin(_signin_entry(tmp_path, _signin(["vps.auth.oidc.scopes=a b,../x"])))
+    assert any("'a b'" in e for e in errs) and any("'../x'" in e for e in errs)
+    errs = L.lint_signin(_signin_entry(tmp_path, _signin(
+        ["vps.auth.oidc.introspect=true", "vps.auth.oidc.public=true"])))
+    assert any("introspect=true on a public sign-in entry" in e for e in errs)
+
+
+def test_users_group_needs_a_users_hook_and_external_volumes_is_a_privilege():
+    import jsonschema
+    schema = json.loads((ROOT / "block.schema.json").read_text(encoding="utf-8"))
+    base = {"schema": 2, "hooks": {"service": "app", "users": [["php", "occ"]], "users_group": "staff/sales"}}
+    jsonschema.validate(base, schema)
+    jsonschema.validate({"schema": 2, "privileges": ["external_volumes"]}, schema)
+    for bad in ({"service": "app", "configure": [["php"]], "users_group": "staff"},
+                {"service": "app", "users": [["php"]], "users_group": "staff//x"}):
+        with pytest.raises(jsonschema.ValidationError):
+            jsonschema.validate({"schema": 2, "hooks": bad}, schema)

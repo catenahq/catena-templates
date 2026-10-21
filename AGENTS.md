@@ -210,7 +210,9 @@ it.
    quiesce service check, the versioned volume check (a top-level volume
    that only long-running services other than a database mount), the
    sign-in labels (on the main address's service, `redirect_uris` beside
-   `vps.auth.oidc=true`, and no catalog default for the three `OIDC_*`
+   `vps.auth.oidc=true`, `vps.auth.oidc.scopes` holding client scope names,
+   `vps.auth.oidc.introspect` never beside `vps.auth.oidc.public`, and no
+   catalog default for the three `OIDC_*`
    values the host's settings sync writes), an imported entry's pending
    findings (no app checker error, and no record that the checker did not
    run), the Postgres pin check (a partial pin declares its `partial_line`

@@ -273,8 +273,14 @@
         "configure": { "$ref": "#/$defs/argv_list" },
         "verify": { "$ref": "#/$defs/argv_list" },
         "users": { "$ref": "#/$defs/argv_list" },
+        "users_group": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9 ._-]*(/[A-Za-z0-9][A-Za-z0-9 ._-]*)*$",
+          "description": "The path of the realm group (staff, or staff/sales) whose members, with those of its subgroups, the users hook receives on its standard input as a JSON list when they change."
+        },
         "timeout_seconds": { "type": "integer", "minimum": 1, "maximum": 3600 }
-      }
+      },
+      "dependentRequired": { "users_group": ["users"] }
     },
     "needs": {
       "type": "object",
@@ -374,7 +380,7 @@
     "privileges": {
       "type": "array",
       "uniqueItems": true,
-      "items": { "enum": ["host_network", "docker_socket"] },
+      "items": { "enum": ["host_network", "docker_socket", "external_volumes"] },
       "description": "The host privileges the application asks for."
     }
   },

@@ -214,7 +214,10 @@ def lint_versioned_volumes(entry, volumes: list[str]) -> list[str]:
 # (payload/lib/app_intent.py, payload/lib/oidc_clients.py).
 SIGNIN_LABELS = frozenset({
     "vps.auth.oidc", "vps.auth.oidc.redirect_uris", "vps.auth.oidc.public",
+    "vps.auth.oidc.scopes", "vps.auth.oidc.introspect",
 })
+# A client scope name oidc_clients.SCOPE_RE accepts.
+SIGNIN_SCOPE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$")
 SIGNIN_KEYS = ("OIDC_CLIENT_ID", "OIDC_CLIENT_SECRET", "OIDC_ISSUER_URL")
 _TRUE = ("true", "yes", "1", "on")
 
@@ -266,6 +269,15 @@ def lint_signin(entry) -> list[str]:
             errors.append(f"{label}: vps.auth.oidc=true without "
                           f"vps.auth.oidc.redirect_uris; the sign-in entry would "
                           f"accept no return address")
+        if labels.get("vps.auth.oidc.introspect", "").strip().lower() in _TRUE and \
+                labels.get("vps.auth.oidc.public", "").strip().lower() in _TRUE:
+            errors.append(f"{label}: vps.auth.oidc.introspect=true on a public sign-in "
+                          f"entry; a public entry has no secret to authenticate with, "
+                          f"so the host refuses it")
+        for scope in (s.strip() for s in labels.get("vps.auth.oidc.scopes", "").split(",")):
+            if scope and not SIGNIN_SCOPE.match(scope):
+                errors.append(f"{label}: vps.auth.oidc.scopes names {scope!r}, which is "
+                              f"not a client scope name (letters, digits and . _ : -)")
     if asks:
         for key in SIGNIN_KEYS:
             if key in entry.env:
