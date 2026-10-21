@@ -6,6 +6,11 @@ name: app-ci
 # change touches: its stack file, its licence, its images' CVEs, provenance and
 # files. App ids come from changed file names, so they reach scripts through
 # env: only, and the plan job refuses any id outside the plain slug form.
+#
+# A pull request is judged on what it introduces. `repo` runs its checks
+# through contracts' new-failures-only action, which fails only when the base
+# commit passes them; `scope` reads the change against its base; the per-app
+# jobs check each changed app absolutely, the image scan included.
 
 on:
   pull_request:
@@ -22,15 +27,18 @@ jobs:
         with:
           persist-credentials: false
       - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
-      - name: make (render, lint, test)
-        run: make
-      - name: catena-applint over the catalog
+      - name: make (render, lint, test) and catena-applint over the catalog
         # The checker ships in the public catena-admin image, so a fork's run
         # needs no credential to get it. Two nodes, as every catalog check runs.
-        run: |
-          docker run --rm -v "$PWD:/work:ro" \
-            --entrypoint /usr/local/share/catena-ee/bin/catena-applint \
-            ghcr.io/catenahq/catena-admin:latest --catalog --nodes 2 /work/blueprints
+        uses: catenahq/contracts/.github/actions/new-failures-only@main
+        with:
+          working-directory: ${{ github.workspace }}
+          repo-path: ${{ github.workspace }}
+          run: |
+            make
+            docker run --rm -v "$PWD:/work:ro" \
+              --entrypoint /usr/local/share/catena-ee/bin/catena-applint \
+              ghcr.io/catenahq/catena-admin:latest --catalog --nodes 2 /work/blueprints
 
   scope:
     # One pull request changes one app, so one merge is one tag.

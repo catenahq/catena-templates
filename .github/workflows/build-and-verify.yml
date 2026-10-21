@@ -1,5 +1,11 @@
 name: build-and-verify
 
+# A push to a branch keeps the absolute gate. A pull request is judged on what
+# it introduces: every job but schema and prose runs its gate through
+# contracts' new-failures-only action, which fails only on failures the base
+# commit does not have, and the prose gate looks at the files the change
+# touches.
+
 on:
   # Every pushed branch. Renovate and engine-bump branches always carry a pull
   # request, which tests each push to them.
@@ -19,16 +25,19 @@ jobs:
         with:
           persist-credentials: false
       - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
-      - name: Render
-        run: uv run build/render.py
-      - name: Verify no drift between sources/ and the generated artifacts
-        run: |
-          if ! git diff --exit-code blueprints templates.json catalog.json index.html; then
-            echo ""
-            echo "render output drifted from committed artifacts."
-            echo "Run 'make render' locally, commit the diff, push."
-            exit 1
-          fi
+      - name: Render and verify no drift between sources/ and the generated artifacts
+        uses: catenahq/contracts/.github/actions/new-failures-only@main
+        with:
+          working-directory: ${{ github.workspace }}
+          repo-path: ${{ github.workspace }}
+          run: |
+            uv run build/render.py
+            if ! git diff --exit-code blueprints templates.json catalog.json index.html; then
+              echo ""
+              echo "render output drifted from committed artifacts."
+              echo "Run 'make render' locally, commit the diff, push."
+              exit 1
+            fi
 
   schema:
     runs-on: ubuntu-latest
@@ -62,11 +71,22 @@ jobs:
         with:
           node-version: "24"
       - name: check:unicode
-        working-directory: ./catena-templates
-        run: node ../contracts/scripts/check-unicode.mjs
+        # A finding is its file, its kind and its line's text: the sed drops
+        # the line number, so a moved line is not a new finding.
+        uses: catenahq/contracts/.github/actions/new-failures-only@main
+        with:
+          working-directory: ${{ github.workspace }}/catena-templates
+          repo-path: ${{ github.workspace }}/catena-templates
+          failure-lines: '^  [^ :]+: .*'
+          run: |
+            node ../contracts/scripts/check-unicode.mjs 2>&1 \
+              | sed -E '/^  [^ :]+:[0-9]+: /{N;s/^(  [^ :]+):[0-9]+: ([^\n]*)\n +(.*)$/\1: \2 | \3/}'
       - name: Repo rules (no tracked env file; .gitignore carries the env rule)
-        working-directory: ./catena-templates
-        run: node ../contracts/scripts/check-repo-rules.mjs
+        uses: catenahq/contracts/.github/actions/new-failures-only@main
+        with:
+          working-directory: ${{ github.workspace }}/catena-templates
+          repo-path: ${{ github.workspace }}/catena-templates
+          run: node ../contracts/scripts/check-repo-rules.mjs
       # Pinned in contracts/.vale-version, which check-prose.mjs also
       # reads and enforces: the grammars decide which comments are
       # visible, so a different version is a different gate.
@@ -101,12 +121,19 @@ jobs:
         with:
           persist-credentials: false
       - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
-      - name: pytest tests/
-        run: uv run --with pytest --with jsonschema --with pyyaml pytest tests/ -q
-      - name: lint quiesce and lifecycle commands against the catalog
-        run: uv run build/lint_quiesce.py
-      - name: lint postgres pins the update engine can order
-        run: uv run build/lint_postgres_pins.py
+      - name: pytest, quiesce lint and postgres pin lint
+        # Three gates in one run: a failure line of one must not hide a new
+        # failure of another, so the exit status decides.
+        uses: catenahq/contracts/.github/actions/new-failures-only@main
+        with:
+          working-directory: ${{ github.workspace }}
+          repo-path: ${{ github.workspace }}
+          run: |
+            rc=0
+            uv run --with pytest --with jsonschema --with pyyaml pytest tests/ -q || rc=1
+            uv run build/lint_quiesce.py || rc=1
+            uv run build/lint_postgres_pins.py || rc=1
+            exit $rc
 
   duplication:
     # Copy-paste ratchet: .jscpd.json carries the baseline threshold;
@@ -122,4 +149,8 @@ jobs:
         with:
           node-version: "24"
       - name: jscpd (threshold in .jscpd.json)
-        run: npx --yes jscpd@4 --silent
+        uses: catenahq/contracts/.github/actions/new-failures-only@main
+        with:
+          working-directory: ${{ github.workspace }}
+          repo-path: ${{ github.workspace }}
+          run: npx --yes jscpd@4 --silent
