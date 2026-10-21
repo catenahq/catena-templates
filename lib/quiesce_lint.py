@@ -98,11 +98,28 @@ ALLOWED_HOOK_COMMANDS = ALLOWED_MIGRATE_COMMANDS | {"sh", "bash", "python", "pyt
 # The argv lists a hooks block can carry.
 HOOK_LISTS = ("configure", "verify", "users")
 
-# Store secrets no managed expression reads: they open the host itself.
+# Store secrets no managed expression reads: they open the host itself. The
+# same list is the root-side authority in catena-admin payload/engines/appenv
+# (DeniedSecrets), and a test there holds the two equal.
 DENIED_SECRETS = frozenset({
-    "admin_password", "catena_license", "cloudflare_api_token", "keycloak_admin_password",
-    "portainer_admin_password", "restic_password", "vault_password",
+    "admin_password", "backup_restic_password", "backup_s3_access_key", "backup_s3_secret_key",
+    "beszel_gate_cookie_secret", "beszel_oidc_client_secret", "beszel_universal_token",
+    "catena_admin_gate_cookie_secret", "catena_admin_gate_secret", "catena_admin_panel_client_secret",
+    "catena_admin_session_key", "catena_identity_probe_client_secret", "catena_license",
+    "catena_marketplace_token", "catena_postgres_password", "cloudflare_api_token",
+    "cloudflare_api_tokens", "console_recovery_password", "dashboard_sync_client_secret",
+    "gatus_gate_cookie_secret", "headscale_api_key", "headscale_preauth_key",
+    "healthchecks_api_key_readonly", "healthchecks_api_key_readwrite",
+    "healthchecks_gate_cookie_secret", "healthchecks_ping_key", "healthchecks_secret_key",
+    "healthchecks_superuser_password", "keycloak_automation_client_secret", "keycloak_db_password",
+    "oauth2_proxy_client_secret", "oauth2_proxy_cookie_secret", "portainer_api_key",
+    "portainer_gate_cookie_secret", "storage_bulk_password", "storage_bulk_username",
+    "tailscale_oauth_client_id", "tailscale_oauth_client_secret", "zap_api_key",
 })
+
+# Names that start like one of these are denied too: one cookie secret per
+# domain.
+DENIED_SECRET_PREFIXES = ("oauth2_proxy_cookie_secret_",)
 
 # A name in an expression is a store secret when it ends like one (readme.py
 # recognises them the same way).
@@ -326,7 +343,7 @@ def lint_managed_secrets(entry) -> list[str]:
     for key, expr in entry.managed_env.items():
         label = f"{entry.slug}.x-catena.env.{key}.managed.expr"
         for name in sorted(expression_names(expr)):
-            if name in DENIED_SECRETS:
+            if name in DENIED_SECRETS or name.startswith(DENIED_SECRET_PREFIXES):
                 errors.append(f"{label}: reads {name!r}, a secret no managed expression may read")
             elif SECRET_NAME.search(name) and name not in allowed:
                 errors.append(f"{label}: reads the store secret {name!r}, which the block's "
