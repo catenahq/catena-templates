@@ -17,6 +17,9 @@ x-catena:
     migrate:
       - ["node", "node_modules/.bin/sequelize", "db:migrate", "--env", "production-ssl-disabled"]
     timeout_seconds: 900
+  images:
+    db:
+      rule: {kind: partial_line}
 
 services:
   outline:

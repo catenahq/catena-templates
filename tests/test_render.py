@@ -105,7 +105,7 @@ def test_catalog_json_carries_what_portainer_cannot():
     carries its origin where a curated one carries its bench pack and its
     measured peak."""
     doc = json.loads((ROOT / "catalog.json").read_text())
-    assert doc["postgres_default_image"].startswith("postgres:")
+    assert "postgres_default_image" not in doc
     assert set(doc["sizing"]) == {
         "last_measured_at", "measurement_host", "measurement_method",
     }

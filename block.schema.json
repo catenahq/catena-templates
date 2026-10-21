@@ -343,7 +343,11 @@
               "registry": { "enum": ["docker.io", "ghcr.io", "quay.io", "github"] },
               "repo": { "type": "string" },
               "stops": { "type": "array", "items": { "type": "string", "minLength": 1 } },
-              "migrate_from": { "type": "string" }
+              "migrate_from": { "type": "string" },
+              "feed": { "enum": ["compose"] },
+              "leader": { "type": "string", "minLength": 1 },
+              "compose_url": { "type": "string", "minLength": 1 },
+              "compose_service": { "type": "string", "minLength": 1 }
             }
           }
         }

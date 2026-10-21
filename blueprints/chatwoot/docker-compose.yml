@@ -9,6 +9,9 @@ x-catena:
       generated: {length: 128, alphabet: hex}
     DB_PASSWORD:
       generated: {length: 32, alphabet: alnum}
+  images:
+    db:
+      rule: {kind: partial_line}
 
 services:
   rails:

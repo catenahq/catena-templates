@@ -21,6 +21,21 @@ x-catena:
     after_update:
       - ["bench", "set-maintenance-mode", "off"]
     timeout_seconds: 3600
+  images:
+    backend:
+      rule: {kind: build_suffix, registry: ghcr.io, repo: catenahq/erpnext, tag_pattern: 'v16\.\d+\.\d+-\d+'}
+    frontend:
+      rule: {kind: build_suffix, registry: ghcr.io, repo: catenahq/erpnext, tag_pattern: 'v16\.\d+\.\d+-\d+'}
+    websocket:
+      rule: {kind: build_suffix, registry: ghcr.io, repo: catenahq/erpnext, tag_pattern: 'v16\.\d+\.\d+-\d+'}
+    queue-default:
+      rule: {kind: build_suffix, registry: ghcr.io, repo: catenahq/erpnext, tag_pattern: 'v16\.\d+\.\d+-\d+'}
+    queue-short:
+      rule: {kind: build_suffix, registry: ghcr.io, repo: catenahq/erpnext, tag_pattern: 'v16\.\d+\.\d+-\d+'}
+    queue-long:
+      rule: {kind: build_suffix, registry: ghcr.io, repo: catenahq/erpnext, tag_pattern: 'v16\.\d+\.\d+-\d+'}
+    scheduler:
+      rule: {kind: build_suffix, registry: ghcr.io, repo: catenahq/erpnext, tag_pattern: 'v16\.\d+\.\d+-\d+'}
 
 x-common: &frappe-env
   SITE_NAME: ${ERPNEXT_HOSTNAME}

@@ -177,10 +177,6 @@
             }
           }
         },
-        "postgres_image_override": {
-          "type": "string",
-          "description": "Only for an app whose upstream cannot run sources/_meta.json postgres_default_image."
-        },
         "bench": {
           "type": "object",
           "additionalProperties": false,

@@ -568,7 +568,7 @@ def _synthetic_sources(monkeypatch, tmp_path, catena: dict,
     }
     (sources / "synthetic-bad.json").write_text(json.dumps(doc))
     (sources / model.META_NAME).write_text(
-        json.dumps({"order": ["synthetic-bad"], "postgres_default_image": "postgres:18.4-alpine"})
+        json.dumps({"order": ["synthetic-bad"]})
     )
     monkeypatch.setattr(model, "SOURCES", sources)
     monkeypatch.setattr(model, "BLUEPRINTS", tmp_path / "blueprints")

@@ -40,9 +40,12 @@ for layout, consumer model, and BASE URL setup.
   render puts it in the Portainer description and the README, so the
   prose never repeats it.
 - Every image pin is a version the update engine can order (catena-admin
-  `payload/engines/stackupdate`): no floating or partial tags. The engine
-  moves the pins; a template whose tag scheme it cannot order yet gets an
-  override there first.
+  `payload/engines/stackupdate`): no floating tags. A tag scheme the generic
+  rules do not read (a partial `18.6-alpine`, a build number, a date stamp) is
+  declared by the app itself in `x-catena.images.<service>.rule`, written
+  with no `^` or `$` (the whole tag is matched). Each app pins and moves its
+  own database; there is no catalog-wide pin. The engine moves the pins, one
+  app per pull request.
 - No emojis or em-dashes in any artifact. Plain hyphens + straight
   quotes only. `npm run check:unicode` enforces, and also scans for the
   names of systems Catena stopped shipping.
@@ -210,7 +213,8 @@ it.
    `vps.auth.oidc=true`, and no catalog default for the three `OIDC_*`
    values the host's settings sync writes), an imported entry's pending
    findings (no app checker error, and no record that the checker did not
-   run), central Postgres pin enforcement, and the
+   run), the Postgres pin check (a partial pin declares its `partial_line`
+   rule in the block), and the
    swarm-compatibility gate above (which also offers each file to the real
    `docker stack config` loader when docker is on PATH, because the ban list
    was written against one docker version and the loader is the authority).

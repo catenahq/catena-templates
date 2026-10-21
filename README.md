@@ -29,7 +29,7 @@ blueprints/              # ONE directory per template -- what Portainer clones
     logo.svg             # generated placeholder, absent a logo.png
 
 sources/                 # hand-edited metadata
-  _meta.json             # postgres_default_image + sizing measurement header
+  _meta.json             # template order + sizing measurement header
   <id>.json              # ONE file per template: the Portainer fields a human
                          # owns, plus x-catena for everything that format
                          # cannot carry (SSO mode, bench membership,
@@ -43,7 +43,7 @@ lib/                     # the build library
   quiesce_lint.py        # security lint over what a host acts on
                          # unattended: quiesce + lifecycle commands,
                          # sign-in labels
-  postgres_pins.py       # central Postgres image enforcement
+  postgres_pins.py       # each Postgres pin is one the update engine can order
   changes.py             # changed paths -> the app ids they touch
   provenance.py          # an image's project: age, releases (pull-request check)
   app_checks.py          # the per-app pull-request checks' commands

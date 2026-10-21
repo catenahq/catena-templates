@@ -5,6 +5,9 @@ x-catena:
       managed: {expr: "office.{{ cloudflare_zone }}"}
     JWT_SECRET:
       generated: {length: 48, alphabet: alnum}
+  images:
+    documentserver:
+      rule: {kind: pattern, tag_pattern: '(\d+)\.(\d+)\.(\d+)(?:\.(\d+))?'}
 
 services:
   documentserver:

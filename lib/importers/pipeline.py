@@ -722,7 +722,6 @@ class Importer:
         self.allowed = permissive_licences()
         self.licences: dict[tuple[str, str], Licence] = {}
         self.taken: set[str] = set()
-        self.postgres_default = model.load_meta()["postgres_default_image"]
 
     def run(self, candidates: list[Candidate]) -> Report:
         report = Report(seen=len(candidates))
@@ -820,8 +819,7 @@ class Importer:
         if checked is None:
             findings.append(f"{CHECKER_NOT_RUN}name catena-applint with --applint or {APPLINT_ENV}")
         findings += [f"catalog lint: {e}" for e in swarm_lint.lint_compose(compose, label=compose_file)]
-        _, pins = postgres_pins.pin_errors(slug, compose, override=None,
-                                           default=self.postgres_default)
+        _, pins = postgres_pins.pin_errors(slug, compose)
         findings += [f"catalog lint: {e}" for e in pins]
 
         secrets = [name for name, value in env if render.LOOKUP_PASSWORD_RE.search(value)]

@@ -257,8 +257,6 @@ def render_catalog_entry(entry: Entry) -> dict[str, Any]:
         out["env_managed_keys"] = list(entry.managed_env)
     if cat.get("env_required_when"):
         out["env_required_when"] = dict(cat["env_required_when"])
-    if cat.get("postgres_image_override"):
-        out["postgres_image_override"] = cat["postgres_image_override"]
     if entry.s3_reconcile:
         out["s3_reconcile"] = entry.s3_reconcile
     if entry.object_store:
@@ -419,7 +417,6 @@ def render_all() -> int:
         json.dumps(
             {
                 "version": 1,
-                "postgres_default_image": meta["postgres_default_image"],
                 "sizing": meta["sizing"],
                 "templates": catalog_entries,
             },

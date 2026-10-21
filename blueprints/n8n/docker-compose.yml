@@ -13,6 +13,9 @@ x-catena:
       generated: {length: 64, alphabet: alnum}
     DB_PASSWORD:
       generated: {length: 32, alphabet: alnum}
+  images:
+    db:
+      rule: {kind: partial_line}
 
 services:
   n8n:

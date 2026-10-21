@@ -9,7 +9,7 @@ Modules:
   render        -- write blueprints/ + templates.json + catalog.json + index.html
   readme        -- one template's README from its prose
   quiesce_lint  -- security lint over the backup quiesce hooks
-  postgres_pins -- central Postgres image pin enforcement
+  postgres_pins -- Postgres pins the update engine can order
   swarm_lint    -- swarm stack file compatibility gate
   changes       -- changed paths -> the app ids they touch
   provenance    -- an image's project: age and releases

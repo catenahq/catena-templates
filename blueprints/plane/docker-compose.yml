@@ -15,6 +15,11 @@ x-catena:
       generated: {length: 20, alphabet: alnum}
     PLANE_MINIO_SECRET_KEY:
       generated: {length: 40, alphabet: alnum}
+  images:
+    db:
+      rule: {kind: partial_line}
+    minio:
+      rule: {kind: pattern, tag_pattern: 'RELEASE\.(\d{4})-(\d{2})-(\d{2})T(\d{2})-(\d{2})-(\d{2})Z', flat: true}
 
 services:
   web:

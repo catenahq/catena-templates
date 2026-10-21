@@ -7,6 +7,21 @@ x-catena:
       setting: {default: "help.{{ cloudflare_zone }}"}
     DB_PASSWORD:
       generated: {length: 32, alphabet: alnum}
+  images:
+    zammad-init:
+      rule: {kind: build_suffix, tag_pattern: '\d+\.\d+\.\d+-\d+'}
+    zammad-railsserver:
+      rule: {kind: build_suffix, tag_pattern: '\d+\.\d+\.\d+-\d+'}
+    zammad-websocket:
+      rule: {kind: build_suffix, tag_pattern: '\d+\.\d+\.\d+-\d+'}
+    zammad-scheduler:
+      rule: {kind: build_suffix, tag_pattern: '\d+\.\d+\.\d+-\d+'}
+    zammad-nginx:
+      rule: {kind: build_suffix, tag_pattern: '\d+\.\d+\.\d+-\d+'}
+    db:
+      rule: {kind: partial_line}
+    elasticsearch:
+      rule: {kind: semver, registry: docker.io, repo: library/elasticsearch, tag_pattern: '\d+\.\d+\.\d+'}
 
 x-zammad-env: &zammad-env
   POSTGRESQL_HOST: db

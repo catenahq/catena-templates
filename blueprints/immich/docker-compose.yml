@@ -13,6 +13,9 @@ x-catena:
       setting: {default: "{{ admin_email }}"}
     IMMICH_ADMIN_PASSWORD:
       generated: {length: 32, alphabet: alnum}
+  images:
+    db:
+      rule: {kind: pattern, tag_pattern: '(\d+)-vectorchord(\d+)\.(\d+)\.(\d+)-pgvectors(\d+)\.(\d+)\.(\d+)', registry: ghcr.io, repo: immich-app/postgres, feed: compose, leader: ghcr.io/immich-app/immich-server, compose_url: 'https://raw.githubusercontent.com/immich-app/immich/{version}/docker/docker-compose.yml', compose_service: database}
 
 services:
   immich-server:

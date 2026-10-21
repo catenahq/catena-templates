@@ -9,6 +9,11 @@ x-catena:
       generated: {length: 64, alphabet: alnum}
     DB_PASSWORD:
       generated: {length: 32, alphabet: alnum}
+  images:
+    windshift:
+      rule: {kind: semver, registry: ghcr.io, repo: windshiftapp/windshift, stops: ['v0.8.5']}
+    db:
+      rule: {kind: partial_line}
 
 services:
   windshift:

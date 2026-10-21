@@ -21,6 +21,9 @@ x-catena:
       setting: {default: ""}
     SMTP_AUTH:
       setting: {default: "plain"}
+  images:
+    db:
+      rule: {kind: partial_line}
 
 services:
   docuseal:

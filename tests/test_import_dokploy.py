@@ -202,7 +202,6 @@ def catalog(tmp_path, monkeypatch):
     blueprints.mkdir()
     (sources / model.META_NAME).write_text(json.dumps({
         "order": [],
-        "postgres_default_image": "postgres:18.6-alpine",
         "sizing": {"last_measured_at": "x", "measurement_host": "x", "measurement_method": "x"},
     }, indent=2) + "\n")
     banned = tmp_path / "banned-words.json"

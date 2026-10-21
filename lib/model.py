@@ -169,8 +169,7 @@ def env_value(spec: dict[str, Any]) -> str:
 
 
 def load_meta() -> dict[str, Any]:
-    """Catalog-wide values: the deployment order and the central Postgres
-    pin. Resolved against SOURCES at call time so a test can point the
+    """Catalog-wide values: the deployment order and the sizing header. Resolved against SOURCES at call time so a test can point the
     whole loader at a fixture tree."""
     return json.loads((SOURCES / META_NAME).read_text())
 

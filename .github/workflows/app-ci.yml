@@ -5,7 +5,7 @@ name: app-ci
 # token). `repo` checks the catalog as a whole; `app` checks each app the
 # change touches: its stack file, its licence, its images' CVEs, provenance and
 # files. App ids come from changed file names, so they reach scripts through
-# env: only, and the plan job refuses an id that is not a plain slug.
+# env: only, and the plan job refuses any id outside the plain slug form.
 
 on:
   pull_request:

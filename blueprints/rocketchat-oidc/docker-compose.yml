@@ -33,6 +33,15 @@ x-catena:
     post:
       - ["mongosh", "--quiet", "--eval", "while (db.adminCommand({currentOp:1}).fsyncLock) { db.fsyncUnlock() }"]
     timeout_seconds: 60
+  images:
+    prosody:
+      rule: {kind: pattern, tag_pattern: 'stable-(\d+)(?:-(\d+))?', migrate_from: 'unstable-(\d{4})-(\d{2})-(\d{2})'}
+    jicofo:
+      rule: {kind: pattern, tag_pattern: 'stable-(\d+)(?:-(\d+))?', migrate_from: 'unstable-(\d{4})-(\d{2})-(\d{2})'}
+    jvb:
+      rule: {kind: pattern, tag_pattern: 'stable-(\d+)(?:-(\d+))?', migrate_from: 'unstable-(\d{4})-(\d{2})-(\d{2})'}
+    jitsi-web:
+      rule: {kind: pattern, tag_pattern: 'stable-(\d+)(?:-(\d+))?', migrate_from: 'unstable-(\d{4})-(\d{2})-(\d{2})'}
 
 services:
   mongodb:

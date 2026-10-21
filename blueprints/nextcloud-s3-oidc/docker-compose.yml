@@ -80,6 +80,11 @@ x-catena:
       user: "www-data"
       commands:
         - ["php", "occ", "status", "--exit-code"]
+  images:
+    db:
+      rule: {kind: partial_line}
+    talk-hpb:
+      rule: {kind: pattern, tag_pattern: '(\d{8})_(\d{6})', flat: true, registry: ghcr.io, repo: nextcloud-releases/aio-talk}
 
 services:
   app:

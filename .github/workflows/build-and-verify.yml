@@ -105,7 +105,7 @@ jobs:
         run: uv run --with pytest --with jsonschema --with pyyaml pytest tests/ -q
       - name: lint quiesce and lifecycle commands against the catalog
         run: uv run build/lint_quiesce.py
-      - name: lint postgres pins against the central default
+      - name: lint postgres pins the update engine can order
         run: uv run build/lint_postgres_pins.py
 
   duplication:

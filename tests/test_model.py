@@ -87,7 +87,7 @@ def _block(block: dict, slug: str = "example") -> None:
 
 def _meta(sources: Path, order: list[str]) -> None:
     (sources / model.META_NAME).write_text(
-        json.dumps({"order": order, "postgres_default_image": "postgres:18.4-alpine"})
+        json.dumps({"order": order})
     )
 
 
@@ -227,6 +227,11 @@ def test_the_other_schema_2_fields_are_checked(sources):
     }
     _block({"schema": 2, **good})
     assert model.load_sources()[0].block["write_hold"] == "backup_mode"
+    feed = {"app": {"rule": {
+        "kind": "pattern", "tag_pattern": "(\\d+)", "feed": "compose", "leader": "acme/lead",
+        "compose_url": "https://h/{version}/c.yml", "compose_service": "db"}}}
+    _block({"schema": 2, **good, "images": feed})
+    assert model.load_sources()[0].block["images"]["app"]["rule"]["feed"] == "compose"
     for field, bad in (("write_hold", "never"), ("privileges", ["root"]),
                        ("images", {"app": {"policy": "sometimes"}}),
                        ("images", {"app": {"rule": {"kind": "bogus"}}}),
