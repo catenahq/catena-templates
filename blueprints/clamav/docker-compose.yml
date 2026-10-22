@@ -19,6 +19,21 @@ x-catena:
     service: clamav
     verify:
       - [sh, -c, clamdcheck.sh]
+    # scan reads one file on its standard input. clamdscan exits 0 for a clean
+    # file and 1 for a signature found, which it prints as "stdin: <name> FOUND";
+    # the hook answers that as "FLAGGED <name>". Any other exit passes through.
+    scan:
+      - - sh
+        - -c
+        - |
+          out=$$(clamdscan --no-summary - 2>&1)
+          rc=$$?
+          case "$$rc" in
+          0) ;;
+          1) printf '%s\n' "$$out" | sed -n 's/^stdin: \(.*\) FOUND$$/FLAGGED \1/p' ;;
+          *) printf '%s\n' "$$out" ;;
+          esac
+          exit "$$rc"
   images:
     clamav:
       # The signature-less image tags X.Y.Z_base; its per-build X.Y.Z-N_base and

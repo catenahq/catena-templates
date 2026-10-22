@@ -803,12 +803,13 @@ def test_a_block_that_provides_antivirus_declares_hooks_scan(monkeypatch, tmp_pa
     assert L.lint_all() == 0, capsys.readouterr().out
 
 
-def test_the_antivirus_rule_skips_only_the_blueprints_that_have_no_scan_yet():
+def test_the_antivirus_rule_holds_for_every_blueprint_that_provides_antivirus():
     from types import SimpleNamespace
-    assert L.ANTIVIRUS_SCAN_EXEMPT == frozenset({"clamav"})
-    assert L.lint_antivirus_scan(SimpleNamespace(slug="clamav", block=_ANTIVIRUS)) == []
-    assert L.lint_antivirus_scan(SimpleNamespace(slug="other", block=_ANTIVIRUS))
+    assert L.lint_antivirus_scan(SimpleNamespace(slug="clamav", block=_ANTIVIRUS))
     assert L.lint_antivirus_scan(SimpleNamespace(slug="other", block={"provides": {"turn": {}}})) == []
+    entries = [e for e in model.load_sources() if "antivirus" in (e.block.get("provides") or {})]
+    assert [e.slug for e in entries] == ["clamav"]
+    assert L.lint_antivirus_scan(entries[0]) == []
 
 
 def test_a_probe_schema_holds_the_limits(monkeypatch):

@@ -108,10 +108,6 @@ ALLOWED_HOOK_COMMANDS = ALLOWED_MIGRATE_COMMANDS | {"sh", "bash", "python", "pyt
 # The argv lists a hooks block can carry.
 HOOK_LISTS = ("configure", "verify", "users", "scan", "reconcile")
 
-# Blueprints that provide antivirus and declare no hooks.scan yet, which the
-# scan rule skips.
-ANTIVIRUS_SCAN_EXEMPT = frozenset({"clamav"})
-
 # The most ports one vps.expose range may open.
 MAX_EXPOSE_RANGE = 1024
 EXPOSE_TOKEN = re.compile(r"^(\d{1,5})(?:[-:](\d{1,5}))?$")
@@ -433,7 +429,7 @@ def lint_hooks(entry) -> list[str]:
 def lint_antivirus_scan(entry) -> list[str]:
     """A block that provides antivirus declares hooks.scan: the host scans a
     file through that hook."""
-    if "antivirus" not in (entry.block.get("provides") or {}) or entry.slug in ANTIVIRUS_SCAN_EXEMPT:
+    if "antivirus" not in (entry.block.get("provides") or {}):
         return []
     if (entry.block.get("hooks") or {}).get("scan"):
         return []

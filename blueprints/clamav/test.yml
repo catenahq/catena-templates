@@ -1,0 +1,63 @@
+# Test for the clamav template: the scan hook answers a file it flags and a file
+# it passes. Steps are plain data the CI harness runs with docker exec;
+# {{ container_<service> }} is filled in by the harness.
+#
+# The EICAR test file is joined from two pieces so that no file of this
+# repository holds it whole and the CI antivirus scan of the tree passes.
+
+id: clamav
+description: >-
+  The scan hook's body flags the EICAR test file with a signature and passes a
+  clean file.
+
+seed:
+  - name: wait_clamd_ready
+    type: docker_exec
+    container: "{{ container_clamav }}"
+    command:
+      - sh
+      - -c
+      - |
+        for i in $(seq 1 90); do
+          clamdcheck.sh && exit 0
+          sleep 10
+        done
+        exit 1
+    timeout_s: 960
+
+assert:
+  - name: scan_body_flags_eicar_and_passes_clean
+    type: docker_exec
+    container: "{{ container_clamav }}"
+    command:
+      - sh
+      - -c
+      - |
+        # The body of hooks.scan in docker-compose.yml.
+        scan() {
+          out=$(clamdscan --no-summary - 2>&1)
+          rc=$?
+          case "$rc" in
+          0) ;;
+          1) printf '%s\n' "$out" | sed -n 's/^stdin: \(.*\) FOUND$/FLAGGED \1/p' ;;
+          *) printf '%s\n' "$out" ;;
+          esac
+          return "$rc"
+        }
+        flagged=$(printf '%s%s' 'X5O!P%@AP[4\PZX54(P^)7CC)7}$EICAR-STANDARD-' 'ANTIVIRUS-TEST-FILE!$H+H*' | scan)
+        rc=$?
+        if [ "$rc" != 1 ]; then
+          echo "the EICAR test file ended the scan with $rc: $flagged"
+          exit 1
+        fi
+        case "$flagged" in
+        "FLAGGED "?*) ;;
+        *) echo "no signature in: $flagged"; exit 1 ;;
+        esac
+        if ! printf 'a clean file\n' | scan >/dev/null; then
+          echo "a clean file was not passed"
+          exit 1
+        fi
+        echo "scan body ok: $flagged"
+    expect_stdout_contains: "scan body ok: FLAGGED "
+    timeout_s: 120
