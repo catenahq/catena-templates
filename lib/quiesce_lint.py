@@ -19,8 +19,9 @@ run on every render. This module adds:
     interpolates every value under a top-level x- key when it deploys the
     file, and the update lane rewrites each image reference it finds. A hooks
     body writes each `$` as `$$`.
-  - A host_paths entry is a normalised absolute path other than `/` that
-    holds neither the Docker socket's folders nor the compose folders.
+  - A host_paths entry is a normalised absolute path that is none of the
+    machine's own (SYSTEM_TREES), and a capabilities entry a capability name
+    that a service of the compose adds.
   - A hooks body is offered to the interpreter it names (`sh -n`, `bash -n`
     or Python's compiler), as an inline script of a compose service is, and
     runs in a service the compose defines.
@@ -469,24 +470,65 @@ def lint_auto_update(entry) -> list[str]:
     return errors
 
 
-# Host areas no host_paths entry may name or contain: the app checker refuses a
-# bind of any of them whatever a block declares (catena-admin payload/engines/
-# applint, X6 and X12).
-HOST_PATH_FORBIDDEN = ("/var/run", "/run", "/srv/catena/compose")
+# The machine's own paths, which no host_paths entry may be at, under or above
+# (and /var itself): the list of catena-admin payload/engines/systempath
+# (Trees, DataTrees), which a test there holds equal to this one. The data
+# trees are the parents of the folders that are data after all.
+SYSTEM_TREES = (
+    "/bin", "/boot", "/dev", "/etc", "/lib", "/lib32", "/lib64", "/libx32",
+    "/proc", "/root", "/run", "/sbin", "/sys", "/usr",
+    "/var/lib", "/var/run", "/var/spool", "/var/log",
+    "/srv/catena",
+)
+SYSTEM_DATA_TREES = ("/srv/catena/apps",)
+
+
+def system_path_reason(declared: str) -> str:
+    """Why the absolute path is the machine's, or "" when it is data (the
+    Python side of systempath.Reason)."""
+    p = posixpath.normpath(declared)
+    if p in ("/", "/var"):
+        return f"{p} holds the machine's own state"
+    if any(p.startswith(tree + "/") for tree in SYSTEM_DATA_TREES):
+        return ""
+    for tree in SYSTEM_TREES:
+        if p == tree or p.startswith(tree + "/"):
+            return f"it lies in {tree}, which belongs to the machine"
+        if tree.startswith(p + "/"):
+            return f"it holds {tree}, which belongs to the machine"
+    return ""
 
 
 def lint_host_paths(entry) -> list[str]:
-    """Each host_paths entry is a normalised absolute path other than `/` that
-    holds none of the areas the app checker refuses for every app."""
+    """Each host_paths entry is a normalised absolute path that is none of the
+    machine's own, which the app checker refuses for every app."""
     errors: list[str] = []
     for idx, declared in enumerate(entry.block.get("host_paths") or []):
         label = f"{entry.slug}.x-catena.host_paths[{idx}]"
-        if posixpath.normpath(declared) != declared or declared == "/":
-            errors.append(f"{label}: {declared!r} is not a normalised absolute path other than /")
-        for area in HOST_PATH_FORBIDDEN:
-            if declared == area or declared.startswith(area + "/") or area.startswith(declared.rstrip("/") + "/"):
-                errors.append(f"{label}: {declared!r} holds {area}, which the app checker "
-                              f"refuses for every app")
+        if not declared.startswith("/") or posixpath.normpath(declared) != declared:
+            errors.append(f"{label}: {declared!r} is not a normalised absolute path")
+        elif why := system_path_reason(declared):
+            errors.append(f"{label}: {declared!r} is a system path ({why})")
+    return errors
+
+
+def lint_capabilities(entry) -> list[str]:
+    """A capability the block declares is a name such as NET_ADMIN, and the
+    service that adds it is a service of the compose."""
+    errors: list[str] = []
+    declared = entry.block.get("capabilities") or []
+    for idx, name in enumerate(declared):
+        if not re.fullmatch(r"[A-Z][A-Z_]*", str(name)) or name == "ALL":
+            errors.append(f"{entry.slug}.x-catena.capabilities[{idx}]: {name!r} is not a "
+                          f"capability name such as NET_ADMIN (capitals, no CAP_ prefix, not ALL)")
+    if declared:
+        doc = yaml.safe_load(entry.compose_path.read_text(encoding="utf-8")) or {}
+        added = {str(cap).upper().removeprefix("CAP_")
+                 for service in (doc.get("services") or {}).values()
+                 for cap in ((service or {}).get("cap_add") or [])}
+        for name in declared:
+            if name not in added:
+                errors.append(f"{entry.slug}.x-catena.capabilities: {name!r} is added by no service")
     return errors
 
 
@@ -522,6 +564,7 @@ def lint_all() -> int:
         all_errors.extend(lint_pending(entry))
         all_errors.extend(lint_block(entry))
         all_errors.extend(lint_host_paths(entry))
+        all_errors.extend(lint_capabilities(entry))
         all_errors.extend(lint_auto_update(entry))
         all_errors.extend(lint_object_store(entry))
         all_errors.extend(lint_hooks(entry))

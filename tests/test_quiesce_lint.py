@@ -719,14 +719,37 @@ def test_host_paths_are_absolute_paths_the_schema_and_the_lint_accept():
             jsonschema.validate({"schema": 2, "host_paths": bad}, schema)
 
 
-@pytest.mark.parametrize("declared", ["/", "/mnt/", "/a/../b", "/run", "/var/run/docker", "/srv", "/srv/catena/compose/web"])
+@pytest.mark.parametrize("declared", [
+    "/", "/mnt/", "/a/../b", "/run", "/var/run/docker", "/srv", "/srv/catena/compose/web", "mnt",
+    "/etc", "/etc/ssl", "/usr/local/bin", "/bin", "/lib64", "/boot", "/root", "/proc", "/sys", "/dev", "/var",
+    "/var/lib/docker", "/srv/catena", "/srv/catena/docker/volumes", "/srv/catena/apps"])
 def test_a_host_path_the_checker_refuses_for_every_app_is_refused(tmp_path, declared):
     from types import SimpleNamespace
     entry = SimpleNamespace(slug="demo", block={"host_paths": [declared]})
     assert L.lint_host_paths(entry)
 
 
+def test_capabilities_are_names_a_service_adds(tmp_path):
+    from types import SimpleNamespace
+    import jsonschema
+    schema = json.loads((ROOT / "block.schema.json").read_text(encoding="utf-8"))
+    jsonschema.validate({"schema": 2, "capabilities": ["NET_ADMIN"]}, schema)
+    for bad in ([], ["ALL"], ["CAP_NET_ADMIN"], ["net_admin"], ["NET_ADMIN", "NET_ADMIN"]):
+        with pytest.raises(jsonschema.ValidationError):
+            jsonschema.validate({"schema": 2, "capabilities": bad}, schema)
+    compose = tmp_path / "docker-compose.yml"
+    compose.write_text(yaml.safe_dump({"services": {"mail": {"cap_add": ["NET_ADMIN"]}}}), encoding="utf-8")
+
+    def entry(names):
+        return SimpleNamespace(slug="demo", compose_path=compose, block={"capabilities": names})
+
+    assert L.lint_capabilities(entry(["NET_ADMIN"])) == []
+    assert L.lint_capabilities(entry(["SYS_ADMIN"]))
+    assert L.lint_capabilities(entry(["ALL"]))
+    assert L.lint_capabilities(SimpleNamespace(slug="demo", compose_path=compose, block={})) == []
+
+
 def test_host_paths_that_hold_nothing_forbidden_pass():
     from types import SimpleNamespace
-    entry = SimpleNamespace(slug="demo", block={"host_paths": ["/mnt", "/media/disk", "/etc/ssl/certs"]})
+    entry = SimpleNamespace(slug="demo", block={"host_paths": ["/mnt", "/media/disk", "/var/www", "/srv/catena/apps/web"]})
     assert L.lint_host_paths(entry) == []

@@ -26,6 +26,7 @@ x-catena:
     ANTIVIRUS_PORT:
       managed: {expr: "{{ provided.antivirus.port }}"}
   secrets: [mailserver_relay_password, mailserver_spamhaus_dqs_key]
+  capabilities: [NET_ADMIN]
   lifecycle:
     service: "roundcube"
     ready: ["php", "-r", "exit(@fsockopen('127.0.0.1', 80) ? 0 : 1);"]

@@ -393,6 +393,16 @@
       },
       "description": "The host folders and files outside its own data folder (/srv/catena/apps/<stack>) that the application binds, each an absolute path. A bind inside one passes the app checker (X17). The Docker socket and the compose folders stay refused whatever is declared."
     },
+    "capabilities": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^(?!ALL$|CAP_)[A-Z][A-Z_]*$"
+      },
+      "description": "The capabilities, such as NET_ADMIN, that a service of the application adds with cap_add and the app checker refuses in a file that does not declare them (X18): SYS_ADMIN, NET_ADMIN, SYS_PTRACE and the like. Written without the CAP_ prefix."
+    },
     "provides": {
       "type": "object",
       "additionalProperties": false,
