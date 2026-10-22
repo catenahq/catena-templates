@@ -28,7 +28,7 @@
     },
     "en": {
       "display_name": "Call relay (TURN)",
-      "what_it_is": "A relay for voice and video calls. Calls in Nextcloud Talk and Element connect directly when the network allows it. From behind a network that blocks direct media, such as a hotel or an office firewall, they go through this relay. Adding it is optional: the applications that use it find it on their own.",
+      "what_it_is": "A relay for voice and video calls. Calls in Nextcloud Talk and Element connect directly when the network allows it. From behind a network that blocks direct media, such as a hotel or an office firewall, they go through this relay. Adding it is optional: the applications that use it find it on their own. With it, Nextcloud Talk and Element calls also reach people on restrictive networks, and Nextcloud Talk gains its high-performance backend for larger calls.",
       "replaces": [
         "A hosted TURN service"
       ],
@@ -38,7 +38,7 @@
     },
     "fr": {
       "display_name": "Relais d'appels (TURN)",
-      "what_it_is": "Un relais pour les appels vocaux et vid\u00e9o. Les appels de Nextcloud Talk et d'Element se connectent directement quand le r\u00e9seau le permet. Derri\u00e8re un r\u00e9seau qui bloque les m\u00e9dias directs, comme un pare-feu d'h\u00f4tel ou de bureau, ils passent par ce relais. L'ajouter est facultatif : les applications qui l'utilisent le trouvent d'elles-m\u00eames.",
+      "what_it_is": "Un relais pour les appels vocaux et vid\u00e9o. Les appels de Nextcloud Talk et d'Element se connectent directement quand le r\u00e9seau le permet. Derri\u00e8re un r\u00e9seau qui bloque les m\u00e9dias directs, comme un pare-feu d'h\u00f4tel ou de bureau, ils passent par ce relais. L'ajouter est facultatif : les applications qui l'utilisent le trouvent d'elles-m\u00eames. Avec lui, les appels de Nextcloud Talk et d'Element joignent aussi les personnes sur des r\u00e9seaux restrictifs, et Nextcloud Talk gagne son serveur haute performance pour les appels plus nombreux.",
       "replaces": [
         "Un service TURN h\u00e9berg\u00e9"
       ],

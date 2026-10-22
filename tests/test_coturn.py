@@ -33,7 +33,7 @@ ENV = {
 DIRECTIVES = {
     "listening-port", "tls-listening-port", "external-ip", "listening-ip", "relay-ip", "min-port", "max-port",
     "use-auth-secret", "static-auth-secret", "realm", "user-quota", "total-quota", "max-bps", "stale-nonce",
-    "cert", "pkey", "dtls", "cipher-list", "denied-peer-ip", "no-multicast-peers", "verbose", "simple-log",
+    "cert", "pkey", "dtls", "cipher-list", "denied-peer-ip", "no-multicast-peers", "no-tcp-relay", "verbose", "simple-log",
     "no-stdout-log", "log-file",
 }
 # Options the binary refuses or fails to start on at this release.
@@ -200,7 +200,7 @@ def test_the_start_script_writes_the_configuration_from_the_environment(tmp_path
     assert config["cipher-list"] == [
         '"ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES128-GCM-SHA256:'
         'ECDHE-RSA-AES128-GCM-SHA256"']
-    for flag in ("use-auth-secret", "dtls", "no-multicast-peers"):
+    for flag in ("use-auth-secret", "dtls", "no-multicast-peers", "no-tcp-relay"):
         assert config[flag] == [""]
 
 
@@ -335,9 +335,17 @@ def test_verify_names_a_missing_certificate(tmp_path):
     assert run.returncode == 1 and "certificate-missing" in run.stderr
 
 
+def test_configure_does_not_mark_a_certificate_loaded_when_the_signal_fails(tmp_path):
+    cert, mark = tmp_path / "fullchain.pem", tmp_path / "mark"
+    cert.write_text("first")
+    run = _run_hook(tmp_path, "configure", {"/certs/fullchain.pem": str(cert), "/tmp/.catena-cert.sha256": str(mark),
+                                            "kill -USR2 1": "false"}, {})
+    assert run.returncode == 1 and not mark.exists()
+
+
 def test_configure_signals_turnserver_only_when_the_certificate_changed(tmp_path):
     body = _body(_hook("configure"))
-    assert "kill -USR2 1\n" in body
+    assert "kill -USR2 1 || exit 1\n" in body
     cert, mark, log = tmp_path / "fullchain.pem", tmp_path / "mark", tmp_path / "log"
     replace = {"/certs/fullchain.pem": str(cert), "/tmp/.catena-cert.sha256": str(mark),
                "kill -USR2 1": f"echo USR2 >> {log}"}

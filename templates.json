@@ -172,7 +172,7 @@
       "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/nextcloud-s3-oidc/logo.svg",
       "maintainer": "https://github.com/catenahq/catena-templates",
       "name": "catena-nextcloud",
-      "note": "<p>Requires Catena 0.11.0 or later.</p><p>Self-hosted file sharing and collaboration -- the file hub that other templates plug into.</p><p>Replaces Google Drive, Dropbox, OneDrive for Business.</p>",
+      "note": "<p>Requires Catena 0.11.0 or later.</p><p>Self-hosted file sharing and collaboration -- the file hub that other templates plug into. Calls work without the relay; adding the Call relay app gives calls from restrictive networks and Talk&#x27;s high-performance backend for larger calls.</p><p>Replaces Google Drive, Dropbox, OneDrive for Business.</p>",
       "platform": "linux",
       "repository": {
         "stackfile": "blueprints/nextcloud-s3-oidc/docker-compose.yml",
@@ -531,7 +531,7 @@
       "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/element/logo.svg",
       "maintainer": "https://github.com/catenahq/catena-templates",
       "name": "catena-element",
-      "note": "<p>Requires Catena 0.11.0 or later.</p><p>Self-hosted Element + Matrix homeserver -- federated-capable team chat with end-to-end encryption, voice and group video (bundled Jitsi).</p><p>Replaces Slack, Microsoft Teams, Signal (for team use), Zoom (for small group calls).</p><p><a href=\"https://github.com/catenahq/catena-templates/blob/main/blueprints/element/README.md\">https://github.com/catenahq/catena-templates/blob/main/blueprints/element/README.md</a></p>",
+      "note": "<p>Requires Catena 0.11.0 or later.</p><p>Self-hosted Element + Matrix homeserver -- federated-capable team chat with end-to-end encryption, voice and group video (bundled Jitsi). Calls work without the relay; adding the Call relay app gives calls from restrictive networks.</p><p>Replaces Slack, Microsoft Teams, Signal (for team use), Zoom (for small group calls).</p><p><a href=\"https://github.com/catenahq/catena-templates/blob/main/blueprints/element/README.md\">https://github.com/catenahq/catena-templates/blob/main/blueprints/element/README.md</a></p>",
       "platform": "linux",
       "repository": {
         "stackfile": "blueprints/element/docker-compose.yml",
@@ -1612,7 +1612,7 @@
       "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/coturn/logo.svg",
       "maintainer": "https://github.com/catenahq/catena-templates",
       "name": "catena-coturn",
-      "note": "<p>A relay for voice and video calls. Calls in Nextcloud Talk and Element connect directly when the network allows it. From behind a network that blocks direct media, such as a hotel or an office firewall, they go through this relay. Adding it is optional: the applications that use it find it on their own.</p><p>Replaces A hosted TURN service.</p><p><a href=\"https://github.com/catenahq/catena-templates/blob/main/blueprints/coturn/README.md\">https://github.com/catenahq/catena-templates/blob/main/blueprints/coturn/README.md</a></p>",
+      "note": "<p>A relay for voice and video calls. Calls in Nextcloud Talk and Element connect directly when the network allows it. From behind a network that blocks direct media, such as a hotel or an office firewall, they go through this relay. Adding it is optional: the applications that use it find it on their own. With it, Nextcloud Talk and Element calls also reach people on restrictive networks, and Nextcloud Talk gains its high-performance backend for larger calls.</p><p>Replaces A hosted TURN service.</p><p><a href=\"https://github.com/catenahq/catena-templates/blob/main/blueprints/coturn/README.md\">https://github.com/catenahq/catena-templates/blob/main/blueprints/coturn/README.md</a></p>",
       "platform": "linux",
       "repository": {
         "stackfile": "blueprints/coturn/docker-compose.yml",

@@ -46,7 +46,7 @@ x-catena:
           [ -f "$$cert" ] || exit 0
           now=$$(sha256sum "$$cert" | cut -d' ' -f1)
           [ "$$now" != "$$(cat "$$mark" 2>/dev/null)" ] || exit 0
-          kill -USR2 1
+          kill -USR2 1 || exit 1
           echo "$$now" > "$$mark"
     verify:
       - - sh
@@ -146,6 +146,7 @@ services:
         denied-peer-ip=fe80::-febf:ffff:ffff:ffff:ffff:ffff:ffff:ffff
         denied-peer-ip=::ffff:0.0.0.0-::ffff:255.255.255.255
         no-multicast-peers
+        no-tcp-relay
         verbose
         simple-log
         no-stdout-log

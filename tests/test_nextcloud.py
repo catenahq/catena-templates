@@ -185,13 +185,17 @@ if cmd.startswith("talk:"):
     opts, plain = options(rest)
     if cmd == "talk:turn:add":
         row = [plain[0], plain[1], plain[2], opts.get("secret", "")]
-        if not any(r[:3] == row[:3] for r in talk["turn"]):
-            talk["turn"].append(row)
+        if any(r[:3] == row[:3] for r in talk["turn"]):
+            print("the entry exists already", file=sys.stderr)
+            sys.exit(1)
+        talk["turn"].append(row)
     elif cmd == "talk:turn:delete":
         talk["turn"] = [r for r in talk["turn"] if r[:3] != plain[:3]]
     elif cmd == "talk:stun:add":
-        if plain[0] not in talk["stun"]:
-            talk["stun"].append(plain[0])
+        if plain[0] in talk["stun"]:
+            print("the entry exists already", file=sys.stderr)
+            sys.exit(1)
+        talk["stun"].append(plain[0])
     elif cmd == "talk:stun:delete":
         talk["stun"] = [s for s in talk["stun"] if s != plain[0]]
     elif cmd == "talk:signaling:add":
@@ -343,7 +347,7 @@ def test_talk_is_given_the_relay_and_the_signaling_server(nc):
     run = nc.run("configure")
     assert run.returncode == 0, run.stderr
     assert _talk(nc) == {
-        "turn": [["turn", "turn.example.test:3478", "udp,tcp", "turn-secret"],
+        "turn": [["turn", "turn.example.test:3478", "udp", "turn-secret"],
                  ["turns", "turn.example.test:5349", "tcp", "turn-secret"]],
         "stun": ["turn.example.test:3478"],
         "signaling": [["https://signaling.example.test", "sig-secret"]],
@@ -367,11 +371,23 @@ def test_a_second_configure_adds_nothing_twice(nc):
 def test_a_changed_secret_or_port_replaces_the_entries_the_hook_wrote(nc):
     assert nc.run("configure").returncode == 0
     assert nc.run("configure", TURN_SECRET="rotated", TURN_PORT="3479").returncode == 0
-    assert _talk(nc)["turn"] == [["turn", "turn.example.test:3479", "udp,tcp", "rotated"],
+    assert _talk(nc)["turn"] == [["turn", "turn.example.test:3479", "udp", "rotated"],
                                  ["turns", "turn.example.test:5349", "tcp", "rotated"]]
     assert _talk(nc)["stun"] == ["turn.example.test:3479"]
     assert nc.run("configure", SIGNALING_SECRET="sig-rotated").returncode == 0
     assert _talk(nc)["signaling"] == [["https://signaling.example.test", "sig-rotated"]]
+
+
+def test_entries_left_by_a_failed_run_are_replaced_not_refused(nc):
+    """Talk refuses to add an entry that exists; the hook removes the ones it is
+    about to add, so a run that failed half way is mended by the next."""
+    _talk(nc)["turn"].append(["turn", "turn.example.test:3478", "udp", "stale"])
+    _talk(nc)["stun"].append("turn.example.test:3478")
+    run = nc.run("configure")
+    assert run.returncode == 0, run.stderr
+    assert _talk(nc)["turn"][0] == ["turn", "turn.example.test:3478", "udp", "turn-secret"]
+    assert _talk(nc)["stun"] == ["turn.example.test:3478"]
+    assert nc.state["appconfig"]["catena/turn_wired"].startswith("turn.example.test 3478 5349 ")
 
 
 def test_without_the_relay_talk_gets_no_relay_and_no_signaling_entry(nc):
