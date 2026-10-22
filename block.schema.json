@@ -275,8 +275,8 @@
         "users": { "$ref": "#/$defs/argv_list" },
         "users_group": {
           "type": "string",
-          "pattern": "^[A-Za-z0-9][A-Za-z0-9 ._-]*(/[A-Za-z0-9][A-Za-z0-9 ._-]*)*$",
-          "description": "The path of the realm group (staff, or staff/sales) whose members, with those of its subgroups, the users hook receives on its standard input as a JSON list when they change."
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9 ._-]*(/[A-Za-z0-9][A-Za-z0-9 ._-]*)*(,[A-Za-z0-9][A-Za-z0-9 ._-]*(/[A-Za-z0-9][A-Za-z0-9 ._-]*)*)*$",
+          "description": "The path of the realm group (staff, or staff/sales) whose members, with those of its subgroups, the users hook receives on its standard input as a JSON list when they change. Several paths are separated by commas."
         },
         "timeout_seconds": { "type": "integer", "minimum": 1, "maximum": 3600 }
       },
@@ -285,7 +285,7 @@
     "needs": {
       "type": "object",
       "additionalProperties": false,
-      "description": "What the application needs of the host: a certificate written into one of its volumes, and DNS records in its zone.",
+      "description": "What the application needs of the host: a certificate written into one of its volumes, and DNS records in its zone. A name or a value may hold {{ name }} expressions, which read the keys of the application's .env (lowercased) and the host's facts such as public_ip.",
       "properties": {
         "certificate": {
           "type": "object",
@@ -382,6 +382,21 @@
       "uniqueItems": true,
       "items": { "enum": ["host_network", "docker_socket", "external_volumes"] },
       "description": "The host privileges the application asks for."
+    },
+    "provides": {
+      "type": "object",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^[a-z]+$": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": false,
+          "patternProperties": {
+            "^[a-z][a-z0-9_]*$": { "$ref": "#/$defs/env_key" }
+          }
+        }
+      },
+      "description": "The capabilities the application offers, each value the name of a key of env. Another application reads them in a managed expression as provided.<capability>.<name>."
     }
   },
   "$defs": {

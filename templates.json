@@ -125,6 +125,36 @@
           "default": "webmail.",
           "label": "Webmail hostname",
           "name": "WEBMAIL_HOSTNAME"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
+          "label": "Antivirus host",
+          "name": "ANTIVIRUS_HOST"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
+          "label": "Antivirus port",
+          "name": "ANTIVIRUS_PORT"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
+          "label": "Office editor",
+          "name": "OFFICE_EDITOR"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
+          "label": "Office URL",
+          "name": "OFFICE_URL"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
+          "label": "Office JWT secret",
+          "name": "OFFICE_JWT_SECRET"
         }
       ],
       "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/nextcloud-s3-oidc/logo.svg",
@@ -204,6 +234,18 @@
           "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "Domain",
           "name": "DOMAIN_HOST"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
+          "label": "Office editor",
+          "name": "OFFICE_EDITOR"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
+          "label": "Office URL",
+          "name": "OFFICE_URL"
         }
       ],
       "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/collabora/logo.svg",
@@ -236,6 +278,18 @@
           "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "JWT secret",
           "name": "JWT_SECRET"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
+          "label": "Office editor",
+          "name": "OFFICE_EDITOR"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
+          "label": "Office URL",
+          "name": "OFFICE_URL"
         }
       ],
       "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/onlyoffice/logo.svg",
@@ -1403,6 +1457,24 @@
           "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "Relay password",
           "name": "RELAY_PASSWORD"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
+          "label": "Spamhaus dqs key",
+          "name": "SPAMHAUS_DQS_KEY"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
+          "label": "Antivirus host",
+          "name": "ANTIVIRUS_HOST"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
+          "label": "Antivirus port",
+          "name": "ANTIVIRUS_PORT"
         }
       ],
       "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/mailserver/logo.svg",
@@ -1415,6 +1487,48 @@
         "url": "https://github.com/catenahq/catena-templates"
       },
       "title": "Mail server + webmail",
+      "type": 2
+    },
+    {
+      "categories": [
+        "Security",
+        "Infrastructure"
+      ],
+      "description": "Shared antivirus scanner (clamd). Other applications on this server find it on their own.",
+      "env": [
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
+          "label": "Clamd host",
+          "name": "CLAMD_HOST"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
+          "label": "Clamd port",
+          "name": "CLAMD_PORT"
+        },
+        {
+          "default": "104857600",
+          "label": "Clamd stream max length",
+          "name": "CLAMD_STREAM_MAX_LENGTH"
+        },
+        {
+          "default": "no",
+          "label": "Clamd concurrent reload",
+          "name": "CLAMD_CONCURRENT_RELOAD"
+        }
+      ],
+      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/clamav/logo.svg",
+      "maintainer": "https://github.com/catenahq/catena-templates",
+      "name": "catena-clamav",
+      "note": "<p>One antivirus scanner for the whole server. The mail server scans every message through it and Nextcloud scans every uploaded file; the compliance evidence store scans its files through it too.</p><p>Replaces A scanner per application.</p><p><a href=\"https://github.com/catenahq/catena-templates/blob/main/blueprints/clamav/README.md\">https://github.com/catenahq/catena-templates/blob/main/blueprints/clamav/README.md</a></p>",
+      "platform": "linux",
+      "repository": {
+        "stackfile": "blueprints/clamav/docker-compose.yml",
+        "url": "https://github.com/catenahq/catena-templates"
+      },
+      "title": "ClamAV antivirus",
       "type": 2
     },
     {

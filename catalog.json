@@ -30,6 +30,16 @@
         "what_it_is": "Self-hosted file sharing and collaboration -- the file hub that other templates plug into."
       },
       "env": {
+        "ANTIVIRUS_HOST": {
+          "managed": {
+            "expr": "{{ provided.antivirus.host }}"
+          }
+        },
+        "ANTIVIRUS_PORT": {
+          "managed": {
+            "expr": "{{ provided.antivirus.port }}"
+          }
+        },
         "DB_PASSWORD": {
           "generated": {
             "alphabet": "alnum",
@@ -75,6 +85,21 @@
         "NEXTCLOUD_VERSIONS_RETENTION": {
           "setting": {
             "default": "auto, 7"
+          }
+        },
+        "OFFICE_EDITOR": {
+          "managed": {
+            "expr": "{{ provided.office.editor }}"
+          }
+        },
+        "OFFICE_JWT_SECRET": {
+          "managed": {
+            "expr": "{{ provided.office.jwt_secret }}"
+          }
+        },
+        "OFFICE_URL": {
+          "managed": {
+            "expr": "{{ provided.office.url }}"
           }
         },
         "S3_ACCESS_KEY": {
@@ -167,14 +192,24 @@
         "TALK_INTERNAL_SECRET={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}",
         "TURN_HOSTNAME={{ coturn_hostname | default('turn.' ~ cloudflare_zone) }}",
         "TURN_STATIC_AUTH_SECRET={{ turn_static_auth_secret }}",
-        "WEBMAIL_HOSTNAME=webmail.{{ cloudflare_zone }}"
+        "WEBMAIL_HOSTNAME=webmail.{{ cloudflare_zone }}",
+        "ANTIVIRUS_HOST={{ provided.antivirus.host }}",
+        "ANTIVIRUS_PORT={{ provided.antivirus.port }}",
+        "OFFICE_EDITOR={{ provided.office.editor }}",
+        "OFFICE_URL={{ provided.office.url }}",
+        "OFFICE_JWT_SECRET={{ provided.office.jwt_secret }}"
       ],
       "env_managed_keys": [
         "DOMAIN_HOST",
         "NEXTCLOUD_HOSTNAME",
         "SIGNALING_HOSTNAME",
         "TURN_HOSTNAME",
-        "TURN_STATIC_AUTH_SECRET"
+        "TURN_STATIC_AUTH_SECRET",
+        "ANTIVIRUS_HOST",
+        "ANTIVIRUS_PORT",
+        "OFFICE_EDITOR",
+        "OFFICE_URL",
+        "OFFICE_JWT_SECRET"
       ],
       "fr": {
         "compose_description": "Partage de fichiers + collaboration auto-h\u00e9berg\u00e9s. Remplace Google Drive / Dropbox / OneDrive.\n\nConfiguration initiale :\n1. Remplissez les variables S3_* dans l'onglet Environment.\n2. Cliquez sur Deploy. Le serveur enregistre lui-m\u00eame le SSO Keycloak dans Nextcloud, avec Mail, Talk, l'antivirus et le lien Webmail.\n3. Connexion avec \"Se connecter avec keycloak\" sur le domaine Nextcloud.\n\nDoc compl\u00e8te : https://github.com/catenahq/catena-templates/blob/main/blueprints/nextcloud-s3-oidc/README.md\n",
@@ -393,7 +428,7 @@
           "Microsoft Office Online",
           "Google Docs (as embedded editor)"
         ],
-        "setup_steps": "1. Click **Deploy**. Wait ~30 s for the document server to boot.\n2. From the operator dashboard, click the **Wire Nextcloud Collabora** button. The button installs the Nextcloud Office app, points it at this server, and -- where OnlyOffice was previously wired -- removes the OnlyOffice Nextcloud app cleanly.\n3. Open any DOCX/XLSX/PPTX/ODT file in Nextcloud. It opens in the embedded Collabora editor.\n\nSwitching back to OnlyOffice later is one click: stop this Collabora compose, deploy `onlyoffice`, then click the **Wire Nextcloud OnlyOffice** button.\n\nDon't visit the Collabora domain directly in a browser -- it has no UI of its own. Users only ever see it through Nextcloud when they open a document.\n",
+        "setup_steps": "1. Click **Deploy**. Wait ~30 s for the document server to boot.\n2. Nextcloud sets itself up for this editor: it is redeployed once with the editor's address, installs the Nextcloud Office app, points it at this server, and -- where OnlyOffice was set up before -- removes the OnlyOffice Nextcloud app cleanly.\n3. Open any DOCX/XLSX/PPTX/ODT file in Nextcloud. It opens in the embedded Collabora editor.\n\nSwitching back to OnlyOffice later: remove this Collabora application, then deploy `onlyoffice`. Only one office editor runs at a time.\n\nDon't visit the Collabora domain directly in a browser -- it has no UI of its own. Users only ever see it through Nextcloud when they open a document.\n",
         "what_it_is": "Collaborative ODT/DOCX/XLSX/PPTX editing -- bolts into Nextcloud for real-time co-editing. LibreOffice-based; lighter than OnlyOffice; better fidelity for ODF formats."
       },
       "env": {
@@ -401,13 +436,27 @@
           "managed": {
             "expr": "office.{{ cloudflare_zone }}"
           }
+        },
+        "OFFICE_EDITOR": {
+          "managed": {
+            "expr": "collabora"
+          }
+        },
+        "OFFICE_URL": {
+          "managed": {
+            "expr": "https://office.{{ cloudflare_zone }}"
+          }
         }
       },
       "env_defaults": [
-        "DOMAIN_HOST=office.{{ cloudflare_zone }}"
+        "DOMAIN_HOST=office.{{ cloudflare_zone }}",
+        "OFFICE_EDITOR=collabora",
+        "OFFICE_URL=https://office.{{ cloudflare_zone }}"
       ],
       "env_managed_keys": [
-        "DOMAIN_HOST"
+        "DOMAIN_HOST",
+        "OFFICE_EDITOR",
+        "OFFICE_URL"
       ],
       "fr": {
         "compose_description": "\u00c9diteur collaboratif bas\u00e9 sur LibreOffice. Embarqu\u00e9 dans Nextcloud. Alternative l\u00e9g\u00e8re \u00e0 OnlyOffice ; meilleure fid\u00e9lit\u00e9 ODF.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/collabora/README.md\n",
@@ -416,7 +465,7 @@
           "Microsoft Office Online",
           "Google Docs (\u00e9diteur embarqu\u00e9)"
         ],
-        "setup_steps": "1. Cliquez **Deploy**. Patientez ~30 s le d\u00e9marrage du serveur d'\u00e9dition.\n2. Depuis le tableau de bord op\u00e9rateur, cliquez le bouton **Wire Nextcloud Collabora**. Le bouton installe l'application Nextcloud Office, la pointe vers ce serveur, et -- si OnlyOffice \u00e9tait pr\u00e9c\u00e9demment c\u00e2bl\u00e9 -- retire proprement l'application Nextcloud OnlyOffice.\n3. Ouvrez n'importe quel fichier DOCX/XLSX/PPTX/ODT dans Nextcloud. Il s'ouvre dans l'\u00e9diteur Collabora embarqu\u00e9.\n\nPour revenir \u00e0 OnlyOffice plus tard : arr\u00eatez ce conteneur Collabora, d\u00e9ployez `onlyoffice`, puis cliquez le bouton **Wire Nextcloud OnlyOffice**.\n\nN'acc\u00e9dez pas au domaine Collabora directement dans un navigateur -- il n'a pas d'interface utilisateur. Les utilisateurs ne le voient qu'\u00e0 travers Nextcloud.\n",
+        "setup_steps": "1. Cliquez **Deploy**. Patientez ~30 s le d\u00e9marrage du serveur d'\u00e9dition.\n2. Nextcloud se configure pour cet \u00e9diteur : il est red\u00e9ploy\u00e9 une fois avec l'adresse de l'\u00e9diteur, installe l'application Nextcloud Office, la pointe vers ce serveur et -- si OnlyOffice \u00e9tait configur\u00e9 avant -- retire proprement l'application Nextcloud OnlyOffice.\n3. Ouvrez n'importe quel fichier DOCX/XLSX/PPTX/ODT dans Nextcloud. Il s'ouvre dans l'\u00e9diteur Collabora embarqu\u00e9.\n\nPour revenir \u00e0 OnlyOffice plus tard : retirez cette application Collabora, puis d\u00e9ployez `onlyoffice`. Un seul \u00e9diteur de bureautique fonctionne \u00e0 la fois.\n\nN'acc\u00e9dez pas au domaine Collabora directement dans un navigateur -- il n'a pas d'interface utilisateur. Les utilisateurs ne le voient qu'\u00e0 travers Nextcloud.\n",
         "what_it_is": "\u00c9dition collaborative ODT/DOCX/XLSX/PPTX -- s'int\u00e8gre \u00e0 Nextcloud pour la co-\u00e9dition temps r\u00e9el. Bas\u00e9 sur LibreOffice ; plus l\u00e9ger qu'OnlyOffice ; meilleure fid\u00e9lit\u00e9 pour les formats ODF."
       },
       "hostname_baked": false,
@@ -452,7 +501,7 @@
           "Microsoft Office Online",
           "Google Docs (as embedded editor)"
         ],
-        "setup_steps": "1. Click **Deploy**. Wait ~1 min for the document server to boot.\n2. From the operator dashboard, click the **Wire Nextcloud OnlyOffice** button. The button installs the Nextcloud OnlyOffice app, reads the JWT secret from this template, points the app at this server, and -- where Collabora was previously wired -- removes the Collabora Nextcloud app cleanly.\n3. Open any DOCX/XLSX/PPTX file in Nextcloud. It opens in the embedded OnlyOffice editor.\n\nSwitching to Collabora later is one click: stop this OnlyOffice compose, deploy `collabora`, then click the **Wire Nextcloud Collabora** button.\n\nDon't visit the OnlyOffice domain directly in a browser -- it has no UI of its own. Users only ever see it through Nextcloud when they open a document.\n",
+        "setup_steps": "1. Click **Deploy**. Wait ~1 min for the document server to boot.\n2. Nextcloud sets itself up for this editor: it is redeployed once with the editor's address and JWT secret, installs the Nextcloud OnlyOffice app, points it at this server, and -- where Collabora was set up before -- removes the Collabora Nextcloud app cleanly.\n3. Open any DOCX/XLSX/PPTX file in Nextcloud. It opens in the embedded OnlyOffice editor.\n\nSwitching to Collabora later: remove this OnlyOffice application, then deploy `collabora`. Only one office editor runs at a time.\n\nDon't visit the OnlyOffice domain directly in a browser -- it has no UI of its own. Users only ever see it through Nextcloud when they open a document.\n",
         "what_it_is": "Collaborative DOCX/XLSX/PPTX editing -- bolts into Nextcloud for real-time co-editing with high MS Office fidelity."
       },
       "env": {
@@ -466,14 +515,28 @@
             "alphabet": "alnum",
             "length": 48
           }
+        },
+        "OFFICE_EDITOR": {
+          "managed": {
+            "expr": "onlyoffice"
+          }
+        },
+        "OFFICE_URL": {
+          "managed": {
+            "expr": "https://office.{{ cloudflare_zone }}"
+          }
         }
       },
       "env_defaults": [
         "DOMAIN_HOST=office.{{ cloudflare_zone }}",
-        "JWT_SECRET={{ lookup('password', '/dev/null length=48 chars=ascii_letters,digits') }}"
+        "JWT_SECRET={{ lookup('password', '/dev/null length=48 chars=ascii_letters,digits') }}",
+        "OFFICE_EDITOR=onlyoffice",
+        "OFFICE_URL=https://office.{{ cloudflare_zone }}"
       ],
       "env_managed_keys": [
-        "DOMAIN_HOST"
+        "DOMAIN_HOST",
+        "OFFICE_EDITOR",
+        "OFFICE_URL"
       ],
       "fr": {
         "compose_description": "\u00c9diteur collaboratif DOCX/XLSX/PPTX. Embarqu\u00e9 dans Nextcloud. Remplace Office 365 / Google Docs comme \u00e9diteur.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/onlyoffice/README.md\n",
@@ -482,7 +545,7 @@
           "Microsoft Office Online",
           "Google Docs (\u00e9diteur embarqu\u00e9)"
         ],
-        "setup_steps": "1. Cliquez **Deploy**. Patientez ~1 min le d\u00e9marrage du Document Server.\n2. Depuis le tableau de bord op\u00e9rateur, cliquez le bouton **Wire Nextcloud OnlyOffice**. Le bouton installe l'application Nextcloud OnlyOffice, lit la cl\u00e9 JWT depuis ce template, pointe l'application vers ce serveur, et -- si Collabora \u00e9tait pr\u00e9c\u00e9demment c\u00e2bl\u00e9 -- retire proprement l'application Nextcloud Collabora.\n3. Ouvrez n'importe quel fichier DOCX/XLSX/PPTX dans Nextcloud. Il s'ouvre dans l'\u00e9diteur OnlyOffice embarqu\u00e9.\n\nPour passer \u00e0 Collabora plus tard : arr\u00eatez ce conteneur OnlyOffice, d\u00e9ployez `collabora`, puis cliquez le bouton **Wire Nextcloud Collabora**.\n\nN'acc\u00e9dez pas au domaine OnlyOffice directement dans un navigateur -- il n'a pas d'interface utilisateur. Les utilisateurs ne le voient qu'\u00e0 travers Nextcloud.\n",
+        "setup_steps": "1. Cliquez **Deploy**. Patientez ~1 min le d\u00e9marrage du Document Server.\n2. Nextcloud se configure pour cet \u00e9diteur : il est red\u00e9ploy\u00e9 une fois avec l'adresse de l'\u00e9diteur et sa cl\u00e9 JWT, installe l'application Nextcloud OnlyOffice, la pointe vers ce serveur et -- si Collabora \u00e9tait configur\u00e9 avant -- retire proprement l'application Nextcloud Collabora.\n3. Ouvrez n'importe quel fichier DOCX/XLSX/PPTX dans Nextcloud. Il s'ouvre dans l'\u00e9diteur OnlyOffice embarqu\u00e9.\n\nPour passer \u00e0 Collabora plus tard : retirez cette application OnlyOffice, puis d\u00e9ployez `collabora`. Un seul \u00e9diteur de bureautique fonctionne \u00e0 la fois.\n\nN'acc\u00e9dez pas au domaine OnlyOffice directement dans un navigateur -- il n'a pas d'interface utilisateur. Les utilisateurs ne le voient qu'\u00e0 travers Nextcloud.\n",
         "what_it_is": "\u00c9dition collaborative DOCX/XLSX/PPTX -- s'int\u00e8gre \u00e0 Nextcloud pour la co-\u00e9dition temps r\u00e9el avec une haute fid\u00e9lit\u00e9 aux formats MS Office."
       },
       "hostname_baked": false,
@@ -2541,10 +2604,20 @@
           "Google Workspace (Gmail)",
           "Microsoft 365 (Exchange Online)"
         ],
-        "setup_steps": "1. **Before deploy -- DNS + relay.** Mail needs DNS records and an outbound relay set up first. The MX, SPF, DKIM, DMARC, reverse-DNS and MTA-STS / TLS-RPT records are set up for the domain, and the relay credentials pasted in, before the first deploy.\n2. **Deploy** is the only step. The server completes the mail wiring on its own -- the TLS certificate, the postmaster mailbox, single sign-on, spam and virus filtering -- within about forty minutes of the deploy, or of the domain being applied on a server that has none yet.\n3. Webmail then answers at its address (`webmail.` followed by the domain). The login goes through Keycloak -- one account for every app in the suite. There is no separate mail password.\n4. Mailboxes are created automatically for staff and client users from Keycloak. A new user can sign in to webmail as soon as their account exists.\n",
+        "setup_steps": "1. **Before deploy -- DNS + relay.** Mail needs an outbound relay and some DNS records set up first. The MX, SPF, DKIM, DMARC and reverse-DNS records are set up for the domain by its owner, and the relay credentials pasted in, before the first deploy.\n2. **Deploy** is the only step. The server completes the mail wiring on its own -- the address of the mail host, the MTA-STS and TLS-RPT records, the TLS certificate, the postmaster mailbox, single sign-on, spam and virus filtering. The deploy needs the server's domain and its Cloudflare access to be set first.\n3. Webmail then answers at its address (`webmail.` followed by the domain). The login goes through Keycloak -- one account for every app in the suite. There is no separate mail password.\n4. Mailboxes are created automatically for staff and client users from Keycloak. A new user can sign in to webmail as soon as their account exists.\n",
         "what_it_is": "Self-hosted email -- inbox storage on the VPS (Postfix + Dovecot + Rspamd) with Roundcube webmail and Keycloak single sign-on. Outbound requires an SMTP relay through a reputable provider (set up before deploy) so messages are not flagged as spam."
       },
       "env": {
+        "ANTIVIRUS_HOST": {
+          "managed": {
+            "expr": "{{ provided.antivirus.host }}"
+          }
+        },
+        "ANTIVIRUS_PORT": {
+          "managed": {
+            "expr": "{{ provided.antivirus.port }}"
+          }
+        },
         "DOMAIN_HOST": {
           "setting": {
             "default": "webmail.{{ cloudflare_zone }}"
@@ -2585,6 +2658,11 @@
             "default": ""
           }
         },
+        "SPAMHAUS_DQS_KEY": {
+          "managed": {
+            "expr": "{{ mailserver_spamhaus_dqs_key | default('') }}"
+          }
+        },
         "WEBMAIL_HOSTNAME": {
           "setting": {
             "default": "webmail.{{ cloudflare_zone }}"
@@ -2600,10 +2678,16 @@
         "RELAY_HOST=",
         "RELAY_PORT=587",
         "RELAY_USER=",
-        "RELAY_PASSWORD={{ mailserver_relay_password }}"
+        "RELAY_PASSWORD={{ mailserver_relay_password }}",
+        "SPAMHAUS_DQS_KEY={{ mailserver_spamhaus_dqs_key | default('') }}",
+        "ANTIVIRUS_HOST={{ provided.antivirus.host }}",
+        "ANTIVIRUS_PORT={{ provided.antivirus.port }}"
       ],
       "env_managed_keys": [
-        "RELAY_PASSWORD"
+        "RELAY_PASSWORD",
+        "SPAMHAUS_DQS_KEY",
+        "ANTIVIRUS_HOST",
+        "ANTIVIRUS_PORT"
       ],
       "env_required_when": {
         "RELAY_PASSWORD": "RELAY_HOST"
@@ -2616,7 +2700,7 @@
           "Google Workspace (Gmail)",
           "Microsoft 365 (Exchange Online)"
         ],
-        "setup_steps": "1. **Avant le d\u00e9ploiement -- DNS + relais.** Le courriel n\u00e9cessite des enregistrements DNS et un relais d'envoi configur\u00e9s au pr\u00e9alable. Les enregistrements MX, SPF, DKIM, DMARC, DNS inverse et MTA-STS / TLS-RPT sont configur\u00e9s pour le domaine, et les identifiants du relais renseign\u00e9s, avant le premier d\u00e9ploiement.\n2. **Deploy** est la seule \u00e9tape. Le serveur termine lui-m\u00eame le c\u00e2blage du courriel -- le certificat TLS, la bo\u00eete postmaster, l'authentification unique, le filtrage antipourriel et antivirus -- dans les quarante minutes qui suivent le d\u00e9ploiement, ou l'application du domaine sur un serveur qui n'en a pas encore.\n3. Le webmail r\u00e9pond ensuite \u00e0 son adresse (`webmail.` suivi du domaine). La connexion passe par Keycloak -- un seul compte pour toutes les applications de la suite. Aucun mot de passe de courriel distinct.\n4. Les bo\u00eetes sont cr\u00e9\u00e9es automatiquement pour les utilisateurs staff et client depuis Keycloak. Un nouvel utilisateur peut se connecter au webmail d\u00e8s que son compte existe.\n",
+        "setup_steps": "1. **Avant le d\u00e9ploiement -- DNS + relais.** Le courriel n\u00e9cessite un relais d'envoi et des enregistrements DNS configur\u00e9s au pr\u00e9alable. Les enregistrements MX, SPF, DKIM, DMARC et DNS inverse sont configur\u00e9s pour le domaine par son propri\u00e9taire, et les identifiants du relais renseign\u00e9s, avant le premier d\u00e9ploiement.\n2. **Deploy** est la seule \u00e9tape. Le serveur termine lui-m\u00eame le c\u00e2blage du courriel -- l'adresse de l'h\u00f4te de courriel, les enregistrements MTA-STS et TLS-RPT, le certificat TLS, la bo\u00eete postmaster, l'authentification unique, le filtrage antipourriel et antivirus. Le d\u00e9ploiement exige que le domaine du serveur et son acc\u00e8s Cloudflare soient configur\u00e9s au pr\u00e9alable.\n3. Le webmail r\u00e9pond ensuite \u00e0 son adresse (`webmail.` suivi du domaine). La connexion passe par Keycloak -- un seul compte pour toutes les applications de la suite. Aucun mot de passe de courriel distinct.\n4. Les bo\u00eetes sont cr\u00e9\u00e9es automatiquement pour les utilisateurs staff et client depuis Keycloak. Un nouvel utilisateur peut se connecter au webmail d\u00e8s que son compte existe.\n",
         "what_it_is": "Courriel auto-h\u00e9berg\u00e9 -- stockage des bo\u00eetes sur le VPS (Postfix + Dovecot + Rspamd) avec le webmail Roundcube et l'authentification unique Keycloak. L'envoi requiert un relais SMTP via un fournisseur r\u00e9put\u00e9 (configur\u00e9 avant le d\u00e9ploiement) pour \u00e9viter le classement en pourriel."
       },
       "hostname_baked": true,
@@ -2667,8 +2751,81 @@
       "upstream_url": "https://docker-mailserver.github.io/"
     },
     {
+      "app_name": "catena-clamav",
+      "bench_fixture": "skip",
+      "bench_pack": "nodb",
+      "categories": [
+        "Security",
+        "Infrastructure"
+      ],
+      "compose_file": "blueprints/clamav/docker-compose.yml",
+      "en": {
+        "compose_description": "Shared antivirus scanner (clamd). Other applications on this server find it on their own.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/clamav/README.md\n",
+        "display_name": "ClamAV antivirus",
+        "replaces": [
+          "A scanner per application"
+        ],
+        "setup_steps": "1. Click **Deploy**. The first start downloads the signature database, which takes a few minutes.\n2. Applications that scan through it (Nextcloud, the mail server) are set up by themselves: each one is redeployed once with the scanner's address. Removing the scanner sets them back.\n\nThe scanner has no web address and no sign-in. The Apps page reports it as unhealthy while it cannot answer a PING.\n",
+        "what_it_is": "One antivirus scanner for the whole server. The mail server scans every message through it and Nextcloud scans every uploaded file; the compliance evidence store scans its files through it too."
+      },
+      "env": {
+        "CLAMD_CONCURRENT_RELOAD": {
+          "setting": {
+            "default": "no"
+          }
+        },
+        "CLAMD_HOST": {
+          "managed": {
+            "expr": "clamav"
+          }
+        },
+        "CLAMD_PORT": {
+          "managed": {
+            "expr": "3310"
+          }
+        },
+        "CLAMD_STREAM_MAX_LENGTH": {
+          "setting": {
+            "default": "104857600"
+          }
+        }
+      },
+      "env_defaults": [
+        "CLAMD_HOST=clamav",
+        "CLAMD_PORT=3310",
+        "CLAMD_STREAM_MAX_LENGTH=104857600",
+        "CLAMD_CONCURRENT_RELOAD=no"
+      ],
+      "env_managed_keys": [
+        "CLAMD_HOST",
+        "CLAMD_PORT"
+      ],
+      "fr": {
+        "compose_description": "Analyseur antivirus partag\u00e9 (clamd). Les autres applications de ce serveur le trouvent d'elles-m\u00eames.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/clamav/README.md\n",
+        "display_name": "Antivirus ClamAV",
+        "replaces": [
+          "Un analyseur par application"
+        ],
+        "setup_steps": "1. Cliquez **Deploy**. Le premier d\u00e9marrage t\u00e9l\u00e9charge la base de signatures, ce qui prend quelques minutes.\n2. Les applications qui analysent par son entremise (Nextcloud, le serveur de courriel) se configurent d'elles-m\u00eames : chacune est red\u00e9ploy\u00e9e une fois avec l'adresse de l'analyseur. Le retirer les remet comme avant.\n\nL'analyseur n'a ni adresse web ni connexion. La page Apps le signale en mauvaise sant\u00e9 tant qu'il ne r\u00e9pond pas \u00e0 un PING.\n",
+        "what_it_is": "Un seul analyseur antivirus pour tout le serveur. Le serveur de courriel y analyse chaque message et Nextcloud chaque fichier d\u00e9pos\u00e9 ; le registre de preuves de conformit\u00e9 y analyse aussi ses fichiers."
+      },
+      "hostname_baked": false,
+      "id": "clamav",
+      "sizing": {
+        "disk_baseline_mb": 400,
+        "idle_cpu_pct": null,
+        "idle_ram_mb": null,
+        "notes": "The daemon keeps its signature database resident, about 1.5 GB, and a\nreload that keeps scanning holds two copies for its length. The disk\nbaseline is the downloaded database. Conservative pre-launch estimate,\nnot yet measured.",
+        "notes_fr": "Le d\u00e9mon garde sa base de signatures en m\u00e9moire, environ 1,5 Go, et\nun rechargement qui continue d'analyser en tient deux copies pendant sa\ndur\u00e9e. Le disque de base est la base t\u00e9l\u00e9charg\u00e9e. Estimation prudente\npr\u00e9-lancement, pas encore mesur\u00e9e.",
+        "peak_cpu_pct": null,
+        "peak_ram_mb": 1700
+      },
+      "sso_mode": "n/a",
+      "upstream_url": "https://www.clamav.net/"
+    },
+    {
       "app_name": "catena-portainer",
-      "bench_fixture": "required",
+      "bench_fixture": "skip",
       "bench_pack": "embedded",
       "categories": [
         "Infrastructure"
@@ -2725,7 +2882,7 @@
     },
     {
       "app_name": "catena-arcane",
-      "bench_fixture": "required",
+      "bench_fixture": "skip",
       "bench_pack": "embedded",
       "categories": [
         "Infrastructure"
