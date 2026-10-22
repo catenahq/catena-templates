@@ -1,5 +1,6 @@
 x-catena:
   schema: 2
+  version_from: dms
   env:
     DOMAIN_HOST:
       setting: {default: "webmail.{{ cloudflare_zone }}"}

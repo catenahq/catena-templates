@@ -1,5 +1,6 @@
 x-catena:
   schema: 2
+  version_from: app
   env:
     DOMAIN_HOST:
       setting: {default: "invoice.{{ cloudflare_zone }}"}
