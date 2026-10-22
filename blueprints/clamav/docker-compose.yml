@@ -71,7 +71,11 @@ services:
       default: {}
 
 volumes:
+  # freshclam downloads the signature database again and rewrites it several
+  # times a day, so a snapshot of it only adds cold storage.
   clamav-db:
+    labels:
+      vps.backup.exclude: "true"
 
 networks:
   antivirus:

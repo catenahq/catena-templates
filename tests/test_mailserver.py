@@ -97,7 +97,7 @@ def test_the_webmail_signs_in_with_its_own_client_that_dovecot_introspects_with(
 
 def _start(tmp_path: Path, **env: str) -> subprocess.CompletedProcess:
     """The dms start script with the config directory in tmp_path, doveadm and
-    the image's own start replaced by stand-ins."""
+    the image's own start standing in as stubs."""
     cfg = tmp_path / "cfg"
     cfg.mkdir(exist_ok=True)
     bin_dir = tmp_path / "bin"
