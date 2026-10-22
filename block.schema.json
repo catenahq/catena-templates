@@ -264,15 +264,25 @@
       "anyOf": [
         { "required": ["configure"] },
         { "required": ["verify"] },
-        { "required": ["users"] }
+        { "required": ["users"] },
+        { "required": ["scan"] },
+        { "required": ["reconcile"] }
       ],
-      "description": "Scripts the host runs inside one service: configure after a deploy, verify that the application works, users to seed its accounts. Each body is a list of argv; a $ in one is written $$, which Docker reads back as $.",
+      "description": "Scripts the host runs inside one service: configure after a deploy, verify that the application works, users to seed its accounts, scan to check one file, reconcile to count the objects its database indexes that its object store lacks. Each body is a list of argv; a $ in one is written $$, which Docker reads back as $.",
       "properties": {
         "service": { "type": "string", "minLength": 1 },
         "user": { "type": "string" },
         "configure": { "$ref": "#/$defs/argv_list" },
         "verify": { "$ref": "#/$defs/argv_list" },
         "users": { "$ref": "#/$defs/argv_list" },
+        "scan": {
+          "$ref": "#/$defs/argv_list",
+          "description": "Reads the file to check on its standard input. Exit 0 means clean. Exit 1 with an output line FLAGGED <signature> means flagged. Any other ending, docker's own exit 1 included, means the scanner could not answer and the file is refused. A block that provides antivirus declares it."
+        },
+        "reconcile": {
+          "$ref": "#/$defs/argv_list",
+          "description": "Runs after a restore, an application start, a bucket repair and the reconcile verb. Its last output line is missing=<n>, followed by optional <name>=<n> pairs. Exit 0 with that line answers: n objects are missing. Exit 0 without it observed nothing (an application in maintenance prints no count, never 0). A non-zero exit or a timeout did not complete. It reports and never deletes. The body waits for the application to be ready itself."
+        },
         "users_group": {
           "type": "string",
           "pattern": "^[A-Za-z0-9][A-Za-z0-9 ._-]*(/[A-Za-z0-9][A-Za-z0-9 ._-]*)*(,[A-Za-z0-9][A-Za-z0-9 ._-]*(/[A-Za-z0-9][A-Za-z0-9 ._-]*)*)*$",
@@ -402,6 +412,31 @@
         "pattern": "^(?!ALL$|CAP_)[A-Z][A-Z_]*$"
       },
       "description": "The capabilities, such as NET_ADMIN, that a service of the application adds with cap_add and the app checker refuses in a file that does not declare them (X18): SYS_ADMIN, NET_ADMIN, SYS_PTRACE and the like. Written without the CAP_ prefix."
+    },
+    "probe": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["service"],
+      "description": "How the boot probe checks the application: it starts service alone, with no environment, capped at memory, and runs check in it until it exits 0 or timeout_seconds pass. Without check, lifecycle.ready answers, which then names the same service. A block holds no $ and names no image of its file.",
+      "properties": {
+        "service": { "type": "string", "minLength": 1, "description": "Compose service the probe starts." },
+        "user": { "type": "string", "description": "User to exec the check as." },
+        "memory": {
+          "type": "string",
+          "pattern": "^(?:[1-9][0-9]{0,2}|1[0-9]{3}|20[0-3][0-9]|204[0-8])m$|^[12]g$",
+          "description": "Memory cap of the probe container: a size in m or g, at most 2g."
+        },
+        "timeout_seconds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 600,
+          "description": "How long the check is tried before the probe gives up."
+        },
+        "check": {
+          "$ref": "#/$defs/argv",
+          "description": "A command, run through docker exec with no shell, that exits 0 once the application came up."
+        }
+      }
     },
     "provides": {
       "type": "object",

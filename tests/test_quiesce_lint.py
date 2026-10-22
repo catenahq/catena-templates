@@ -753,3 +753,154 @@ def test_host_paths_that_hold_nothing_forbidden_pass():
     from types import SimpleNamespace
     entry = SimpleNamespace(slug="demo", block={"host_paths": ["/mnt", "/media/disk", "/var/www", "/srv/catena/apps/web"]})
     assert L.lint_host_paths(entry) == []
+
+
+def test_scan_and_reconcile_are_hook_lists_the_lint_reads():
+    assert {"scan", "reconcile"} <= set(L.HOOK_LISTS)
+
+
+@pytest.mark.parametrize("hooks,needle", [
+    ({"service": "app", "scan": [["curl", "https://evil.example.com"]]},
+     "synthetic-bad.hooks.scan[0]: starts with non-allowlisted command 'curl'"),
+    ({"service": "app", "reconcile": [["php", "occ", "list", "&&", "php", "occ", "status"]]},
+     "synthetic-bad.hooks.reconcile[0]: contains the shell operator '&&'"),
+    ({"service": "app", "reconcile": [["sh", "-c", "if true; then"]]},
+     "synthetic-bad.hooks.reconcile[0]: does not parse as sh"),
+])
+def test_a_scan_or_reconcile_body_the_host_cannot_run_is_refused(
+        monkeypatch, tmp_path, capsys, hooks, needle):
+    _synthetic_sources(monkeypatch, tmp_path, {}, block={"hooks": hooks})
+    assert L.lint_all() == 1
+    assert needle in capsys.readouterr().out
+
+
+def test_scan_and_reconcile_hooks_alone_pass_the_schema_and_the_lint(monkeypatch, tmp_path, capsys):
+    import jsonschema
+    schema = json.loads((ROOT / "block.schema.json").read_text(encoding="utf-8"))
+    for name in ("scan", "reconcile"):
+        jsonschema.validate({"schema": 2, "hooks": {"service": "app", name: [["sh", "-c", "cat >/dev/null"]]}},
+                            schema)
+    _synthetic_sources(monkeypatch, tmp_path, {}, block={"hooks": {
+        "service": "app", "scan": [["sh", "-c", "cat | wc -c; echo $$?"]],
+        "reconcile": [["sh", "-c", "echo missing=0"]]}})
+    assert L.lint_all() == 0, capsys.readouterr().out
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate({"schema": 2, "hooks": {"service": "app", "scan": []}}, schema)
+
+
+_ANTIVIRUS = {"env": {"DOMAIN_HOST": {"setting": {"default": "x.example.com"}},
+                      "AV_HOST": {"setting": {"default": "av"}}},
+              "provides": {"antivirus": {"host": "AV_HOST"}}}
+
+
+def test_a_block_that_provides_antivirus_declares_hooks_scan(monkeypatch, tmp_path, capsys):
+    _synthetic_sources(monkeypatch, tmp_path, {}, block=_ANTIVIRUS)
+    assert L.lint_all() == 1
+    assert "synthetic-bad.x-catena.provides.antivirus: the block declares no hooks.scan" \
+        in capsys.readouterr().out
+    _synthetic_sources(monkeypatch, tmp_path / "scan", {}, block={
+        **_ANTIVIRUS, "hooks": {"service": "app", "scan": [["sh", "-c", "cat >/dev/null"]]}})
+    assert L.lint_all() == 0, capsys.readouterr().out
+
+
+def test_the_antivirus_rule_skips_only_the_blueprints_that_have_no_scan_yet():
+    from types import SimpleNamespace
+    assert L.ANTIVIRUS_SCAN_EXEMPT == frozenset({"clamav"})
+    assert L.lint_antivirus_scan(SimpleNamespace(slug="clamav", block=_ANTIVIRUS)) == []
+    assert L.lint_antivirus_scan(SimpleNamespace(slug="other", block=_ANTIVIRUS))
+    assert L.lint_antivirus_scan(SimpleNamespace(slug="other", block={"provides": {"turn": {}}})) == []
+
+
+def test_a_probe_schema_holds_the_limits(monkeypatch):
+    import jsonschema
+    schema = json.loads((ROOT / "block.schema.json").read_text(encoding="utf-8"))
+
+    def probe(**fields):
+        return {"schema": 2, "probe": {"service": "app", "check": ["php", "-r", "exit(0);"], **fields}}
+
+    for good in ({}, {"memory": "768m"}, {"memory": "2g"}, {"memory": "2048m"}, {"memory": "1g"},
+                 {"timeout_seconds": 600}, {"user": "www-data"}):
+        jsonschema.validate(probe(**good), schema)
+    for bad in ({"memory": "3g"}, {"memory": "2049m"}, {"memory": "0g"}, {"memory": "768"},
+                {"memory": "1.5g"}, {"timeout_seconds": 601}, {"timeout_seconds": 0}, {"check": []},
+                {"extra": 1}):
+        with pytest.raises(jsonschema.ValidationError):
+            jsonschema.validate(probe(**bad), schema)
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate({"schema": 2, "probe": {"check": ["true"]}}, schema)
+
+
+def test_a_probe_with_an_allowlisted_check_in_a_compose_service_passes(monkeypatch, tmp_path, capsys):
+    _synthetic_sources(monkeypatch, tmp_path, {}, block={
+        "probe": {"service": "app", "memory": "768m", "timeout_seconds": 180,
+                  "check": ["php", "-r", "exit(0);"]}})
+    assert L.lint_all() == 0, capsys.readouterr().out
+
+
+@pytest.mark.parametrize("probe,needle", [
+    ({"service": "web", "check": ["php", "-r", "exit(0);"]},
+     "synthetic-bad.probe.service: 'web' is not a service"),
+    ({"service": "app", "check": ["curl", "https://evil.example.com"]},
+     "synthetic-bad.probe.check: starts with non-allowlisted command 'curl'"),
+    ({"service": "app", "check": ["php", "-r", "x", "&&", "php"]},
+     "synthetic-bad.probe.check: contains the shell operator '&&'"),
+    ({"service": "app", "check": ["php", "-r", "echo $HOME;"]},
+     "synthetic-bad.x-catena.probe.check[2]: holds a $"),
+    ({"service": "app"}, "synthetic-bad.probe.check: missing, and lifecycle.ready does not answer"),
+])
+def test_a_probe_the_host_cannot_run_is_refused(monkeypatch, tmp_path, capsys, probe, needle):
+    _synthetic_sources(monkeypatch, tmp_path, {}, block={"probe": probe})
+    assert L.lint_all() == 1
+    assert needle in capsys.readouterr().out
+
+
+def test_a_probe_with_no_check_uses_lifecycle_ready_of_its_service(monkeypatch, tmp_path, capsys):
+    lifecycle = {"service": "app", "ready": ["php", "occ", "status"],
+                 "migrate": [["php", "occ", "status"]], "timeout_seconds": 60}
+    _synthetic_sources(monkeypatch, tmp_path, {}, block={"probe": {"service": "app"}, "lifecycle": lifecycle})
+    assert L.lint_all() == 0, capsys.readouterr().out
+    compose = "services:\n  app:\n    image: x\n  worker:\n    image: x\n"
+    _synthetic_sources(monkeypatch, tmp_path / "other", {}, compose,
+                       block={"probe": {"service": "worker"}, "lifecycle": lifecycle})
+    assert L.lint_all() == 1
+    assert "synthetic-bad.probe.check: missing" in capsys.readouterr().out
+
+
+_HOST_NETWORK_COMPOSE = """\
+services:
+  app:
+    image: acme/app:1.0.0
+    labels:
+      - "{label}"
+"""
+
+
+@pytest.mark.parametrize("label", [
+    "vps.expose.tcp=25,465,587,993", "vps.expose.udp=10000-10002", "vps.expose.udp=49152-50175",
+    "vps.expose.tcp=3478:3479",
+])
+def test_a_host_network_block_with_declared_ports_passes(monkeypatch, tmp_path, capsys, label):
+    _synthetic_sources(monkeypatch, tmp_path, {}, _HOST_NETWORK_COMPOSE.format(label=label),
+                       block={"privileges": ["host_network"]})
+    assert L.lint_all() == 0, capsys.readouterr().out
+
+
+@pytest.mark.parametrize("label,needle", [
+    ("vps.expose.udp=49152-50176", "a range of more than 1024 ports"),
+    ("vps.expose.udp=1-65535", "a range of more than 1024 ports"),
+    ("vps.expose.tcp=25,abc", "'abc', which is not a port or a range"),
+    ("vps.expose.tcp=0", "which is not a range of ports 1 to 65535"),
+    ("vps.expose.udp=2000-1000", "which is not a range of ports 1 to 65535"),
+    ("vps.auto-update=off", "host_network is asked for, and no service declares its ports"),
+])
+def test_a_host_network_block_whose_ports_are_not_declared_is_refused(
+        monkeypatch, tmp_path, capsys, label, needle):
+    _synthetic_sources(monkeypatch, tmp_path, {}, _HOST_NETWORK_COMPOSE.format(label=label),
+                       block={"privileges": ["host_network"]})
+    assert L.lint_all() == 1
+    assert needle in capsys.readouterr().out
+
+
+def test_a_block_without_host_network_is_not_asked_for_ports(monkeypatch, tmp_path, capsys):
+    _synthetic_sources(monkeypatch, tmp_path, {}, _HOST_NETWORK_COMPOSE.format(label="vps.expose.udp=1-65535"))
+    assert L.lint_all() == 0, capsys.readouterr().out

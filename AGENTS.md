@@ -25,7 +25,12 @@ for layout, consumer model, and BASE URL setup.
   `hooks` body, which writes each `$` as `$$`, and no image reference (an
   update rewrites those); it starts with `schema: 2`.
   `block.schema.json` is its format; catena-admin
-  `payload/engines/appdecl` reads it.
+  `payload/engines/appdecl` reads it. Three fields serve other lanes:
+  `hooks.scan` (reads a file on stdin; a block that provides `antivirus`
+  declares it), `hooks.reconcile` (counts the objects the database indexes that
+  the object store lacks) and `probe` (how the boot probe starts the app alone
+  and asks whether it came up). `make lint` holds their commands to the
+  allowlists.
 - An application other applications use declares what it gives in the block's
   `provides` (`{<capability>: {<name>: <key of its env>}}`). A user of it reads
   `{{ provided.<capability>.<name> }}` in a managed expression, never another

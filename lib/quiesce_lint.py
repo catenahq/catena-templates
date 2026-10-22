@@ -4,7 +4,8 @@ Three families of commands, all declared in the compose's `x-catena` block
 and all executed on a client box with no one present: the quiesce commands the nightly
 maintenance runs around its backup, the lifecycle commands (migration,
 before and after an update, and the ready question asked before each of
-those) and the hooks (configure, verify, users). All are argv arrays the host
+those), the hooks (configure, verify, users, scan, reconcile) and the boot
+probe's check. All are argv arrays the host
 runs inside one service's container through `docker exec`, with no shell of
 their own. And the sign-in labels, from which
 the host's settings sync makes a Keycloak client and writes its values into
@@ -47,6 +48,11 @@ run on every render. This module adds:
   - Every lifecycle block declares ready, and an object_store block names
     env keys the source lists and the compose reads, with a switch that runs
     in a service the compose defines.
+  - A block that provides antivirus declares hooks.scan. A probe names a
+    service of the compose, and its check starts with an allowlisted command
+    (without a check, lifecycle.ready on the same service answers). A block
+    that asks for host_network declares its ports in vps.expose labels, none
+    a range of more than 1024 ports.
   - A vps.auto-update label holds a policy the update engine knows.
   - Sign-in labels sit on the main address's service, the only service
     the host reads them from: the one service carrying vps.route.host, or,
@@ -100,7 +106,15 @@ SWITCH_PLACEHOLDERS = frozenset({"{old_bucket}", "{new_bucket}"})
 ALLOWED_HOOK_COMMANDS = ALLOWED_MIGRATE_COMMANDS | {"sh", "bash", "python", "python3"}
 
 # The argv lists a hooks block can carry.
-HOOK_LISTS = ("configure", "verify", "users")
+HOOK_LISTS = ("configure", "verify", "users", "scan", "reconcile")
+
+# Blueprints that provide antivirus and declare no hooks.scan yet, which the
+# scan rule skips.
+ANTIVIRUS_SCAN_EXEMPT = frozenset({"clamav"})
+
+# The most ports one vps.expose range may open.
+MAX_EXPOSE_RANGE = 1024
+EXPOSE_TOKEN = re.compile(r"^(\d{1,5})(?:[-:](\d{1,5}))?$")
 
 # Store secrets no managed expression reads: they open the host itself. The
 # same list is the root-side authority in catena-admin payload/engines/appenv
@@ -416,6 +430,73 @@ def lint_hooks(entry) -> list[str]:
     return errors
 
 
+def lint_antivirus_scan(entry) -> list[str]:
+    """A block that provides antivirus declares hooks.scan: the host scans a
+    file through that hook."""
+    if "antivirus" not in (entry.block.get("provides") or {}) or entry.slug in ANTIVIRUS_SCAN_EXEMPT:
+        return []
+    if (entry.block.get("hooks") or {}).get("scan"):
+        return []
+    return [f"{entry.slug}.x-catena.provides.antivirus: the block declares no hooks.scan, "
+            f"which is how the host scans a file with the application that provides antivirus"]
+
+
+def lint_probe(entry) -> list[str]:
+    """The probe starts a service of the compose and runs an allowlisted
+    check in it; without a check, lifecycle.ready on the same service
+    answers."""
+    probe = entry.block.get("probe")
+    if not probe:
+        return []
+    errors: list[str] = []
+    services = compose_services(entry)
+    if probe["service"] not in services:
+        errors.append(
+            f"{entry.slug}.probe.service: {probe['service']!r} is not a "
+            f"service in this template's compose ({sorted(services)})")
+    check = probe.get("check")
+    if check:
+        errors.extend(lint_migrate_argv(
+            check, label=f"{entry.slug}.probe.check", allowed=ALLOWED_READY_COMMANDS))
+    else:
+        lifecycle = entry.block.get("lifecycle") or {}
+        if not lifecycle.get("ready") or lifecycle.get("service") != probe["service"]:
+            errors.append(
+                f"{entry.slug}.probe.check: missing, and lifecycle.ready does not answer "
+                f"for the service {probe['service']!r}")
+    return errors
+
+
+def lint_host_network_ports(entry) -> list[str]:
+    """A block that asks for host_network declares the ports it opens in
+    vps.expose labels, none a range of more than MAX_EXPOSE_RANGE ports."""
+    if "host_network" not in (entry.block.get("privileges") or []):
+        return []
+    doc = yaml.safe_load(entry.compose_path.read_text(encoding="utf-8")) or {}
+    errors: list[str] = []
+    declared = False
+    for name, service in (doc.get("services") or {}).items():
+        for key, value in service_labels(service or {}).items():
+            if key.lower() not in ("vps.expose.tcp", "vps.expose.udp"):
+                continue
+            for token in (t.strip() for t in value.split(",")):
+                label = f"{entry.slug}:{name}: {key}"
+                found = EXPOSE_TOKEN.match(token)
+                if not found:
+                    errors.append(f"{label} holds {token!r}, which is not a port or a range")
+                    continue
+                declared = True
+                low, high = int(found[1]), int(found[2] or found[1])
+                if not 1 <= low <= high <= 65535:
+                    errors.append(f"{label} holds {token!r}, which is not a range of ports 1 to 65535")
+                elif high - low + 1 > MAX_EXPOSE_RANGE:
+                    errors.append(f"{label} holds {token!r}, a range of more than {MAX_EXPOSE_RANGE} ports")
+    if not declared:
+        errors.append(f"{entry.slug}.x-catena.privileges: host_network is asked for, and no service "
+                      f"declares its ports in vps.expose.tcp or vps.expose.udp")
+    return errors
+
+
 def lint_object_store(entry) -> list[str]:
     """The env keys an object_store block names are stack env keys the
     source lists and the compose reads, and its switch runs in a service the
@@ -568,6 +649,9 @@ def lint_all() -> int:
         all_errors.extend(lint_auto_update(entry))
         all_errors.extend(lint_object_store(entry))
         all_errors.extend(lint_hooks(entry))
+        all_errors.extend(lint_antivirus_scan(entry))
+        all_errors.extend(lint_probe(entry))
+        all_errors.extend(lint_host_network_ports(entry))
         all_errors.extend(lint_managed_secrets(entry))
         lifecycle = entry.lifecycle
         if lifecycle:
