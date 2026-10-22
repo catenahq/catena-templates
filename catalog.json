@@ -2679,8 +2679,12 @@
           }
         },
         "RELAY_PASSWORD": {
-          "managed": {
-            "expr": "{{ mailserver_relay_password }}"
+          "setting": {
+            "default": "",
+            "label": {
+              "en": "Relay password",
+              "fr": "Mot de passe du relais"
+            }
           }
         },
         "RELAY_PORT": {
@@ -2694,8 +2698,12 @@
           }
         },
         "SPAMHAUS_DQS_KEY": {
-          "managed": {
-            "expr": "{{ mailserver_spamhaus_dqs_key | default('') }}"
+          "setting": {
+            "default": "",
+            "label": {
+              "en": "Spamhaus Data Query Service key",
+              "fr": "Cl\u00e9 Spamhaus Data Query Service"
+            }
           }
         },
         "WEBMAIL_HOSTNAME": {
@@ -2713,14 +2721,12 @@
         "RELAY_HOST=",
         "RELAY_PORT=587",
         "RELAY_USER=",
-        "RELAY_PASSWORD={{ mailserver_relay_password }}",
-        "SPAMHAUS_DQS_KEY={{ mailserver_spamhaus_dqs_key | default('') }}",
+        "RELAY_PASSWORD=",
+        "SPAMHAUS_DQS_KEY=",
         "ANTIVIRUS_HOST={{ provided.antivirus.host }}",
         "ANTIVIRUS_PORT={{ provided.antivirus.port }}"
       ],
       "env_managed_keys": [
-        "RELAY_PASSWORD",
-        "SPAMHAUS_DQS_KEY",
         "ANTIVIRUS_HOST",
         "ANTIVIRUS_PORT"
       ],

@@ -15,7 +15,7 @@ import yaml
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from lib import model, quiesce_lint, readme  # noqa: E402
+from lib import model, quiesce_lint  # noqa: E402
 
 BLUEPRINT = ROOT / "blueprints" / "mailserver"
 CONFIG = "/tmp/docker-mailserver"
@@ -77,8 +77,13 @@ def test_the_needs_name_the_certificate_and_the_three_records():
     assert "MX" not in {r["type"] for r in needs["dns"]}
 
 
-def test_a_key_the_host_stores_reads_as_a_placeholder_in_the_readme():
-    assert readme.strip_jinja("{{ mailserver_spamhaus_dqs_key | default('') }}") == "<your-mailserver_spamhaus_dqs_key>"
+def test_the_relay_password_and_the_spamhaus_key_are_settings_of_the_app_with_both_labels():
+    block = _entry().block
+    for key, label in (("RELAY_PASSWORD", "Relay password"), ("SPAMHAUS_DQS_KEY", "Spamhaus Data Query Service key")):
+        setting = block["env"][key]["setting"]
+        assert setting["default"] == "" and setting["label"]["en"] == label and setting["label"]["fr"]
+    assert "secrets" not in block
+    assert not {k for k in _entry().managed_env if k in ("RELAY_PASSWORD", "SPAMHAUS_DQS_KEY")}
 
 
 def test_the_webmail_signs_in_with_its_own_client_that_dovecot_introspects_with():

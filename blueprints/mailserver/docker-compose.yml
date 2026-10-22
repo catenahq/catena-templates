@@ -18,14 +18,13 @@ x-catena:
     RELAY_USER:
       setting: {default: ""}
     RELAY_PASSWORD:
-      managed: {expr: "{{ mailserver_relay_password }}"}
+      setting: {default: "", label: {en: "Relay password", fr: "Mot de passe du relais"}}
     SPAMHAUS_DQS_KEY:
-      managed: {expr: "{{ mailserver_spamhaus_dqs_key | default('') }}"}
+      setting: {default: "", label: {en: "Spamhaus Data Query Service key", fr: "Clé Spamhaus Data Query Service"}}
     ANTIVIRUS_HOST:
       managed: {expr: "{{ provided.antivirus.host }}"}
     ANTIVIRUS_PORT:
       managed: {expr: "{{ provided.antivirus.port }}"}
-  secrets: [mailserver_relay_password, mailserver_spamhaus_dqs_key]
   capabilities: [NET_ADMIN]
   lifecycle:
     service: "roundcube"

@@ -1483,15 +1483,13 @@
           "name": "RELAY_USER"
         },
         {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
+          "default": "",
           "label": "Relay password",
           "name": "RELAY_PASSWORD"
         },
         {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
-          "label": "Spamhaus dqs key",
+          "default": "",
+          "label": "Spamhaus Data Query Service key",
           "name": "SPAMHAUS_DQS_KEY"
         },
         {
