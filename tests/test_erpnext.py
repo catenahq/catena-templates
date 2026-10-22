@@ -62,8 +62,8 @@ class _Ping(http.server.BaseHTTPRequestHandler):
 
 
 def _verify(tmp_path: Path, *, process: str, answer: bytes, workers: int):
-    """The verify body with the first process, the app server, the interpreter and
-    the redis and rq modules replaced by stand-ins."""
+    """The verify body run against stand-ins for the first process, the app
+    server, the interpreter and the redis and rq modules."""
     _Ping.answer = answer
     _Ping.host_seen = []
     server = http.server.HTTPServer(("127.0.0.1", 0), _Ping)
