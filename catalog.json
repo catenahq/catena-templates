@@ -20,7 +20,7 @@
       "en": {
         "compose_description": "Self-hosted file sharing + collaboration. Replaces Google Drive / Dropbox / OneDrive.\n\nFirst-time setup:\n1. Fill the S3_* variables in the Environment tab.\n2. Click Deploy. The server registers Keycloak SSO inside Nextcloud on its own, with Mail, Talk, the virus scanner and the Webmail link.\n3. Sign in with \"Log in with keycloak\" at the Nextcloud domain.\n\nFull docs: https://github.com/catenahq/catena-templates/blob/main/blueprints/nextcloud-s3-oidc/README.md\n",
         "display_name": "Nextcloud",
-        "extra_notes": "### What the server sets up\n\nAfter every deploy, update and restore, the server connects Nextcloud to the\nrest of the host. Each step is safe to repeat and leaves alone what an\nadministrator changed inside Nextcloud:\n\n- **Sign-in with Keycloak.** `user_oidc` is installed and a `keycloak`\n  provider is registered from the `OIDC_*` values of the Environment tab.\n  A secret rotation reaches Nextcloud at the next deploy. Edits made to\n  the provider's scope and mappings stay. Local admin login\n  (`NEXTCLOUD_ADMIN_USER` / `NEXTCLOUD_ADMIN_PASSWORD`) keeps working\n  as a break-glass.\n- **Mail** is installed so users can add their own mail accounts.\n- **Antivirus.** `files_antivirus` is pointed at the host's shared virus\n  scanner once; later changes to its settings stay.\n- **Talk** is installed and, while the `talk-hpb` service answers, wired\n  to its signaling server and to the host's call relay.\n- **Webmail link.** When the mail server runs on the host, a Webmail\n  entry in the Nextcloud menu opens it in a new tab (`WEBMAIL_HOSTNAME`).\n- **Object store.** The file that points Nextcloud at the S3 bucket is\n  put back from the image when a restored configuration lacks it.\n\nAn app an administrator disabled stays disabled. While Nextcloud is in\nmaintenance mode (during a backup or an update) or a restore has not\nreplayed the database yet, the step waits for the next deploy.\nCollabora and OnlyOffice are wired from the **Actions** tab, with the\nbutton of the editor that is deployed.\n\n### Hourly check\n\nEvery hour, and before an update, the server checks that Nextcloud answers,\nthat it uses the bucket named in the Environment tab and that the S3\nendpoint answers. A failure appears in the maintenance feed.\n\n### Sharing files by email link still works\n\nKeycloak SSO governs **user login** to Nextcloud. It does\n**not** restrict anonymous public share links --\n`/s/<token>` URLs generated from inside Nextcloud stay\nreachable by recipients who have no Keycloak account.\n\nSo the common workflow stays intact:\n\n1. A signed-in team member creates a share link in\n   Nextcloud, optionally with a password and expiry date.\n2. Nextcloud emails the link to the recipient.\n3. The recipient clicks the link. Cloudflare Tunnel routes\n   the request straight to Nextcloud; Nextcloud serves the\n   public share page (or the password prompt, where one was\n   set). No Keycloak redirect, no login required.\n\nThis works because Nextcloud is reached via Nextcloud's own\nauth code, with no SSO proxy in front. The `user_oidc` plugin\nonly handles the login flow for *team members*; the\npublic-share endpoints remain anonymous-by-design.\n\nLocking down public shares entirely is a control inside\nNextcloud (Settings -> Sharing -> \"Allow share via public\nlink\"), not at the network layer.\n",
+        "extra_notes": "### What the server sets up\n\nAfter every deploy, update and restore, the server connects Nextcloud to the\nrest of the host. Each step is safe to repeat and leaves alone what an\nadministrator changed inside Nextcloud:\n\n- **Sign-in with Keycloak.** `user_oidc` is installed and a `keycloak`\n  provider is registered from the `OIDC_*` values of the Environment tab.\n  A secret rotation reaches Nextcloud at the next deploy. Edits made to\n  the provider's scope and mappings stay. Local admin login\n  (`NEXTCLOUD_ADMIN_USER` / `NEXTCLOUD_ADMIN_PASSWORD`) keeps working\n  as a break-glass.\n- **Mail** is installed so users can add their own mail accounts.\n- **Antivirus.** `files_antivirus` is pointed at the host's shared virus\n  scanner once; later changes to its settings stay.\n- **Talk** is installed. While the call relay application runs on this server\n  and the `talk-hpb` service answers, Talk is wired to the relay and to its\n  signaling server. Without the relay it keeps its built-in peer-to-peer mode,\n  which suits calls of a few participants.\n- **Webmail link.** When the mail server runs on the host, a Webmail\n  entry in the Nextcloud menu opens it in a new tab (`WEBMAIL_HOSTNAME`).\n- **Object store.** The file that points Nextcloud at the S3 bucket is\n  put back from the image when a restored configuration lacks it.\n\nAn app an administrator disabled stays disabled. While Nextcloud is in\nmaintenance mode (during a backup or an update) or a restore has not\nreplayed the database yet, the step waits for the next deploy.\nCollabora and OnlyOffice are wired from the **Actions** tab, with the\nbutton of the editor that is deployed.\n\n### Hourly check\n\nEvery hour, and before an update, the server checks that Nextcloud answers,\nthat it uses the bucket named in the Environment tab and that the S3\nendpoint answers. A failure appears in the maintenance feed.\n\n### Sharing files by email link still works\n\nKeycloak SSO governs **user login** to Nextcloud. It does\n**not** restrict anonymous public share links --\n`/s/<token>` URLs generated from inside Nextcloud stay\nreachable by recipients who have no Keycloak account.\n\nSo the common workflow stays intact:\n\n1. A signed-in team member creates a share link in\n   Nextcloud, optionally with a password and expiry date.\n2. Nextcloud emails the link to the recipient.\n3. The recipient clicks the link. Cloudflare Tunnel routes\n   the request straight to Nextcloud; Nextcloud serves the\n   public share page (or the password prompt, where one was\n   set). No Keycloak redirect, no login required.\n\nThis works because Nextcloud is reached via Nextcloud's own\nauth code, with no SSO proxy in front. The `user_oidc` plugin\nonly handles the login flow for *team members*; the\npublic-share endpoints remain anonymous-by-design.\n\nLocking down public shares entirely is a control inside\nNextcloud (Settings -> Sharing -> \"Allow share via public\nlink\"), not at the network layer.\n",
         "replaces": [
           "Google Drive",
           "Dropbox",
@@ -156,12 +156,22 @@
         },
         "TURN_HOSTNAME": {
           "managed": {
-            "expr": "{{ coturn_hostname | default('turn.' ~ cloudflare_zone) }}"
+            "expr": "{{ provided.turn.host }}"
           }
         },
-        "TURN_STATIC_AUTH_SECRET": {
+        "TURN_PORT": {
           "managed": {
-            "expr": "{{ turn_static_auth_secret }}"
+            "expr": "{{ provided.turn.port }}"
+          }
+        },
+        "TURN_SECRET": {
+          "managed": {
+            "expr": "{{ provided.turn.secret }}"
+          }
+        },
+        "TURN_TLS_PORT": {
+          "managed": {
+            "expr": "{{ provided.turn.tls_port }}"
           }
         },
         "WEBMAIL_HOSTNAME": {
@@ -190,8 +200,10 @@
         "SIGNALING_HOSTNAME=signaling.{{ cloudflare_zone }}",
         "SIGNALING_SECRET={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}",
         "TALK_INTERNAL_SECRET={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}",
-        "TURN_HOSTNAME={{ coturn_hostname | default('turn.' ~ cloudflare_zone) }}",
-        "TURN_STATIC_AUTH_SECRET={{ turn_static_auth_secret }}",
+        "TURN_HOSTNAME={{ provided.turn.host }}",
+        "TURN_PORT={{ provided.turn.port }}",
+        "TURN_TLS_PORT={{ provided.turn.tls_port }}",
+        "TURN_SECRET={{ provided.turn.secret }}",
         "WEBMAIL_HOSTNAME=webmail.{{ cloudflare_zone }}",
         "ANTIVIRUS_HOST={{ provided.antivirus.host }}",
         "ANTIVIRUS_PORT={{ provided.antivirus.port }}",
@@ -204,7 +216,9 @@
         "NEXTCLOUD_HOSTNAME",
         "SIGNALING_HOSTNAME",
         "TURN_HOSTNAME",
-        "TURN_STATIC_AUTH_SECRET",
+        "TURN_PORT",
+        "TURN_TLS_PORT",
+        "TURN_SECRET",
         "ANTIVIRUS_HOST",
         "ANTIVIRUS_PORT",
         "OFFICE_EDITOR",
@@ -214,7 +228,7 @@
       "fr": {
         "compose_description": "Partage de fichiers + collaboration auto-h\u00e9berg\u00e9s. Remplace Google Drive / Dropbox / OneDrive.\n\nConfiguration initiale :\n1. Remplissez les variables S3_* dans l'onglet Environment.\n2. Cliquez sur Deploy. Le serveur enregistre lui-m\u00eame le SSO Keycloak dans Nextcloud, avec Mail, Talk, l'antivirus et le lien Webmail.\n3. Connexion avec \"Se connecter avec keycloak\" sur le domaine Nextcloud.\n\nDoc compl\u00e8te : https://github.com/catenahq/catena-templates/blob/main/blueprints/nextcloud-s3-oidc/README.md\n",
         "display_name": "Nextcloud",
-        "extra_notes": "### Ce que le serveur configure\n\nApr\u00e8s chaque d\u00e9ploiement, mise \u00e0 jour et restauration, le serveur relie\nNextcloud au reste de l'h\u00f4te. Chaque \u00e9tape peut \u00eatre r\u00e9p\u00e9t\u00e9e sans risque\net laisse intact ce qu'un administrateur a modifi\u00e9 dans Nextcloud :\n\n- **Connexion avec Keycloak.** `user_oidc` est install\u00e9e et un fournisseur\n  `keycloak` est enregistr\u00e9 \u00e0 partir des valeurs `OIDC_*` de l'onglet\n  Environment. Une rotation de secret atteint Nextcloud au d\u00e9ploiement\n  suivant. Les modifications faites \u00e0 la port\u00e9e et aux correspondances du\n  fournisseur sont conserv\u00e9es. La connexion admin locale\n  (`NEXTCLOUD_ADMIN_USER` / `NEXTCLOUD_ADMIN_PASSWORD`) continue de\n  fonctionner comme issue de secours.\n- **Mail** est install\u00e9e pour que chaque utilisateur ajoute ses comptes\n  courriel.\n- **Antivirus.** `files_antivirus` est dirig\u00e9e une fois vers l'antivirus\n  partag\u00e9 de l'h\u00f4te ; les changements ult\u00e9rieurs de ses r\u00e9glages sont\n  conserv\u00e9s.\n- **Talk** est install\u00e9e et, tant que le service `talk-hpb` r\u00e9pond, reli\u00e9e\n  \u00e0 son serveur de signalisation et au relais d'appels de l'h\u00f4te.\n- **Lien Webmail.** Quand le serveur de courriel tourne sur l'h\u00f4te, une\n  entr\u00e9e Webmail du menu Nextcloud l'ouvre dans un nouvel onglet\n  (`WEBMAIL_HOSTNAME`).\n- **Stockage objet.** Le fichier qui dirige Nextcloud vers le seau S3 est\n  remis depuis l'image quand une configuration restaur\u00e9e ne l'a pas.\n\nUne application d\u00e9sactiv\u00e9e par un administrateur le reste. Tant que\nNextcloud est en mode maintenance (pendant une sauvegarde ou une mise \u00e0\njour) ou qu'une restauration n'a pas encore rejou\u00e9 la base de donn\u00e9es,\nl'\u00e9tape attend le d\u00e9ploiement suivant. Collabora et OnlyOffice se\nc\u00e2blent depuis l'onglet **Actions**, avec le bouton de l'\u00e9diteur\nd\u00e9ploy\u00e9.\n\n### Contr\u00f4le horaire\n\nChaque heure, et avant une mise \u00e0 jour, le serveur v\u00e9rifie que Nextcloud\nr\u00e9pond, qu'il utilise le seau nomm\u00e9 dans l'onglet Environment et que le\npoint d'acc\u00e8s S3 r\u00e9pond. Un \u00e9chec appara\u00eet dans le journal de\nmaintenance.\n\n### Le partage de fichiers par lien courriel fonctionne toujours\n\nL'authentification Keycloak gouverne la **connexion des\nutilisateurs** \u00e0 Nextcloud. Elle ne restreint **pas** les\nliens de partage publics anonymes -- les URL\n`/s/<jeton>` g\u00e9n\u00e9r\u00e9es depuis Nextcloud\nrestent accessibles aux destinataires qui n'ont pas de\ncompte Keycloak.\n\nLe flux courant fonctionne donc tel quel :\n\n1. Un membre de l'\u00e9quipe (utilisateur connect\u00e9) cr\u00e9e un\n   lien de partage dans Nextcloud, avec un mot de passe et\n   une date d'expiration s'il le souhaite.\n2. Nextcloud envoie le lien par courriel au destinataire.\n3. Le destinataire clique le lien. Cloudflare Tunnel\n   achemine la requ\u00eate directement \u00e0 Nextcloud ; Nextcloud\n   sert la page de partage publique (ou l'invite de mot de\n   passe, lorsqu'un mot de passe a \u00e9t\u00e9 d\u00e9fini). Pas de\n   redirection Keycloak, pas de connexion requise.\n\nCela fonctionne parce que Nextcloud est atteint via son\npropre code d'authentification, sans proxy SSO\ndevant lui. Le module `user_oidc` ne g\u00e8re que le flux de\nconnexion pour *les membres de l'\u00e9quipe* ; les points\nd'acc\u00e8s des partages publics restent anonymes par\nconception.\n\nLe verrouillage complet des partages publics est un\ncontr\u00f4le interne \u00e0 Nextcloud (Param\u00e8tres -> Partage ->\n\"Autoriser le partage par lien public\"), pas au niveau\nr\u00e9seau.\n",
+        "extra_notes": "### Ce que le serveur configure\n\nApr\u00e8s chaque d\u00e9ploiement, mise \u00e0 jour et restauration, le serveur relie\nNextcloud au reste de l'h\u00f4te. Chaque \u00e9tape peut \u00eatre r\u00e9p\u00e9t\u00e9e sans risque\net laisse intact ce qu'un administrateur a modifi\u00e9 dans Nextcloud :\n\n- **Connexion avec Keycloak.** `user_oidc` est install\u00e9e et un fournisseur\n  `keycloak` est enregistr\u00e9 \u00e0 partir des valeurs `OIDC_*` de l'onglet\n  Environment. Une rotation de secret atteint Nextcloud au d\u00e9ploiement\n  suivant. Les modifications faites \u00e0 la port\u00e9e et aux correspondances du\n  fournisseur sont conserv\u00e9es. La connexion admin locale\n  (`NEXTCLOUD_ADMIN_USER` / `NEXTCLOUD_ADMIN_PASSWORD`) continue de\n  fonctionner comme issue de secours.\n- **Mail** est install\u00e9e pour que chaque utilisateur ajoute ses comptes\n  courriel.\n- **Antivirus.** `files_antivirus` est dirig\u00e9e une fois vers l'antivirus\n  partag\u00e9 de l'h\u00f4te ; les changements ult\u00e9rieurs de ses r\u00e9glages sont\n  conserv\u00e9s.\n- **Talk** est install\u00e9e. Tant que l'application relais d'appels fonctionne sur\n  ce serveur et que le service `talk-hpb` r\u00e9pond, Talk est reli\u00e9e au relais et \u00e0\n  son serveur de signalisation. Sans le relais, elle garde son mode pair \u00e0 pair\n  int\u00e9gr\u00e9, qui convient aux appels de quelques participants.\n- **Lien Webmail.** Quand le serveur de courriel tourne sur l'h\u00f4te, une\n  entr\u00e9e Webmail du menu Nextcloud l'ouvre dans un nouvel onglet\n  (`WEBMAIL_HOSTNAME`).\n- **Stockage objet.** Le fichier qui dirige Nextcloud vers le seau S3 est\n  remis depuis l'image quand une configuration restaur\u00e9e ne l'a pas.\n\nUne application d\u00e9sactiv\u00e9e par un administrateur le reste. Tant que\nNextcloud est en mode maintenance (pendant une sauvegarde ou une mise \u00e0\njour) ou qu'une restauration n'a pas encore rejou\u00e9 la base de donn\u00e9es,\nl'\u00e9tape attend le d\u00e9ploiement suivant. Collabora et OnlyOffice se\nc\u00e2blent depuis l'onglet **Actions**, avec le bouton de l'\u00e9diteur\nd\u00e9ploy\u00e9.\n\n### Contr\u00f4le horaire\n\nChaque heure, et avant une mise \u00e0 jour, le serveur v\u00e9rifie que Nextcloud\nr\u00e9pond, qu'il utilise le seau nomm\u00e9 dans l'onglet Environment et que le\npoint d'acc\u00e8s S3 r\u00e9pond. Un \u00e9chec appara\u00eet dans le journal de\nmaintenance.\n\n### Le partage de fichiers par lien courriel fonctionne toujours\n\nL'authentification Keycloak gouverne la **connexion des\nutilisateurs** \u00e0 Nextcloud. Elle ne restreint **pas** les\nliens de partage publics anonymes -- les URL\n`/s/<jeton>` g\u00e9n\u00e9r\u00e9es depuis Nextcloud\nrestent accessibles aux destinataires qui n'ont pas de\ncompte Keycloak.\n\nLe flux courant fonctionne donc tel quel :\n\n1. Un membre de l'\u00e9quipe (utilisateur connect\u00e9) cr\u00e9e un\n   lien de partage dans Nextcloud, avec un mot de passe et\n   une date d'expiration s'il le souhaite.\n2. Nextcloud envoie le lien par courriel au destinataire.\n3. Le destinataire clique le lien. Cloudflare Tunnel\n   achemine la requ\u00eate directement \u00e0 Nextcloud ; Nextcloud\n   sert la page de partage publique (ou l'invite de mot de\n   passe, lorsqu'un mot de passe a \u00e9t\u00e9 d\u00e9fini). Pas de\n   redirection Keycloak, pas de connexion requise.\n\nCela fonctionne parce que Nextcloud est atteint via son\npropre code d'authentification, sans proxy SSO\ndevant lui. Le module `user_oidc` ne g\u00e8re que le flux de\nconnexion pour *les membres de l'\u00e9quipe* ; les points\nd'acc\u00e8s des partages publics restent anonymes par\nconception.\n\nLe verrouillage complet des partages publics est un\ncontr\u00f4le interne \u00e0 Nextcloud (Param\u00e8tres -> Partage ->\n\"Autoriser le partage par lien public\"), pas au niveau\nr\u00e9seau.\n",
         "replaces": [
           "Google Drive",
           "Dropbox",
@@ -629,16 +643,6 @@
             "default": "{{ cloudflare_zone }}"
           }
         },
-        "TURN_HOSTNAME": {
-          "managed": {
-            "expr": "{{ coturn_hostname | default('turn.' ~ cloudflare_zone) }}"
-          }
-        },
-        "TURN_STATIC_AUTH_SECRET": {
-          "managed": {
-            "expr": "{{ turn_static_auth_secret }}"
-          }
-        },
         "VPS_PUBLIC_IP": {
           "managed": {
             "expr": "{{ public_ip }}"
@@ -653,16 +657,12 @@
         "ADMIN_PASS={{ admin_password }}",
         "ADMIN_EMAIL={{ admin_email }}",
         "VPS_PUBLIC_IP={{ public_ip }}",
-        "TURN_HOSTNAME={{ coturn_hostname | default('turn.' ~ cloudflare_zone) }}",
-        "TURN_STATIC_AUTH_SECRET={{ turn_static_auth_secret }}",
         "JITSI_JICOFO_AUTH_PASSWORD={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}",
         "JITSI_JICOFO_COMPONENT_SECRET={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}",
         "JITSI_JVB_AUTH_PASSWORD={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}"
       ],
       "env_managed_keys": [
-        "VPS_PUBLIC_IP",
-        "TURN_HOSTNAME",
-        "TURN_STATIC_AUTH_SECRET"
+        "VPS_PUBLIC_IP"
       ],
       "fr": {
         "compose_description": "Messagerie d'\u00e9quipe + vid\u00e9o. Keycloak SSO pr\u00e9-c\u00e2bl\u00e9. Remplace Slack / Microsoft Teams.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/rocketchat-oidc/README.md\n",
@@ -726,7 +726,7 @@
       "en": {
         "compose_description": "Element + Matrix homeserver. Chat (E2EE), voice, group video. Keycloak SSO pre-wired. Federation off by default.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/element/README.md\n",
         "display_name": "Element / Matrix",
-        "extra_notes": "### End-to-end encryption\n\nNew direct messages and new invite-only rooms are encrypted by default. Public rooms stay unencrypted (E2EE in large public rooms hurts mobile sync UX). Each user is prompted to set up **Secure Backup** the first time they log in -- this is a 24-character recovery key that lets them read encrypted history from a new device. Losing the key locks the user out of old encrypted messages, so it deserves the same care as a password-manager vault key.\n\n### Voice and video\n\n- **1:1 calls** use the bundled Element/Matrix call stack and the shared TURN/STUN server at `turn.<your-domain>` for restrictive-network media relay.\n- **Group video calls** open in an embedded Jitsi widget at `elementmeet.<your-domain>` (the bundled Jitsi instance). Calls never leave the server -- there is no fallback to `meet.jit.si`.\n\n### Mobile apps\n\nElement's iOS and Android apps connect straight to the homeserver. Users tap **Use custom server** at first launch and enter `matrix.<your-domain>`. SSO via Keycloak works in-app.\n",
+        "extra_notes": "### End-to-end encryption\n\nNew direct messages and new invite-only rooms are encrypted by default. Public rooms stay unencrypted (E2EE in large public rooms hurts mobile sync UX). Each user is prompted to set up **Secure Backup** the first time they log in -- this is a 24-character recovery key that lets them read encrypted history from a new device. Losing the key locks the user out of old encrypted messages, so it deserves the same care as a password-manager vault key.\n\n### Voice and video\n\n- **1:1 calls** use the bundled Element/Matrix call stack. When this server runs the call relay (a separate application of the catalog), calls from behind a restrictive network go through it; without it they connect directly.\n- **Group video calls** open in an embedded Jitsi widget at `elementmeet.<your-domain>` (the bundled Jitsi instance). Calls never leave the server -- there is no fallback to `meet.jit.si`.\n\n### Mobile apps\n\nElement's iOS and Android apps connect straight to the homeserver. Users tap **Use custom server** at first launch and enter `matrix.<your-domain>`. SSO via Keycloak works in-app.\n",
         "replaces": [
           "Slack",
           "Microsoft Teams",
@@ -837,12 +837,22 @@
         },
         "TURN_HOSTNAME": {
           "managed": {
-            "expr": "{{ coturn_hostname | default('turn.' ~ cloudflare_zone) }}"
+            "expr": "{{ provided.turn.host }}"
           }
         },
-        "TURN_STATIC_AUTH_SECRET": {
+        "TURN_PORT": {
           "managed": {
-            "expr": "{{ turn_static_auth_secret }}"
+            "expr": "{{ provided.turn.port }}"
+          }
+        },
+        "TURN_SECRET": {
+          "managed": {
+            "expr": "{{ provided.turn.secret }}"
+          }
+        },
+        "TURN_TLS_PORT": {
+          "managed": {
+            "expr": "{{ provided.turn.tls_port }}"
           }
         },
         "VPS_PUBLIC_IP": {
@@ -864,8 +874,10 @@
         "ALLOW_PUBLIC_REGISTRATION=false",
         "FEDERATION_DOMAIN_WHITELIST=",
         "VPS_PUBLIC_IP={{ public_ip }}",
-        "TURN_HOSTNAME={{ coturn_hostname | default('turn.' ~ cloudflare_zone) }}",
-        "TURN_STATIC_AUTH_SECRET={{ turn_static_auth_secret }}",
+        "TURN_HOSTNAME={{ provided.turn.host }}",
+        "TURN_PORT={{ provided.turn.port }}",
+        "TURN_TLS_PORT={{ provided.turn.tls_port }}",
+        "TURN_SECRET={{ provided.turn.secret }}",
         "JITSI_JICOFO_AUTH_PASSWORD={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}",
         "JITSI_JICOFO_COMPONENT_SECRET={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}",
         "JITSI_JVB_AUTH_PASSWORD={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}",
@@ -877,12 +889,14 @@
       "env_managed_keys": [
         "VPS_PUBLIC_IP",
         "TURN_HOSTNAME",
-        "TURN_STATIC_AUTH_SECRET"
+        "TURN_PORT",
+        "TURN_TLS_PORT",
+        "TURN_SECRET"
       ],
       "fr": {
         "compose_description": "Element + serveur Matrix. Chat (E2EE), voix, visio de groupe. SSO Keycloak pr\u00e9-c\u00e2bl\u00e9. F\u00e9d\u00e9ration d\u00e9sactiv\u00e9e par d\u00e9faut.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/element/README.md\n",
         "display_name": "Element / Matrix",
-        "extra_notes": "### Chiffrement de bout en bout\n\nLes nouveaux messages directs et les nouveaux salons sur invitation sont chiffr\u00e9s par d\u00e9faut. Les salons publics restent en clair (le E2EE dans des salons publics nombreux d\u00e9grade la synchro mobile). Chaque utilisateur est invit\u00e9 \u00e0 configurer le **Coffre-fort de r\u00e9cup\u00e9ration** lors de sa premi\u00e8re connexion -- une cl\u00e9 de 24 caract\u00e8res qui lui permet de lire l'historique chiffr\u00e9 depuis un nouvel appareil. Perdre la cl\u00e9 verrouille l'utilisateur hors de ses anciens messages chiffr\u00e9s ; sauvegardez-la comme un mot de passe ma\u00eetre.\n\n### Voix et vid\u00e9o\n\n- **Appels 1:1** utilisent le moteur d'appel Element/Matrix et le serveur TURN/STUN partag\u00e9 `turn.<votre-domaine>` pour relayer les m\u00e9dias en r\u00e9seau restrictif.\n- **Appels de groupe** s'ouvrent dans un widget Jitsi embarqu\u00e9 sur `elementmeet.<votre-domaine>` (l'instance Jitsi embarqu\u00e9e). Les appels ne quittent jamais le serveur -- pas de repli sur `meet.jit.si`.\n\n### Applications mobiles\n\nLes apps iOS et Android d'Element se connectent directement au homeserver. Les utilisateurs touchent **Utiliser un serveur personnalis\u00e9** au premier lancement et saisissent `matrix.<votre-domaine>`. La connexion via Keycloak fonctionne dans l'app.\n",
+        "extra_notes": "### Chiffrement de bout en bout\n\nLes nouveaux messages directs et les nouveaux salons sur invitation sont chiffr\u00e9s par d\u00e9faut. Les salons publics restent en clair (le E2EE dans des salons publics nombreux d\u00e9grade la synchro mobile). Chaque utilisateur est invit\u00e9 \u00e0 configurer le **Coffre-fort de r\u00e9cup\u00e9ration** lors de sa premi\u00e8re connexion -- une cl\u00e9 de 24 caract\u00e8res qui lui permet de lire l'historique chiffr\u00e9 depuis un nouvel appareil. Perdre la cl\u00e9 verrouille l'utilisateur hors de ses anciens messages chiffr\u00e9s ; sauvegardez-la comme un mot de passe ma\u00eetre.\n\n### Voix et vid\u00e9o\n\n- **Appels 1:1** utilisent le moteur d'appel Element/Matrix. Quand ce serveur ex\u00e9cute le relais d'appels (une application distincte du catalogue), les appels depuis un r\u00e9seau restrictif passent par lui ; sans lui, ils se connectent directement.\n- **Appels de groupe** s'ouvrent dans un widget Jitsi embarqu\u00e9 sur `elementmeet.<votre-domaine>` (l'instance Jitsi embarqu\u00e9e). Les appels ne quittent jamais le serveur -- pas de repli sur `meet.jit.si`.\n\n### Applications mobiles\n\nLes apps iOS et Android d'Element se connectent directement au homeserver. Les utilisateurs touchent **Utiliser un serveur personnalis\u00e9** au premier lancement et saisissent `matrix.<votre-domaine>`. La connexion via Keycloak fonctionne dans l'app.\n",
         "replaces": [
           "Slack",
           "Microsoft Teams",
@@ -2857,6 +2871,90 @@
       },
       "sso_mode": "n/a",
       "upstream_url": "https://www.clamav.net/"
+    },
+    {
+      "app_name": "catena-coturn",
+      "bench_fixture": "skip",
+      "bench_pack": "nodb",
+      "categories": [
+        "Infrastructure",
+        "Communication"
+      ],
+      "compose_file": "blueprints/coturn/docker-compose.yml",
+      "en": {
+        "compose_description": "Shared call relay (TURN and STUN). Nextcloud Talk and Element find it on their own.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/coturn/README.md\n",
+        "display_name": "Call relay (TURN)",
+        "extra_notes": "### Ports\n\n| Port | Protocol | Use |\n|---|---|---|\n| 3478 | UDP | STUN and TURN |\n| 5349 | TCP and UDP | TURN over TLS |\n| 50000 to 50100 | UDP | Relayed media |\n\nThe relay runs on the server's own network, so these ports are the server's. The firewall opens the ports the relay declares.\n\n### Hardening\n\nThe relay checks a shared secret for every call, caps each credential at 12 allocations and each session at 3 MB/s, refuses media to every private, loopback, link-local and special-purpose address, and accepts only modern TLS ciphers. Its administration interface is off.\n\n### Certificate\n\nThe certificate is renewed by the server. When a renewed certificate arrives the relay loads it without dropping calls.\n",
+        "replaces": [
+          "A hosted TURN service"
+        ],
+        "setup_steps": "1. Enter the server's domain and its Cloudflare access first. The relay needs a name (`turn.` followed by the domain) and a certificate for it, so the server refuses to add the relay before then.\n2. Click **Deploy**. The server points the name at its own address, issues the certificate and opens the relay's ports: 3478 on UDP, 5349 on TCP and UDP, and 50000 to 50100 on UDP.\n3. The applications that use the relay (Nextcloud Talk, Element) are set up by themselves: each one is redeployed once with the relay's address and secret. Removing the relay sets them back.\n\nThe relay has no web address and no sign-in. Its ports are open to the internet; only a call that holds a secret the applications mint can use it, and it refuses to pass traffic to private addresses.\n",
+        "what_it_is": "A relay for voice and video calls. Calls in Nextcloud Talk and Element connect directly when the network allows it. From behind a network that blocks direct media, such as a hotel or an office firewall, they go through this relay. Adding it is optional: the applications that use it find it on their own."
+      },
+      "env": {
+        "TURN_EXTERNAL_IP": {
+          "managed": {
+            "expr": "{{ public_ip }}"
+          }
+        },
+        "TURN_HOSTNAME": {
+          "managed": {
+            "expr": "turn.{{ cloudflare_zone }}"
+          }
+        },
+        "TURN_PORT": {
+          "managed": {
+            "expr": "3478"
+          }
+        },
+        "TURN_SECRET": {
+          "generated": {
+            "alphabet": "alnum",
+            "length": 64
+          }
+        },
+        "TURN_TLS_PORT": {
+          "managed": {
+            "expr": "5349"
+          }
+        }
+      },
+      "env_defaults": [
+        "TURN_HOSTNAME=turn.{{ cloudflare_zone }}",
+        "TURN_PORT=3478",
+        "TURN_TLS_PORT=5349",
+        "TURN_EXTERNAL_IP={{ public_ip }}",
+        "TURN_SECRET={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}"
+      ],
+      "env_managed_keys": [
+        "TURN_HOSTNAME",
+        "TURN_PORT",
+        "TURN_TLS_PORT",
+        "TURN_EXTERNAL_IP"
+      ],
+      "fr": {
+        "compose_description": "Relais d'appels partag\u00e9 (TURN et STUN). Nextcloud Talk et Element le trouvent d'eux-m\u00eames.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/coturn/README.md\n",
+        "display_name": "Relais d'appels (TURN)",
+        "extra_notes": "### Ports\n\n| Port | Protocole | Usage |\n|---|---|---|\n| 3478 | UDP | STUN et TURN |\n| 5349 | TCP et UDP | TURN sur TLS |\n| 50000 \u00e0 50100 | UDP | M\u00e9dias relay\u00e9s |\n\nLe relais fonctionne sur le r\u00e9seau du serveur lui-m\u00eame ; ces ports sont donc ceux du serveur. Le pare-feu ouvre les ports que le relais d\u00e9clare.\n\n### Durcissement\n\nLe relais v\u00e9rifie un secret partag\u00e9 pour chaque appel, plafonne chaque identifiant \u00e0 12 allocations et chaque session \u00e0 3 Mo/s, refuse les m\u00e9dias vers toute adresse priv\u00e9e, de bouclage, de lien local ou \u00e0 usage sp\u00e9cial, et n'accepte que des chiffrements TLS modernes. Son interface d'administration est d\u00e9sactiv\u00e9e.\n\n### Certificat\n\nLe certificat est renouvel\u00e9 par le serveur. Quand un certificat renouvel\u00e9 arrive, le relais le charge sans interrompre les appels.\n",
+        "replaces": [
+          "Un service TURN h\u00e9berg\u00e9"
+        ],
+        "setup_steps": "1. Saisissez d'abord le domaine du serveur et son acc\u00e8s Cloudflare. Le relais a besoin d'un nom (`turn.` suivi du domaine) et d'un certificat pour ce nom ; le serveur refuse donc de l'ajouter avant cela.\n2. Cliquez **Deploy**. Le serveur fait pointer le nom vers sa propre adresse, \u00e9met le certificat et ouvre les ports du relais : 3478 en UDP, 5349 en TCP et UDP, et 50000 \u00e0 50100 en UDP.\n3. Les applications qui utilisent le relais (Nextcloud Talk, Element) se configurent d'elles-m\u00eames : chacune est red\u00e9ploy\u00e9e une fois avec l'adresse et le secret du relais. Le retirer les remet comme avant.\n\nLe relais n'a ni adresse web ni connexion. Ses ports sont ouverts sur internet ; seul un appel qui d\u00e9tient un secret g\u00e9n\u00e9r\u00e9 par les applications peut l'utiliser, et il refuse de faire passer du trafic vers des adresses priv\u00e9es.\n",
+        "what_it_is": "Un relais pour les appels vocaux et vid\u00e9o. Les appels de Nextcloud Talk et d'Element se connectent directement quand le r\u00e9seau le permet. Derri\u00e8re un r\u00e9seau qui bloque les m\u00e9dias directs, comme un pare-feu d'h\u00f4tel ou de bureau, ils passent par ce relais. L'ajouter est facultatif : les applications qui l'utilisent le trouvent d'elles-m\u00eames."
+      },
+      "hostname_baked": false,
+      "id": "coturn",
+      "sizing": {
+        "disk_baseline_mb": 30,
+        "idle_cpu_pct": null,
+        "idle_ram_mb": 20,
+        "notes": "The relay keeps one small allocation per relayed call leg and no database. The\nrelay range holds 100 ports, about 50 calls at once, and each session is\ncapped at 3 MB/s. The server's network egress is the limit that counts, not its\nmemory. Conservative pre-launch estimate, not yet measured.",
+        "notes_fr": "Le relais garde une petite allocation par jambe d'appel relay\u00e9e et aucune base\nde donn\u00e9es. La plage de relais compte 100 ports, environ 50 appels \u00e0 la fois,\net chaque session est plafonn\u00e9e \u00e0 3 Mo/s. Ce qui compte est la bande passante\nsortante du serveur, pas sa m\u00e9moire. Estimation prudente pr\u00e9-lancement, pas\nencore mesur\u00e9e.",
+        "peak_cpu_pct": null,
+        "peak_ram_mb": 128
+      },
+      "sso_mode": "n/a",
+      "upstream_url": "https://github.com/coturn/coturn"
     },
     {
       "app_name": "catena-portainer",

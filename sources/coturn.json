@@ -1,0 +1,50 @@
+{
+  "id": "coturn",
+  "type": 2,
+  "title": "Call relay (TURN)",
+  "name": "catena-coturn",
+  "categories": [
+    "Infrastructure",
+    "Communication"
+  ],
+  "platform": "linux",
+  "x-catena": {
+    "app_name": "catena-coturn",
+    "upstream_url": "https://github.com/coturn/coturn",
+    "sso_mode": "n/a",
+    "bench": {
+      "pack": "nodb",
+      "fixture": "skip",
+      "hostname_baked": false
+    },
+    "sizing": {
+      "idle_ram_mb": 20,
+      "peak_ram_mb": 128,
+      "idle_cpu_pct": null,
+      "peak_cpu_pct": null,
+      "disk_baseline_mb": 30,
+      "notes": "The relay keeps one small allocation per relayed call leg and no database. The\nrelay range holds 100 ports, about 50 calls at once, and each session is\ncapped at 3 MB/s. The server's network egress is the limit that counts, not its\nmemory. Conservative pre-launch estimate, not yet measured.",
+      "notes_fr": "Le relais garde une petite allocation par jambe d'appel relay\u00e9e et aucune base\nde donn\u00e9es. La plage de relais compte 100 ports, environ 50 appels \u00e0 la fois,\net chaque session est plafonn\u00e9e \u00e0 3 Mo/s. Ce qui compte est la bande passante\nsortante du serveur, pas sa m\u00e9moire. Estimation prudente pr\u00e9-lancement, pas\nencore mesur\u00e9e."
+    },
+    "en": {
+      "display_name": "Call relay (TURN)",
+      "what_it_is": "A relay for voice and video calls. Calls in Nextcloud Talk and Element connect directly when the network allows it. From behind a network that blocks direct media, such as a hotel or an office firewall, they go through this relay. Adding it is optional: the applications that use it find it on their own.",
+      "replaces": [
+        "A hosted TURN service"
+      ],
+      "compose_description": "Shared call relay (TURN and STUN). Nextcloud Talk and Element find it on their own.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/coturn/README.md\n",
+      "setup_steps": "1. Enter the server's domain and its Cloudflare access first. The relay needs a name (`turn.` followed by the domain) and a certificate for it, so the server refuses to add the relay before then.\n2. Click **Deploy**. The server points the name at its own address, issues the certificate and opens the relay's ports: 3478 on UDP, 5349 on TCP and UDP, and 50000 to 50100 on UDP.\n3. The applications that use the relay (Nextcloud Talk, Element) are set up by themselves: each one is redeployed once with the relay's address and secret. Removing the relay sets them back.\n\nThe relay has no web address and no sign-in. Its ports are open to the internet; only a call that holds a secret the applications mint can use it, and it refuses to pass traffic to private addresses.\n",
+      "extra_notes": "### Ports\n\n| Port | Protocol | Use |\n|---|---|---|\n| 3478 | UDP | STUN and TURN |\n| 5349 | TCP and UDP | TURN over TLS |\n| 50000 to 50100 | UDP | Relayed media |\n\nThe relay runs on the server's own network, so these ports are the server's. The firewall opens the ports the relay declares.\n\n### Hardening\n\nThe relay checks a shared secret for every call, caps each credential at 12 allocations and each session at 3 MB/s, refuses media to every private, loopback, link-local and special-purpose address, and accepts only modern TLS ciphers. Its administration interface is off.\n\n### Certificate\n\nThe certificate is renewed by the server. When a renewed certificate arrives the relay loads it without dropping calls.\n"
+    },
+    "fr": {
+      "display_name": "Relais d'appels (TURN)",
+      "what_it_is": "Un relais pour les appels vocaux et vid\u00e9o. Les appels de Nextcloud Talk et d'Element se connectent directement quand le r\u00e9seau le permet. Derri\u00e8re un r\u00e9seau qui bloque les m\u00e9dias directs, comme un pare-feu d'h\u00f4tel ou de bureau, ils passent par ce relais. L'ajouter est facultatif : les applications qui l'utilisent le trouvent d'elles-m\u00eames.",
+      "replaces": [
+        "Un service TURN h\u00e9berg\u00e9"
+      ],
+      "compose_description": "Relais d'appels partag\u00e9 (TURN et STUN). Nextcloud Talk et Element le trouvent d'eux-m\u00eames.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/coturn/README.md\n",
+      "setup_steps": "1. Saisissez d'abord le domaine du serveur et son acc\u00e8s Cloudflare. Le relais a besoin d'un nom (`turn.` suivi du domaine) et d'un certificat pour ce nom ; le serveur refuse donc de l'ajouter avant cela.\n2. Cliquez **Deploy**. Le serveur fait pointer le nom vers sa propre adresse, \u00e9met le certificat et ouvre les ports du relais : 3478 en UDP, 5349 en TCP et UDP, et 50000 \u00e0 50100 en UDP.\n3. Les applications qui utilisent le relais (Nextcloud Talk, Element) se configurent d'elles-m\u00eames : chacune est red\u00e9ploy\u00e9e une fois avec l'adresse et le secret du relais. Le retirer les remet comme avant.\n\nLe relais n'a ni adresse web ni connexion. Ses ports sont ouverts sur internet ; seul un appel qui d\u00e9tient un secret g\u00e9n\u00e9r\u00e9 par les applications peut l'utiliser, et il refuse de faire passer du trafic vers des adresses priv\u00e9es.\n",
+      "extra_notes": "### Ports\n\n| Port | Protocole | Usage |\n|---|---|---|\n| 3478 | UDP | STUN et TURN |\n| 5349 | TCP et UDP | TURN sur TLS |\n| 50000 \u00e0 50100 | UDP | M\u00e9dias relay\u00e9s |\n\nLe relais fonctionne sur le r\u00e9seau du serveur lui-m\u00eame ; ces ports sont donc ceux du serveur. Le pare-feu ouvre les ports que le relais d\u00e9clare.\n\n### Durcissement\n\nLe relais v\u00e9rifie un secret partag\u00e9 pour chaque appel, plafonne chaque identifiant \u00e0 12 allocations et chaque session \u00e0 3 Mo/s, refuse les m\u00e9dias vers toute adresse priv\u00e9e, de bouclage, de lien local ou \u00e0 usage sp\u00e9cial, et n'accepte que des chiffrements TLS modernes. Son interface d'administration est d\u00e9sactiv\u00e9e.\n\n### Certificat\n\nLe certificat est renouvel\u00e9 par le serveur. Quand un certificat renouvel\u00e9 arrive, le relais le charge sans interrompre les appels.\n"
+    }
+  }
+}

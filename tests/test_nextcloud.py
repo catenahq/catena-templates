@@ -25,7 +25,8 @@ ENV = {
     "OIDC_CLIENT_ID": "nextcloud", "OIDC_CLIENT_SECRET": "s3cr3t",
     "OIDC_ISSUER_URL": "https://auth.example.test/realms/vps/",
     "SIGNALING_HOSTNAME": "signaling.example.test", "SIGNALING_SECRET": "sig-secret",
-    "TURN_HOSTNAME": "turn.example.test", "TURN_STATIC_AUTH_SECRET": "turn-secret",
+    "TURN_HOSTNAME": "turn.example.test", "TURN_PORT": "3478", "TURN_TLS_PORT": "5349",
+    "TURN_SECRET": "turn-secret",
     "WEBMAIL_HOSTNAME": "webmail.example.test",
     "ANTIVIRUS_HOST": "clamav", "ANTIVIRUS_PORT": "3310",
 }
@@ -180,6 +181,24 @@ if cmd == "user_oidc:provider":
     save()
     sys.exit(0)
 if cmd.startswith("talk:"):
+    talk = state["talk"]
+    opts, plain = options(rest)
+    if cmd == "talk:turn:add":
+        row = [plain[0], plain[1], plain[2], opts.get("secret", "")]
+        if not any(r[:3] == row[:3] for r in talk["turn"]):
+            talk["turn"].append(row)
+    elif cmd == "talk:turn:delete":
+        talk["turn"] = [r for r in talk["turn"] if r[:3] != plain[:3]]
+    elif cmd == "talk:stun:add":
+        if plain[0] not in talk["stun"]:
+            talk["stun"].append(plain[0])
+    elif cmd == "talk:stun:delete":
+        talk["stun"] = [s for s in talk["stun"] if s != plain[0]]
+    elif cmd == "talk:signaling:add":
+        talk["signaling"].append([plain[0], plain[1]])
+    elif cmd == "talk:signaling:delete":
+        talk["signaling"] = [s for s in talk["signaling"] if s[0] != plain[0]]
+    save()
     sys.exit(0)
 print("unknown command " + cmd, file=sys.stderr)
 sys.exit(1)
@@ -219,8 +238,8 @@ def test_the_values_the_hooks_read_come_from_the_env_file_not_the_container():
     app_env = _compose()["services"]["app"]["environment"]
     for key in ("OIDC_CLIENT_ID", "OIDC_CLIENT_SECRET", "OIDC_ISSUER_URL"):
         assert key not in env  # the settings sync is their one writer
-    for key in ("SIGNALING_HOSTNAME", "SIGNALING_SECRET", "TURN_HOSTNAME", "TURN_STATIC_AUTH_SECRET",
-                "ANTIVIRUS_HOST", "ANTIVIRUS_PORT", "OFFICE_EDITOR", "OFFICE_URL", "OFFICE_JWT_SECRET"):
+    for key in ("SIGNALING_HOSTNAME", "SIGNALING_SECRET", "TURN_HOSTNAME", "TURN_PORT", "TURN_TLS_PORT",
+                "TURN_SECRET", "ANTIVIRUS_HOST", "ANTIVIRUS_PORT", "OFFICE_EDITOR", "OFFICE_URL", "OFFICE_JWT_SECRET"):
         assert key in env and key not in app_env
     assert not any(k.startswith("NEXTCLOUD_OIDC_") or k == "NEXTCLOUD_USER_OIDC_VERSION" for k in app_env)
     assert "WEBMAIL_HOSTNAME" in env
@@ -260,6 +279,7 @@ class Instance:
         self.state_path = tmp_path / "state.json"
         self.state = {
             "calls": [], "apps": {}, "appconfig": {}, "system": {}, "providers": {},
+            "talk": {"turn": [], "stun": [], "signaling": []},
             "store": {"user_oidc": "8.11.3", "mail": "5.0", "files_antivirus": "6.0", "spreed": "21.0",
                       "external": "5.4", "richdocuments": "9.0", "onlyoffice": "9.0"},
             "ready": True, "signaling_up": True, "roundcube": True, "s3_up": True, "office_up": True,
@@ -315,12 +335,71 @@ def test_a_first_configure_wires_everything_the_instance_can_take(nc):
     assert state["system"]["external_sites/0/url"] == "https://webmail.example.test"
 
 
+def _talk(nc) -> dict:
+    return nc.state["talk"]
+
+
 def test_talk_is_given_the_relay_and_the_signaling_server(nc):
+    run = nc.run("configure")
+    assert run.returncode == 0, run.stderr
+    assert _talk(nc) == {
+        "turn": [["turn", "turn.example.test:3478", "udp,tcp", "turn-secret"],
+                 ["turns", "turn.example.test:5349", "tcp", "turn-secret"]],
+        "stun": ["turn.example.test:3478"],
+        "signaling": [["https://signaling.example.test", "sig-secret"]],
+    }
+    config = nc.state["appconfig"]
+    assert config["catena/turn_wired"].startswith("turn.example.test 3478 5349 ")
+    assert "turn-secret" not in config["catena/turn_wired"]
+    assert config["catena/signaling_wired"].startswith("https://signaling.example.test ")
+    assert "sig-secret" not in config["catena/signaling_wired"]
+
+
+def test_a_second_configure_adds_nothing_twice(nc):
     assert nc.run("configure").returncode == 0
-    calls = nc.calls()
-    assert "talk:turn:add turn.example.test:5349 udp,tcp --secret=turn-secret" in calls
-    assert "talk:stun:add turn.example.test:3478" in calls
-    assert "talk:signaling:add https://signaling.example.test sig-secret" in calls
+    first = json.loads(json.dumps(_talk(nc)))
+    run = nc.run("configure")
+    assert run.returncode == 0, run.stderr
+    assert _talk(nc) == first
+    assert not any(c.startswith(("talk:turn:add", "talk:stun:add", "talk:signaling:add")) for c in nc.calls())
+
+
+def test_a_changed_secret_or_port_replaces_the_entries_the_hook_wrote(nc):
+    assert nc.run("configure").returncode == 0
+    assert nc.run("configure", TURN_SECRET="rotated", TURN_PORT="3479").returncode == 0
+    assert _talk(nc)["turn"] == [["turn", "turn.example.test:3479", "udp,tcp", "rotated"],
+                                 ["turns", "turn.example.test:5349", "tcp", "rotated"]]
+    assert _talk(nc)["stun"] == ["turn.example.test:3479"]
+    assert nc.run("configure", SIGNALING_SECRET="sig-rotated").returncode == 0
+    assert _talk(nc)["signaling"] == [["https://signaling.example.test", "sig-rotated"]]
+
+
+def test_without_the_relay_talk_gets_no_relay_and_no_signaling_entry(nc):
+    run = nc.run("configure", TURN_HOSTNAME="", TURN_PORT="", TURN_TLS_PORT="", TURN_SECRET="")
+    assert run.returncode == 0, run.stderr
+    assert nc.state["apps"]["spreed"] == "enabled"
+    assert _talk(nc) == {"turn": [], "stun": [], "signaling": []}
+    assert not any(k.startswith(("catena/turn", "catena/signaling")) for k in nc.state["appconfig"])
+    assert not any(c.startswith("talk:") for c in nc.calls() if "delete" in c or "add" in c)
+
+
+def test_a_relay_that_goes_takes_its_entries_away_and_leaves_an_administrators(nc):
+    assert nc.run("configure").returncode == 0
+    _talk(nc)["turn"].append(["turns", "turn.other.test:443", "tcp", "mine"])
+    _talk(nc)["signaling"].append(["wss://own.example.test", "own"])
+    run = nc.run("configure", TURN_HOSTNAME="", TURN_PORT="", TURN_TLS_PORT="", TURN_SECRET="")
+    assert run.returncode == 0, run.stderr
+    assert _talk(nc) == {"turn": [["turns", "turn.other.test:443", "tcp", "mine"]], "stun": [],
+                         "signaling": [["wss://own.example.test", "own"]]}
+    assert not any(k.startswith(("catena/turn", "catena/signaling")) for k in nc.state["appconfig"])
+    assert "spreed/external_signaling_only" not in nc.state["appconfig"]
+
+
+def test_the_relay_is_wired_while_the_signaling_server_is_down(nc):
+    nc.state["signaling_up"] = False
+    assert nc.run("configure").returncode == 0
+    assert _talk(nc)["turn"] and _talk(nc)["signaling"] == []
+    assert "catena/signaling_wired" not in nc.state["appconfig"]
 
 
 def test_a_second_configure_keeps_what_an_administrator_changed(nc):
@@ -383,14 +462,6 @@ def test_without_the_sign_in_values_everything_else_is_wired(nc):
     assert "sign-in entry values are not in the environment" in run.stdout
 
 
-def test_talk_is_installed_but_not_wired_while_the_signaling_server_is_down(nc):
-    nc.state["signaling_up"] = False
-    run = nc.run("configure")
-    assert run.returncode == 0, run.stderr
-    assert nc.state["apps"]["spreed"] == "enabled"
-    assert not any(c.startswith("talk:") for c in nc.calls())
-
-
 def test_the_webmail_link_waits_for_a_mail_server(nc):
     nc.state["roundcube"] = False
     assert nc.run("configure").returncode == 0
@@ -436,7 +507,7 @@ def test_a_wiring_command_that_fails_on_an_answering_instance_fails_the_hook(nc)
     nc.state["fail"] = "talk:stun:add"
     run = nc.run("configure")
     assert run.returncode == 1
-    assert "the Talk STUN entry failed" in run.stderr
+    assert "the Talk relay entries failed" in run.stderr
     assert nc.state["appconfig"]["spreed/external_signaling_only"] == "yes"  # later steps still ran
 
 
@@ -738,3 +809,52 @@ def test_the_probe_starts_the_app_service_and_asks_for_an_installed_instance():
 def test_the_block_declares_the_reconcile_hook():
     entry = _entry()
     assert entry.block["hooks"]["reconcile"]
+
+
+# talk-hpb
+
+def _talk_hpb() -> dict:
+    return _compose()["services"]["talk-hpb"]
+
+
+def _start_wrapper(tmp_path: Path, **env: str) -> subprocess.CompletedProcess:
+    """The wrapper of talk-hpb run against a /start.sh that prints the secret
+    and the arguments it gets."""
+    service = _talk_hpb()
+    assert service["entrypoint"][:2] == ["/bin/sh", "-ec"]
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    start = tmp_path / "start.sh"
+    start.write_text('#!/bin/sh\nprintf "secret=%s\\n" "$TURN_SECRET"\nprintf "arg=%s\\n" "$@"\n')
+    start.chmod(0o755)
+    body = service["entrypoint"][2].replace("$$", "$").replace("/start.sh", str(start))
+    argv = ["sh", "-ec", body, *service["entrypoint"][3:], *service["command"]]
+    return subprocess.run(argv, capture_output=True, text=True, timeout=30,
+                          env={"PATH": os.environ["PATH"], **env})
+
+
+def test_the_talk_backend_takes_the_relay_the_env_gives_and_keeps_the_images_command():
+    service = _talk_hpb()
+    env = service["environment"]
+    assert env["TURN_DOMAIN"] == "${TURN_HOSTNAME:-}"
+    assert env["TALK_PORT"] == "${TURN_PORT:-3478}"
+    assert env["TURN_SECRET"] == "${TURN_SECRET:-}"
+    assert service["command"] == ["dinit", "--system", "--container", "nats-server", "eturnal", "janus", "signaling"]
+    assert "TURN_STATIC_AUTH_SECRET" not in yaml.safe_dump(_compose())
+
+
+def test_the_talk_backend_starts_with_the_secret_of_the_relay(tmp_path):
+    run = _start_wrapper(tmp_path, TURN_SECRET="from-the-relay")
+    assert run.returncode == 0, run.stderr
+    assert run.stdout.splitlines()[0] == "secret=from-the-relay"
+    assert run.stdout.splitlines()[1:] == ["arg=dinit", "arg=--system", "arg=--container", "arg=nats-server",
+                                           "arg=eturnal", "arg=janus", "arg=signaling"]
+
+
+def test_the_talk_backend_mints_a_secret_when_there_is_no_relay(tmp_path):
+    secrets = set()
+    for n in range(2):
+        run = _start_wrapper(tmp_path / str(n), TURN_SECRET="")
+        assert run.returncode == 0, run.stderr
+        secrets.add(run.stdout.splitlines()[0])
+    assert len(secrets) == 2
+    assert all(len(s) > len("secret=") + 32 for s in secrets)

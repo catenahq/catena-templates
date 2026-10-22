@@ -1,0 +1,188 @@
+x-catena:
+  schema: 2
+  version_from: coturn
+  # The relay listens on the host's own network, so its ports are the ones the
+  # service's vps.expose labels declare.
+  privileges: [host_network]
+  env:
+    TURN_HOSTNAME:
+      managed: {expr: "turn.{{ cloudflare_zone }}"}
+    TURN_PORT:
+      managed: {expr: "3478"}
+    TURN_TLS_PORT:
+      managed: {expr: "5349"}
+    TURN_EXTERNAL_IP:
+      managed: {expr: "{{ public_ip }}"}
+    TURN_SECRET:
+      generated: {length: 64, alphabet: alnum}
+  # Nextcloud Talk and Element read these as provided.turn.<name>.
+  provides:
+    turn: {host: TURN_HOSTNAME, port: TURN_PORT, tls_port: TURN_TLS_PORT, secret: TURN_SECRET}
+  # The certificate of the relay's name is issued into certs before each deploy
+  # and renewed there. UDP does not pass through the Cloudflare tunnel, so the
+  # name points straight at the server's address.
+  needs:
+    certificate:
+      names: ["{{ turn_hostname }}"]
+      volume: certs
+    dns:
+      - {type: A, name: "{{ turn_hostname }}", value: "{{ public_ip }}"}
+  # The hooks run in coturn as the image's user. configure runs after every
+  # deploy and after a renewed certificate: SIGUSR2 makes turnserver load the
+  # certificate files again. verify runs hourly and before an update. It reads
+  # the listening sockets from /proc/net and the end of the certificate's
+  # validity from the DER text of the first certificate of the chain, with the
+  # tools the image has.
+  hooks:
+    service: coturn
+    timeout_seconds: 60
+    configure:
+      - - sh
+        - -c
+        - |
+          set -u
+          cert=/certs/fullchain.pem
+          mark=/tmp/.catena-cert.sha256
+          [ -f "$$cert" ] || exit 0
+          now=$$(sha256sum "$$cert" | cut -d' ' -f1)
+          [ "$$now" != "$$(cat "$$mark" 2>/dev/null)" ] || exit 0
+          kill -USR2 1
+          echo "$$now" > "$$mark"
+    verify:
+      - - sh
+        - -c
+        - |
+          set -u
+          fail=""
+          port_hex() { printf '%04X' "$$1"; }
+          udp=$$(cat /proc/net/udp /proc/net/udp6 2>/dev/null || true)
+          tcp=$$(awk '$$4 == "0A" {print $$2}' /proc/net/tcp /proc/net/tcp6 2>/dev/null || true)
+          for port in "$$TURN_PORT" "$$TURN_TLS_PORT"; do
+            printf '%s\n' "$$udp" | grep -q ":$$(port_hex "$$port") " || fail="$$fail udp-$${port}-not-listening"
+          done
+          printf '%s\n' "$$tcp" | grep -q ":$$(port_hex "$$TURN_TLS_PORT")\$$" || fail="$$fail tcp-$${TURN_TLS_PORT}-not-listening"
+          cert=/certs/fullchain.pem
+          if [ ! -f "$$cert" ]; then
+            fail="$$fail certificate-missing"
+          else
+            end=$$(sed -n '1,/END CERTIFICATE/p' "$$cert" | sed '/-----/d' | base64 -d 2>/dev/null \
+              | grep -a -o -E '[0-9]{12}Z' | sed -n 2p)
+            if [ -z "$$end" ]; then
+              fail="$$fail certificate-validity-unreadable"
+            else
+              set -- $$(printf %s "$$end" | sed 's/^\(..\)\(..\)\(..\)\(..\)\(..\)\(..\)Z$$/\1 \2 \3 \4 \5 \6/')
+              expires=$$(date -u -d "20$$1-$$2-$$3 $$4:$$5:$$6" +%s 2>/dev/null || echo 0)
+              [ "$$expires" -gt $$(($$(date -u +%s) + 86400)) ] || fail="$$fail certificate-expires-within-24h"
+            fi
+          fi
+          if [ -n "$$fail" ]; then
+            echo "the relay check failed:$$fail" >&2
+            exit 1
+          fi
+          echo "the relay listens on $${TURN_PORT} and $${TURN_TLS_PORT} and its certificate is valid for 24 hours"
+
+services:
+  coturn:
+    image: coturn/coturn:4.18.0-alpine
+    # One relay per node that holds the certificates.
+    deploy:
+      mode: global
+      restart_policy:
+        condition: any
+      placement:
+        constraints:
+          - node.labels.catena.role==data
+    # The image runs turnserver as nobody. The script writes the configuration
+    # from the environment when the container starts, into a file only nobody
+    # reads: no value of the environment reaches the service's arguments, and
+    # the secret is in the file and the environment alone. The certificate is
+    # read from the volume the host fills.
+    entrypoint:
+      - /bin/bash
+      - -ec
+      - |
+        umask 077
+        conf=/tmp/turnserver.conf
+        cat > "$$conf" <<EOF
+        listening-port=$${TURN_PORT}
+        tls-listening-port=$${TURN_TLS_PORT}
+        external-ip=$${TURN_EXTERNAL_IP}
+        listening-ip=0.0.0.0
+        relay-ip=0.0.0.0
+        min-port=50000
+        max-port=50100
+        use-auth-secret
+        static-auth-secret=$${TURN_SECRET}
+        realm=$${TURN_HOSTNAME}
+        user-quota=12
+        total-quota=1200
+        max-bps=3000000
+        stale-nonce=600
+        cert=/certs/fullchain.pem
+        pkey=/certs/privkey.pem
+        dtls
+        cipher-list="ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256"
+        denied-peer-ip=0.0.0.0-0.255.255.255
+        denied-peer-ip=10.0.0.0-10.255.255.255
+        denied-peer-ip=100.64.0.0-100.127.255.255
+        denied-peer-ip=127.0.0.0-127.255.255.255
+        denied-peer-ip=169.254.0.0-169.254.255.255
+        denied-peer-ip=172.16.0.0-172.31.255.255
+        denied-peer-ip=192.0.0.0-192.0.0.255
+        denied-peer-ip=192.0.2.0-192.0.2.255
+        denied-peer-ip=192.88.99.0-192.88.99.255
+        denied-peer-ip=192.168.0.0-192.168.255.255
+        denied-peer-ip=198.18.0.0-198.19.255.255
+        denied-peer-ip=198.51.100.0-198.51.100.255
+        denied-peer-ip=203.0.113.0-203.0.113.255
+        denied-peer-ip=224.0.0.0-239.255.255.255
+        denied-peer-ip=240.0.0.0-255.255.255.255
+        denied-peer-ip=::1
+        denied-peer-ip=64:ff9b::-64:ff9b::ffff:ffff
+        denied-peer-ip=100::-100::ffff:ffff:ffff:ffff
+        denied-peer-ip=2001:db8::-2001:db8:ffff:ffff:ffff:ffff:ffff:ffff
+        denied-peer-ip=2002::-2002:ffff:ffff:ffff:ffff:ffff:ffff:ffff
+        denied-peer-ip=fc00::-fdff:ffff:ffff:ffff:ffff:ffff:ffff:ffff
+        denied-peer-ip=fe80::-febf:ffff:ffff:ffff:ffff:ffff:ffff:ffff
+        denied-peer-ip=::ffff:0.0.0.0-::ffff:255.255.255.255
+        no-multicast-peers
+        verbose
+        simple-log
+        no-stdout-log
+        log-file=stdout
+        EOF
+        exec turnserver -c "$$conf"
+    environment:
+      TURN_HOSTNAME: ${TURN_HOSTNAME}
+      TURN_PORT: ${TURN_PORT}
+      TURN_TLS_PORT: ${TURN_TLS_PORT}
+      TURN_EXTERNAL_IP: ${TURN_EXTERNAL_IP}
+      TURN_SECRET: ${TURN_SECRET}
+    volumes:
+      - certs:/certs:ro
+    # The host network is the swarm's external network named host:
+    # network_mode is not read by a stack deploy.
+    networks:
+      - hostnet
+    # The listening ports and the relay range, declared to the public-port
+    # registry. The range is the same as min-port and max-port above.
+    labels:
+      - "vps.expose.udp=3478,5349,50000-50100"
+      - "vps.expose.tcp=5349"
+      - "vps.auto-update=patch"
+    cap_drop:
+      - NET_RAW
+    healthcheck:
+      test: ["CMD-SHELL", "grep -q \":$$(printf '%04X' \"$${TURN_PORT}\") \" /proc/net/udp || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+volumes:
+  certs:
+
+networks:
+  hostnet:
+    external: true
+    name: host

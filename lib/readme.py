@@ -124,7 +124,6 @@ _JINJA_HOSTNAME_SUBS: tuple[tuple[re.Pattern[str], str], ...] = (
     (re.compile(r"\{\{\s*outline_hostname\s*\}\}"), "wiki.yourdomain.com"),
     (re.compile(r"\{\{\s*rocketchat_hostname\s*\}\}"), "chat.yourdomain.com"),
     (re.compile(r"\{\{\s*espocrm_hostname\s*\}\}"), "crm.yourdomain.com"),
-    (re.compile(r"\{\{\s*coturn_hostname\s*\}\}"), "turn.yourdomain.com"),
     (re.compile(r"\{\{\s*keycloak_realm\s*\}\}"), "vps"),
     (re.compile(r"\{\{\s*admin_email\s*\}\}"), "<your-admin-email>"),
     # The inventory's `public_ip` fact, resolved on the real host at

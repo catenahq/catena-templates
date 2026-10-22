@@ -38,3 +38,15 @@ def test_the_other_jitsi_settings_are_seeded_not_forced():
 def test_no_hook_wires_jitsi():
     blueprint = yaml.safe_load(COMPOSE.read_text(encoding="utf-8"))
     assert "hooks" not in blueprint["x-catena"]
+
+
+def test_the_video_bridge_takes_no_relay_setting():
+    """The Jitsi video bridge reads no JVB_TURN_* value, so the template reads
+    nothing of the call relay: it advertises the server's own address."""
+    blueprint = _compose()
+    block = blueprint["x-catena"]
+    assert not [key for key in block["env"] if key.startswith("TURN_")]
+    assert "secrets" not in block
+    jvb = blueprint["services"]["jvb"]["environment"]
+    assert not [key for key in jvb if "TURN" in key]
+    assert jvb["JVB_ADVERTISE_IPS"] == "${VPS_PUBLIC_IP}"

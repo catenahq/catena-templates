@@ -40,9 +40,13 @@ x-catena:
     TALK_INTERNAL_SECRET:
       generated: {length: 64, alphabet: alnum}
     TURN_HOSTNAME:
-      managed: {expr: "{{ coturn_hostname | default('turn.' ~ cloudflare_zone) }}"}
-    TURN_STATIC_AUTH_SECRET:
-      managed: {expr: "{{ turn_static_auth_secret }}"}
+      managed: {expr: "{{ provided.turn.host }}"}
+    TURN_PORT:
+      managed: {expr: "{{ provided.turn.port }}"}
+    TURN_TLS_PORT:
+      managed: {expr: "{{ provided.turn.tls_port }}"}
+    TURN_SECRET:
+      managed: {expr: "{{ provided.turn.secret }}"}
     WEBMAIL_HOSTNAME:
       setting: {default: "webmail.{{ cloudflare_zone }}"}
     ANTIVIRUS_HOST:
@@ -55,7 +59,6 @@ x-catena:
       managed: {expr: "{{ provided.office.url }}"}
     OFFICE_JWT_SECRET:
       managed: {expr: "{{ provided.office.jwt_secret }}"}
-  secrets: [turn_static_auth_secret]
   lifecycle:
     service: "app"
     user: "www-data"
@@ -100,8 +103,11 @@ x-catena:
   # configure runs after every deploy (add, settings, start, update, rollback,
   # restore) and wires Nextcloud to the rest of the server: the object store
   # file, Keycloak sign-in, Mail, the virus scanner and the office editor the
-  # applications on this server provide, Talk with its signaling server and
-  # relay, and the Webmail link. It leaves with 0 whenever
+  # applications on this server provide, Talk with its signaling server and the
+  # call relay application, and the Webmail link. Talk's relay and signaling
+  # entries are written only while the relay application runs, and taken away
+  # when it goes; the entries written are recorded in the app settings of
+  # "catena". It leaves with 0 whenever
   # occ cannot be used (first install running, maintenance mode on, a restore
   # whose database is not replayed yet) and with 1 only when occ answers and a
   # wiring command fails. An app an administrator disabled stays disabled; the
@@ -188,6 +194,48 @@ x-catena:
             occ config:system:set external_sites 0 lang --value "" &&
             occ config:system:set external_sites 0 device --value "" &&
             occ config:system:set external_sites 0 redirect --value true --type boolean
+          }
+
+          # The Talk entries of the call relay: host, ports and a digest of the
+          # secret, recorded once written so a changed relay replaces them and a
+          # removed relay takes them away.
+          turn_record() {
+            printf '%s %s %s %s' "$$TURN_HOSTNAME" "$$TURN_PORT" "$$TURN_TLS_PORT" "$$(printf %s "$$TURN_SECRET" | sha256sum | cut -c1-16)"
+          }
+          unwire_turn() {
+            set -- $$(occ config:app:get catena turn_wired 2>/dev/null || true)
+            [ "$$#" -eq 4 ] || return 0
+            occ talk:turn:delete turn "$$1:$$2" udp,tcp &&
+            occ talk:turn:delete turns "$$1:$$3" tcp &&
+            occ talk:stun:delete "$$1:$$2" &&
+            occ config:app:delete catena turn_wired
+          }
+          wire_turn() {
+            [ "$$(occ config:app:get catena turn_wired 2>/dev/null || true)" != "$$(turn_record)" ] || return 0
+            unwire_turn &&
+            occ talk:turn:add turn "$$TURN_HOSTNAME:$$TURN_PORT" udp,tcp --secret="$$TURN_SECRET" &&
+            occ talk:turn:add turns "$$TURN_HOSTNAME:$$TURN_TLS_PORT" tcp --secret="$$TURN_SECRET" &&
+            occ talk:stun:add "$$TURN_HOSTNAME:$$TURN_PORT" &&
+            occ config:app:set catena turn_wired --value "$$(turn_record)"
+          }
+          # The signaling server entry, recorded the same way: Talk adds a
+          # duplicate entry for each add.
+          signaling_record() {
+            printf '%s %s' "https://$$SIGNALING_HOSTNAME" "$$(printf %s "$$SIGNALING_SECRET" | sha256sum | cut -c1-16)"
+          }
+          unwire_signaling() {
+            set -- $$(occ config:app:get catena signaling_wired 2>/dev/null || true)
+            [ "$$#" -eq 2 ] || return 0
+            occ talk:signaling:delete "$$1" &&
+            { occ config:app:delete spreed external_signaling_only || true; } &&
+            occ config:app:delete catena signaling_wired
+          }
+          wire_signaling() {
+            [ "$$(occ config:app:get catena signaling_wired 2>/dev/null || true)" != "$$(signaling_record)" ] || return 0
+            unwire_signaling &&
+            occ talk:signaling:add "https://$$SIGNALING_HOSTNAME" "$$SIGNALING_SECRET" &&
+            occ config:app:set spreed external_signaling_only --value=yes &&
+            occ config:app:set catena signaling_wired --value "$$(signaling_record)"
           }
 
           # The app each office editor runs under in Nextcloud, and the app-config
@@ -298,13 +346,16 @@ x-catena:
             fi
           fi
 
-          if ensure_app spreed && curl -fsS --max-time 3 http://signaling:8081/api/v1/welcome >/dev/null 2>&1; then
-            if [ -n "$${SIGNALING_HOSTNAME:-}" ] && [ -n "$${SIGNALING_SECRET:-}" ] \
-                && [ -n "$${TURN_HOSTNAME:-}" ] && [ -n "$${TURN_STATIC_AUTH_SECRET:-}" ]; then
-              step "the Talk TURN entry" occ talk:turn:add "$$TURN_HOSTNAME:5349" "udp,tcp" --secret="$$TURN_STATIC_AUTH_SECRET"
-              step "the Talk STUN entry" occ talk:stun:add "$$TURN_HOSTNAME:3478"
-              step "the Talk signaling entry" occ talk:signaling:add "https://$$SIGNALING_HOSTNAME" "$$SIGNALING_SECRET"
-              step "the Talk signaling setting" occ config:app:set spreed external_signaling_only --value=yes
+          if ensure_app spreed; then
+            if [ -n "$${TURN_HOSTNAME:-}" ] && [ -n "$${TURN_SECRET:-}" ]; then
+              step "the Talk relay entries" wire_turn
+              if [ -n "$${SIGNALING_HOSTNAME:-}" ] && [ -n "$${SIGNALING_SECRET:-}" ] \
+                  && curl -fsS --max-time 3 http://signaling:8081/api/v1/welcome >/dev/null 2>&1; then
+                step "the Talk signaling entry" wire_signaling
+              fi
+            else
+              step "the Talk relay entries removal" unwire_turn
+              step "the Talk signaling entry removal" unwire_signaling
             fi
           fi
 
@@ -1002,25 +1053,24 @@ services:
   #
   # Image is the Nextcloud team's official All-In-One HPB bundle:
   # signaling + janus + nats + an internal eturnal TURN, all under
-  # supervisord in one container. We deliberately KEEP the standalone
-  # roles/coturn (TURN/STUN at turn.<base>:5349) because Rocket.Chat's
-  # bundled Jitsi (rocketchat-oidc template) shares the same coturn
-  # via JVB_TURN_*. Two design choices follow from that:
+  # dinit in one container. Two design choices:
   #
-  #   1. Janus inside aio-talk is configured (via TURN_DOMAIN +
-  #      TALK_PORT) to use the EXTERNAL standalone coturn for its
-  #      own ICE relay. Janus's start.sh inside aio-talk mints
-  #      ephemeral HMAC-SHA1 creds against TURN_SECRET (which we
-  #      set to turn_static_auth_secret -- the same secret
-  #      coturn validates with). Clients dialing Talk get TURN
-  #      coordinates pointing at the same coturn (set by the
-  #      configure hook via `occ talk:turn:add`), so all media
-  #      converges through one shared TURN provider.
-  #   2. aio-talk's bundled eturnal still binds TALK_PORT inside
-  #      the container netns -- start.sh has no skip flag for it.
-  #      That binding is harmless: TALK_PORT=5349 lives only in the
-  #      container's private netns; nothing on the host competes.
-  #      The bundled eturnal stays unused.
+  #   1. Janus inside aio-talk takes its relay candidates from the call
+  #      relay application of this server (TURN_DOMAIN and TALK_PORT name
+  #      its address and its plain TURN port), because Janus has no public
+  #      address of its own. Its start.sh mints ephemeral HMAC-SHA1
+  #      credentials against TURN_SECRET, the secret the relay validates
+  #      with. Clients dialing Talk get the same relay from the configure
+  #      hook, which wires Talk to this service only while the relay runs.
+  #   2. start.sh refuses to start with an empty TURN_SECRET. The wrapper
+  #      below mints one when the relay provides none; without the relay
+  #      the service idles and nothing is wired to it. aio-talk's bundled
+  #      eturnal binds TALK_PORT inside the container's own network
+  #      namespace and stays unused.
+  #
+  # The image's entrypoint is /start.sh and its command the dinit line
+  # below. Overriding the entrypoint drops the image's command, so both are
+  # written out.
   #
   # Public exposure: only the signaling HTTP endpoint (port 8081
   # inside the container), the app's address at ${SIGNALING_HOSTNAME}.
@@ -1036,19 +1086,28 @@ services:
     deploy:
       restart_policy:
         condition: any
+    entrypoint:
+      - /bin/sh
+      - -ec
+      - |
+        if [ -z "$${TURN_SECRET:-}" ]; then
+          TURN_SECRET=$$(openssl rand -hex 24)
+          export TURN_SECRET
+        fi
+        exec /start.sh "$$@"
+      - sh
+    command: [dinit, --system, --container, nats-server, eturnal, janus, signaling]
     environment:
       # NEXTCLOUD_HOSTNAME owns the public Nextcloud URL; aio-talk
       # advertises this to clients as the parent app's identity.
       NC_DOMAIN: ${NEXTCLOUD_HOSTNAME}
       # Public hostname clients dial for the WSS signaling channel.
       TALK_HOST: ${SIGNALING_HOSTNAME}
-      # TURN coordinates Janus uses for its own ICE candidates.
-      # Pointed at the standalone coturn (turn.<base>:5349) so
-      # restrictive-network clients reach Janus through the same
-      # shared TURN that the configure hook advertises to Talk.
-      TURN_DOMAIN: ${TURN_HOSTNAME}
-      TALK_PORT: "5349"
-      TURN_SECRET: ${TURN_STATIC_AUTH_SECRET}
+      # The relay Janus takes its relay candidates from: the address,
+      # plain TURN port and secret the call relay application provides.
+      TURN_DOMAIN: ${TURN_HOSTNAME:-}
+      TALK_PORT: ${TURN_PORT:-3478}
+      TURN_SECRET: ${TURN_SECRET:-}
       # Bearer secret between the signaling service and the Talk
       # backend. The configure hook passes this same value to
       # `occ talk:signaling:add`, so the two endpoints share the

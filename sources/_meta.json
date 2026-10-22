@@ -25,6 +25,7 @@
     "invoiceninja",
     "mailserver",
     "clamav",
+    "coturn",
     "portainer",
     "arcane"
   ],

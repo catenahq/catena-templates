@@ -26,9 +26,13 @@ x-catena:
     VPS_PUBLIC_IP:
       managed: {expr: "{{ public_ip }}"}
     TURN_HOSTNAME:
-      managed: {expr: "{{ coturn_hostname | default('turn.' ~ cloudflare_zone) }}"}
-    TURN_STATIC_AUTH_SECRET:
-      managed: {expr: "{{ turn_static_auth_secret }}"}
+      managed: {expr: "{{ provided.turn.host }}"}
+    TURN_PORT:
+      managed: {expr: "{{ provided.turn.port }}"}
+    TURN_TLS_PORT:
+      managed: {expr: "{{ provided.turn.tls_port }}"}
+    TURN_SECRET:
+      managed: {expr: "{{ provided.turn.secret }}"}
     JITSI_JICOFO_AUTH_PASSWORD:
       generated: {length: 64, alphabet: alnum}
     JITSI_JICOFO_COMPONENT_SECRET:
@@ -43,8 +47,6 @@ x-catena:
       setting: {default: ""}
     JIGASI_SIP_SERVER:
       setting: {default: ""}
-
-  secrets: [turn_static_auth_secret]
   images:
     postgres:
       rule: {kind: partial_line}
@@ -193,17 +195,6 @@ services:
         # Presence / typing notifications: keep on for the team-chat UX.
         use_presence: true
 
-        # TURN via the shared coturn at turn.<base>. Same static-auth-secret
-        # as Nextcloud Talk and Rocket.Chat / Jitsi. Synapse mints per-call
-        # HMAC-SHA1 credentials (RFC 7635), same scheme JVB uses.
-        turn_uris:
-          - "turn:${TURN_HOSTNAME}:3478?transport=udp"
-          - "turn:${TURN_HOSTNAME}:3478?transport=tcp"
-          - "turns:${TURN_HOSTNAME}:5349?transport=tcp"
-        turn_shared_secret: "${TURN_STATIC_AUTH_SECRET}"
-        turn_user_lifetime: 86400000
-        turn_allow_guests: true
-
         # OIDC -- this app's own Keycloak sign-in entry, whose values the
         # settings sync writes from the sign-in labels on element-web; empty
         # until its first pass, when Synapse logs the provider as broken and
@@ -236,6 +227,22 @@ services:
         # of the public meet.jit.si fallback.
         app_service_config_files: []
         """
+
+        # TURN through the call relay application of this server, written only
+        # when the relay provides its address. Synapse mints per-call
+        # HMAC-SHA1 credentials (RFC 7635) from the relay's secret.
+        turn_host = os.environ.get("TURN_HOSTNAME", "")
+        if turn_host:
+            HOMESERVER += "\n".join([
+                "",
+                "turn_uris:",
+                f'  - "turn:{turn_host}:{os.environ["TURN_PORT"]}?transport=udp"',
+                f'  - "turns:{turn_host}:{os.environ["TURN_TLS_PORT"]}?transport=tcp"',
+                f'turn_shared_secret: "{os.environ["TURN_SECRET"]}"',
+                "turn_user_lifetime: 86400000",
+                "turn_allow_guests: true",
+                "",
+            ])
 
         data = pathlib.Path("/data")
         data.mkdir(parents=True, exist_ok=True)
@@ -283,8 +290,10 @@ services:
       OIDC_ISSUER_URL: ${OIDC_ISSUER_URL:-}
       OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-}
       OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-}
-      TURN_HOSTNAME: ${TURN_HOSTNAME}
-      TURN_STATIC_AUTH_SECRET: ${TURN_STATIC_AUTH_SECRET}
+      TURN_HOSTNAME: ${TURN_HOSTNAME:-}
+      TURN_PORT: ${TURN_PORT:-}
+      TURN_TLS_PORT: ${TURN_TLS_PORT:-}
+      TURN_SECRET: ${TURN_SECRET:-}
       ALLOW_PUBLIC_REGISTRATION: ${ALLOW_PUBLIC_REGISTRATION}
       FEDERATION_DOMAIN_WHITELIST: ${FEDERATION_DOMAIN_WHITELIST}
       JITSI_PREFERRED_DOMAIN: ${ELEMENT_JITSI_HOSTNAME}
@@ -428,8 +437,8 @@ services:
   # === JITSI BEGIN -- bundled on-server video conferencing =================
   # Always-on, mirrors the Rocket.Chat pattern. Element's web client
   # opens video calls in an embedded Jitsi widget pointing at the
-  # bundled instance at elementmeet.<base>. Uses the same shared coturn
-  # at turn.<base>:5349 for restrictive-network fallback.
+  # bundled instance at elementmeet.<base>. The video bridge advertises the
+  # server's public address in its ICE candidates, so a call reaches it directly.
   #
   # Hostname is intentionally elementmeet.<base> (not meet.<base>) to
   # avoid collision with the Rocket.Chat bundled Jitsi when both
@@ -534,10 +543,6 @@ services:
       JVB_BREWERY_MUC: jvbbrewery
       JVB_PORT: "10010"
       JVB_ADVERTISE_IPS: ${VPS_PUBLIC_IP}
-      JVB_TURN_HOST: ${TURN_HOSTNAME}
-      JVB_TURN_PORT: "5349"
-      JVB_TURN_TRANSPORT: tcp
-      JVB_TURN_SECRET: ${TURN_STATIC_AUTH_SECRET}
       TZ: Etc/UTC
     labels:
       - "vps.expose.udp=10010"

@@ -112,7 +112,7 @@ Host-controlled env vars (TURN auth secret, admin password, ...) plus
 every secret default in `templates.json` to a sentinel placeholder:
 
 ```
-TURN_STATIC_AUTH_SECRET=__CATENA_OPERATOR_WIRED__
+TURN_SECRET=__CATENA_OPERATOR_WIRED__
 ```
 
 An app's own sign-in values (`OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`,

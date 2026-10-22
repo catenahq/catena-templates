@@ -15,17 +15,12 @@ x-catena:
       setting: {default: "{{ admin_email }}"}
     VPS_PUBLIC_IP:
       managed: {expr: "{{ public_ip }}"}
-    TURN_HOSTNAME:
-      managed: {expr: "{{ coturn_hostname | default('turn.' ~ cloudflare_zone) }}"}
-    TURN_STATIC_AUTH_SECRET:
-      managed: {expr: "{{ turn_static_auth_secret }}"}
     JITSI_JICOFO_AUTH_PASSWORD:
       generated: {length: 64, alphabet: alnum}
     JITSI_JICOFO_COMPONENT_SECRET:
       generated: {length: 64, alphabet: alnum}
     JITSI_JVB_AUTH_PASSWORD:
       generated: {length: 64, alphabet: alnum}
-  secrets: [turn_static_auth_secret]
   quiesce:
     service: "mongodb"
     pre:
@@ -170,10 +165,8 @@ services:
   # === JITSI BEGIN -- bundled on-server video conferencing ================
   # Always-on. The catena.run product story requires sovereign video --
   # no calls leave the server, no fallback to public meet.jit.si.
-  # The shared coturn at ${TURN_HOSTNAME} (catena-ce reconcile/roles/coturn)
-  # handles restrictive-network media relay; JVB advertises ${VPS_PUBLIC_IP}
-  # in ICE candidates so direct peer-to-JVB UDP works for the typical
-  # case (no relay needed). The rocketchat service's Jitsi_* settings point
+  # JVB advertises ${VPS_PUBLIC_IP} in its ICE candidates, so a call reaches
+  # it directly over UDP. The rocketchat service's Jitsi_* settings point
   # Rocket.Chat at jitsi-web.
 
   prosody:
@@ -270,13 +263,6 @@ services:
       JVB_BREWERY_MUC: jvbbrewery
       JVB_PORT: "10000"
       JVB_ADVERTISE_IPS: ${VPS_PUBLIC_IP}
-      # Restrictive-network fallback. JVB hands clients an `iceServers`
-      # list pointing at the shared coturn; clients that cannot reach
-      # JVB on UDP/10000 directly relay through ${TURN_HOSTNAME}:5349.
-      JVB_TURN_HOST: ${TURN_HOSTNAME}
-      JVB_TURN_PORT: "5349"
-      JVB_TURN_TRANSPORT: tcp
-      JVB_TURN_SECRET: ${TURN_STATIC_AUTH_SECRET}
       TZ: Etc/UTC
     labels:
       - "vps.expose.udp=10000"

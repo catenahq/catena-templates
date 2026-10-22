@@ -622,7 +622,7 @@ def test_a_managed_expression_reads_the_secrets_the_block_lists(monkeypatch, tmp
                                       secrets=["turn_static_auth_secret"]))
     assert L.lint_all() == 0, capsys.readouterr().out
     _synthetic_sources(monkeypatch, tmp_path / "host", {},
-                       block=_managed("{{ coturn_hostname | default('turn.' ~ cloudflare_zone) }}"))
+                       block=_managed("{{ sso_hostname | default('auth.' ~ cloudflare_zone) }}"))
     assert L.lint_all() == 0, capsys.readouterr().out
 
 

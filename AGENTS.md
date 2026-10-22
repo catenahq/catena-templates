@@ -44,6 +44,13 @@ for layout, consumer model, and BASE URL setup.
   no relay is chosen. The password is the stored secret `smtp_password`.
 - An application with no web address (a scanner, a relay) leaves `domain` out of
   its source and names `version_from` in its block.
+- An application that runs on the server's own network declares the
+  `host_network` privilege and, in `vps.expose.tcp` and `vps.expose.udp` labels,
+  each port it opens, a range of at most 1024 ports. Its compose joins the
+  external network named `host`, because a stack deploy ignores `network_mode`.
+  `make lint` fails a block that asks for the privilege and declares no port.
+  Its start script writes any configuration file from the environment when the
+  container starts, so no secret reaches the service's arguments.
 - A compose file carries no descriptive header. What the template is,
   what it replaces, how sign-in works and what each env var means live
   in `sources/<id>.json` and reach the reader through the generated
