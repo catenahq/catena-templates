@@ -681,6 +681,22 @@ def test_reconcile_fails_when_the_database_cannot_be_read(nc):
     assert "the filecache query failed" in run.stderr
 
 
+@pytest.mark.parametrize("tool,call", [("sort", 1), ("sort", 2), ("comm", 1)])
+def test_reconcile_prints_no_count_when_a_sort_or_the_comparison_fails(nc, tool, call):
+    """A tool that cannot write its result (a full /tmp) must not leave a
+    short file that reads as a count."""
+    _indexed(nc, [3, 4], [3])
+    counter = nc.bin / f"{tool}.calls"
+    (nc.bin / tool).write_text(
+        f'#!/bin/sh\nn=$(cat "{counter}" 2>/dev/null || echo 0)\nn=$((n + 1))\n'
+        f'echo $n >"{counter}"\n[ "$n" -eq {call} ] && exit 1\nexec /usr/bin/{tool} "$@"\n')
+    (nc.bin / tool).chmod(0o755)
+    run = nc.run("reconcile")
+    assert run.returncode == 1, run.stdout
+    assert "missing=" not in run.stdout
+    assert run.stderr.strip()
+
+
 def test_reconcile_fails_when_the_database_lists_no_object_backed_file(nc):
     _indexed(nc, [], [3, 4])
     run = nc.run("reconcile")
