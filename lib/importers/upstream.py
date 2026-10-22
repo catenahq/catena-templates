@@ -107,7 +107,7 @@ def _repo(address: str) -> pipeline.Repo | None:
 
 
 def find(ref: str) -> tuple[pipeline.Repo | None, str]:
-    """(repository, where it was found) for the image, or (None, "")."""
+    """(repository, the place that named it) for the image, or (None, "")."""
     for where, read in (("the image's source label", label_source),
                         ("the Docker Hub repository's linked source", hub_source)):
         repo = _repo(read(ref))
