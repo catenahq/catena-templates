@@ -157,7 +157,7 @@ FORGE_BLUEPRINTS = {
 FORGE_TREE = {"sha": "def456", "truncated": False, "tree": [
     {"path": f"blueprints/{ident}/{name}", "type": "blob"}
     for ident in FORGE_BLUEPRINTS for name in dokploy.FILES]}
-ROUTED_COMPOSE = "services:\n  app:\n    image: example/app:1.0.0\n    ports:\n      - 8080:80\n"
+ROUTED_COMPOSE = "services:\n  app:\n    image: example/{ident}:1.0.0\n    ports:\n      - 8080:80\n"
 LAB_API = "https://gitlab.com/api/v4/projects/example%2Flab"
 
 WEB = {
@@ -185,7 +185,7 @@ WEB = {
     f"{RAW}/half/meta.json": _meta("half", "Half", "https://github.com/example/webapp"),
 }
 for _ident in FORGE_BLUEPRINTS:
-    WEB[f"{RAW}/{_ident}/docker-compose.yml"] = ROUTED_COMPOSE.encode()
+    WEB[f"{RAW}/{_ident}/docker-compose.yml"] = ROUTED_COMPOSE.format(ident=_ident).encode()
 for _ident, (_name, _github, _website) in {**BLUEPRINTS, **FORGE_BLUEPRINTS}.items():
     WEB[f"{RAW}/{_ident}/meta.json"] = _meta(_ident, _name, _github, _website)
     WEB.setdefault(f"{RAW}/{_ident}/template.toml", WORKER_TOML.encode())
@@ -348,6 +348,8 @@ def test_the_apps_licence_admits_an_entry_and_the_registrys_notice_joins_it(cata
         "licence": "MIT",
         "attribution": "Copyright (c) 2025 Example Web; compose file and settings, MIT: "
                        "Copyright (c) 2024 Example Templates",
+        "path": "blueprints/webapp/docker-compose.yml",
+        "project": "https://github.com/example/webapp",
     }
     out = capsys.readouterr().out
     assert "skipped, licence not permitted: 1\n  Copyleft: GPL-3.0 (example/gpl-app)" in out

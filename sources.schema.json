@@ -106,6 +106,37 @@
               "type": "string",
               "minLength": 1,
               "description": "The copyright lines of the source's licence file, or that file's address when it carries none."
+            },
+            "commit": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{40}$",
+              "description": "The commit of the source the entry was read at."
+            },
+            "path": {
+              "type": "string",
+              "minLength": 1,
+              "description": "The entry's path in the source at that commit."
+            },
+            "project": {
+              "type": "string",
+              "format": "uri",
+              "description": "The upstream project's repository, whose licence was checked too."
+            },
+            "aliases": {
+              "type": "array",
+              "description": "Entries of other registries (or the same one) that are this same app: recorded, not imported.",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["registry", "entry"],
+                "properties": {
+                  "registry": { "type": "string", "minLength": 1 },
+                  "entry": { "type": "string", "minLength": 1 },
+                  "source": { "type": "string" },
+                  "commit": { "type": "string" },
+                  "path": { "type": "string" }
+                }
+              }
             }
           }
         },

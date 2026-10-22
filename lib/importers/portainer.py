@@ -15,7 +15,8 @@ entry a numeric id. The fields read are those of Portainer's Template type
              default, a select's default option gives the value, else its
              first option
 
-A stack entry copies its repository's compose file, so that repository's
+A stack entry copies its repository's compose file, at the commit that
+repository's default branch is at when the wave runs, so that repository's
 licence applies. A container entry's compose file is written from the
 registry's own fields, so the registry's repository licenses it. Type 4 (an
 edge stack) and Windows entries are left out.
@@ -25,7 +26,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from .pipeline import Candidate, Repo, github_repo, plain, raw_url, slugify
+from .pipeline import Candidate, Repo, github_repo, pinned_raw, plain, slugify
 
 # Portainer's restart_policy values as swarm restart conditions. Portainer
 # restarts a container always when the entry names no policy.
@@ -89,8 +90,8 @@ def _stack(c: Candidate, t: dict[str, Any]) -> None:
         c.licence_problem = f"the repository {url or '(none)'} is not on GitHub"
     else:
         c.source = c.upstream_url = f"https://github.com/{repo.path}"
-        c.licence_repo = repo
-        c.compose_url = raw_url(repo, stackfile)
+        c.licence_repo = c.compose_repo = repo
+        c.compose_path = stackfile
 
 
 def _container(c: Candidate, t: dict[str, Any], registry_url: str,
@@ -103,6 +104,7 @@ def _container(c: Candidate, t: dict[str, Any], registry_url: str,
     if registry and not image.startswith(registry + "/"):
         image = f"{registry}/{image}"
     c.source = registry_url
+    c.commit, c.path = pinned_raw(registry_url)
     c.upstream_url = image_page(image)
     if registry_repo is None:
         c.licence_problem = "the registry is not in a GitHub repository, so its licence is unknown"

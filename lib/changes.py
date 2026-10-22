@@ -2,7 +2,8 @@
 
 An app is `blueprints/<id>/**` plus `sources/<id>.json`. Anything else in the
 repo (the generated catalog files, the workflows, the library) belongs to no
-app, and `sources/_meta.json` is the catalog's, not an app's.
+app, and a `sources/` file whose name starts with an underscore
+(`_meta.json`, `_aliases.json`) is the catalog's, not an app's.
 """
 from __future__ import annotations
 
@@ -12,7 +13,6 @@ from typing import Iterable
 SLUG = re.compile(r"[a-z0-9][a-z0-9-]*")
 BLUEPRINTS_PREFIX = "blueprints/"
 SOURCES_PREFIX = "sources/"
-META_NAME = "_meta.json"
 
 
 def app_id(path: str) -> str | None:
@@ -22,7 +22,7 @@ def app_id(path: str) -> str | None:
         return head if sep and head else None
     if path.startswith(SOURCES_PREFIX):
         name = path[len(SOURCES_PREFIX):]
-        if "/" in name or not name.endswith(".json") or name == META_NAME:
+        if "/" in name or not name.endswith(".json") or name.startswith("_"):
             return None
         return name[: -len(".json")]
     return None

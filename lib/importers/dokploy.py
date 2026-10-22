@@ -118,7 +118,9 @@ def _notice(repo: Repo) -> str:
 
 
 def _candidate(ident: str, paths: set[str], notice: str, base: str, source: str) -> Candidate:
-    c = Candidate(entry=ident, slug=slugify(ident), source=source, notice=notice)
+    c = Candidate(entry=ident, slug=slugify(ident), source=source, notice=notice,
+                  path=f"blueprints/{ident}/docker-compose.yml",
+                  commit=pipeline.pinned_raw(f"{base}/docker-compose.yml")[0])
     missing = [name for name in FILES if f"blueprints/{ident}/{name}" not in paths]
     if missing:
         c.skip = f"the registry has no {' or '.join(missing)} for it"
@@ -143,7 +145,7 @@ def _candidate(ident: str, paths: set[str], notice: str, base: str, source: str)
     c.description = plain(meta.get("description")) or c.title
     c.categories = [tag for tag in (plain(x) for x in meta.get("tags") or []) if tag]
     c.upstream_url = str(links.get("website") or "").strip() or upstream or source
-    c.licence_repo = upstream_repo(upstream)
+    c.licence_repo = c.project = upstream_repo(upstream)
     if c.licence_repo is None:
         c.licence_problem = (f"its upstream {upstream or '(none)'} names no repository, so the "
                              f"app's licence is unknown")

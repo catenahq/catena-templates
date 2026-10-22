@@ -12,6 +12,7 @@ import base64
 import json
 import re
 import sys
+from datetime import date
 from pathlib import Path
 
 import pytest
@@ -20,12 +21,14 @@ import yaml
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from lib import model, quiesce_lint, readme, render  # noqa: E402
-from lib.importers import pipeline, portainer  # noqa: E402
+from lib import changes, model, provenance, quiesce_lint, readme, render  # noqa: E402
+from lib.importers import (arcane, awesome_selfhosted, dedup, dokploy, pipeline,  # noqa: E402
+                           portainer, publish, upstream)
 
 ADAPTERS = {"portainer": portainer.read}
 REGISTRY = "https://raw.githubusercontent.com/example/registry/main/templates.json"
 API = pipeline.GITHUB_API
+STACKS_COMMIT = "a" * 40
 # A banned-word list in the shape of contracts/banned-words.json, with words
 # of its own so this file holds none of the real list's.
 BANNED = {"tokens": [{"token": "forbiddenware", "stem": False}, {"token": "badstem", "stem": True}]}
@@ -109,7 +112,8 @@ WEB = {
         "Apache License\n\n      Copyright [yyyy] [name of copyright owner]\n"),
     f"{API}/repos/example/gpl/license": _licence("example/gpl", "GPL-3.0", "GNU GPL\n"),
     f"{API}/repos/example/bare": json.dumps({"full_name": "example/bare"}).encode(),
-    "https://raw.githubusercontent.com/example/stacks/HEAD/web/docker-compose.yml":
+    f"{API}/repos/example/stacks/commits/HEAD": json.dumps({"sha": STACKS_COMMIT}).encode(),
+    f"https://raw.githubusercontent.com/example/stacks/{STACKS_COMMIT}/web/docker-compose.yml":
         STACK_COMPOSE.encode(),
 }
 
@@ -158,6 +162,12 @@ def catalog(tmp_path, monkeypatch):
     def fake_fetch(url, headers=None):
         calls.append(url)
         if url not in WEB:
+            # Every image is linked on Docker Hub to a repository of its own
+            # under the MIT licence, unless a test says otherwise.
+            if url.startswith(f"{provenance.HUB_API}/repositories/"):
+                return json.dumps({"source": f"https://github.com/upstream/{url.split('/')[-2]}"}).encode()
+            if url.startswith(f"{API}/repos/upstream/") and url.endswith("/license"):
+                return _licence(url.split("/repos/")[1].removesuffix("/license"), "MIT", "MIT\n")
             raise pipeline.FetchError(f"{url}: HTTP 404", 404)
         return WEB[url]
 
@@ -166,7 +176,7 @@ def catalog(tmp_path, monkeypatch):
 
 
 def _run(*args: str) -> int:
-    return pipeline.main([REGISTRY, *args], ADAPTERS)
+    return pipeline.main([REGISTRY, *args], ALL)
 
 
 def _source(slug: str) -> dict:
@@ -195,6 +205,9 @@ def test_a_stack_entry_is_imported_from_its_repository(catalog):
         "licence": "Apache-2.0",
         # The Apache text carries only its appendix's line to fill in.
         "attribution": "https://github.com/example/stacks/blob/main/LICENSE",
+        "commit": STACKS_COMMIT,
+        "path": "web/docker-compose.yml",
+        "project": "https://github.com/upstream/web",
     }
     assert cat["domain"] == {"host": "web-stack.{{ cloudflare_zone }}", "service": "web", "port": 80}
     assert cat["en"]["what_it_is"] == "A web app -- with its database"
@@ -444,6 +457,12 @@ def test_a_curated_entry_carries_no_import_stubs(catalog):
     cat["bench"]["pack"] = "nodb"
     cat["sizing"]["peak_ram_mb"] = 256
     path.write_text(json.dumps(doc))
+    # A curated entry takes its place in the deployment order.
+    with pytest.raises(model.SourceError, match="notes.json: not listed in _meta.json order"):
+        model.load_sources()
+    meta = model.load_meta()
+    meta["order"] = ["notes"]
+    (model.SOURCES / model.META_NAME).write_text(json.dumps(meta))
     assert "notes" in {e.slug for e in model.load_sources()}
 
 
@@ -469,7 +488,7 @@ def test_an_id_already_in_the_catalog_is_left_alone(catalog, capsys):
     assert curated.read_text() == "{}\n"
     assert not (model.BLUEPRINTS / "notes").exists()
     assert "Notes: the id notes is already in the catalog" in capsys.readouterr().out
-    assert model.load_meta()["order"] == ["web-stack"]
+    assert model.load_meta()["order"] == []
 
 
 def test_a_dry_run_writes_nothing(catalog, capsys):
@@ -679,3 +698,418 @@ def test_only_copyright_notices_make_the_attribution():
 def test_github_tells_a_missing_repository_from_one_without_a_licence_file(forges):
     assert _read("github.com", "example/bare").problem == "GitHub finds no licence file in example/bare"
     assert _read("github.com", "example/gone").problem == "no repository example/gone on GitHub"
+
+
+# --- the registry feed: adapters, deduplication, licences, waves -------------
+
+ALL = {"portainer": portainer.read, "dokploy": dokploy.read, "arcane": arcane.read,
+       "awesome-selfhosted": awesome_selfhosted.read}
+TODAY = date(2026, 10, 22)
+
+LISSY_COMMIT, ARCANE_COMMIT, DOKPLOY_COMMIT, AWESOME_COMMIT = "b" * 40, "c" * 40, "d" * 40, "e" * 40
+LISSY = f"https://raw.githubusercontent.com/Lissy93/portainer-templates/{LISSY_COMMIT}/templates.json"
+LISSY_DOC = {"version": "2", "templates": [
+    {"type": 1, "title": "Actual Budget", "name": "actual-budget", "description": "Budgeting",
+     "categories": ["Finance"], "platform": "linux", "image": "actualbudget/actual-server:25.1.0",
+     "ports": ["5006/tcp"], "env": [{"name": "TZ", "default": "UTC"}]}]}
+
+ARCANE = "https://registry.getarcane.app/registry.json"
+ARCANE_SITE = "https://registry.getarcane.app/templates/actual"
+ARCANE_DOC = {"name": "Arcane", "description": "d", "author": "a", "version": "1.0.0",
+              "url": "https://registry.getarcane.app", "templates": [
+    {"id": "actual", "name": "Actual", "description": "Privacy-focused budgeting server.",
+     "version": "1.0.0", "author": "getarcaneapp",
+     "compose_url": f"{ARCANE_SITE}/compose.yaml", "env_url": f"{ARCANE_SITE}/.env.example",
+     "documentation_url": "https://github.com/getarcaneapp/templates/tree/main/templates/actual",
+     "content_hash": "0" * 64, "tags": ["finance"]}]}
+ARCANE_COMPOSE = """\
+services:
+  actual:
+    image: actualbudget/actual-server:25.1.0
+    ports:
+      - 5006:5006
+    healthcheck:
+      test: [CMD, "true"]
+    environment:
+      ACTUAL_PORT: ${ACTUAL_PORT:-5006}
+      TZ: ${TZ}
+"""
+ARCANE_ENV = "# a comment\nACTUAL_PORT=5006\nTZ='UTC'\nEXTRA=1\n"
+
+DOK_REGISTRY = f"{API}/repos/example/dok/git/trees/{DOKPLOY_COMMIT}?recursive=1"
+DOK_RAW = f"https://raw.githubusercontent.com/example/dok/{DOKPLOY_COMMIT}/blueprints"
+DOK_TREE = {"truncated": False, "tree": [
+    {"path": f"blueprints/{i}/{n}", "type": "blob"}
+    for i in ("one", "two") for n in dokploy.FILES]}
+DOK_TOML = '[variables]\n\n[config]\n[[config.domains]]\nserviceName = "app"\nport = 80\nhost = "${domain}"\n'
+
+AWESOME = f"{API}/repos/awesome-selfhosted/awesome-selfhosted-data/git/trees/{AWESOME_COMMIT}?recursive=1"
+AWESOME_RAW = (f"https://raw.githubusercontent.com/awesome-selfhosted/awesome-selfhosted-data/"
+               f"{AWESOME_COMMIT}/software")
+
+
+def _awesome_entry(name: str, source: str, platforms: list[str]) -> bytes:
+    return yaml.safe_dump({"name": name, "website_url": "https://example.org",
+                           "source_code_url": source, "description": "x", "licenses": ["MIT"],
+                           "platforms": platforms, "tags": ["Misc"]}).encode()
+
+
+FEED_WEB = {
+    LISSY: json.dumps(LISSY_DOC).encode(),
+    f"{API}/repos/Lissy93/portainer-templates/license": _licence(
+        "Lissy93/portainer-templates", "MIT", "MIT License\n\nCopyright (c) 2021 Lissy93\n"),
+    ARCANE: json.dumps(ARCANE_DOC).encode(),
+    f"{API}/repos/getarcaneapp/templates/license": _licence(
+        "getarcaneapp/templates", "Apache-2.0", "Apache License\n\nCopyright 2025 Arcane\n"),
+    f"{API}/repos/getarcaneapp/templates/commits/HEAD": json.dumps({"sha": ARCANE_COMMIT}).encode(),
+    f"https://raw.githubusercontent.com/getarcaneapp/templates/{ARCANE_COMMIT}/templates/actual/compose.yaml":
+        ARCANE_COMPOSE.encode(),
+    f"https://raw.githubusercontent.com/getarcaneapp/templates/{ARCANE_COMMIT}/templates/actual/.env.example":
+        ARCANE_ENV.encode(),
+    DOK_REGISTRY: json.dumps(DOK_TREE).encode(),
+    f"{API}/repos/example/dok/license": _licence("example/dok", "MIT", "MIT\n\nCopyright (c) 2025 Dok\n"),
+    f"{API}/repos/example/shared/license": _licence("example/shared", "MIT", "MIT\n\nCopyright (c) 2024 S\n"),
+    AWESOME: json.dumps({"truncated": False, "tree": [
+        {"path": "software/notes.yml", "type": "blob"},
+        {"path": "software/native.yml", "type": "blob"},
+        {"path": "software/nosource.yml", "type": "blob"},
+        {"path": "README.md", "type": "blob"}]}).encode(),
+    f"{AWESOME_RAW}/notes.yml": _awesome_entry("Notes", "https://github.com/example/notes-app", ["Docker"]),
+    f"{AWESOME_RAW}/native.yml": _awesome_entry("Native", "https://github.com/example/native", ["Python"]),
+    f"{AWESOME_RAW}/nosource.yml": _awesome_entry("NoSource", "", ["Docker"]),
+    f"{API}/repos/example/notes-app/license": _licence(
+        "example/notes-app", "MIT", "MIT\n\nCopyright (c) 2023 Notes\n"),
+    f"{API}/repos/example/notes-gpl/license": _licence("example/notes-gpl", "AGPL-3.0", "GNU AGPL\n"),
+}
+for _ident in ("one", "two"):
+    FEED_WEB[f"{DOK_RAW}/{_ident}/meta.json"] = json.dumps({
+        "name": _ident.title(), "description": "d", "tags": [],
+        "links": {"github": "https://github.com/example/shared"}}).encode()
+    FEED_WEB[f"{DOK_RAW}/{_ident}/template.toml"] = DOK_TOML.encode()
+    FEED_WEB[f"{DOK_RAW}/{_ident}/docker-compose.yml"] = (
+        f"services:\n  app:\n    image: example/{_ident}:1.0.0\n    expose:\n      - 80\n").encode()
+
+
+@pytest.fixture
+def feed(catalog, monkeypatch):
+    for url, body in FEED_WEB.items():
+        monkeypatch.setitem(WEB, url, body)
+    return catalog
+
+
+def _main(*args: str, runner=None) -> int:
+    return pipeline.main(list(args), ALL, runner=runner, render_fn=lambda: 0, today=TODAY)
+
+
+def test_the_portainer_adapter_reads_lissy93s_list_at_its_commit(feed):
+    assert _main(LISSY) == 0
+    origin = _source("actual-budget")["x-catena"]["origin"]
+    assert origin["registry"] == LISSY and origin["source"] == LISSY
+    assert origin["commit"] == LISSY_COMMIT and origin["path"] == "templates.json"
+    assert origin["licence"] == "MIT" and origin["attribution"] == "Copyright (c) 2021 Lissy93"
+
+
+def test_the_arcane_adapter_reads_a_template_from_the_repository_at_a_pinned_commit(feed):
+    assert _main(ARCANE, "--format", "arcane") == 0
+    cat = _source("actual")["x-catena"]
+    assert cat["origin"] == {
+        "registry": ARCANE, "entry": "Actual",
+        "source": "https://github.com/getarcaneapp/templates", "licence": "Apache-2.0",
+        "attribution": "Copyright 2025 Arcane", "commit": ARCANE_COMMIT,
+        "path": "templates/actual/compose.yaml",
+        "project": "https://github.com/upstream/actual-server"}
+    env = _env("actual")
+    assert env["ACTUAL_PORT"] == "5006" and env["TZ"] == "UTC" and env["EXTRA"] == "1"
+    service = _compose("actual")["services"]["actual"]
+    assert service["labels"] == ["vps.route.host=${DOMAIN_HOST}", "vps.route.port=5006"]
+    assert "ports" not in service
+    assert _source("actual")["categories"] == ["Finance"]
+
+
+def test_an_unpinnable_repository_skips_its_entries(feed, capsys, monkeypatch):
+    monkeypatch.delitem(WEB, f"{API}/repos/getarcaneapp/templates/commits/HEAD")
+    assert _main(ARCANE, "--format", "arcane") == 0
+    assert "Actual: cannot pin getarcaneapp/templates to a commit" in capsys.readouterr().out
+    assert not (model.SOURCES / "actual.json").exists()
+
+
+def test_a_document_that_is_no_arcane_registry_is_refused(feed, capsys, monkeypatch):
+    monkeypatch.setitem(WEB, ARCANE, b'{"templates": []}')
+    assert _main(ARCANE, "--format", "arcane") == 1
+    assert "not an Arcane template registry" in capsys.readouterr().err
+
+
+def test_entries_sharing_an_image_are_one_app_and_the_richest_seeds_it(feed, capsys):
+    assert _main(LISSY, "--also", f"arcane={ARCANE}") == 0
+    out = capsys.readouterr().out
+    assert "imported: 1\n  actual (Actual)" in out
+    assert "Actual Budget: alias of actual" in out
+    assert not (model.SOURCES / "actual-budget.json").exists()
+    origin = _source("actual")["x-catena"]["origin"]
+    assert origin["aliases"] == [{"registry": LISSY, "entry": "Actual Budget", "source": LISSY,
+                                  "commit": LISSY_COMMIT, "path": "templates.json"}]
+    assert model.load_sources()
+
+
+def test_entries_naming_one_source_repository_are_one_app(feed, capsys):
+    assert _main(DOK_REGISTRY, "--format", "dokploy") == 0
+    assert "imported: 1\n  one (One)" in capsys.readouterr().out
+    cat = _source("one")["x-catena"]
+    assert cat["origin"]["project"] == "https://github.com/example/shared"
+    assert [a["entry"] for a in cat["origin"]["aliases"]] == ["Two"]
+    assert not (model.SOURCES / "two.json").exists()
+
+
+def test_an_entry_of_an_app_already_in_the_catalog_is_recorded_as_an_alias(feed, capsys):
+    (model.SOURCES / "curated.json").write_text(json.dumps({
+        "id": "curated", "x-catena": {"domain": {"host": "h", "service": "app", "port": 80}}}))
+    (model.BLUEPRINTS / "curated").mkdir()
+    (model.BLUEPRINTS / "curated" / model.COMPOSE_NAME).write_text(
+        "services:\n  app:\n    image: docker.io/example/notes:2.0.0\n")
+    assert _run() == 0
+    out = capsys.readouterr().out
+    assert "Notes: alias of curated (in the catalog)" in out
+    assert not (model.SOURCES / "notes.json").exists()
+    records = json.loads((model.SOURCES / dedup.ALIASES_NAME).read_text())["aliases"]
+    assert records == [{"app": "curated", "registry": REGISTRY, "entry": "Notes", "source": REGISTRY}]
+    # The next run knows the entry and weighs nothing again.
+    assert _run() == 0
+    assert "Notes: already recorded as an alias of curated" in capsys.readouterr().out
+    assert changes.app_ids([f"sources/{dedup.ALIASES_NAME}", "sources/_meta.json"]) == []
+
+
+def test_the_richness_counts_settings_a_health_check_and_sign_in_labels():
+    def prepared(compose: str, settings=()):
+        doc = pipeline.load_compose(compose)
+        stack = pipeline.make_stack(doc)
+        return dedup.richness(pipeline.Candidate(entry="x", settings=list(settings)), stack)
+
+    base = "services:\n  a:\n    image: x\n    ports: ['80']\n    environment:\n      A: ${A}\n"
+    # The route label every stack gets reads DOMAIN_HOST, a setting of its own.
+    plain = prepared(base)
+    assert plain == 2
+    assert prepared(base, [("B", ""), ("C", "")]) == plain + 2
+    assert prepared(base + "    healthcheck:\n      test: [CMD, 'true']\n") == plain + dedup.HEALTH_WEIGHT
+    assert prepared(base + "    labels:\n      vps.auth.oidc: 'true'\n") == plain + dedup.SIGN_IN_WEIGHT
+
+
+@pytest.mark.parametrize("ref,key", [
+    ("nginx:1.27", "image:nginx"), ("docker.io/library/nginx@sha256:ab", "image:nginx"),
+    ("Docker.io/Example/App:1", "image:example/app"), ("ghcr.io/o/app:1", "image:ghcr.io/o/app"),
+    ("${IMAGE}", ""), ("example/app:${TAG}", "image:example/app")])
+def test_an_image_is_keyed_by_its_repository(ref, key):
+    assert dedup.image_key(ref) == key
+
+
+def test_an_awesome_selfhosted_project_gives_an_entry_its_upstream_repository(feed, capsys):
+    assert _run("--also", f"awesome-selfhosted={AWESOME}") == 0
+    out = capsys.readouterr().out
+    assert "listed with no compose file to import: 1" in out
+    cat = _source("notes")["x-catena"]
+    assert cat["origin"]["project"] == "https://github.com/example/notes-app"
+    assert any("matched by name: confirm it is this app" in c for c in cat["pending"]["to_choose"])
+    assert not (model.SOURCES / "native.json").exists()
+
+
+def test_the_upstream_projects_licence_is_checked_too(feed, capsys, monkeypatch):
+    monkeypatch.setitem(WEB, f"{AWESOME_RAW}/notes.yml", _awesome_entry(
+        "Notes", "https://github.com/example/notes-gpl", ["Docker"]))
+    assert _run("--also", f"awesome-selfhosted={AWESOME}") == 0
+    out = capsys.readouterr().out
+    assert "Notes: upstream project AGPL-3.0 (example/notes-gpl)" in out
+    assert "skipped, licence not permitted: 2" in out
+    assert not (model.SOURCES / "notes.json").exists()
+
+
+def test_an_upstream_project_with_no_readable_licence_skips_the_entry(feed, capsys, monkeypatch):
+    monkeypatch.setitem(WEB, f"{AWESOME_RAW}/notes.yml", _awesome_entry(
+        "Notes", "https://github.com/example/notes-bare", ["Docker"]))
+    monkeypatch.setitem(WEB, f"{API}/repos/example/notes-bare", json.dumps({"full_name": "x"}).encode())
+    assert _run("--also", f"awesome-selfhosted={AWESOME}") == 0
+    assert "Notes: upstream project GitHub finds no licence file in example/notes-bare" \
+        in capsys.readouterr().out
+
+
+def test_imported_entries_not_in_the_order_follow_the_listed_ones_by_id(catalog):
+    assert _run() == 0
+    assert [e.slug for e in model.load_sources()] == ["notes", "web-stack"]
+
+
+def test_a_wave_allowance_waits_for_updates_and_keeps_to_both_limits():
+    def prs(*heads, day="2026-10-22"):
+        return [{"headRefName": h, "createdAt": f"{day}T10:00:00Z"} for h in heads]
+
+    wait = publish.allowance(5, 5, 10, prs("renovate/x", "import/a"), [], TODAY)
+    assert wait.size == 0 and "1 update or fix pull requests are open" in wait.reason
+    assert publish.allowance(5, 5, 10, prs("scanctl/y"), [], TODAY).size == 0
+    assert publish.allowance(5, 5, 10, prs("engine-bump/z"), [], TODAY).size == 0
+    assert publish.allowance(3, 5, 10, [], [], TODAY).size == 3
+    assert publish.allowance(9, 5, 10, [], [], TODAY).size == 5
+    recent = prs("import/a", "import/b", "feature/c") + prs("import/old", day="2026-10-21")
+    got = publish.allowance(5, 5, 10, [], recent, TODAY)
+    assert got.size == 3 and "2 opened today of 5" in got.reason
+    assert publish.allowance(5, 5, 10, prs(*[f"import/{i}" for i in range(9)]), [], TODAY).size == 1
+    assert publish.allowance(5, 5, 2, prs("import/a", "import/b"), [], TODAY).size == 0
+
+
+class FakeGit:
+    """Answers the git and gh commands of a wave and keeps them."""
+
+    def __init__(self, open_prs=(), recent=(), dirty=False):
+        self.calls: list[list[str]] = []
+        self.open, self.recent, self.dirty = list(open_prs), list(recent), dirty
+
+    def __call__(self, argv):
+        self.calls.append(argv)
+        if argv[:3] == ["gh", "pr", "list"]:
+            return json.dumps(self.open if argv[argv.index("--state") + 1] == "open" else self.recent)
+        if argv[:2] == ["git", "status"]:
+            return " M x" if self.dirty else ""
+        if argv[:3] == ["git", "rev-parse", "--abbrev-ref"]:
+            return "main\n"
+        if argv[:3] == ["gh", "pr", "create"]:
+            return f"https://github.com/o/r/pull/{len([c for c in self.calls if c[:3] == argv[:3]])}\n"
+        return ""
+
+    def writes(self) -> list[list[str]]:
+        return [c for c in self.calls if c[:2] in (["git", "switch"], ["git", "add"], ["git", "commit"],
+                                                      ["git", "push"], ["gh", "pr"]) and c[:3] != ["gh", "pr", "list"]]
+
+
+def test_a_wave_opens_one_branch_and_one_pull_request_per_app(feed, capsys):
+    git = FakeGit()
+    assert _main(REGISTRY, "--wave", "1", runner=git) == 0
+    out = capsys.readouterr().out
+    assert "wave: 1 of 1" in out
+    assert "imported: 1\n  web-stack (Web Stack)" in out
+    assert "left for a later wave: 1" in out
+    assert "pull requests opened: 1\n  https://github.com/o/r/pull/1" in out
+    assert not (model.SOURCES / "notes.json").exists()
+    steps = [c for c in git.writes()]
+    assert steps[0] == ["git", "switch", "--create", "import/web-stack", "origin/main"]
+    add = next(c for c in steps if c[:2] == ["git", "add"])
+    assert add[add.index("--") + 1:] == ["blueprints/web-stack", "sources/web-stack.json",
+                                         "templates.json", "catalog.json", "index.html"]
+    create = next(c for c in steps if c[:3] == ["gh", "pr", "create"])
+    assert create[create.index("--head") + 1] == "import/web-stack"
+    assert create[create.index("--title") + 1] == "feat(import): web-stack from raw.githubusercontent.com"
+    assert "- licence: Apache-2.0" in create[create.index("--body") + 1]
+    assert steps[-1] == ["git", "switch", "main"]
+
+
+def test_a_wave_needs_a_clean_checkout(feed, capsys):
+    git = FakeGit(dirty=True)
+    assert _main(REGISTRY, "--wave", "1", runner=git) == 1
+    assert "the working tree is not clean" in capsys.readouterr().err
+    assert git.writes() == []
+
+
+def test_a_wave_holds_while_an_update_is_open_and_reads_nothing(feed, capsys):
+    git = FakeGit(open_prs=[{"headRefName": "renovate/nextcloud", "createdAt": "2026-10-22T01:00:00Z"}])
+    _, calls = feed
+    assert _main(REGISTRY, "--wave", "3", runner=git) == 0
+    assert "wave: 0 of 3 (1 update or fix pull requests are open" in capsys.readouterr().out
+    assert calls == [] and git.writes() == []
+
+
+def test_a_wave_keeps_to_the_daily_and_open_limits(feed, capsys):
+    recent = [{"headRefName": f"import/a{i}", "createdAt": "2026-10-22T01:00:00Z"} for i in range(4)]
+    git = FakeGit(recent=recent)
+    assert _main(REGISTRY, "--wave", "5", "--dry-run", runner=git) == 0
+    assert "wave: 1 of 5" in capsys.readouterr().out
+    git = FakeGit(open_prs=[{"headRefName": "import/a", "createdAt": "2026-10-20T01:00:00Z"}])
+    assert _main(REGISTRY, "--wave", "5", "--open-limit", "1", runner=git) == 0
+    assert "wave: 0 of 5" in capsys.readouterr().out
+
+
+def test_a_wave_dry_run_prints_the_plan_and_changes_nothing(feed, capsys):
+    git = FakeGit()
+    assert _main(REGISTRY, "--wave", "2", "--dry-run", runner=git) == 0
+    out = capsys.readouterr().out
+    assert "wave: 2 of 2" in out and "would import: 2" in out
+    assert git.writes() == []
+    assert [p.name for p in model.SOURCES.iterdir()] == [model.META_NAME]
+    assert list(model.BLUEPRINTS.iterdir()) == []
+
+
+def test_aliases_of_catalog_apps_go_in_their_own_pull_request(feed):
+    (model.SOURCES / "curated.json").write_text(json.dumps({
+        "id": "curated", "x-catena": {"domain": {"host": "h", "service": "app", "port": 80}}}))
+    (model.BLUEPRINTS / "curated").mkdir()
+    (model.BLUEPRINTS / "curated" / model.COMPOSE_NAME).write_text(
+        "services:\n  app:\n    image: example/notes:2.0.0\n")
+    git = FakeGit()
+    assert _main(REGISTRY, "--wave", "5", runner=git) == 0
+    switches = [c[3] for c in git.writes() if c[:3] == ["git", "switch", "--create"]]
+    assert switches == ["import/web-stack", "import/aliases"]
+    add = [c for c in git.writes() if c[:2] == ["git", "add"]][-1]
+    assert add[add.index("--") + 1:] == ["sources/_aliases.json"]
+
+
+REG = "https://registry-1.docker.io/v2/example/lab"
+GHCR = "https://ghcr.io/v2/owner/tool"
+SOURCE = provenance.SOURCE_LABEL
+
+
+def _image_web(monkeypatch, extra: dict) -> None:
+    for url, body in extra.items():
+        monkeypatch.setitem(WEB, url, body if isinstance(body, bytes) else json.dumps(body).encode())
+
+
+def test_the_image_label_names_the_upstream_repository(catalog, monkeypatch):
+    _image_web(monkeypatch, {
+        "https://auth.docker.io/token?service=registry.docker.io&scope=repository:example/lab:pull":
+            {"token": "t"},
+        f"{REG}/manifests/1.0": {"config": {"digest": "sha256:c1"}},
+        f"{REG}/blobs/sha256:c1": {"config": {"Labels": {SOURCE: "https://github.com/example/lab-src"}}},
+    })
+    assert upstream.find("example/lab:1.0") == (
+        pipeline.Repo("github.com", "example/lab-src"), "the image's source label")
+
+
+def test_an_index_manifest_is_followed_to_its_linux_amd64_image_and_its_annotations(catalog, monkeypatch):
+    _image_web(monkeypatch, {
+        "https://ghcr.io/token?service=ghcr.io&scope=repository:owner/tool:pull": {"token": "t"},
+        f"{GHCR}/manifests/2.0": {"manifests": [
+            {"digest": "sha256:arm", "platform": {"os": "linux", "architecture": "arm64"}},
+            {"digest": "sha256:amd", "platform": {"os": "linux", "architecture": "amd64"}}]},
+        f"{GHCR}/manifests/sha256:amd": {
+            "config": {"digest": "sha256:c2"},
+            "annotations": {SOURCE: "https://github.com/owner/tool.git"}},
+    })
+    assert upstream.find("ghcr.io/owner/tool:2.0")[0] == pipeline.Repo("github.com", "owner/tool")
+
+
+def test_a_docker_hub_repository_links_its_source_when_the_image_has_no_label(catalog, monkeypatch):
+    _image_web(monkeypatch, {
+        f"{provenance.HUB_API}/repositories/example/lab/": {"source": "https://github.com/example/linked"}})
+    assert upstream.find("example/lab:1.0") == (
+        pipeline.Repo("github.com", "example/linked"), "the Docker Hub repository's linked source")
+
+
+def test_an_image_with_no_label_and_no_link_names_no_repository(catalog, monkeypatch):
+    _image_web(monkeypatch, {f"{provenance.HUB_API}/repositories/example/lab/": {"source": None}})
+    assert upstream.find("example/lab:1.0") == (None, "")
+    assert upstream.find("quay.io/example/lab:1.0") == (None, "")
+
+
+def test_an_entry_whose_upstream_repository_cannot_be_found_is_skipped(catalog, capsys, monkeypatch):
+    _image_web(monkeypatch, {f"{provenance.HUB_API}/repositories/example/notes/": {"source": None}})
+    assert _run() == 0
+    out = capsys.readouterr().out
+    assert ("Notes: the upstream repository is unknown: example/notes:1.2.3 names no source label "
+            "and no linked source on Docker Hub") in out
+    assert not (model.SOURCES / "notes.json").exists()
+    assert (model.SOURCES / "web-stack.json").exists()
+
+
+def test_a_found_upstream_repository_is_licence_checked_and_recorded(catalog, capsys, monkeypatch):
+    _image_web(monkeypatch, {
+        f"{provenance.HUB_API}/repositories/example/notes/": {"source": "https://github.com/example/notes-gpl"},
+        f"{API}/repos/example/notes-gpl/license": _licence("example/notes-gpl", "GPL-3.0", "GNU GPL\n")})
+    assert _run() == 0
+    assert "Notes: upstream project GPL-3.0 (example/notes-gpl)" in capsys.readouterr().out
+    cat = _source("web-stack")["x-catena"]
+    assert cat["origin"]["project"] == "https://github.com/upstream/web"
+    assert any("comes from the Docker Hub repository's linked source of example/web:2.1.0"
+               in c for c in cat["pending"]["to_choose"])

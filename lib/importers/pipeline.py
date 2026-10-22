@@ -49,6 +49,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass, field
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
 
@@ -88,7 +89,17 @@ class Candidate:
     adapter that has no repository to name says why in `licence_problem`.
     `notice` is a further copyright notice the attribution carries: the
     registry's, when the licence that applies is the app's. A non-empty
-    `skip` keeps the entry out, with that reason."""
+    `skip` keeps the entry out, with that reason.
+
+    `registry` is the address the entry was read from, when it differs from
+    the importer's own. `project` is the app's upstream repository when the
+    registry or a listing names it: its licence is checked too, and it keys
+    the deduplication. `compose_repo` and `compose_path` name a stack file
+    fetched at the repository's pinned commit (`env_path` is a file of
+    KEY=value defaults beside it); `commit` and `path` record where the
+    entry was read, once known. A `listing` entry names a project and has no
+    compose file: it only tells the importer which repository an entry by
+    that name belongs to."""
 
     entry: str
     slug: str = ""
@@ -107,6 +118,14 @@ class Candidate:
     upstream_url: str = ""
     to_choose: list[str] = field(default_factory=list)
     skip: str = ""
+    registry: str = ""
+    project: Repo | None = None
+    commit: str = ""
+    path: str = ""
+    compose_repo: Repo | None = None
+    compose_path: str = ""
+    env_path: str = ""
+    listing: bool = False
 
 
 class Skip(Exception):
@@ -206,10 +225,21 @@ def upstream_repo(url: str) -> Repo | None:
     return None if host == "github.com" else Repo(host, path)
 
 
-def raw_url(repo: Repo, path: str) -> str:
-    """A file on the GitHub repository's default branch."""
+def raw_url(repo: Repo, path: str, ref: str = "HEAD") -> str:
+    """A file on the GitHub repository at `ref`."""
     rel = path.strip().removeprefix("./").lstrip("/")
-    return f"{RAW_GITHUB}/{repo.path}/HEAD/{rel}"
+    return f"{RAW_GITHUB}/{repo.path}/{ref}/{rel}"
+
+
+_SHA = re.compile(r"^[0-9a-f]{40}$")
+_PINNED_RAW = re.compile(
+    r"^https://raw\.githubusercontent\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/([0-9a-f]{40})/(.+)$")
+
+
+def pinned_raw(url: str) -> tuple[str, str]:
+    """(commit, path) of a raw file address that names a commit, else ("", "")."""
+    m = _PINNED_RAW.match(url.strip())
+    return (m.group(1), m.group(2)) if m else ("", "")
 
 
 @dataclass(frozen=True)
@@ -261,15 +291,30 @@ def _answer(url: str, key: str, headers: dict[str, str] | None = None) -> dict[s
     return doc if isinstance(doc, dict) and key in doc else None
 
 
-def _github(repo: Repo) -> Licence | None:
-    """GitHub's licence API, which hands over the licence file. Its 404
-    answers a repository with no licence file and a missing one alike, so
-    the repository is then asked for. GITHUB_TOKEN, when set, lifts the
-    API's rate limit for anonymous callers."""
+def github_headers() -> dict[str, str]:
+    """GITHUB_TOKEN, when set, lifts the API's rate limit for anonymous callers."""
     headers = {"Accept": "application/vnd.github+json"}
     token = os.environ.get("GITHUB_TOKEN", "").strip()
     if token:
         headers["Authorization"] = f"Bearer {token}"
+    return headers
+
+
+def pin_commit(repo: Repo) -> str:
+    """The commit GitHub's default branch of the repository is at, or a
+    FetchError."""
+    doc = json.loads(fetch(f"{GITHUB_API}/repos/{repo.path}/commits/HEAD", github_headers()))
+    sha = str(doc.get("sha") or "") if isinstance(doc, dict) else ""
+    if not _SHA.match(sha):
+        raise FetchError(f"{repo}: GitHub names no commit")
+    return sha
+
+
+def _github(repo: Repo) -> Licence | None:
+    """GitHub's licence API, which hands over the licence file. Its 404
+    answers a repository with no licence file and a missing one alike, so
+    the repository is then asked for."""
+    headers = github_headers()
     doc = _answer(f"{GITHUB_API}/repos/{repo.path}/license", "license", headers)
     if doc is None:
         if _answer(f"{GITHUB_API}/repos/{repo.path}", "full_name", headers) is None:
@@ -696,14 +741,29 @@ CHECKER_NOT_RUN = "checker not run: "
 @dataclass
 class Report:
     seen: int = 0
+    listed: int = 0
+    deferred: int = 0
     imported: list[str] = field(default_factory=list)
+    aliases: list[str] = field(default_factory=list)
+    new_aliases: list[dict[str, str]] = field(default_factory=list)
+    pull_requests: list[str] = field(default_factory=list)
     skipped: dict[str, list[str]] = field(
         default_factory=lambda: {"licence": [], "unknown": [], "other": []})
 
     def lines(self, dry_run: bool) -> list[str]:
-        out = [f"entries: {self.seen}",
-               f"{'would import' if dry_run else 'imported'}: {len(self.imported)}"]
+        out = [f"entries: {self.seen}"]
+        if self.listed:
+            out.append(f"listed with no compose file to import: {self.listed}")
+        out.append(f"{'would import' if dry_run else 'imported'}: {len(self.imported)}")
         out += [f"  {line}" for line in self.imported]
+        if self.aliases:
+            out.append(f"aliases, recorded and not imported: {len(self.aliases)}")
+            out += [f"  {line}" for line in self.aliases]
+        if self.deferred:
+            out.append(f"left for a later wave: {self.deferred}")
+        if self.pull_requests:
+            out.append(f"pull requests opened: {len(self.pull_requests)}")
+            out += [f"  {line}" for line in self.pull_requests]
         for kind, title in (("licence", "skipped, licence not permitted"),
                             ("unknown", "skipped, licence unknown"),
                             ("other", "skipped, other reasons")):
@@ -712,53 +772,112 @@ class Report:
         return out
 
 
+def write_entry(slug: str, source: dict[str, Any], compose: str) -> None:
+    """The entry's two hand-edited files."""
+    app_dir = model.BLUEPRINTS / slug
+    app_dir.mkdir(parents=True)
+    (app_dir / model.COMPOSE_NAME).write_text(compose)
+    (model.SOURCES / f"{slug}.json").write_text(json.dumps(source, indent=2) + "\n")
+
+
+@dataclass
+class Prepared:
+    """An entry that passed the licence rule and whose compose file is a catalog
+    stack file, before the checker runs. `keys` identify the app it is."""
+
+    c: Candidate
+    slug: str
+    licence: Licence
+    licence_checks: list[str]
+    stack: Stack
+    keys: frozenset[str]
+    rich: int
+
+
 class Importer:
+    """`limit` is the most entries one run imports (a wave); `emit` writes
+    one entry's files and returns the address of the pull request it opened,
+    if any."""
+
     def __init__(self, registry: str, applint: str, dry_run: bool,
-                 banned: list[tuple[str, re.Pattern[str]]]):
+                 banned: list[tuple[str, re.Pattern[str]]], limit: int | None = None,
+                 emit: Callable[[str, dict[str, Any], str], str | None] | None = None):
         self.registry = registry
         self.applint = applint
         self.dry_run = dry_run
         self.banned = banned
+        self.limit = limit
+        self.emit = emit or (lambda slug, source, compose: write_entry(slug, source, compose))
         self.allowed = permissive_licences()
         self.licences: dict[tuple[str, str], Licence] = {}
+        self.pins: dict[str, str] = {}
+        self.found: dict[str, tuple[Repo | None, str]] = {}
         self.taken: set[str] = set()
+        self.catalog = dedup.catalog_index()
+        self.known = dedup.load_aliases()
 
     def run(self, candidates: list[Candidate]) -> Report:
-        report = Report(seen=len(candidates))
-        written: list[str] = []
-        for candidate in candidates:
+        listings = {c.slug: c for c in candidates if c.listing and c.project}
+        entries = [c for c in candidates if not c.listing]
+        report = Report(seen=len(entries), listed=len(candidates) - len(entries))
+        prepared: list[Prepared] = []
+        for c in entries:
+            c.registry = c.registry or self.registry
+            recorded = self.known.get((c.registry, c.entry))
+            if recorded:
+                report.aliases.append(f"{c.entry}: already recorded as an alias of {recorded}")
+                continue
+            listed = listings.get(c.slug)
+            if c.project is None and listed:
+                c.project = listed.project
+                c.to_choose.append(
+                    f"upstream project: the listing {listed.source} names {listed.entry} at "
+                    f"{listed.project}, matched by name: confirm it is this app")
             try:
-                slug, source, compose = self._entry(candidate)
+                prepared.append(self._prepare(c))
             except Skip as exc:
-                report.skipped[exc.kind].append(f"{candidate.entry}: {exc}")
+                report.skipped[exc.kind].append(f"{c.entry}: {exc}")
+        for group in dedup.groups(prepared):
+            existing = next((self.catalog[k] for p in group for k in sorted(p.keys)
+                             if k in self.catalog), None)
+            if existing:
+                for p in group:
+                    report.aliases.append(f"{p.c.entry}: alias of {existing} (in the catalog)")
+                    report.new_aliases.append({"app": existing, **dedup.reference(p)})
                 continue
-            self.taken.add(slug)
-            report.imported.append(f"{slug} ({candidate.entry})")
-            if self.dry_run:
+            if self.limit is not None and len(report.imported) >= self.limit:
+                report.deferred += 1
                 continue
-            app_dir = model.BLUEPRINTS / slug
-            app_dir.mkdir(parents=True)
-            (app_dir / model.COMPOSE_NAME).write_text(compose)
-            (model.SOURCES / f"{slug}.json").write_text(json.dumps(source, indent=2) + "\n")
-            written.append(slug)
-        if written:
-            meta = model.load_meta()
-            meta["order"] = list(meta.get("order") or []) + written
-            (model.SOURCES / model.META_NAME).write_text(json.dumps(meta, indent=2) + "\n")
+            for p in group:
+                try:
+                    slug, source, compose = self._finish(p)
+                except Skip as exc:
+                    report.skipped[exc.kind].append(f"{p.c.entry}: {exc}")
+                    continue
+                rest = [q for q in group if q is not p]
+                if rest:
+                    source["x-catena"]["origin"]["aliases"] = [dedup.reference(q) for q in rest]
+                    report.aliases += [f"{q.c.entry}: alias of {slug}" for q in rest]
+                self.taken.add(slug)
+                report.imported.append(f"{slug} ({p.c.entry})")
+                if not self.dry_run:
+                    url = self.emit(slug, source, compose)
+                    if url:
+                        report.pull_requests.append(url)
+                break
         return report
 
-    def _licence(self, candidate: Candidate) -> tuple[Licence, list[str]]:
+    def _licence(self, repo: Repo | None, slug: str, problem: str = "") -> tuple[Licence, list[str]]:
         """The licence that admits the entry, and what a person checks about
         the repository it is read from: an owner's page reads as the owner's
         repository named as the entry's id."""
-        repo = candidate.licence_repo
         if repo is None:
-            raise Skip(candidate.licence_problem or "no repository names its licence", "unknown")
+            raise Skip(problem or "no repository names its licence", "unknown")
         page = ""
         checks: list[str] = []
         if "/" not in repo.path:
             page = f"https://{repo.host}/{repo.path}"
-            repo = Repo(repo.host, f"{repo.path}/{candidate.slug}")
+            repo = Repo(repo.host, f"{repo.path}/{slug}")
             checks.append(f"upstream repository: the registry links the owner's page {page}, and "
                           f"the licence is read from {repo}, its repository named as the entry: "
                           f"confirm it holds the app")
@@ -773,20 +892,59 @@ class Importer:
             raise Skip(f"{licence.spdx} ({repo})", "licence")
         return licence, checks
 
+    def _project_licence(self, c: Candidate) -> None:
+        """The upstream project's licence is held to the same list as the
+        licence of the repository the entry is copied from."""
+        if c.project is not None and c.project != c.licence_repo:
+            try:
+                self._licence(c.project, c.slug)
+            except Skip as exc:
+                raise Skip(f"upstream project {exc}", exc.kind) from exc
+
+    def _pin(self, repo: Repo) -> str:
+        if repo.path not in self.pins:
+            try:
+                self.pins[repo.path] = pin_commit(repo)
+            except (FetchError, ValueError) as exc:
+                raise Skip(f"cannot pin {repo} to a commit: {exc}") from exc
+        return self.pins[repo.path]
+
     def _compose(self, candidate: Candidate) -> dict[str, Any]:
         if candidate.compose is not None:
             return candidate.compose
+        url = candidate.compose_url
+        if candidate.compose_repo:
+            ref = self._pin(candidate.compose_repo)
+            url = raw_url(candidate.compose_repo, candidate.compose_path, ref)
+            candidate.commit, candidate.path = ref, candidate.compose_path.removeprefix("./")
+            if candidate.env_path:
+                self._env_defaults(candidate, raw_url(candidate.compose_repo, candidate.env_path, ref))
         try:
-            text = fetch(candidate.compose_url).decode("utf-8", "replace")
+            text = fetch(url).decode("utf-8", "replace")
         except FetchError as exc:
             raise Skip(f"compose file: {exc}") from exc
         try:
             doc = load_compose(text)
         except ValueError as exc:
-            raise Skip(f"compose file {candidate.compose_url}: {exc}") from exc
+            raise Skip(f"compose file {url}: {exc}") from exc
         return candidate.convert(doc) if candidate.convert else doc
 
-    def _entry(self, c: Candidate) -> tuple[str, dict[str, Any], str]:
+    @staticmethod
+    def _env_defaults(candidate: Candidate, url: str) -> None:
+        """The KEY=value lines of the registry's env file are settings; a
+        missing file is no setting."""
+        try:
+            text = fetch(url).decode("utf-8", "replace")
+        except FetchError:
+            return
+        named = {name for name, _ in candidate.settings}
+        for line in text.splitlines():
+            m = re.match(r"^\s*([A-Za-z_][A-Za-z0-9_]*)=(.*)$", line)
+            if m and m.group(1) not in named:
+                candidate.settings.append((m.group(1), m.group(2).strip().strip("\"'")))
+                named.add(m.group(1))
+
+    def _prepare(self, c: Candidate) -> Prepared:
         if c.skip:
             raise Skip(c.skip)
         slug = c.slug
@@ -800,8 +958,27 @@ class Importer:
         if (slug in self.taken or (model.SOURCES / f"{slug}.json").exists()
                 or (model.BLUEPRINTS / slug).exists()):
             raise Skip(f"the id {slug} is already in the catalog")
-        licence, licence_checks = self._licence(c)
+        licence, licence_checks = self._licence(c.licence_repo, slug, c.licence_problem)
+        self._project_licence(c)
         stack = make_stack(self._compose(c), c.route)
+        if c.project is None:
+            image = str(stack.doc["services"][stack.service].get("image") or "")
+            if image not in self.found:
+                self.found[image] = upstream.find(image)
+            c.project, where = self.found[image]
+            if c.project is None:
+                raise Skip(f"the upstream repository is unknown: {image} names no source label "
+                           f"and no linked source on Docker Hub", "unknown")
+            c.to_choose.append(f"upstream project: {c.project} comes from {where} of {image}: "
+                               f"confirm it is this app")
+            self._project_licence(c)
+        return Prepared(c, slug, licence, licence_checks, stack,
+                        frozenset(dedup.keys(stack, c.project)), dedup.richness(c, stack))
+
+    def _finish(self, p: Prepared) -> tuple[str, dict[str, Any], str]:
+        c, slug, licence, licence_checks, stack = p.c, p.slug, p.licence, p.licence_checks, p.stack
+        if slug in self.taken:
+            raise Skip(f"the id {slug} is already in the catalog")
         host = f"{slug}.{ZONE}"
         env = [(name, value if render.LOOKUP_PASSWORD_RE.search(value)
                 else minted(name) if secret_like(name) else value)
@@ -849,6 +1026,18 @@ class Importer:
         description = c.description or c.title or slug
         readme = f"{render.REPO_GIT_URL}/blob/main/blueprints/{slug}/README.md"
         french = f"Description du registre, non traduite : {description}"
+        origin = {
+            "registry": c.registry or self.registry,
+            "entry": c.entry,
+            "source": c.source,
+            "licence": licence.spdx,
+            "attribution": "; ".join(filter(None, [licence.attribution, c.notice])),
+        }
+        for key, value in (("commit", c.commit), ("path", c.path),
+                           ("project", f"https://{c.project.host}/{c.project.path}"
+                            if c.project else "")):
+            if value:
+                origin[key] = value
         source = {
             "id": slug,
             "type": 2,
@@ -862,13 +1051,7 @@ class Importer:
                 "upstream_url": c.upstream_url,
                 "sso_mode": "none",
                 "domain": {"host": host, "service": stack.service, "port": stack.port},
-                "origin": {
-                    "registry": self.registry,
-                    "entry": c.entry,
-                    "source": c.source,
-                    "licence": licence.spdx,
-                    "attribution": "; ".join(filter(None, [licence.attribution, c.notice])),
-                },
+                "origin": origin,
                 "pending": {"findings": findings, "to_choose": to_choose},
                 "bench": {"pack": None, "fixture": "skip"},
                 "sizing": {"peak_ram_mb": None},
@@ -891,7 +1074,9 @@ class Importer:
         return slug, source, block_head(env) + compose
 
 
-def main(argv: list[str], adapters: dict[str, Callable[[Any, str], list[Candidate]]]) -> int:
+def main(argv: list[str], adapters: dict[str, Callable[[Any, str], list[Candidate]]],
+         runner: Callable[[list[str]], str] | None = None,
+         render_fn: Callable[[], int] | None = None, today: date | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="import_registry.py",
         description="Import a template registry into sources/ and blueprints/ as entries "
@@ -899,11 +1084,54 @@ def main(argv: list[str], adapters: dict[str, Callable[[Any, str], list[Candidat
     parser.add_argument("registry", help="address of the registry document (https:// or file://)")
     parser.add_argument("--format", choices=sorted(adapters), default=next(iter(adapters)),
                         help="the registry's format")
+    parser.add_argument("--also", action="append", default=[], metavar="FORMAT=ADDRESS",
+                        help="a further registry read in the same run, so an app both list "
+                             "is imported once, from the richer entry")
     parser.add_argument("--applint", default=os.environ.get(APPLINT_ENV, ""),
                         help=f"the catena-applint binary (default: ${APPLINT_ENV})")
     parser.add_argument("--dry-run", action="store_true",
                         help="report what would be imported and write nothing")
+    parser.add_argument("--wave", type=int, metavar="N",
+                        help="import up to N new apps, each on its own branch import/<id> with "
+                             "its own pull request; run it in a clean checkout of the base branch")
+    parser.add_argument("--daily-limit", type=int, default=publish.DAILY_LIMIT, metavar="N",
+                        help=f"most import pull requests opened per UTC day (default {publish.DAILY_LIMIT})")
+    parser.add_argument("--open-limit", type=int, default=publish.OPEN_LIMIT, metavar="N",
+                        help=f"most import pull requests open at once (default {publish.OPEN_LIMIT})")
     args = parser.parse_args(argv)
+
+    sources = [(args.format, args.registry)]
+    for item in args.also:
+        fmt, _, address = item.partition("=")
+        if fmt not in adapters or not address:
+            print(f"import_registry: --also wants FORMAT=ADDRESS with a format from "
+                  f"{', '.join(sorted(adapters))}: {item!r}", file=sys.stderr)
+            return 1
+        sources.append((fmt, address))
+
+    limit: int | None = None
+    publisher: publish.Publisher | None = None
+    if args.wave is not None:
+        if args.wave < 1:
+            print("import_registry: --wave wants a number of apps above 0", file=sys.stderr)
+            return 1
+        run = runner or publish.run_command
+        today = today or datetime.now(timezone.utc).date()
+        try:
+            github = publish.GitHub(run)
+            allowance = publish.allowance(args.wave, args.daily_limit, args.open_limit,
+                                       github.pull_requests("open"),
+                                       github.pull_requests("all", f"created:>={today.isoformat()}"),
+                                       today)
+        except publish.WaveError as exc:
+            print(f"import_registry: {exc}", file=sys.stderr)
+            return 1
+        print(f"wave: {allowance.size} of {args.wave} ({allowance.reason})")
+        if allowance.size == 0:
+            return 0
+        limit = allowance.size
+        if not args.dry_run:
+            publisher = publish.Publisher(run, render_fn or render.render_all)
 
     try:
         banned = banned_words()
@@ -911,8 +1139,12 @@ def main(argv: list[str], adapters: dict[str, Callable[[Any, str], list[Candidat
         print(f"import_registry: cannot read the banned-word list {BANNED_WORDS}: {exc}",
               file=sys.stderr)
         return 1
+    candidates: list[Candidate] = []
     try:
-        candidates = adapters[args.format](json.loads(fetch(args.registry)), args.registry)
+        for fmt, address in sources:
+            for c in adapters[fmt](json.loads(fetch(address)), address):
+                c.registry = c.registry or address
+                candidates.append(c)
     except (FetchError, ValueError) as exc:
         print(f"import_registry: cannot read the registry: {exc}", file=sys.stderr)
         return 1
@@ -924,10 +1156,35 @@ def main(argv: list[str], adapters: dict[str, Callable[[Any, str], list[Candidat
         print("import_registry: WARN: no catena-applint, so the compose files are written "
               "without its corrections; each entry records that", file=sys.stderr)
 
-    report = Importer(args.registry, applint, args.dry_run, banned).run(candidates)
+    emit = None
+    if publisher:
+        def emit(slug: str, source: dict[str, Any], compose: str) -> str | None:
+            return publisher.publish(
+                slug, publish.pull_request_title(source), publish.pull_request_body(source),
+                lambda: write_entry(slug, source, compose),
+                [f"{model.BLUEPRINTS.name}/{slug}", f"{model.SOURCES.name}/{slug}.json"])
+    try:
+        if publisher:
+            publisher.start()
+        report = Importer(args.registry, applint, args.dry_run, banned, limit, emit).run(candidates)
+        if report.new_aliases and not args.dry_run:
+            if publisher:
+                url = publisher.publish(
+                    "aliases", "chore(import): record aliases of apps already in the catalog",
+                    publish.alias_body(report.new_aliases), lambda: dedup.add_aliases(report.new_aliases),
+                    [f"{model.SOURCES.name}/{dedup.ALIASES_NAME}"], render=False)
+                report.pull_requests.append(url)
+            else:
+                dedup.add_aliases(report.new_aliases)
+    except publish.WaveError as exc:
+        print(f"import_registry: {exc}", file=sys.stderr)
+        return 1
     print(f"registry {args.registry}")
     for line in report.lines(args.dry_run):
         print(line)
-    if report.imported and not args.dry_run:
+    if report.imported and not args.dry_run and not publisher:
         print("next: run make, then settle each entry's x-catena.pending")
     return 0
+
+
+from . import dedup, publish, upstream  # noqa: E402

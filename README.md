@@ -50,12 +50,14 @@ lib/                     # the build library
   provenance.py          # an image's project: age, releases (pull-request check)
   app_checks.py          # the per-app pull-request checks' commands
   versions.py            # app version tags and the one-app scope check
-  importers/             # the registry importer: pipeline.py, plus one
-                         # adapter per registry format
+  adopt.py               # a fork's one-app pull request -> branch adopt/<pr>
+  importers/             # the registry importer: pipeline.py, dedup.py,
+                         # publish.py (waves), plus one adapter per registry
+                         # format
 
 build/                   # thin entrypoints
   render.py  validate.py  lint_quiesce.py  lint_postgres_pins.py
-  lint_swarm.py  import_registry.py  app_check.py  versions.py
+  lint_swarm.py  import_registry.py  app_check.py  versions.py  adopt.py
 
 sources.schema.json      # schema for a sources/<id>.json
 block.schema.json        # schema for the x-catena block of a compose
@@ -222,6 +224,33 @@ through `env:` only and refuses an id that is not a lowercase slug.
 `uv run build/app_check.py` runs the per-app checks locally (`images ID`,
 `licence ID [--new]`, `provenance ID` after pulling the images).
 
+## The bench lifecycle
+
+After the cheap checks, the lifecycle of each app runs on the Catena bench (a
+private runner this repository cannot reach):
+
+- `app-dispatch.yml` runs on a push to any branch, `adopt/*` included. It sends
+  the private ops repository the event `app-test` with the commit, the commit
+  the change is judged from and the apps the change touches. The repository
+  variable `APP_CI_PAUSED=true` stops it.
+- ops runs install, checks, backup, restore, rollback, updates and the outbound
+  check, then posts the commit status `app-tests` on the commit (success,
+  failure, or error when the bench gave no verdict). `app-tag.yml` tags on a
+  success on `main`.
+- `adopt-fork.yml` serves pull requests from forks, which the bench never sees
+  directly. When `app-ci` has passed a fork's pull request, it copies the fork's
+  files for exactly one app (`blueprints/<id>/**` and `sources/<id>.json`) onto
+  the branch `adopt/<pr>` of this repository through the API, as data: nothing
+  of the fork is checked out or run with a secret. A change that touches more
+  than one app, a file outside an app, a link or a file over 1 MB is refused.
+  The generated catalog files are not copied; a maintainer renders them on the
+  branch. `adopt/<pr>` is dispatched like any branch, and its `app-tests` status
+  is what a maintainer reads before merging the pull request.
+
+Both new workflows use the CI GitHub App's secrets (`RENOVATE_APP_CLIENT_ID`,
+`RENOVATE_APP_PRIVATE_KEY`). The path end to end, the secrets and how to pause it
+are in ops `internal_docs/tools/app-ci.md`.
+
 ## Versions
 
 No file holds a version string: versions are git tags. A tested app is tagged
@@ -252,16 +281,21 @@ on stdin; `uv run build/versions.py scope` checks changed paths on stdin.
 
 `build/import_registry.py` writes entries from a third-party template
 registry, one adapter per format (`lib/importers/`; `--format` picks it,
-`--help` lists them): Portainer template lists, versions 2 and 3, and a
-registry holding one directory per app with a compose file, a
-`template.toml` and a `meta.json`, read at one commit through GitHub's
-file listing:
+`--help` lists them):
+
+| `--format` | Source | Read at |
+|---|---|---|
+| `portainer` | Portainer template lists, versions 2 and 3: Lissy93/portainer-templates (`templates.json`), Portainer's own (`templates-2.0.json`) | the list's address; each stack entry's repository at the commit its default branch is at |
+| `arcane` | Arcane's `registry.json`; each template's compose file and `.env.example` come from getarcaneapp/templates | that repository's default-branch commit |
+| the per-app directory format (`--help` names it) | a registry with one directory per app holding a compose file, a `template.toml` and a `meta.json` | the commit in GitHub's file listing address |
+| `awesome-selfhosted` | awesome-selfhosted-data: one `software/<name>.yml` per project | the commit in GitHub's file listing address |
 
 ```
 uv run build/import_registry.py --applint /path/to/catena-applint [--dry-run] \
-    https://raw.githubusercontent.com/<owner>/<repo>/<ref>/templates.json
+    https://raw.githubusercontent.com/<owner>/<repo>/<commit>/templates.json
 uv run build/import_registry.py --format <format> [--dry-run] \
     'https://api.github.com/repos/<owner>/<repo>/git/trees/<commit>?recursive=1'
+uv run build/import_registry.py --wave 5 --also arcane=<registry.json address> <address>
 ```
 
 - **Names.** An entry whose title or id holds a word on the banned-word
@@ -284,7 +318,15 @@ uv run build/import_registry.py --format <format> [--dry-run] \
   confirm; with no such repository the licence is unknown. Only MIT,
   Apache-2.0 and BSD-2/3-Clause sources are imported; any other licence,
   or one the forge cannot name, skips the entry and the report lists it.
-  `GITHUB_TOKEN` lifts GitHub's rate limit.
+  `GITHUB_TOKEN` lifts GitHub's rate limit. When the registry or a listing
+  names the app's upstream repository (a per-app `meta.json` link, or an
+  awesome-selfhosted project of the entry's name, whose list is read for the
+  repository only), that repository's licence is held to the same list and
+  its address is recorded as `origin.project`. Otherwise the importer looks
+  for it from the main image: the image's `org.opencontainers.image.source`
+  label, read from its registry without pulling it, then the source linked on
+  its Docker Hub repository (`lib/importers/upstream.py`). An entry whose
+  upstream repository is found nowhere is skipped as licence unknown.
 - **Compose.** A stack entry's file is fetched from its repository; a
   single-container entry gets a one-service file from its image, ports,
   volumes, env and labels. The address the registry routes (the first
@@ -296,19 +338,46 @@ uv run build/import_registry.py --format <format> [--dry-run] \
   fails on that record and on each error the checker leaves, until a
   person settles it. A further
   address, a file the registry writes beside the stack and a value the
-  host cannot mint are recorded as choices.
+  host cannot mint are recorded as choices. A file fetched from a
+  repository is read at the commit its default branch is at, recorded in
+  `origin.commit` with its `origin.path`; an entry whose repository cannot be
+  pinned is skipped.
+- **Duplicates.** One catalog app per upstream project. An entry is keyed by
+  the repository of its main image (tag, digest and Docker Hub's spelling
+  removed) and by its upstream repository when known. Entries that share a
+  key are one app, and so is an entry that shares a key with an app already
+  in the catalog. The richest of a group (most settings, plus a health check,
+  plus sign-in labels) seeds the new app and the others are aliases:
+  recorded in its `origin.aliases`, not imported. An alias of an app already
+  in the catalog is recorded in `sources/_aliases.json`, which a later run
+  reads so it weighs the entry no more. `--also FORMAT=ADDRESS` reads a
+  further registry in the same run.
+- **Waves.** `--wave N` imports up to N new apps, each on its own branch
+  `import/<id>` with its own pull request (one app per pull request, so the
+  `scope` check holds), rendering the catalog files into the commit; apps
+  the checker or the licence rule refuses are skipped with the reason, and the
+  rest wait for a later wave. Run it in a clean checkout of the base branch
+  with `git` and an authenticated `gh`. The aliases a wave records go in
+  one pull request of their own, `import/aliases`. A wave imports nothing
+  while an update or vulnerability fix pull request is open (branches
+  `renovate/`, `engine-bump/`, `scanctl/`), and otherwise at most N, the
+  day's remainder of `--daily-limit` (5) and the room under `--open-limit`
+  (10 open import pull requests). `--dry-run` with `--wave` reads the pull
+  request counts, prints the plan and writes nothing.
 - **Settings.** Every variable the registry or the compose names is an
   env default; one named like a password, secret or key gets a minted
   value. A `template.toml` helper (`${password:32}` and the others) gets
   a minted value of the same length and alphabet, and env lines that
   share one generated value read it from one setting.
 - **What it writes.** `sources/<id>.json` with `x-catena.status:
-  imported`, the `origin` (registry, source, licence, attribution) and
+  imported`, the `origin` (registry, entry, source, licence, attribution,
+  and when known the commit, path, upstream project and aliases) and
   `pending` (the findings left on the compose, and what a person still
   chooses: version, access, host name, EN/FR text, sizing, bench pack,
   SSO, quiesce hooks, bind mounts, refused features), plus
-  `blueprints/<id>/docker-compose.yml`, and the id at the end of the
-  `_meta.json` order. An id already in the catalog is left alone.
+  `blueprints/<id>/docker-compose.yml`. An imported entry the `_meta.json`
+  order does not list follows the listed ones, by id; finishing it means
+  placing it in the order. An id already in the catalog is left alone.
 
 An imported entry renders with stubs (no bench pack, no measured peak,
 placeholder prose) and the published catalog marks it untested:

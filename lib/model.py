@@ -227,7 +227,8 @@ def load_sources() -> list[Entry]:
     curated deployment sequence (hubs first, integrations next,
     independents last) that the Portainer gallery and the generated docs
     index both present to clients; sorting by filename would silently
-    replace it with alphabetical."""
+    replace it with alphabetical. An imported entry the order does not list
+    comes after the listed ones, alphabetically."""
     if not SOURCES.is_dir():
         raise SourceError(f"missing sources directory: {SOURCES}")
 
@@ -294,7 +295,10 @@ def load_sources() -> list[Entry]:
     order = load_meta().get("order") or []
     ranked = {slug: idx for idx, slug in enumerate(order)}
     found = {e.slug for e in entries}
-    for slug in sorted(found - set(ranked)):
+    # An imported entry follows the listed ones, by id: its pull request
+    # touches no shared file, so concurrent import pull requests never conflict.
+    unlisted = {e.slug for e in entries if e.imported}
+    for slug in sorted(found - set(ranked) - unlisted):
         errors.append(
             f"sources/{slug}.json: not listed in _meta.json order -- add it "
             f"where the template belongs in the deployment sequence"
@@ -304,7 +308,7 @@ def load_sources() -> list[Entry]:
 
     if errors:
         raise SourceError("\n".join(f"  {e}" for e in errors))
-    return sorted(entries, key=lambda e: ranked[e.slug])
+    return sorted(entries, key=lambda e: (ranked.get(e.slug, len(ranked)), e.slug))
 
 
 def validate_output(doc: dict[str, Any]) -> list[str]:
