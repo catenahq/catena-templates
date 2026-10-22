@@ -708,3 +708,25 @@ def test_users_group_needs_a_users_hook_and_external_volumes_is_a_privilege():
                 {"service": "app", "users": [["php"]], "users_group": "staff//x"}):
         with pytest.raises(jsonschema.ValidationError):
             jsonschema.validate({"schema": 2, "hooks": bad}, schema)
+
+
+def test_host_paths_are_absolute_paths_the_schema_and_the_lint_accept():
+    import jsonschema
+    schema = json.loads((ROOT / "block.schema.json").read_text(encoding="utf-8"))
+    jsonschema.validate({"schema": 2, "host_paths": ["/mnt", "/media/disk"]}, schema)
+    for bad in ([], ["mnt"], ["/mnt/$DIR"], ["/mnt", "/mnt"], [""]):
+        with pytest.raises(jsonschema.ValidationError):
+            jsonschema.validate({"schema": 2, "host_paths": bad}, schema)
+
+
+@pytest.mark.parametrize("declared", ["/", "/mnt/", "/a/../b", "/run", "/var/run/docker", "/srv", "/srv/catena/compose/web"])
+def test_a_host_path_the_checker_refuses_for_every_app_is_refused(tmp_path, declared):
+    from types import SimpleNamespace
+    entry = SimpleNamespace(slug="demo", block={"host_paths": [declared]})
+    assert L.lint_host_paths(entry)
+
+
+def test_host_paths_that_hold_nothing_forbidden_pass():
+    from types import SimpleNamespace
+    entry = SimpleNamespace(slug="demo", block={"host_paths": ["/mnt", "/media/disk", "/etc/ssl/certs"]})
+    assert L.lint_host_paths(entry) == []

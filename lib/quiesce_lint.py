@@ -19,6 +19,8 @@ run on every render. This module adds:
     interpolates every value under a top-level x- key when it deploys the
     file, and the update lane rewrites each image reference it finds. A hooks
     body writes each `$` as `$$`.
+  - A host_paths entry is a normalised absolute path other than `/` that
+    holds neither the Docker socket's folders nor the compose folders.
   - A hooks body is offered to the interpreter it names (`sh -n`, `bash -n`
     or Python's compiler), as an inline script of a compose service is, and
     runs in a service the compose defines.
@@ -60,6 +62,7 @@ Exit codes: 0 clean, 1 lint failures, 2 structural error.
 """
 from __future__ import annotations
 
+import posixpath
 import re
 
 import yaml
@@ -466,6 +469,27 @@ def lint_auto_update(entry) -> list[str]:
     return errors
 
 
+# Host areas no host_paths entry may name or contain: the app checker refuses a
+# bind of any of them whatever a block declares (catena-admin payload/engines/
+# applint, X6 and X12).
+HOST_PATH_FORBIDDEN = ("/var/run", "/run", "/srv/catena/compose")
+
+
+def lint_host_paths(entry) -> list[str]:
+    """Each host_paths entry is a normalised absolute path other than `/` that
+    holds none of the areas the app checker refuses for every app."""
+    errors: list[str] = []
+    for idx, declared in enumerate(entry.block.get("host_paths") or []):
+        label = f"{entry.slug}.x-catena.host_paths[{idx}]"
+        if posixpath.normpath(declared) != declared or declared == "/":
+            errors.append(f"{label}: {declared!r} is not a normalised absolute path other than /")
+        for area in HOST_PATH_FORBIDDEN:
+            if declared == area or declared.startswith(area + "/") or area.startswith(declared.rstrip("/") + "/"):
+                errors.append(f"{label}: {declared!r} holds {area}, which the app checker "
+                              f"refuses for every app")
+    return errors
+
+
 def lint_pending(entry) -> list[str]:
     label = f"{entry.slug}.pending.findings"
     errors: list[str] = []
@@ -497,6 +521,7 @@ def lint_all() -> int:
         all_errors.extend(lint_signin(entry))
         all_errors.extend(lint_pending(entry))
         all_errors.extend(lint_block(entry))
+        all_errors.extend(lint_host_paths(entry))
         all_errors.extend(lint_auto_update(entry))
         all_errors.extend(lint_object_store(entry))
         all_errors.extend(lint_hooks(entry))

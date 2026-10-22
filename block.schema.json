@@ -383,6 +383,16 @@
       "items": { "enum": ["host_network", "docker_socket", "external_volumes"] },
       "description": "The host privileges the application asks for."
     },
+    "host_paths": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^/[^$]+$"
+      },
+      "description": "The host folders and files outside its own data folder (/srv/catena/apps/<stack>) that the application binds, each an absolute path. A bind inside one passes the app checker (X17). The Docker socket and the compose folders stay refused whatever is declared."
+    },
     "provides": {
       "type": "object",
       "additionalProperties": false,
