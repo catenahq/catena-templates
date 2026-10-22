@@ -37,6 +37,8 @@ arranged beforehand, on request.
 
 **Updates.** A new version of the image is built whenever one of its apps publishes one: ERPNext within version 16, Frappe, or the helpdesk. The nightly update applies it once it has aged a week and passed the vulnerability check. While it runs, the site shows a maintenance page for a few minutes: the database is saved, the new version starts, `bench migrate` brings the database up to it, and the site reopens. If the migration or the health check after it fails, the previous version and the saved database are put back. The move to the next major version is never automatic.
 
+**Checks.** Every hour the server asks the site to answer its ping, confirms the scheduler runs and that the three queue workers are registered. A failing check is reported on the maintenance feed.
+
 ### Environment variables
 
 These are the fields the deploy form presents in the **App Templates**
@@ -85,6 +87,8 @@ préalable, sur demande.
 **Apps.** `FRAPPE_APPS` liste les apps installées sur le site : `erpnext,telephony,helpdesk` par défaut, `erpnext` pour ERPNext seul. Une app ajoutée à la liste est installée au redéploiement suivant ; une app retirée de la liste reste installée.
 
 **Mises à jour.** Une nouvelle version de l'image est construite dès qu'une de ses apps en publie une : ERPNext dans la version 16, Frappe ou le helpdesk. La mise à jour nocturne l'applique une fois qu'elle a une semaine d'ancienneté et a réussi le contrôle de vulnérabilités. Pendant ce temps, le site affiche une page de maintenance quelques minutes : la base de données est sauvegardée, la nouvelle version démarre, `bench migrate` met la base à niveau, puis le site rouvre. Si la migration ou le contrôle de santé qui suit échoue, la version précédente et la base sauvegardée sont remises en place. Le passage à la version majeure suivante n'est jamais automatique.
+
+**Contrôles.** Chaque heure, le serveur demande au site de répondre à son ping, vérifie que le planificateur tourne et que les trois travailleurs de file sont enregistrés. Un contrôle en échec est signalé dans le fil de maintenance.
 
 ### Variables d'environnement
 

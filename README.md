@@ -24,6 +24,8 @@ blueprints/              # ONE directory per template -- what Portainer clones
                          # x-catena block declares the app's backup mode,
                          # update and restore commands, object-store check
                          # and managed env expressions
+    test.yml             # HAND-EDITED; optional; the state the CI harness
+                         # seeds after a deploy and checks after a restore
     logo.png             # HAND-PLACED; optional
     README.md            # generated from the source prose, EN then FR
     logo.svg             # generated placeholder, absent a logo.png

@@ -231,6 +231,11 @@ it.
    render never writes into it). Its root `x-catena:` block holds the
    env and steps 4 and 5, written by hand.
 3. `blueprints/<id>/logo.png` (512x512 PNG, max 100KB). Optional.
+   `blueprints/<id>/test.yml` is optional too: the `seed` and `assert` steps
+   (`docker_exec` into a service, `{{ run_id }}` and `{{ container_<service> }}`
+   filled in) the CI harness runs after a deploy and after a restore. The
+   harness reads it from the blueprint (ops `automation/test_bench/orchestrator/fixtures.py`).
+   Real example: `blueprints/erpnext`.
 4. If the application keeps live state that a file-level snapshot can
    tear and the backup's own Postgres and MariaDB dumps do not cover,
    add `quiesce` to the compose block: argv arrays the nightly maintenance runs
