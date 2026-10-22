@@ -222,7 +222,7 @@ def render_portainer_template(entry: Entry, logo_filename: str) -> dict[str, Any
 def render_catalog_entry(entry: Entry) -> dict[str, Any]:
     """The flat machine view. Key names match what the consumers join
     on; the nesting in sources/ exists for the human editing it. The
-    compose block's env, lifecycle, quiesce, s3_reconcile and object_store
+    compose block's env, lifecycle, quiesce and object_store
     pass through unchanged, and its managed env keys become env_managed_keys.
     env_defaults is the env as KEY=value lines. An imported entry's status,
     origin and null stubs pass through too."""
@@ -255,8 +255,6 @@ def render_catalog_entry(entry: Entry) -> dict[str, Any]:
         out["env_managed_keys"] = list(entry.managed_env)
     if cat.get("env_required_when"):
         out["env_required_when"] = dict(cat["env_required_when"])
-    if entry.s3_reconcile:
-        out["s3_reconcile"] = entry.s3_reconcile
     if entry.object_store:
         out["object_store"] = entry.object_store
     if entry.lifecycle:

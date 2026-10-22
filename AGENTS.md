@@ -131,7 +131,7 @@ claims it any more.
 - `catalog.json` -- the machine view the seeding consumers read, in one
   fetch: the flat per-template fields, `sizing`, the EN/FR prose, and the
   compose block lifted under the keys `env`, `lifecycle`, `quiesce`,
-  `s3_reconcile`, `object_store` and `env_managed_keys`. `env_defaults` is the
+  `object_store` and `env_managed_keys`. `env_defaults` is the
   env as `KEY=value` lines: a setting's default, the `lookup('password', ...)`
   expression of a generated key, a managed key's expression.
 - `index.html` -- a static preview of the catalog.

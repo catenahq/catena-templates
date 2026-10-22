@@ -144,14 +144,6 @@ def test_the_blocks_managed_env_reaches_the_catalog_as_env_lines_and_keys():
     assert managed > 0
 
 
-def test_s3_reconcile_reaches_the_catalog_unchanged():
-    catalog = {
-        e["id"]: e for e in json.loads((ROOT / "catalog.json").read_text())["templates"]
-    }
-    for entry in model.load_sources():
-        assert catalog[entry.slug].get("s3_reconcile") == entry.s3_reconcile, entry.slug
-
-
 def test_object_store_reaches_the_catalog_unchanged():
     """The bucket repair reads the env keys and the switch out of
     catalog.json; an entry that declares none carries no key."""

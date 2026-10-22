@@ -285,7 +285,7 @@ def test_an_object_store_the_format_refuses_is_reported(sources, object_store, n
 
 def test_a_source_holds_none_of_the_blocks_fields(sources):
     """The block in the compose is the one home of these fields."""
-    for name, value in (("quiesce", {}), ("lifecycle", {}), ("s3_reconcile", {}),
+    for name, value in (("quiesce", {}), ("lifecycle", {}),
                         ("object_store", {}), ("env_managed_keys", ["DOMAIN_HOST"])):
         doc = _valid_doc()
         doc["x-catena"][name] = value

@@ -9,7 +9,7 @@ The compose sits in the blueprint directory because that directory is
 what Portainer clones and deploys: one file, in the place that serves
 it, with the app's README and logo beside it. Its root `x-catena` block
 declares what the host needs to back up, update and restore the deployed
-app (env, lifecycle, quiesce, s3_reconcile, object_store, hooks and the rest of
+app (env, lifecycle, quiesce, object_store, hooks and the rest of
 block.schema.json); the loader reads it beside the source.
 
 Validation runs in two layers:
@@ -96,10 +96,6 @@ class Entry:
     @property
     def lifecycle(self) -> dict[str, Any] | None:
         return self.block.get("lifecycle")
-
-    @property
-    def s3_reconcile(self) -> dict[str, Any] | None:
-        return self.block.get("s3_reconcile")
 
     @property
     def object_store(self) -> dict[str, Any] | None:

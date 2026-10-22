@@ -112,33 +112,6 @@
         }
       }
     },
-    "s3_reconcile": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "service",
-        "check"
-      ],
-      "description": "Post-restore object-store consistency check. Report-only: it names the orphan rows, it never deletes them, because a bucket that is misconfigured looks exactly like a bucket that is empty.",
-      "properties": {
-        "service": {
-          "type": "string",
-          "description": "Compose service the check runs inside."
-        },
-        "user": {
-          "type": "string",
-          "description": "User to exec as, when the app refuses to run its CLI as root."
-        },
-        "check": {
-          "type": "string",
-          "description": "Named check the host implements."
-        },
-        "db_service": {
-          "type": "string",
-          "description": "Compose service holding the index the check reads."
-        }
-      }
-    },
     "object_store": {
       "type": "object",
       "additionalProperties": false,

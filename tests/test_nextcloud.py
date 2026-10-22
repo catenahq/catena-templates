@@ -719,7 +719,6 @@ def test_the_probe_starts_the_app_service_and_asks_for_an_installed_instance():
     assert quiesce_lint.lint_probe(entry) == []
 
 
-def test_the_reconcile_hook_replaces_the_s3_reconcile_declaration():
+def test_the_block_declares_the_reconcile_hook():
     entry = _entry()
-    assert entry.s3_reconcile is None
     assert entry.block["hooks"]["reconcile"]
