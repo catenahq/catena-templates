@@ -120,6 +120,11 @@
           "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "TURN static auth secret",
           "name": "TURN_STATIC_AUTH_SECRET"
+        },
+        {
+          "default": "webmail.",
+          "label": "Webmail hostname",
+          "name": "WEBMAIL_HOSTNAME"
         }
       ],
       "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/nextcloud-s3-oidc/logo.svg",
@@ -1410,6 +1415,60 @@
         "url": "https://github.com/catenahq/catena-templates"
       },
       "title": "Mail server + webmail",
+      "type": 2
+    },
+    {
+      "categories": [
+        "Infrastructure"
+      ],
+      "description": "Docker management console, reachable by administrators only.",
+      "env": [
+        {
+          "default": "portainer.",
+          "label": "Domain",
+          "name": "DOMAIN_HOST"
+        }
+      ],
+      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/portainer/logo.svg",
+      "maintainer": "https://github.com/catenahq/catena-templates",
+      "name": "catena-portainer",
+      "note": "<p>A web console for Docker: deploy, inspect and manage containers, volumes and networks on this server.</p><p>Replaces Docker command line, Docker Desktop.</p><p><a href=\"https://github.com/catenahq/catena-templates/blob/main/blueprints/portainer/README.md\">https://github.com/catenahq/catena-templates/blob/main/blueprints/portainer/README.md</a></p>",
+      "platform": "linux",
+      "repository": {
+        "stackfile": "blueprints/portainer/docker-compose.yml",
+        "url": "https://github.com/catenahq/catena-templates"
+      },
+      "title": "Portainer",
+      "type": 2
+    },
+    {
+      "categories": [
+        "Infrastructure"
+      ],
+      "description": "Docker management console, reachable by administrators only.",
+      "env": [
+        {
+          "default": "arcane.",
+          "label": "Domain",
+          "name": "DOMAIN_HOST"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
+          "label": "Encryption key",
+          "name": "ENCRYPTION_KEY"
+        }
+      ],
+      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/arcane/logo.svg",
+      "maintainer": "https://github.com/catenahq/catena-templates",
+      "name": "catena-arcane",
+      "note": "<p>A modern web console for Docker: manage containers, images, volumes, networks and Compose projects on this server.</p><p>Replaces Docker command line, Docker Desktop.</p><p><a href=\"https://github.com/catenahq/catena-templates/blob/main/blueprints/arcane/README.md\">https://github.com/catenahq/catena-templates/blob/main/blueprints/arcane/README.md</a></p>",
+      "platform": "linux",
+      "repository": {
+        "stackfile": "blueprints/arcane/docker-compose.yml",
+        "url": "https://github.com/catenahq/catena-templates"
+      },
+      "title": "Arcane",
       "type": 2
     }
   ],

@@ -147,15 +147,6 @@ def test_wordpress_mail_authenticates_with_the_relay_password_from_its_env():
     assert "WPMS_ON" not in guarded[0]
 
 
-def test_nextcloud_names_the_user_oidc_release_its_wiring_is_written_for():
-    """The wire action installs user_oidc from the app store and checks the
-    installed release against this one before it runs the provider command
-    written for it. Moving it is a decision to make after reading that
-    command against the new release."""
-    env = _service("nextcloud-s3-oidc", "app")["environment"]
-    assert env["NEXTCLOUD_USER_OIDC_VERSION"] == "8.11.0"
-
-
 def _wrapper(service: str) -> str:
     return _service("nextcloud-s3-oidc", service)["entrypoint"][2]
 
@@ -412,3 +403,24 @@ def test_nextcloud_cron_guard_passes_only_for_the_one_configured_root_store():
     assert not _guard_passes({"object::user:alice": False}, "live")
     hashed = {_long_id("h" * 45): True}
     assert _guard_passes(hashed, "h" * 45)
+
+
+def test_the_container_managers_hold_the_socket_for_administrators_only():
+    """Portainer and Arcane drive this server's Docker, so the block declares
+    the docker_socket privilege the app checker looks for, the only address of
+    each is for administrators, and the prose tells the client that what is
+    deployed from them is outside Catena."""
+    import json
+
+    sources = Path(__file__).resolve().parent.parent / "sources"
+    for slug, image in (("portainer", "portainer/portainer-ce:"), ("arcane", "ghcr.io/getarcaneapp/manager:v")):
+        compose = yaml.safe_load(_entry(slug).compose_path.read_text(encoding="utf-8"))
+        assert compose["x-catena"]["privileges"] == ["docker_socket"]
+        (service,) = compose["services"].values()
+        assert service["image"].startswith(image) and "latest" not in service["image"]
+        assert "/var/run/docker.sock:/var/run/docker.sock" in service["volumes"]
+        assert "vps.auth.mode=admin-only" in service["labels"]
+        assert not [label for label in service["labels"] if label.startswith("vps.auth.oidc")]
+        source = json.loads((sources / f"{slug}.json").read_text(encoding="utf-8"))["x-catena"]
+        assert "outside Catena" in source["en"]["extra_notes"]
+        assert "hors de Catena" in source["fr"]["extra_notes"]

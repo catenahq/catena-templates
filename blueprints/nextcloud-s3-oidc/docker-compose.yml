@@ -43,6 +43,8 @@ x-catena:
       managed: {expr: "{{ coturn_hostname | default('turn.' ~ cloudflare_zone) }}"}
     TURN_STATIC_AUTH_SECRET:
       managed: {expr: "{{ turn_static_auth_secret }}"}
+    WEBMAIL_HOSTNAME:
+      setting: {default: "webmail.{{ cloudflare_zone }}"}
   secrets: [turn_static_auth_secret]
   lifecycle:
     service: "app"
@@ -80,6 +82,220 @@ x-catena:
       user: "www-data"
       commands:
         - ["php", "occ", "status", "--exit-code"]
+  # configure runs after every deploy (add, settings, start, update, rollback,
+  # restore) and wires Nextcloud to the rest of the server: the object store
+  # file, Keycloak sign-in, Mail, the shared virus scanner, Talk with its
+  # signaling server and relay, and the Webmail link. It leaves with 0 whenever
+  # occ cannot be used (first install running, maintenance mode on, a restore
+  # whose database is not replayed yet) and with 1 only when occ answers and a
+  # wiring command fails. An app an administrator disabled stays disabled; the
+  # scanner settings are written once. verify runs hourly and before an update.
+  hooks:
+    service: app
+    user: www-data
+    timeout_seconds: 1200
+    configure:
+      - - sh
+        - -c
+        - |
+          set -u
+          CONFIG=/var/www/html/config
+          USER_OIDC_VERSION=8.11.0
+          WAIT=900
+          failed=0
+          occ() { php /var/www/html/occ "$$@"; }
+          say() { echo "catena: $$*"; }
+          maintenance() { grep -q "'maintenance' => true" "$$CONFIG/config.php" 2>/dev/null; }
+          installed() { grep -q "'installed' => true" "$$CONFIG/config.php" 2>/dev/null; }
+          step() {
+            what=$$1
+            shift
+            "$$@" >/dev/null || { echo "catena: $$what failed" >&2; failed=1; }
+          }
+          # 0 when the database holds no Nextcloud table, 1 when it does, 2 when it does not answer.
+          database_empty() {
+            php <<'PHP'
+          <?php
+          include "/var/www/html/config/config.php";
+          $$prefix = !empty($$CONFIG["dbtableprefix"]) ? $$CONFIG["dbtableprefix"] : "oc_";
+          try {
+            $$db = new PDO(
+              "pgsql:host=".getenv("POSTGRES_HOST").";dbname=".getenv("POSTGRES_DB"),
+              getenv("POSTGRES_USER"), getenv("POSTGRES_PASSWORD"),
+              [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
+            );
+            $$found = $$db->query("SELECT count(*) FROM information_schema.tables WHERE table_name = " . $$db->quote($$prefix . "appconfig"))->fetchColumn();
+            exit($$found > 0 ? 1 : 0);
+          } catch (Throwable $$e) {
+            exit(2);
+          }
+          PHP
+          }
+          app_present() { occ app:getpath "$$1" >/dev/null 2>&1; }
+          app_enabled() {
+            occ app:list --output=json 2>/dev/null | php -r '$$d = json_decode(stream_get_contents(STDIN), true); exit(isset($$d["enabled"][$$argv[1]]) ? 0 : 1);' "$$1"
+          }
+          # An app that is not on disk is installed from the app store, which can
+          # be down: the next deploy tries again. One that is on disk stays as an
+          # administrator left it. Returns 0 when the app is enabled.
+          ensure_app() {
+            if ! app_present "$$1"; then
+              n=0
+              until occ app:install "$$1" >/dev/null 2>&1 || app_present "$$1"; do
+                n=$$((n + 1))
+                if [ "$$n" -ge 3 ]; then
+                  say "$$1 could not be installed from the app store; the next deploy tries again" >&2
+                  return 1
+                fi
+                sleep 10
+              done
+            fi
+            app_enabled "$$1"
+          }
+          wire_antivirus() {
+            occ config:app:set files_antivirus av_mode --value daemon &&
+            occ config:app:set files_antivirus av_host --value clamav &&
+            occ config:app:set files_antivirus av_port --value 3310 &&
+            occ config:app:set files_antivirus av_stream_max_length --value 104857600 &&
+            occ config:app:set files_antivirus av_max_file_size --value 104857600 &&
+            occ config:app:set files_antivirus av_infected_action --value only_log &&
+            occ config:app:set files_antivirus av_block_unreachable --type boolean --value true
+          }
+          webmail_link() {
+            occ config:system:set external_sites 0 id --value 1 --type integer &&
+            occ config:system:set external_sites 0 name --value Webmail &&
+            occ config:system:set external_sites 0 url --value "$$1" &&
+            occ config:system:set external_sites 0 icon --value external.svg &&
+            occ config:system:set external_sites 0 type --value link &&
+            occ config:system:set external_sites 0 lang --value "" &&
+            occ config:system:set external_sites 0 device --value "" &&
+            occ config:system:set external_sites 0 redirect --value true --type boolean
+          }
+
+          # The object store reads the OBJECTSTORE_S3_* variables of the container
+          # through the image's s3.config.php, which a restored config volume may lack.
+          if [ -n "$${S3_BUCKET:-}" ] && [ -f "$$CONFIG/config.php" ] && [ ! -f "$$CONFIG/s3.config.php" ] \
+              && [ -f /usr/src/nextcloud/config/s3.config.php ]; then
+            cp /usr/src/nextcloud/config/s3.config.php "$$CONFIG/s3.config.php"
+            say "the object store file was put back from the image"
+          fi
+
+          waited=0
+          until occ status --exit-code >/dev/null 2>&1; do
+            if maintenance; then
+              say "maintenance mode is on; the wiring is left for the next deploy"
+              exit 0
+            fi
+            if installed && database_empty; then
+              say "the database holds no Nextcloud table yet; the restored database carries the wiring"
+              exit 0
+            fi
+            if [ "$$waited" -ge "$$WAIT" ]; then
+              say "Nextcloud did not answer within $${WAIT}s; the wiring is left for the next deploy" >&2
+              exit 0
+            fi
+            sleep 5
+            waited=$$((waited + 5))
+          done
+
+          if [ -n "$${OIDC_CLIENT_ID:-}" ] && [ -n "$${OIDC_CLIENT_SECRET:-}" ] && [ -n "$${OIDC_ISSUER_URL:-}" ]; then
+            if ensure_app user_oidc; then
+              have=$$(occ config:app:get user_oidc installed_version 2>/dev/null || true)
+              if [ "$${have%%.*}" != "$${USER_OIDC_VERSION%%.*}" ] \
+                  || ! printf '%s\n%s\n' "$$USER_OIDC_VERSION" "$$have" | sort -V -C; then
+                echo "catena: user_oidc $$have is installed; the provider command is written for user_oidc $$USER_OIDC_VERSION or a newer release of the same major version" >&2
+                failed=1
+              else
+                discovery="$${OIDC_ISSUER_URL%/}/.well-known/openid-configuration"
+                shown=$$(occ user_oidc:provider keycloak --output=json 2>/dev/null) || shown=""
+                if [ -n "$$shown" ]; then
+                  step "the sign-in provider update" occ user_oidc:provider keycloak --no-interaction \
+                    --clientid="$$OIDC_CLIENT_ID" --clientsecret="$$OIDC_CLIENT_SECRET" --discoveryuri="$$discovery"
+                else
+                  step "the sign-in provider" occ user_oidc:provider keycloak --no-interaction \
+                    --clientid="$$OIDC_CLIENT_ID" --clientsecret="$$OIDC_CLIENT_SECRET" --discoveryuri="$$discovery" \
+                    --scope="openid email profile groups" --mapping-uid=preferred_username \
+                    --mapping-display-name=name --mapping-email=email --mapping-groups=groups \
+                    --group-provisioning=1
+                fi
+              fi
+            fi
+          else
+            say "the sign-in entry values are not in the environment yet; Keycloak is wired when they are"
+          fi
+
+          ensure_app mail || true
+
+          if ensure_app files_antivirus && [ -z "$$(occ config:app:get catena antivirus_wired 2>/dev/null)" ]; then
+            if wire_antivirus >/dev/null; then
+              occ config:app:set catena antivirus_wired --value 1 >/dev/null
+            else
+              echo "catena: the antivirus settings failed" >&2
+              failed=1
+            fi
+          fi
+
+          if ensure_app spreed && curl -fsS --max-time 3 http://signaling:8081/api/v1/welcome >/dev/null 2>&1; then
+            if [ -n "$${SIGNALING_HOSTNAME:-}" ] && [ -n "$${SIGNALING_SECRET:-}" ] \
+                && [ -n "$${TURN_HOSTNAME:-}" ] && [ -n "$${TURN_STATIC_AUTH_SECRET:-}" ]; then
+              step "the Talk TURN entry" occ talk:turn:add "$$TURN_HOSTNAME:5349" "udp,tcp" --secret="$$TURN_STATIC_AUTH_SECRET"
+              step "the Talk STUN entry" occ talk:stun:add "$$TURN_HOSTNAME:3478"
+              step "the Talk signaling entry" occ talk:signaling:add "https://$$SIGNALING_HOSTNAME" "$$SIGNALING_SECRET"
+              step "the Talk signaling setting" occ config:app:set spreed external_signaling_only --value=yes
+            fi
+          fi
+
+          if [ -n "$${WEBMAIL_HOSTNAME:-}" ] && getent hosts catena-mailserver_roundcube >/dev/null 2>&1; then
+            if ensure_app external; then
+              current=$$(occ config:system:get external_sites 0 url 2>/dev/null || true)
+              if [ "$$current" != "https://$$WEBMAIL_HOSTNAME" ]; then
+                step "the Webmail link" webmail_link "https://$$WEBMAIL_HOSTNAME"
+              fi
+            fi
+          fi
+
+          exit "$$failed"
+    verify:
+      - - sh
+        - -c
+        - |
+          set -u
+          CONFIG=/var/www/html/config
+          occ() { timeout 60 php /var/www/html/occ "$$@"; }
+          if grep -q "'maintenance' => true" "$$CONFIG/config.php" 2>/dev/null; then
+            echo "Nextcloud is in maintenance mode, which a backup or an update holds"
+            exit 0
+          fi
+          if ! occ status --exit-code >/dev/null 2>&1; then
+            echo "Nextcloud does not answer: occ status --exit-code failed" >&2
+            exit 1
+          fi
+          if [ -n "$${S3_BUCKET:-}" ]; then
+            class=$$(occ config:system:get objectstore class 2>/dev/null || true)
+            case "$$class" in
+              *ObjectStore*S3) ;;
+              *)
+                echo "the object store is not configured: its class reads '$$class'" >&2
+                exit 1
+                ;;
+            esac
+            bucket=$$(occ config:system:get objectstore arguments bucket 2>/dev/null || true)
+            if [ "$$bucket" != "$$S3_BUCKET" ]; then
+              echo "Nextcloud uses the bucket '$$bucket' while the environment names '$$S3_BUCKET'" >&2
+              exit 1
+            fi
+            scheme=https
+            case "$${S3_SSL:-true}" in
+              false|False|FALSE|0) scheme=http ;;
+            esac
+            if ! curl -sS -o /dev/null --max-time 20 "$$scheme://$$S3_HOST:$${S3_PORT:-443}/"; then
+              echo "the object store at $$S3_HOST:$${S3_PORT:-443} does not answer" >&2
+              exit 1
+            fi
+            echo "Nextcloud answers, uses the bucket $$bucket, and the object store at $$S3_HOST answers"
+          else
+            echo "Nextcloud answers"
+          fi
   images:
     db:
       rule: {kind: partial_line}
@@ -421,31 +637,6 @@ services:
       OBJECTSTORE_S3_AUTOCREATE: "false"
       OBJECTSTORE_S3_KEY: ${S3_ACCESS_KEY}
       OBJECTSTORE_S3_SECRET: ${S3_SECRET_KEY}
-
-      # This app's own Keycloak sign-in entry, written by the settings sync
-      # from the sign-in labels below; empty until its first pass. The
-      # Nextcloud OIDC wire action reads them from the running container.
-      NEXTCLOUD_OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-}
-      NEXTCLOUD_OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-}
-      NEXTCLOUD_OIDC_ISSUER_URL: ${OIDC_ISSUER_URL:-}
-      # The user_oidc release the wire action's provider command is written
-      # for. The action installs user_oidc from the app store, which serves
-      # the newest release this Nextcloud supports, and each core upgrade
-      # moves it to the newest again; the action refuses to wire an installed
-      # release of another major version, or an older one.
-      NEXTCLOUD_USER_OIDC_VERSION: "8.11.0"
-
-      # Talk + HPB wire script (catena-wire-nextcloud-talk-hpb) reads
-      # these from the running container at click time and feeds them
-      # to `occ talk:turn:add` / `occ talk:signaling:add`. They live
-      # alongside the OIDC + S3 envs because both go through the same
-      # docker-exec pattern. Empty / unset is fine -- the wire script
-      # auto-detects HPB-disabled state via an http probe to
-      # signaling:8081 first and exits 0 when the service is absent.
-      SIGNALING_HOSTNAME: ${SIGNALING_HOSTNAME}
-      SIGNALING_SECRET: ${SIGNALING_SECRET}
-      TURN_HOSTNAME: ${TURN_HOSTNAME}
-      TURN_STATIC_AUTH_SECRET: ${TURN_STATIC_AUTH_SECRET}
     volumes:
       # THE CODE TREE MUST SURVIVE THE CONTAINER. The entrypoint reads
       # /var/www/html/version.php to tell an existing installation from a
@@ -485,9 +676,9 @@ services:
       catena-network: {}
       default: {}
       # Shared antivirus: files_antivirus (Daemon mode) reaches the
-      # ops-managed clamd at clamav:3310 over this network. ops wires
-      # the app config (nextcloud_antivirus.yml); the same clamd serves
-      # the mail server. External so it spans composes.
+      # host's clamd at clamav:3310 over this network, and the configure
+      # hook sets the app up for it. The same clamd serves the mail
+      # server. External so it spans composes.
       catena-clamav: {}
     # Redis needs no gate: Nextcloud treats a missing cache as a cache miss
     # and the connection is retried per request.
@@ -655,11 +846,11 @@ services:
       - catena-clamav
 
   # === HPB BEGIN -- Talk High-Performance Backend ==========================
-  # Comment out this single service to disable Talk + HPB. The wire
-  # script catena-wire-nextcloud-talk-hpb already handles the
-  # "HPB not deployed -> exit 0" path so leaving it commented does
-  # NOT break the rest of the stack -- Talk falls back to built-in
-  # P2P mode (works up to ~5 participants).
+  # Comment out this single service to disable Talk + HPB. The configure
+  # hook wires Talk to the signaling server only while it answers at
+  # signaling:8081, so leaving the service commented breaks nothing
+  # else -- Talk falls back to built-in P2P mode (works up to ~5
+  # participants).
   #
   # Image is the Nextcloud team's official All-In-One HPB bundle:
   # signaling + janus + nats + an internal eturnal TURN, all under
@@ -675,9 +866,8 @@ services:
   #      set to turn_static_auth_secret -- the same secret
   #      coturn validates with). Clients dialing Talk get TURN
   #      coordinates pointing at the same coturn (set by the
-  #      catena-wire-nextcloud-talk-hpb wire script via
-  #      `occ talk:turn:add`), so all media converges through one
-  #      shared TURN provider.
+  #      configure hook via `occ talk:turn:add`), so all media
+  #      converges through one shared TURN provider.
   #   2. aio-talk's bundled eturnal still binds TALK_PORT inside
   #      the container netns -- start.sh has no skip flag for it.
   #      That binding is harmless: TALK_PORT=5349 lives only in the
@@ -707,14 +897,14 @@ services:
       # TURN coordinates Janus uses for its own ICE candidates.
       # Pointed at the standalone coturn (turn.<base>:5349) so
       # restrictive-network clients reach Janus through the same
-      # shared TURN that the wire script advertises to Talk.
+      # shared TURN that the configure hook advertises to Talk.
       TURN_DOMAIN: ${TURN_HOSTNAME}
       TALK_PORT: "5349"
       TURN_SECRET: ${TURN_STATIC_AUTH_SECRET}
       # Bearer secret between the signaling service and the Talk
-      # backend. The wire script (catena-wire-nextcloud-talk-hpb)
-      # passes this same value to `occ talk:signaling:add`, so the
-      # two endpoints share the secret.
+      # backend. The configure hook passes this same value to
+      # `occ talk:signaling:add`, so the two endpoints share the
+      # secret.
       SIGNALING_SECRET: ${SIGNALING_SECRET}
       # Internal secret between the signaling frontend and its
       # backend store. Never leaves the container; aio-talk requires
@@ -739,9 +929,8 @@ services:
     networks:
       catena-network:
         aliases:
-          # Wire script's auto-detect probe hits http://signaling:8081
-          # from inside the Nextcloud container; keep this alias so
-          # the existing probe URL continues to resolve.
+          # The configure hook probes http://signaling:8081 from inside
+          # the Nextcloud container; this alias is what resolves.
           - signaling
       default: {}
   # === HPB END =============================================================
