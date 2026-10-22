@@ -7,6 +7,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import yaml
+
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
@@ -29,6 +31,19 @@ def _scan(tmp_path: Path, clamdscan: str, data: str = "file bytes") -> subproces
     assert argv[:2] == ["sh", "-c"]
     return subprocess.run(["sh", "-c", argv[2].replace("$$", "$")], input=data, capture_output=True, text=True,
                           check=False, env={"PATH": f"{bin_dir}:{os.environ['PATH']}"})
+
+
+def test_the_scan_function_of_test_yml_is_the_hook_body():
+    """The test run on a real clamd drives a copy of the hook body, so the copy
+    must stay equal to it (the function returns where the hook exits)."""
+    [argv] = _entry().block["hooks"]["scan"]
+    hook = argv[2].replace("$$", "$").strip()
+    test = yaml.safe_load((ROOT / "blueprints" / "clamav" / "test.yml").read_text(encoding="utf-8"))
+    script = test["assert"][0]["command"][2].splitlines()
+    start = script.index("scan() {")
+    end = script.index("}", start)
+    copy = "\n".join(line.removeprefix("  ") for line in script[start + 1:end])
+    assert copy.replace('return "$rc"', 'exit "$rc"').strip() == hook
 
 
 def test_the_block_declares_a_scan_hook_that_passes_the_lint():
