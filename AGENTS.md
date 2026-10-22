@@ -33,6 +33,10 @@ for layout, consumer model, and BASE URL setup.
   application provides the capability, so the user's hook handles absence, and a
   capability is provided by one running application at a time. `make lint`
   fails a read no template provides.
+- The outgoing mail chosen in Settings reaches an application as the facts
+  `smtp_relay_host`, `smtp_relay_port`, `smtp_relay_user`, `smtp_relay_tls`
+  (`ssl` or `tls`) and `smtp_relay_sender` in a managed expression, empty when
+  no relay is chosen. The password is the stored secret `smtp_password`.
 - An application with no web address (a scanner, a relay) leaves `domain` out of
   its source and names `version_from` in its block.
 - A compose file carries no descriptive header. What the template is,
@@ -77,7 +81,12 @@ for layout, consumer model, and BASE URL setup.
   fixed and its line deleted, or the entry is dropped. `make lint` refuses
   an error line and the line recording that the checker did not run.
   Never import an entry whose title or id holds a word on the contracts
-  banned-word list; the importer skips it. Finishing an imported entry
+  banned-word list; the importer skips it. One catalog app per upstream
+  project: an entry the importer records as an alias (`origin.aliases`,
+  `sources/_aliases.json`) is not imported again. Imports reach `main` one
+  app per pull request on `import/<id>` (`--wave`), never ahead of an open
+  update or vulnerability fix; keep the daily and open limits
+  conservative. Finishing an imported entry
   means filling every stub, settling `pending`, then deleting `pending`
   and `status`; `origin` stays.
 - No secrets, ever. Sentinel placeholders (`__CATENA_OPERATOR_WIRED__`)
@@ -216,7 +225,10 @@ it.
    allowlists, a hooks script that parses in the interpreter it names, a
    managed expression that reads no store secret outside the block's
    `secrets` and none on the deny list, the
-   quiesce service check, the versioned volume check (a top-level volume
+   quiesce service check, the `host_paths` check (a normalised absolute path
+   holding neither the Docker socket's folders nor the compose folders; an app
+   binds a host path outside its own data folder only when its unchanged
+   catalog file declares it there), the versioned volume check (a top-level volume
    that only long-running services other than a database mount), the
    sign-in labels (on the main address's service, `redirect_uris` beside
    `vps.auth.oidc=true`, `vps.auth.oidc.scopes` holding client scope names,

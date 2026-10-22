@@ -106,6 +106,8 @@ _JINJA_DEFAULT_FILTER_RE = re.compile(
 _JINJA_SECRET_RE = re.compile(r"\{\{\s*([a-zA-Z0-9_]+_(?:secret|password|key))\s*\}\}")
 # A value another application provides is set by the host, not typed.
 _JINJA_PROVIDED_RE = re.compile(r"\{\{\s*provided\.[a-z]+\.[a-z][a-z0-9_]*\s*\}\}")
+# The outgoing mail relay chosen in Settings is set by the host, not typed.
+_JINJA_RELAY_RE = re.compile(r"\{\{\s*smtp_relay_[a-z]+\s*\}\}")
 
 _JINJA_HOSTNAME_SUBS: tuple[tuple[re.Pattern[str], str], ...] = (
     (re.compile(r"\{\{\s*cloudflare_zone\s*\}\}"), "yourdomain.com"),
@@ -141,6 +143,7 @@ def strip_jinja(text: str) -> str:
     for pattern, replacement in _JINJA_HOSTNAME_SUBS:
         text = pattern.sub(replacement, text)
     text = _JINJA_PROVIDED_RE.sub("<set by the application that provides it>", text)
+    text = _JINJA_RELAY_RE.sub("<set from the outgoing mail chosen in Settings>", text)
     return _JINJA_SECRET_RE.sub(lambda m: f"<your-{m.group(1)}>", text)
 
 
