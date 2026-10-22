@@ -19,5 +19,19 @@ releases) and ClamAV over each image's files. The workflow holds
 `contents: read` only and passes pull-request text to scripts through
 environment variables.
 
+A pull request from a fork never reaches a runner that holds a secret. After
+`app-ci` passes it, `.github/workflows/adopt-fork.yml` copies the files of
+exactly one app onto a branch of this repository through the API, as data: it
+checks out and runs nothing of the fork, and refuses links, submodules, files
+over 1 MB, paths outside the app and a change to more than one app. The bench
+then runs that branch's app, and the fork's `test.yml` steps as root, on a
+private runner in a disposable VM copied from a golden VM. That VM holds only
+throwaway credentials (its own backup repositories and a sandbox licence, and
+Catena's own generated secrets made new; none the bench's, checked by a scan), is refused unless the app checker finds no X7, X8 or X9 in the
+compose file, runs only the steps of `test.yml` that touch the app's own
+containers and volumes, and has its outbound network dropped except the
+registry caches, DNS, time servers and the hosts the app's block declares. The
+hosts a pull request adds to the block are listed in the test result for review.
+
 Vulnerabilities in the upstream applications the templates deploy
 belong upstream; we track and ship the fixed versions.

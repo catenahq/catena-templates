@@ -1,0 +1,82 @@
+name: app-dispatch
+
+# Asks the bench to run the apps of a pushed commit: a `repository_dispatch`
+# event `app-test` to the private catenahq/ops repository, whose app-tests
+# workflow runs the lifecycle on the bench and posts the commit status
+# `app-tests` back on this commit. Every branch is dispatched, adopt/<pr>
+# branches and the renovate branches included. Setting the repository variable
+# APP_CI_PAUSED to `true` stops the dispatch; no status is then posted and the
+# required `app-tests` check stays pending.
+#
+# The payload is `{sha, base, ids}`: the commit, the commit the change is
+# judged from and the apps it touches (comma-separated slugs). The ops workflow
+# validates all three again before using them. The dispatch needs a token that
+# writes to ops: the catenahq-renovate GitHub App's (secrets
+# RENOVATE_APP_CLIENT_ID and RENOVATE_APP_PRIVATE_KEY).
+
+on:
+  push:
+    branches: ['**']
+
+permissions:
+  contents: read
+
+jobs:
+  dispatch:
+    if: >-
+      !github.event.deleted &&
+      vars.APP_CI_PAUSED != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+      - name: The apps the push changes
+        id: scope
+        env:
+          SHA: ${{ github.sha }}
+          BEFORE: ${{ github.event.before }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+          base="$BEFORE"
+          # A new branch has no previous commit: judge it from where it left the default branch.
+          if [ -z "${base//0/}" ] || ! git cat-file -e "$base^{commit}" 2>/dev/null; then
+            base="$(git merge-base "$SHA" "origin/$DEFAULT_BRANCH")"
+          fi
+          git diff --name-only "$base" "$SHA" > "$RUNNER_TEMP/paths.txt"
+          uv run build/app_check.py changed < "$RUNNER_TEMP/paths.txt" > "$RUNNER_TEMP/ids.txt"
+          ids=()
+          for id in $(cat "$RUNNER_TEMP/ids.txt"); do
+            # An app the change deletes has nothing to run.
+            if [ -f "blueprints/$id/docker-compose.yml" ]; then ids+=("$id"); fi
+          done
+          echo "base=$base" >> "$GITHUB_OUTPUT"
+          echo "ids=$(IFS=,; echo "${ids[*]:-}")" >> "$GITHUB_OUTPUT"
+      - name: Mint a GitHub App token that can dispatch to ops
+        # A new branch at an existing commit changes nothing: that commit has its status.
+        if: steps.scope.outputs.base != github.sha
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ secrets.RENOVATE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RENOVATE_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ops
+          permission-contents: write
+      - name: Dispatch app-test to ops
+        if: steps.scope.outputs.base != github.sha
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          OWNER: ${{ github.repository_owner }}
+          SHA: ${{ github.sha }}
+          BASE: ${{ steps.scope.outputs.base }}
+          IDS: ${{ steps.scope.outputs.ids }}
+        run: |
+          gh api -X POST "repos/$OWNER/ops/dispatches" \
+            -f event_type=app-test \
+            -f "client_payload[sha]=$SHA" \
+            -f "client_payload[base]=$BASE" \
+            -f "client_payload[ids]=$IDS"

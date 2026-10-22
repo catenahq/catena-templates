@@ -1,0 +1,52 @@
+name: adopt-fork
+
+# Copies a fork's pull request onto a branch of this repository once app-ci has
+# passed it, so the bench runs the app (the push to adopt/<pr> dispatches it, see
+# app-dispatch.yml). The workflow runs from the default branch with secrets, so
+# it never checks out, builds or runs anything of the fork: build/adopt.py reads
+# the fork's files as blobs through the API and writes them as blobs here. A
+# change that is not inside one app is refused. The fork's head commit, the fork
+# name and the base repository reach the script through env: only.
+
+on:
+  workflow_run: # zizmor: ignore[dangerous-triggers] nothing of the fork is checked out or run
+    workflows: [app-ci]
+    types: [completed]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: adopt-fork-${{ github.event.workflow_run.head_sha }}
+  cancel-in-progress: true
+
+jobs:
+  adopt:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.head_repository.full_name != github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Mint a GitHub App token that can write branches
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ secrets.RENOVATE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RENOVATE_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          permission-contents: write
+          permission-pull-requests: read
+      # No ref: the default branch, which holds the reviewed copy of the script.
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+      - name: Copy the app onto adopt/<pr>
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          BASE_REPO: ${{ github.repository }}
+          FORK_REPO: ${{ github.event.workflow_run.head_repository.full_name }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: uv run build/adopt.py "$BASE_REPO" "$FORK_REPO" "$HEAD_SHA"
