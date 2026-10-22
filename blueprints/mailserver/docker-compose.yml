@@ -601,7 +601,7 @@ services:
   # mta-sts.<zone>/.well-known/mta-sts.txt.
   # The policy is baked from MAIL_HOSTNAME at container start.
   mta-sts:
-    image: nginx:1.31.7-alpine
+    image: nginx:1.31.8-alpine
     deploy:
       restart_policy:
         condition: any
