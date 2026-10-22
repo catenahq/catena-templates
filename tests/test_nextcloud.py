@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -90,7 +91,13 @@ if tool == "curl":
 
 # php
 if not argv:
-    sys.stdin.read()
+    script = sys.stdin.read()
+    if "mimetypes" in script:
+        if state["filecache_down"]:
+            print("catena: connection refused", file=sys.stderr)
+            sys.exit(2)
+        print("\n".join(str(i) for i in state["filecache_ids"]))
+        sys.exit(0)
     sys.exit(state["db_rc"])
 cmd, rest = argv[1], argv[2:]
 line = " ".join(argv[1:])
@@ -102,6 +109,11 @@ if state.get("fail") and line.startswith(state["fail"]):
 
 if cmd == "status":
     sys.exit(0 if state["ready"] else 1)
+if cmd == "files:object:list":
+    print("+-----------+\n| Object    |\n+-----------+")
+    for urn in state["bucket"]:
+        print("| " + urn + " |")
+    sys.exit(0)
 if cmd == "app:getpath":
     sys.exit(0 if rest[0] in apps else 1)
 if cmd == "app:install":
@@ -192,12 +204,12 @@ def test_the_hooks_run_in_the_app_service_as_www_data():
     hooks = _entry().block["hooks"]
     assert hooks["service"] in _compose()["services"]
     assert hooks["user"] == "www-data"
-    assert set(hooks) - {"service", "user", "timeout_seconds"} == {"configure", "verify"}
+    assert set(hooks) - {"service", "user", "timeout_seconds"} == {"configure", "verify", "reconcile"}
     assert quiesce_lint.lint_hooks(_entry()) == []
     assert quiesce_lint.lint_block(_entry()) == []
 
 
-@pytest.mark.parametrize("name", ["configure", "verify"])
+@pytest.mark.parametrize("name", ["configure", "verify", "reconcile"])
 def test_each_body_parses_in_sh(name):
     subprocess.run(["sh", "-n", "-c", _body(name)], check=True)
 
@@ -251,7 +263,7 @@ class Instance:
             "store": {"user_oidc": "8.11.3", "mail": "5.0", "files_antivirus": "6.0", "spreed": "21.0",
                       "external": "5.4", "richdocuments": "9.0", "onlyoffice": "9.0"},
             "ready": True, "signaling_up": True, "roundcube": True, "s3_up": True, "office_up": True,
-            "db_rc": 1,
+            "db_rc": 1, "bucket": [], "filecache_ids": [], "filecache_down": False,
         }
         self.installed()
 
@@ -268,10 +280,9 @@ class Instance:
 
     def run(self, name: str, **env) -> subprocess.CompletedProcess:
         self.state_path.write_text(json.dumps(self.state))
-        assert "WAIT=900" in _body(name) or name == "verify"
         body = (_body(name).replace("/var/www/html", str(self.root))
-                .replace("/usr/src/nextcloud", str(self.image))
-                .replace("WAIT=900", "WAIT=10"))
+                .replace("/usr/src/nextcloud", str(self.image)))
+        body = re.sub(r"^WAIT=\d+$", "WAIT=10", body, flags=re.M)
         environ = {"PATH": f"{self.bin}:/usr/bin:/bin", "FAKE_STATE": str(self.state_path)}
         environ.update({**ENV, **env})
         run = subprocess.run(["sh", "-c", body], env=environ, capture_output=True, text=True, timeout=120)
@@ -611,3 +622,104 @@ def test_the_block_declares_the_object_store_the_hooks_check():
     assert quiesce_lint.lint_object_store(entry) == []
     for key in ("S3_BUCKET", "S3_HOST", "S3_PORT", "S3_SSL"):
         assert key in entry.env
+
+
+# reconcile
+
+def _indexed(nc: Instance, ids, held):
+    nc.state["filecache_ids"] = list(ids)
+    nc.state["bucket"] = [f"urn:oid:{i}" for i in held]
+
+
+def test_reconcile_counts_the_files_the_bucket_lacks(nc):
+    _indexed(nc, [3, 4, 5, 6, 10], [3, 5, 10, 11])
+    run = nc.run("reconcile")
+    assert run.returncode == 0, run.stderr
+    assert run.stdout.splitlines()[-1] == "missing=2 bucket=4 database=5"
+    assert "urn:oid:4 urn:oid:6" in run.stdout
+
+
+def test_reconcile_of_a_complete_bucket_says_zero_missing(nc):
+    _indexed(nc, [3, 4], [3, 4])
+    run = nc.run("reconcile")
+    assert run.returncode == 0, run.stderr
+    assert run.stdout.splitlines()[-1] == "missing=0 bucket=2 database=2"
+
+
+def test_reconcile_of_an_empty_bucket_reports_every_row_as_missing(nc):
+    _indexed(nc, [3, 4], [])
+    run = nc.run("reconcile")
+    assert run.returncode == 0, run.stderr
+    assert run.stdout.splitlines()[-1] == "missing=2 bucket=0 database=2"
+
+
+def test_reconcile_in_maintenance_mode_prints_no_count(nc):
+    _indexed(nc, [3], [3])
+    nc.installed(maintenance=True)
+    nc.state["ready"] = False
+    run = nc.run("reconcile")
+    assert run.returncode == 0, run.stderr
+    assert "missing=" not in run.stdout
+    assert "maintenance mode is on" in run.stdout
+
+
+def test_reconcile_fails_when_the_bucket_cannot_be_listed(nc):
+    _indexed(nc, [3], [3])
+    nc.state["fail"] = "files:object:list"
+    run = nc.run("reconcile")
+    assert run.returncode == 1
+    assert "missing=" not in run.stdout
+    assert "files:object:list failed" in run.stderr
+
+
+def test_reconcile_fails_when_the_database_cannot_be_read(nc):
+    _indexed(nc, [3], [3])
+    nc.state["filecache_down"] = True
+    run = nc.run("reconcile")
+    assert run.returncode == 1
+    assert "missing=" not in run.stdout
+    assert "the filecache query failed" in run.stderr
+
+
+def test_reconcile_fails_when_the_database_lists_no_object_backed_file(nc):
+    _indexed(nc, [], [3, 4])
+    run = nc.run("reconcile")
+    assert run.returncode == 1
+    assert "missing=" not in run.stdout
+    assert "lists no object-backed file" in run.stderr
+
+
+def test_reconcile_fails_when_nextcloud_never_answers(nc):
+    nc.state["ready"] = False
+    run = nc.run("reconcile")
+    assert run.returncode == 1
+    assert "did not answer within 10s" in run.stderr
+    assert "missing=" not in run.stdout
+
+
+def test_reconcile_of_an_instance_on_disk_has_no_object_store_to_count(nc):
+    _indexed(nc, [3], [3])
+    run = nc.run("reconcile", S3_BUCKET="")
+    assert run.returncode == 1
+    assert "keeps its files on disk" in run.stderr
+    assert "missing=" not in run.stdout
+    assert not any(c.startswith("files:object:list") for c in nc.calls())
+
+
+# the boot probe
+
+def test_the_probe_starts_the_app_service_and_asks_for_an_installed_instance():
+    entry = _entry()
+    probe = entry.block["probe"]
+    assert probe["service"] in _compose()["services"]
+    assert probe["memory"] == "768m" and probe["timeout_seconds"] == 180
+    assert probe["check"][:2] == ["php", "-r"]
+    assert "status.php" in probe["check"][2]
+    assert "->installed === true" in probe["check"][2] and "->maintenance === false" in probe["check"][2]
+    assert quiesce_lint.lint_probe(entry) == []
+
+
+def test_the_reconcile_hook_replaces_the_s3_reconcile_declaration():
+    entry = _entry()
+    assert entry.s3_reconcile is None
+    assert entry.block["hooks"]["reconcile"]

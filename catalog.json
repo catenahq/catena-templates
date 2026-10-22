@@ -299,12 +299,6 @@
         "user": "www-data"
       },
       "requires_catena": "0.11.0",
-      "s3_reconcile": {
-        "check": "nextcloud-objectstore",
-        "db_service": "db",
-        "service": "app",
-        "user": "www-data"
-      },
       "sizing": {
         "disk_baseline_mb": 320,
         "idle_cpu_pct": 2,

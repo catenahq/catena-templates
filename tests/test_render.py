@@ -148,11 +148,8 @@ def test_s3_reconcile_reaches_the_catalog_unchanged():
     catalog = {
         e["id"]: e for e in json.loads((ROOT / "catalog.json").read_text())["templates"]
     }
-    declared = 0
     for entry in model.load_sources():
         assert catalog[entry.slug].get("s3_reconcile") == entry.s3_reconcile, entry.slug
-        declared += bool(entry.s3_reconcile)
-    assert declared > 0
 
 
 def test_object_store_reaches_the_catalog_unchanged():
