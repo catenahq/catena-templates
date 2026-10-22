@@ -641,8 +641,31 @@ def test_a_managed_expression_reading_a_denied_secret_is_refused(monkeypatch, tm
     assert "reads 'admin_password', a secret no managed expression may read" in capsys.readouterr().out
 
 
+def test_a_managed_expression_reads_what_a_template_provides(monkeypatch, tmp_path, capsys):
+    block = _managed("{{ provided.nowhere.jwt_secret }}")
+    _synthetic_sources(monkeypatch, tmp_path, {}, block=block)
+    assert L.lint_all() == 1
+    assert ("synthetic-bad.x-catena.env.TURN_SECRET.managed.expr: no template provides "
+            "'jwt_secret' of 'nowhere'") in capsys.readouterr().out
+    _synthetic_sources(monkeypatch, tmp_path / "own", {}, block={
+        **_managed("{{ provided.nowhere.jwt_secret }}"),
+        "provides": {"nowhere": {"jwt_secret": "TURN_SECRET"}}})
+    assert L.lint_all() == 0, capsys.readouterr().out
+
+
+def test_a_provided_value_is_a_key_of_the_env(monkeypatch, tmp_path, capsys):
+    _synthetic_sources(monkeypatch, tmp_path, {}, block={
+        **_managed("x"), "provides": {"turn": {"secret": "NOT_THERE"}}})
+    assert L.lint_all() == 1
+    assert ("synthetic-bad.x-catena.provides.turn.secret: 'NOT_THERE' is not in the block's env"
+            ) in capsys.readouterr().out
+
+
 def test_the_names_an_expression_reads():
     assert L.expression_names("a.{{ zone }}") == {"zone"}
+    assert L.expression_names("{{ provided.office.jwt_secret }}") == set()
+    assert L.provided_reads("{{ provided.turn.host }}:{{ provided.turn.port | default('1') }}") == {
+        ("turn", "host"), ("turn", "port")}
     assert L.expression_names("{{ x | default('lit' ~ other_name) }}") == {"x", "other_name"}
     assert L.expression_names(
         "{{ lookup('password', '/dev/null length=8 chars=hexdigits') | lower }}") == set()

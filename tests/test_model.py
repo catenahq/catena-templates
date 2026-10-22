@@ -224,6 +224,7 @@ def test_the_other_schema_2_fields_are_checked(sources):
         "stops": ["1.0.0"],
         "egress": ["api.example.com"],
         "privileges": ["host_network"],
+        "provides": {"turn": {"host": "TURN_HOST", "secret": "TURN_SECRET"}},
     }
     _block({"schema": 2, **good})
     assert model.load_sources()[0].block["write_hold"] == "backup_mode"
@@ -238,6 +239,10 @@ def test_the_other_schema_2_fields_are_checked(sources):
                        ("data", {"db": {"volume": "v", "upgrade": "copy"}}),
                        ("needs", {"dns": [{"type": "NS", "name": "a", "value": "b"}]}),
                        ("hooks", {"service": "app"}),
+                       ("provides", {"Turn": {"host": "TURN_HOST"}}),
+                       ("provides", {"turn": {}}),
+                       ("provides", {"turn": {"Host": "TURN_HOST"}}),
+                       ("provides", {"turn": {"host": "not a key"}}),
                        ("version_from", "")):
         _block({"schema": 2, **good, field: bad})
         with pytest.raises(model.SourceError, match=field):

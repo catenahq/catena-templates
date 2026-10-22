@@ -1,0 +1,79 @@
+x-catena:
+  schema: 2
+  version_from: clamav
+  env:
+    CLAMD_HOST:
+      managed: {expr: "clamav"}
+    CLAMD_PORT:
+      managed: {expr: "3310"}
+    CLAMD_STREAM_MAX_LENGTH:
+      setting: {default: "104857600"}
+    # A reload that keeps scanning holds the old and the new signature database
+    # in memory together, about 1 GB more. "no" pauses scans for the length of
+    # the load instead.
+    CLAMD_CONCURRENT_RELOAD:
+      setting: {default: "no"}
+  provides:
+    antivirus: {host: CLAMD_HOST, port: CLAMD_PORT}
+  hooks:
+    service: clamav
+    verify:
+      - [sh, -c, clamdcheck.sh]
+  images:
+    clamav:
+      # The signature-less image tags X.Y.Z_base; its per-build X.Y.Z-N_base and
+      # its debian variants are other tracks.
+      rule: {kind: pattern, tag_pattern: '(\d+)\.(\d+)\.(\d+)_base'}
+
+services:
+  clamav:
+    image: clamav/clamav:1.5.4_base
+    deploy:
+      # The delay is the point, not the condition: swarm already restarts on
+      # `any` by default, and with no delay a clamd whose first freshclam
+      # download fails hot-loops and spends the ~250 MB again each time.
+      restart_policy:
+        condition: any
+        delay: 30s
+      placement:
+        constraints:
+          - node.labels.catena.role==data
+    environment:
+      CLAMAV_NO_CLAMD: "false"
+      CLAMAV_NO_FRESHCLAMD: "false"
+      # The first start blocks until freshclam has pulled the database.
+      CLAMD_STARTUP_TIMEOUT: "1800"
+      FRESHCLAM_CHECKS: "24"
+      # The image's entrypoint writes each CLAMD_CONF_<option> into clamd.conf at
+      # container start.
+      CLAMD_CONF_StreamMaxLength: ${CLAMD_STREAM_MAX_LENGTH}
+      CLAMD_CONF_ConcurrentDatabaseReload: ${CLAMD_CONCURRENT_RELOAD}
+    volumes:
+      - clamav-db:/var/lib/clamav
+    # clamdcheck.sh is the image's PING against the local clamd socket;
+    # start_period covers the first freshclam download.
+    healthcheck:
+      test: ["CMD-SHELL", "clamdcheck.sh || exit 1"]
+      interval: 60s
+      timeout: 10s
+      retries: 5
+      start_period: 300s
+    labels:
+      - "vps.auto-update=patch"
+    cap_drop:
+      - NET_RAW
+    # clamd takes commands without signing in, so it is on its own network, which
+    # the applications that read the antivirus capability join.
+    networks:
+      antivirus:
+        aliases:
+          - ${CLAMD_HOST}
+      default: {}
+
+volumes:
+  clamav-db:
+
+networks:
+  antivirus:
+    external: true
+    name: catena-antivirus

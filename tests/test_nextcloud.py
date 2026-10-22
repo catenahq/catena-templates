@@ -26,7 +26,12 @@ ENV = {
     "SIGNALING_HOSTNAME": "signaling.example.test", "SIGNALING_SECRET": "sig-secret",
     "TURN_HOSTNAME": "turn.example.test", "TURN_STATIC_AUTH_SECRET": "turn-secret",
     "WEBMAIL_HOSTNAME": "webmail.example.test",
+    "ANTIVIRUS_HOST": "clamav", "ANTIVIRUS_PORT": "3310",
 }
+
+COLLABORA = {"OFFICE_EDITOR": "collabora", "OFFICE_URL": "https://office.example.test"}
+ONLYOFFICE = {"OFFICE_EDITOR": "onlyoffice", "OFFICE_URL": "https://office.example.test",
+              "OFFICE_JWT_SECRET": "jwt-secret"}
 
 # php (occ), curl and getent as the container has them, over one state file.
 FAKE = r'''#!{python}
@@ -75,6 +80,11 @@ if tool == "getent":
 if tool == "curl":
     url = argv[-1]
     log("curl " + url)
+    if url.endswith("/hosting/discovery") or url.endswith("/healthcheck"):
+        if not state["office_up"]:
+            sys.exit(7)
+        print("<wopi-discovery>" if url.endswith("discovery") else "true")
+        sys.exit(0)
     up = state["signaling_up"] if "signaling:8081" in url else state["s3_up"]
     sys.exit(0 if up else 7)
 
@@ -107,6 +117,16 @@ if cmd == "app:enable":
         save()
         sys.exit(0)
     sys.exit(1)
+if cmd == "app:remove":
+    apps.pop(rest[0], None)
+    save()
+    sys.exit(0)
+if cmd == "config:app:delete":
+    appconfig.pop(rest[0] + "/" + rest[1], None)
+    save()
+    sys.exit(0)
+if cmd == "richdocuments:activate-config":
+    sys.exit(0)
 if cmd == "app:list":
     print(json.dumps({"enabled": {a: "1" for a, s in apps.items() if s == "enabled"},
                       "disabled": {a: "1" for a, s in apps.items() if s != "enabled"}}))
@@ -187,7 +207,8 @@ def test_the_values_the_hooks_read_come_from_the_env_file_not_the_container():
     app_env = _compose()["services"]["app"]["environment"]
     for key in ("OIDC_CLIENT_ID", "OIDC_CLIENT_SECRET", "OIDC_ISSUER_URL"):
         assert key not in env  # the settings sync is their one writer
-    for key in ("SIGNALING_HOSTNAME", "SIGNALING_SECRET", "TURN_HOSTNAME", "TURN_STATIC_AUTH_SECRET"):
+    for key in ("SIGNALING_HOSTNAME", "SIGNALING_SECRET", "TURN_HOSTNAME", "TURN_STATIC_AUTH_SECRET",
+                "ANTIVIRUS_HOST", "ANTIVIRUS_PORT", "OFFICE_EDITOR", "OFFICE_URL", "OFFICE_JWT_SECRET"):
         assert key in env and key not in app_env
     assert not any(k.startswith("NEXTCLOUD_OIDC_") or k == "NEXTCLOUD_USER_OIDC_VERSION" for k in app_env)
     assert "WEBMAIL_HOSTNAME" in env
@@ -228,8 +249,9 @@ class Instance:
         self.state = {
             "calls": [], "apps": {}, "appconfig": {}, "system": {}, "providers": {},
             "store": {"user_oidc": "8.11.3", "mail": "5.0", "files_antivirus": "6.0", "spreed": "21.0",
-                      "external": "5.4"},
-            "ready": True, "signaling_up": True, "roundcube": True, "s3_up": True, "db_rc": 1,
+                      "external": "5.4", "richdocuments": "9.0", "onlyoffice": "9.0"},
+            "ready": True, "signaling_up": True, "roundcube": True, "s3_up": True, "office_up": True,
+            "db_rc": 1,
         }
         self.installed()
 
@@ -412,6 +434,91 @@ def test_the_antivirus_settings_are_not_marked_done_when_one_fails(nc):
     run = nc.run("configure")
     assert run.returncode == 1
     assert "catena/antivirus_wired" not in nc.state["appconfig"]
+
+
+def test_the_scanner_is_wired_to_the_address_the_provider_gave(nc):
+    assert nc.run("configure", ANTIVIRUS_HOST="scanner", ANTIVIRUS_PORT="3311").returncode == 0
+    config = nc.state["appconfig"]
+    assert config["files_antivirus/av_host"] == "scanner" and config["files_antivirus/av_port"] == "3311"
+
+
+def test_without_a_scanner_the_antivirus_is_left_alone(nc):
+    run = nc.run("configure", ANTIVIRUS_HOST="", ANTIVIRUS_PORT="")
+    assert run.returncode == 0, run.stderr
+    assert "files_antivirus" not in nc.state["apps"]
+    assert "catena/antivirus_wired" not in nc.state["appconfig"]
+
+
+def test_the_services_that_scan_join_the_scanners_own_network():
+    compose = _compose()
+    for name in ("app", "cron"):
+        assert "antivirus" in compose["services"][name]["networks"]
+    assert compose["networks"]["antivirus"] == {"external": True, "name": "catena-antivirus"}
+
+
+def test_the_scanner_is_on_no_shared_network():
+    clamav = yaml.safe_load((ROOT / "blueprints" / "clamav" / "docker-compose.yml").read_text(encoding="utf-8"))
+    joined = set(clamav["services"]["clamav"]["networks"])
+    assert joined == {"antivirus", "default"}
+    assert clamav["networks"] == {"antivirus": {"external": True, "name": "catena-antivirus"}}
+
+
+# office
+
+def test_collabora_is_wired_to_the_address_the_provider_gave(nc):
+    run = nc.run("configure", **COLLABORA)
+    assert run.returncode == 0, run.stderr
+    config = nc.state["appconfig"]
+    assert nc.state["apps"]["richdocuments"] == "enabled"
+    assert config["richdocuments/wopi_url"] == "https://office.example.test"
+    assert config["richdocuments/public_wopi_url"] == "https://office.example.test"
+    assert config["richdocuments/disable_certificate_verification"] == "no"
+    assert "curl https://office.example.test/hosting/discovery" in nc.calls()
+
+
+def test_onlyoffice_is_wired_with_its_jwt_secret(nc):
+    run = nc.run("configure", **ONLYOFFICE)
+    assert run.returncode == 0, run.stderr
+    config = nc.state["appconfig"]
+    assert nc.state["apps"]["onlyoffice"] == "enabled"
+    assert config["onlyoffice/DocumentServerUrl"] == "https://office.example.test/"
+    assert config["onlyoffice/DocumentServerInternalUrl"] == "https://office.example.test/"
+    assert config["onlyoffice/StorageUrl"] == "" and config["onlyoffice/jwt_secret"] == "jwt-secret"
+    assert "jwt-secret" not in run.stdout + run.stderr
+
+
+def test_the_editor_that_was_wired_before_is_removed_with_its_settings(nc):
+    nc.state["apps"]["onlyoffice"] = "enabled"
+    nc.state["appconfig"].update({"onlyoffice/jwt_secret": "old", "onlyoffice/DocumentServerUrl": "https://x/"})
+    run = nc.run("configure", **COLLABORA)
+    assert run.returncode == 0, run.stderr
+    assert "onlyoffice" not in nc.state["apps"]
+    assert not any(k.startswith("onlyoffice/") for k in nc.state["appconfig"])
+    assert nc.state["apps"]["richdocuments"] == "enabled"
+
+
+def test_with_no_editor_provided_an_editor_an_administrator_set_up_stays(nc):
+    nc.state["apps"]["onlyoffice"] = "enabled"
+    nc.state["appconfig"]["onlyoffice/jwt_secret"] = "mine"
+    run = nc.run("configure")
+    assert run.returncode == 0, run.stderr
+    assert nc.state["apps"]["onlyoffice"] == "enabled"
+    assert nc.state["appconfig"]["onlyoffice/jwt_secret"] == "mine"
+
+
+def test_an_editor_that_does_not_answer_fails_the_hook_and_changes_nothing(nc):
+    nc.state["office_up"] = False
+    run = nc.run("configure", **COLLABORA)
+    assert run.returncode == 1
+    assert "does not answer" in run.stderr
+    assert "richdocuments" not in nc.state["apps"]
+
+
+def test_onlyoffice_without_a_jwt_secret_is_not_wired(nc):
+    run = nc.run("configure", **{**ONLYOFFICE, "OFFICE_JWT_SECRET": ""})
+    assert run.returncode == 1
+    assert "gave no JWT secret" in run.stderr
+    assert "onlyoffice" not in nc.state["apps"]
 
 
 def test_the_object_store_file_is_put_back_from_the_image(nc):

@@ -5,6 +5,12 @@ x-catena:
       managed: {expr: "office.{{ cloudflare_zone }}"}
     JWT_SECRET:
       generated: {length: 48, alphabet: alnum}
+    OFFICE_EDITOR:
+      managed: {expr: "onlyoffice"}
+    OFFICE_URL:
+      managed: {expr: "https://office.{{ cloudflare_zone }}"}
+  provides:
+    office: {editor: OFFICE_EDITOR, url: OFFICE_URL, jwt_secret: JWT_SECRET}
   images:
     documentserver:
       rule: {kind: pattern, tag_pattern: '(\d+)\.(\d+)\.(\d+)(?:\.(\d+))?'}

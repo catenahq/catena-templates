@@ -55,7 +55,6 @@
         "app_name",
         "upstream_url",
         "sso_mode",
-        "domain",
         "bench",
         "sizing",
         "en",
@@ -155,6 +154,7 @@
         },
         "domain": {
           "type": "object",
+          "description": "The web address the application is served at. Absent for an application that has none, which other applications reach inside the server; its block then names version_from.",
           "additionalProperties": false,
           "required": [
             "host",

@@ -3,6 +3,12 @@ x-catena:
   env:
     DOMAIN_HOST:
       managed: {expr: "office.{{ cloudflare_zone }}"}
+    OFFICE_EDITOR:
+      managed: {expr: "collabora"}
+    OFFICE_URL:
+      managed: {expr: "https://office.{{ cloudflare_zone }}"}
+  provides:
+    office: {editor: OFFICE_EDITOR, url: OFFICE_URL}
   images:
     collabora:
       rule: {kind: pattern, tag_pattern: '(\d+)\.(\d+)\.(\d+)\.(\d+)\.(\d+)'}

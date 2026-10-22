@@ -1,0 +1,48 @@
+{
+  "id": "clamav",
+  "type": 2,
+  "title": "ClamAV antivirus",
+  "name": "catena-clamav",
+  "categories": [
+    "Security",
+    "Infrastructure"
+  ],
+  "platform": "linux",
+  "x-catena": {
+    "app_name": "catena-clamav",
+    "upstream_url": "https://www.clamav.net/",
+    "sso_mode": "n/a",
+    "bench": {
+      "pack": "nodb",
+      "fixture": "skip",
+      "hostname_baked": false
+    },
+    "sizing": {
+      "idle_ram_mb": null,
+      "peak_ram_mb": 1700,
+      "idle_cpu_pct": null,
+      "peak_cpu_pct": null,
+      "disk_baseline_mb": 400,
+      "notes": "The daemon keeps its signature database resident, about 1.5 GB, and a\nreload that keeps scanning holds two copies for its length. The disk\nbaseline is the downloaded database. Conservative pre-launch estimate,\nnot yet measured.",
+      "notes_fr": "Le démon garde sa base de signatures en mémoire, environ 1,5 Go, et\nun rechargement qui continue d'analyser en tient deux copies pendant sa\ndurée. Le disque de base est la base téléchargée. Estimation prudente\npré-lancement, pas encore mesurée."
+    },
+    "en": {
+      "display_name": "ClamAV antivirus",
+      "what_it_is": "One antivirus scanner for the whole server. The mail server scans every message through it and Nextcloud scans every uploaded file; the compliance evidence store scans its files through it too.",
+      "replaces": [
+        "A scanner per application"
+      ],
+      "compose_description": "Shared antivirus scanner (clamd). Other applications on this server find it on their own.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/clamav/README.md\n",
+      "setup_steps": "1. Click **Deploy**. The first start downloads the signature database, which takes a few minutes.\n2. Applications that scan through it (Nextcloud, the mail server) are set up by themselves: each one is redeployed once with the scanner's address. Removing the scanner sets them back.\n\nThe scanner has no web address and no sign-in. The Apps page reports it as unhealthy while it cannot answer a PING.\n"
+    },
+    "fr": {
+      "display_name": "Antivirus ClamAV",
+      "what_it_is": "Un seul analyseur antivirus pour tout le serveur. Le serveur de courriel y analyse chaque message et Nextcloud chaque fichier déposé ; le registre de preuves de conformité y analyse aussi ses fichiers.",
+      "replaces": [
+        "Un analyseur par application"
+      ],
+      "compose_description": "Analyseur antivirus partagé (clamd). Les autres applications de ce serveur le trouvent d'elles-mêmes.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/clamav/README.md\n",
+      "setup_steps": "1. Cliquez **Deploy**. Le premier démarrage télécharge la base de signatures, ce qui prend quelques minutes.\n2. Les applications qui analysent par son entremise (Nextcloud, le serveur de courriel) se configurent d'elles-mêmes : chacune est redéployée une fois avec l'adresse de l'analyseur. Le retirer les remet comme avant.\n\nL'analyseur n'a ni adresse web ni connexion. La page Apps le signale en mauvaise santé tant qu'il ne répond pas à un PING.\n"
+    }
+  }
+}

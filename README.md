@@ -152,6 +152,14 @@ input, not a catalog to deploy from.
    a `setting` (`default`, and a `label` in `en` and `fr`), a `generated`
    secret (`length`, `alphabet` of `alnum` or `hex`) or a `managed`
    expression (`expr`). The deploy form shows the keys in that order.
+   An application that other applications use adds `provides`, naming per
+   capability the env keys that hold what it gives (`provides: {antivirus:
+   {host: CLAMD_HOST, port: CLAMD_PORT}}`); a user reads them in a managed env
+   expression as `{{ provided.antivirus.host }}`. The host settles the user's
+   `.env` from the one running application that provides the capability and
+   redeploys the user when the provider is deployed, stopped or removed.
+   An application with no web address leaves `domain` out of its source and
+   names `version_from` in its block.
 3. `blueprints/<id>/logo.png` -- optional, square, 512x512. Without it
    the render emits a deterministic `logo.svg` placeholder.
 4. `x-catena.sizing.peak_ram_mb` is required: the bench scheduler

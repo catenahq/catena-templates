@@ -26,6 +26,15 @@ for layout, consumer model, and BASE URL setup.
   update rewrites those); it starts with `schema: 2`.
   `block.schema.json` is its format; catena-admin
   `payload/engines/appdecl` reads it.
+- An application other applications use declares what it gives in the block's
+  `provides` (`{<capability>: {<name>: <key of its env>}}`). A user of it reads
+  `{{ provided.<capability>.<name> }}` in a managed expression, never another
+  app's `.env` and never a store secret kept for it. The value is empty when no
+  application provides the capability, so the user's hook handles absence, and a
+  capability is provided by one running application at a time. `make lint`
+  fails a read no template provides.
+- An application with no web address (a scanner, a relay) leaves `domain` out of
+  its source and names `version_from` in its block.
 - A compose file carries no descriptive header. What the template is,
   what it replaces, how sign-in works and what each env var means live
   in `sources/<id>.json` and reach the reader through the generated
@@ -225,7 +234,7 @@ it.
 
 1. `sources/<id>.json`. Required: `id`, `type` (2), `title`, `name`,
    `categories`, `platform`, and the `x-catena` block (`app_name`,
-   `upstream_url`, `sso_mode`, `domain`,
+   `upstream_url`, `sso_mode`, `domain` (absent for an app with no web address),
    `bench.pack`, `sizing.peak_ram_mb`, `en`, `fr`).
 2. `blueprints/<id>/docker-compose.yml` (Jinja stays in place; the
    render never writes into it). Its root `x-catena:` block holds the

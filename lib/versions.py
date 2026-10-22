@@ -60,7 +60,10 @@ def version_of_image(ref: str) -> str:
 def version_service(source: dict[str, Any], compose: dict[str, Any]) -> str:
     """The service whose image tag is the app's version."""
     block = compose.get(BLOCK_KEY) or {}
-    return block.get("version_from") or source[BLOCK_KEY]["domain"]["service"]
+    service = block.get("version_from") or (source[BLOCK_KEY].get("domain") or {}).get("service")
+    if not service:
+        raise VersionError("the app has no web address, so its block must name version_from")
+    return service
 
 
 def app_version(source: dict[str, Any], compose: dict[str, Any]) -> str:

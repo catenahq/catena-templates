@@ -126,6 +126,8 @@ SECRET_NAME = re.compile(r"_(?:secret|password)$")
 EXPRESSION = re.compile(r"\{\{(.*?)\}\}", re.DOTALL)
 QUOTED = re.compile(r"'[^']*'")
 IDENTIFIER = re.compile(r"[a-z_][a-z0-9_]*")
+# A value another application provides: provided.<capability>.<name>.
+PROVIDED = re.compile(r"\bprovided\.([a-z]+)\.([a-z][a-z0-9_]*)")
 EXPRESSION_WORDS = frozenset({"default", "lower", "lookup", "password"})
 
 # The argv lists a lifecycle block can carry.
@@ -340,10 +342,37 @@ def expression_names(expr: str) -> set[str]:
     """The bare names the `{{ ... }}` parts of an expression read."""
     names: set[str] = set()
     for body in EXPRESSION.findall(expr):
-        for name in IDENTIFIER.findall(QUOTED.sub("", body)):
+        for name in IDENTIFIER.findall(PROVIDED.sub("", QUOTED.sub("", body))):
             if name not in EXPRESSION_WORDS:
                 names.add(name)
     return names
+
+
+def provided_reads(expr: str) -> set[tuple[str, str]]:
+    """The (capability, name) pairs the `{{ ... }}` parts of an expression read
+    from the applications that provide them."""
+    return {m.groups() for body in EXPRESSION.findall(expr) for m in PROVIDED.finditer(QUOTED.sub("", body))}
+
+
+def lint_provided(entries) -> list[str]:
+    """A block provides only values that are keys of its env, and a managed
+    expression reads only values some template provides."""
+    provides: dict[str, set[str]] = {}
+    errors: list[str] = []
+    for entry in entries:
+        for capability, given in (entry.block.get("provides") or {}).items():
+            for name, key in given.items():
+                if key not in entry.env:
+                    errors.append(f"{entry.slug}.x-catena.provides.{capability}.{name}: "
+                                  f"{key!r} is not in the block's env")
+                provides.setdefault(capability, set()).add(name)
+    for entry in entries:
+        for key, expr in entry.managed_env.items():
+            for capability, name in sorted(provided_reads(expr)):
+                if name not in provides.get(capability, set()):
+                    errors.append(f"{entry.slug}.x-catena.env.{key}.managed.expr: no template provides "
+                                  f"{name!r} of {capability!r}")
+    return errors
 
 
 def lint_managed_secrets(entry) -> list[str]:
@@ -508,6 +537,7 @@ def lint_all() -> int:
                     argv, label=f"{entry.slug}.quiesce.{name}[{idx}]",
                     allowed=ALLOWED_QUIESCE_COMMANDS))
 
+    all_errors.extend(lint_provided(entries))
     if all_errors:
         print("hook lint failed:")
         for err in all_errors:

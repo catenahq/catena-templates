@@ -45,6 +45,16 @@ x-catena:
       managed: {expr: "{{ turn_static_auth_secret }}"}
     WEBMAIL_HOSTNAME:
       setting: {default: "webmail.{{ cloudflare_zone }}"}
+    ANTIVIRUS_HOST:
+      managed: {expr: "{{ provided.antivirus.host }}"}
+    ANTIVIRUS_PORT:
+      managed: {expr: "{{ provided.antivirus.port }}"}
+    OFFICE_EDITOR:
+      managed: {expr: "{{ provided.office.editor }}"}
+    OFFICE_URL:
+      managed: {expr: "{{ provided.office.url }}"}
+    OFFICE_JWT_SECRET:
+      managed: {expr: "{{ provided.office.jwt_secret }}"}
   secrets: [turn_static_auth_secret]
   lifecycle:
     service: "app"
@@ -84,8 +94,9 @@ x-catena:
         - ["php", "occ", "status", "--exit-code"]
   # configure runs after every deploy (add, settings, start, update, rollback,
   # restore) and wires Nextcloud to the rest of the server: the object store
-  # file, Keycloak sign-in, Mail, the shared virus scanner, Talk with its
-  # signaling server and relay, and the Webmail link. It leaves with 0 whenever
+  # file, Keycloak sign-in, Mail, the virus scanner and the office editor the
+  # applications on this server provide, Talk with its signaling server and
+  # relay, and the Webmail link. It leaves with 0 whenever
   # occ cannot be used (first install running, maintenance mode on, a restore
   # whose database is not replayed yet) and with 1 only when occ answers and a
   # wiring command fails. An app an administrator disabled stays disabled; the
@@ -154,8 +165,8 @@ x-catena:
           }
           wire_antivirus() {
             occ config:app:set files_antivirus av_mode --value daemon &&
-            occ config:app:set files_antivirus av_host --value clamav &&
-            occ config:app:set files_antivirus av_port --value 3310 &&
+            occ config:app:set files_antivirus av_host --value "$$ANTIVIRUS_HOST" &&
+            occ config:app:set files_antivirus av_port --value "$$ANTIVIRUS_PORT" &&
             occ config:app:set files_antivirus av_stream_max_length --value 104857600 &&
             occ config:app:set files_antivirus av_max_file_size --value 104857600 &&
             occ config:app:set files_antivirus av_infected_action --value only_log &&
@@ -170,6 +181,50 @@ x-catena:
             occ config:system:set external_sites 0 lang --value "" &&
             occ config:system:set external_sites 0 device --value "" &&
             occ config:system:set external_sites 0 redirect --value true --type boolean
+          }
+
+          # The app each office editor runs under in Nextcloud, and the app-config
+          # keys its removal can leave behind.
+          office_app() { if [ "$$1" = collabora ]; then echo richdocuments; else echo onlyoffice; fi; }
+          office_keys() {
+            if [ "$$1" = collabora ]; then
+              echo wopi_url public_wopi_url wopi_callback_url external_apps disable_certificate_verification secret edit_groups read_only_groups
+            else
+              echo DocumentServerUrl DocumentServerInternalUrl StorageUrl jwt_secret editingMode defFormats editFormats sameTab customizationGoback versionHistory
+            fi
+          }
+          office_alive() {
+            if [ "$$OFFICE_EDITOR" = collabora ]; then
+              curl -fsS --max-time 5 "$$OFFICE_URL/hosting/discovery" 2>/dev/null | grep -q '<wopi-discovery'
+            else
+              curl -fsS --max-time 5 "$$OFFICE_URL/healthcheck" 2>/dev/null | grep -qx true
+            fi
+          }
+          drop_office() {
+            app=$$(office_app "$$1")
+            app_present "$$app" || return 0
+            occ app:remove "$$app" || return 1
+            for k in $$(office_keys "$$1"); do
+              occ config:app:delete "$$app" "$$k" || true
+            done
+          }
+          wire_office() {
+            if [ "$$OFFICE_EDITOR" = onlyoffice ] && [ -z "$${OFFICE_JWT_SECRET:-}" ]; then
+              echo "catena: the OnlyOffice editor gave no JWT secret" >&2
+              return 1
+            fi
+            ensure_app "$$(office_app "$$OFFICE_EDITOR")" || return 1
+            if [ "$$OFFICE_EDITOR" = collabora ]; then
+              occ config:app:set richdocuments wopi_url --value="$$OFFICE_URL" &&
+              occ config:app:set richdocuments public_wopi_url --value="$$OFFICE_URL" &&
+              occ config:app:set richdocuments disable_certificate_verification --value=no &&
+              { occ richdocuments:activate-config || true; }
+            else
+              occ config:app:set onlyoffice DocumentServerUrl --value="$$OFFICE_URL/" &&
+              occ config:app:set onlyoffice DocumentServerInternalUrl --value="$$OFFICE_URL/" &&
+              occ config:app:set onlyoffice StorageUrl --value="" &&
+              occ config:app:set onlyoffice jwt_secret --value="$$OFFICE_JWT_SECRET"
+            fi
           }
 
           # The object store reads the OBJECTSTORE_S3_* variables of the container
@@ -226,7 +281,8 @@ x-catena:
 
           ensure_app mail || true
 
-          if ensure_app files_antivirus && [ -z "$$(occ config:app:get catena antivirus_wired 2>/dev/null)" ]; then
+          if [ -n "$${ANTIVIRUS_HOST:-}" ] && [ -n "$${ANTIVIRUS_PORT:-}" ] && ensure_app files_antivirus \
+              && [ -z "$$(occ config:app:get catena antivirus_wired 2>/dev/null)" ]; then
             if wire_antivirus >/dev/null; then
               occ config:app:set catena antivirus_wired --value 1 >/dev/null
             else
@@ -242,6 +298,22 @@ x-catena:
               step "the Talk STUN entry" occ talk:stun:add "$$TURN_HOSTNAME:3478"
               step "the Talk signaling entry" occ talk:signaling:add "https://$$SIGNALING_HOSTNAME" "$$SIGNALING_SECRET"
               step "the Talk signaling setting" occ config:app:set spreed external_signaling_only --value=yes
+            fi
+          fi
+
+          if [ -n "$${OFFICE_EDITOR:-}" ] && [ -n "$${OFFICE_URL:-}" ]; then
+            if [ "$$OFFICE_EDITOR" = collabora ]; then other=onlyoffice; else other=collabora; fi
+            waited=0
+            until office_alive || [ "$$waited" -ge 300 ]; do
+              sleep 5
+              waited=$$((waited + 5))
+            done
+            if office_alive; then
+              step "the $$other editor removal" drop_office "$$other"
+              step "the $$OFFICE_EDITOR editor" wire_office
+            else
+              echo "catena: the $$OFFICE_EDITOR editor at $$OFFICE_URL does not answer; the next deploy wires it" >&2
+              failed=1
             fi
           fi
 
@@ -675,11 +747,8 @@ services:
     networks:
       catena-network: {}
       default: {}
-      # Shared antivirus: files_antivirus (Daemon mode) reaches the
-      # host's clamd at clamav:3310 over this network, and the configure
-      # hook sets the app up for it. The same clamd serves the mail
-      # server. External so it spans composes.
-      catena-clamav: {}
+      # The antivirus scanner's network, when another application provides one.
+      antivirus: {}
     # Redis needs no gate: Nextcloud treats a missing cache as a cache miss
     # and the connection is retried per request.
 
@@ -842,8 +911,8 @@ services:
     networks:
       - default
       # Background virus scans (files_antivirus job) run here too, so
-      # cron also needs to reach the shared clamd.
-      - catena-clamav
+      # cron also reaches the antivirus scanner.
+      - antivirus
 
   # === HPB BEGIN -- Talk High-Performance Backend ==========================
   # Comment out this single service to disable Talk + HPB. The configure
@@ -947,8 +1016,6 @@ volumes:
 networks:
   catena-network:
     external: true
-  # Shared antivirus network (clamd), created + owned by ops. External
-  # so the Nextcloud app/cron services and the mail server share one
-  # clamd instance (one signature DB + freshclam for both).
-  catena-clamav:
+  antivirus:
     external: true
+    name: catena-antivirus
