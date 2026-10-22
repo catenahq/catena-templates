@@ -23,7 +23,9 @@
     "mautic",
     "kimai",
     "invoiceninja",
-    "mailserver"
+    "mailserver",
+    "portainer",
+    "arcane"
   ],
   "sizing": {
     "last_measured_at": "2026-04-29",

@@ -1,0 +1,50 @@
+x-catena:
+  schema: 2
+  privileges: [docker_socket]
+  env:
+    DOMAIN_HOST:
+      setting: {default: "arcane.{{ cloudflare_zone }}"}
+    ENCRYPTION_KEY:
+      generated: {length: 64, alphabet: hex}
+
+services:
+  arcane:
+    image: ghcr.io/getarcaneapp/manager:v2.17.0
+    deploy:
+      restart_policy:
+        condition: any
+      placement:
+        constraints:
+          - node.role==manager
+          - node.labels.catena.role==data
+    environment:
+      APP_URL: https://${DOMAIN_HOST}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      PUID: "1000"
+      PGID: "1000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - arcane-data:/app/data
+    healthcheck:
+      test: ["CMD", "./arcane", "health", "--timeout", "2s"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 15s
+    labels:
+      - "vps.route.host=${DOMAIN_HOST}"
+      - "vps.route.port=3552"
+      - "vps.auth.mode=admin-only"
+      - "vps.auto-update=patch"
+    cap_drop:
+      - NET_RAW
+    networks:
+      catena-network: {}
+      default: {}
+
+volumes:
+  arcane-data:
+
+networks:
+  catena-network:
+    external: true

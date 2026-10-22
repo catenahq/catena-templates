@@ -1,0 +1,37 @@
+x-catena:
+  schema: 2
+  privileges: [docker_socket]
+  env:
+    DOMAIN_HOST:
+      setting: {default: "portainer.{{ cloudflare_zone }}"}
+
+services:
+  portainer:
+    image: portainer/portainer-ce:2.45.2
+    deploy:
+      restart_policy:
+        condition: any
+      placement:
+        constraints:
+          - node.role==manager
+          - node.labels.catena.role==data
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer-data:/data
+    labels:
+      - "vps.route.host=${DOMAIN_HOST}"
+      - "vps.route.port=9000"
+      - "vps.auth.mode=admin-only"
+      - "vps.auto-update=patch"
+    cap_drop:
+      - NET_RAW
+    networks:
+      catena-network: {}
+      default: {}
+
+volumes:
+  portainer-data:
+
+networks:
+  catena-network:
+    external: true

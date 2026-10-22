@@ -112,9 +112,8 @@ DENIED_SECRETS = frozenset({
     "healthchecks_api_key_readonly", "healthchecks_api_key_readwrite",
     "healthchecks_gate_cookie_secret", "healthchecks_ping_key", "healthchecks_secret_key",
     "healthchecks_superuser_password", "keycloak_automation_client_secret", "keycloak_db_password",
-    "oauth2_proxy_client_secret", "oauth2_proxy_cookie_secret", "portainer_api_key",
-    "portainer_gate_cookie_secret", "storage_bulk_password", "storage_bulk_username",
-    "tailscale_oauth_client_id", "tailscale_oauth_client_secret", "zap_api_key",
+    "oauth2_proxy_client_secret", "oauth2_proxy_cookie_secret", "storage_bulk_password",
+    "storage_bulk_username", "tailscale_oauth_client_id", "tailscale_oauth_client_secret", "zap_api_key",
 })
 
 # Names that start like one of these are denied too: one cookie secret per
