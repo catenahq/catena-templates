@@ -15,7 +15,7 @@ services:
   # the template's restart policy; build.py fails on either.
   backend:
     extends:
-      file: ../../blueprints/erpnext/docker-compose.yml
+      file: ../../blueprints/erpnext-helpdesk/docker-compose.yml
       service: backend
     image: ${IMG}
   frontend:

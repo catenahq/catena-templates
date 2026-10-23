@@ -1,0 +1,84 @@
+# Restore-drill test for the erpnext-helpdesk template: state the bench seeds after the
+# deploy and checks after a restore. Steps are plain data the CI harness runs
+# with docker exec; {{ run_id }} and {{ container_<service> }} are filled in by
+# the harness.
+#
+# The backend creates the site, so it always mounts the sites volume, where the
+# file marker lands. The database canary uses the mysql system database with the
+# root user, which keeps the test independent of the hash-derived name Frappe
+# gives the site's own database.
+
+id: erpnext-helpdesk
+description: >-
+  File marker in /home/frappe/frappe-bench/sites AND a row in MariaDB
+  mysql.catena_canary (root user) must round-trip through restic +
+  per-db replay restore unchanged.
+
+seed:
+  - name: file_marker
+    type: docker_exec
+    container: "{{ container_backend }}"
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        umask 0027
+        target="/home/frappe/frappe-bench/sites/r25-marker.txt"
+        printf 'fixture-{{ run_id }}\n' > "$target"
+        # The image runs as frappe (UID 1000).
+        chown 1000:1000 "$target"
+    timeout_s: 60
+
+  - name: wait_db_ready
+    type: docker_exec
+    container: "{{ container_db }}"
+    command:
+      - sh
+      - -c
+      - |
+        for i in $(seq 1 30); do
+          mariadb-admin ping -h localhost -uroot \
+            -p"$MARIADB_ROOT_PASSWORD" && exit 0
+          sleep 2
+        done
+        exit 1
+    timeout_s: 70
+
+  - name: db_canary_insert
+    type: docker_exec
+    container: "{{ container_db }}"
+    command:
+      - sh
+      - -c
+      - |
+        MYSQL_PWD="$MARIADB_ROOT_PASSWORD" mariadb -uroot mysql <<'SQL'
+        CREATE TABLE IF NOT EXISTS catena_canary (
+          run_id VARCHAR(64) NOT NULL PRIMARY KEY,
+          seeded_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+        INSERT IGNORE INTO catena_canary (run_id) VALUES ('{{ run_id }}');
+        SQL
+    timeout_s: 30
+
+assert:
+  - name: file_marker_present
+    type: docker_exec
+    container: "{{ container_backend }}"
+    command:
+      - cat
+      - /home/frappe/frappe-bench/sites/r25-marker.txt
+    expect_stdout_contains: "fixture-{{ run_id }}"
+    timeout_s: 30
+
+  - name: db_canary_row_present
+    type: docker_exec
+    container: "{{ container_db }}"
+    command:
+      - sh
+      - -c
+      - |
+        MYSQL_PWD="$MARIADB_ROOT_PASSWORD" mariadb -uroot -N -B mysql \
+          -e "SELECT run_id FROM catena_canary WHERE run_id = '{{ run_id }}'"
+    expect_stdout_contains: "{{ run_id }}"
+    timeout_s: 30

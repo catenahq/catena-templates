@@ -5,7 +5,7 @@ image whose backend cannot set its site up, a fresh one or the previous
 image's. Every case here runs without docker: the docker calls are recorded,
 and answered where build.py reads them.
 
-Run: uv run --with pytest --with pyyaml pytest images/erpnext -q
+Run: uv run --with pytest --with pyyaml pytest images/erpnext-helpdesk -q
 """
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ import pytest
 import yaml
 
 HERE = Path(__file__).resolve().parent
-_spec = importlib.util.spec_from_file_location("erpnext_build", HERE / "build.py")
+_spec = importlib.util.spec_from_file_location("erpnext_helpdesk_build", HERE / "build.py")
 B = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(B)
 
@@ -39,7 +39,7 @@ def test_the_smoke_backend_is_the_templates():
     backend = SMOKE["services"]["backend"]
     extends = backend["extends"]
     assert (HERE / extends["file"]).resolve() == (
-        HERE.parent.parent / "blueprints" / "erpnext" / "docker-compose.yml")
+        HERE.parent.parent / "blueprints" / "erpnext-helpdesk" / "docker-compose.yml")
     assert extends["service"] == "backend"
     assert set(backend) == {"extends", "image"}
     assert backend["image"] == "${IMG}"

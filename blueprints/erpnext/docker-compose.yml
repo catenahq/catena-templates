@@ -9,8 +9,6 @@ x-catena:
       generated: {length: 24, alphabet: alnum}
     DB_ROOT_PASSWORD:
       generated: {length: 32, alphabet: alnum}
-    FRAPPE_APPS:
-      setting: {default: "erpnext,telephony,helpdesk"}
   lifecycle:
     service: "backend"
     ready: ["bash", "-c", ": > /dev/tcp/127.0.0.1/8000"]
@@ -56,21 +54,6 @@ x-catena:
           PY
   data:
     db: {volume: db-data, upgrade: dump_restore}
-  images:
-    backend:
-      rule: {kind: build_suffix, registry: ghcr.io, repo: catenahq/erpnext, tag_pattern: 'v16\.\d+\.\d+-\d+'}
-    frontend:
-      rule: {kind: build_suffix, registry: ghcr.io, repo: catenahq/erpnext, tag_pattern: 'v16\.\d+\.\d+-\d+'}
-    websocket:
-      rule: {kind: build_suffix, registry: ghcr.io, repo: catenahq/erpnext, tag_pattern: 'v16\.\d+\.\d+-\d+'}
-    queue-default:
-      rule: {kind: build_suffix, registry: ghcr.io, repo: catenahq/erpnext, tag_pattern: 'v16\.\d+\.\d+-\d+'}
-    queue-short:
-      rule: {kind: build_suffix, registry: ghcr.io, repo: catenahq/erpnext, tag_pattern: 'v16\.\d+\.\d+-\d+'}
-    queue-long:
-      rule: {kind: build_suffix, registry: ghcr.io, repo: catenahq/erpnext, tag_pattern: 'v16\.\d+\.\d+-\d+'}
-    scheduler:
-      rule: {kind: build_suffix, registry: ghcr.io, repo: catenahq/erpnext, tag_pattern: 'v16\.\d+\.\d+-\d+'}
 
 x-common: &frappe-env
   SITE_NAME: ${ERPNEXT_HOSTNAME}
@@ -84,12 +67,11 @@ services:
   # into the sites volume and runs this script, which ends in the image's own
   # start.sh. Every start runs each step, and each is a no-op once done: the
   # bench config is written once, the site is created on the first start, and
-  # install-app skips an app the site already has, so a redeploy with a longer
-  # FRAPPE_APPS adds the new ones. A step that fails exits, and swarm starts
-  # the task again. The two setup secrets leave the environment before the app
-  # server starts. The image is built from catena-templates images/erpnext.
+  # install-app skips an app the site already has. A step that fails exits, and
+  # swarm starts the task again. The two setup secrets leave the environment
+  # before the app server starts.
   backend:
-    image: ghcr.io/catenahq/erpnext:v16.37.0-1
+    image: frappe/erpnext:v16.51.0
     deploy:
       restart_policy:
         condition: any
@@ -119,14 +101,13 @@ services:
             --db-root-username=root --db-root-password="$$DB_ROOT_PASSWORD" \
             --set-default "$$SITE_NAME"
         fi
-        bench --site "$$SITE_NAME" install-app $${FRAPPE_APPS//,/ }
+        bench --site "$$SITE_NAME" install-app erpnext
         unset ERPNEXT_ADMIN_PASSWORD DB_ROOT_PASSWORD
         exec start.sh
     environment:
       <<: *frappe-env
       ERPNEXT_ADMIN_PASSWORD: ${ERPNEXT_ADMIN_PASSWORD}
       DB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
-      FRAPPE_APPS: ${FRAPPE_APPS:-erpnext,telephony,helpdesk}
     volumes:
       - sites:/home/frappe/frappe-bench/sites
       - logs:/home/frappe/frappe-bench/logs
@@ -136,7 +117,7 @@ services:
       - default
 
   frontend:
-    image: ghcr.io/catenahq/erpnext:v16.37.0-1
+    image: frappe/erpnext:v16.51.0
     deploy:
       restart_policy:
         condition: any
@@ -170,7 +151,7 @@ services:
       default: {}
 
   websocket:
-    image: ghcr.io/catenahq/erpnext:v16.37.0-1
+    image: frappe/erpnext:v16.51.0
     deploy:
       restart_policy:
         condition: any
@@ -188,7 +169,7 @@ services:
       - default
 
   queue-default:
-    image: ghcr.io/catenahq/erpnext:v16.37.0-1
+    image: frappe/erpnext:v16.51.0
     deploy:
       restart_policy:
         condition: any
@@ -206,7 +187,7 @@ services:
       - default
 
   queue-short:
-    image: ghcr.io/catenahq/erpnext:v16.37.0-1
+    image: frappe/erpnext:v16.51.0
     deploy:
       restart_policy:
         condition: any
@@ -224,7 +205,7 @@ services:
       - default
 
   queue-long:
-    image: ghcr.io/catenahq/erpnext:v16.37.0-1
+    image: frappe/erpnext:v16.51.0
     deploy:
       restart_policy:
         condition: any
@@ -242,7 +223,7 @@ services:
       - default
 
   scheduler:
-    image: ghcr.io/catenahq/erpnext:v16.37.0-1
+    image: frappe/erpnext:v16.51.0
     deploy:
       restart_policy:
         condition: any

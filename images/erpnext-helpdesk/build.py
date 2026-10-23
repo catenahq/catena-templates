@@ -48,7 +48,7 @@ NLTK = ("env/bin/python -c \"import sys, nltk; [nltk.download(c, download_dir='e
 
 
 def log(msg: str) -> None:
-    print(f"[erpnext-image] {msg}", file=sys.stderr, flush=True)
+    print(f"[erpnext-helpdesk-image] {msg}", file=sys.stderr, flush=True)
 
 
 def run(*argv: str, cwd: Path | None = None, capture: bool = False) -> str:
@@ -207,7 +207,7 @@ def load() -> dict:
 def cmd_build(args) -> None:
     state = load()
     inputs = state["inputs"]
-    work = Path(tempfile.mkdtemp(prefix="erpnext-image-"))
+    work = Path(tempfile.mkdtemp(prefix="erpnext-helpdesk-image-"))
     builder = work / "frappe_docker"
     run("git", "clone", "--quiet", SPEC["builder"]["repo"], str(builder))
     run("git", "-C", str(builder), "checkout", "--quiet", SPEC["builder"]["sha"])

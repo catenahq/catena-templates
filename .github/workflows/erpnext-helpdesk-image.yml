@@ -1,7 +1,8 @@
-name: erpnext-image
+name: erpnext-helpdesk-image
 
-# Builds ghcr.io/catenahq/erpnext (images/erpnext) when one of its inputs
-# moved upstream. images/erpnext/build.py makes every decision; this file
+# Builds ghcr.io/catenahq/erpnext-helpdesk (images/erpnext-helpdesk), the image
+# of the erpnext-helpdesk template, when one of its inputs moved upstream.
+# images/erpnext-helpdesk/build.py makes every decision; this file
 # runs its steps in order and supplies the registry login.
 
 on:
@@ -19,7 +20,7 @@ on:
         default: true
   push:
     branches: [main]
-    paths: ["images/erpnext/**"]
+    paths: ["images/erpnext-helpdesk/**"]
 
 permissions:
   contents: read
@@ -27,7 +28,7 @@ permissions:
 
 # One build at a time: two would compute the same next tag.
 concurrency:
-  group: erpnext-image
+  group: erpnext-helpdesk-image
   cancel-in-progress: false
 
 jobs:
@@ -36,7 +37,7 @@ jobs:
     timeout-minutes: 90
     defaults:
       run:
-        working-directory: images/erpnext
+        working-directory: images/erpnext-helpdesk
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:

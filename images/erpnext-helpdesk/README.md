@@ -1,6 +1,6 @@
-# images/erpnext
+# images/erpnext-helpdesk
 
-The image the `erpnext` template runs: `ghcr.io/catenahq/erpnext`.
+The image the `erpnext-helpdesk` template runs: `ghcr.io/catenahq/erpnext-helpdesk`.
 
 ## Why it exists
 
@@ -8,7 +8,8 @@ A Frappe app reaches a Docker deployment only by being built into the image.
 `bench get-app` inside a running container installs into that one
 container and is gone at its next restart (frappe_docker's
 `docs/01-getting-started/02-docker-immutability.md`). No upstream image
-carries what the template needs: `frappe/erpnext` has no Helpdesk, and
+carries what the template needs: `frappe/erpnext` (the image of the `erpnext`
+template) has no Helpdesk, and
 `ghcr.io/frappe/helpdesk` has no ERPNext.
 
 ## What it contains
@@ -21,7 +22,7 @@ carries what the template needs: `frappe/erpnext` has no Helpdesk, and
 | helpdesk | the newest release that supports the Frappe it builds against | tickets, linked both ways to ERPNext customers |
 
 `apps.json` declares this list and the frappe_docker commit the image is built
-with. Apps install on a site in that file's order. The ERPNext template decides
+with. Apps install on a site in that file's order. The template decides
 which of them a site installs; an app the site does not install costs disk
 only.
 
@@ -37,7 +38,7 @@ a migration downloads one.
 
 ## When a new image is built
 
-`.github/workflows/erpnext-image.yml` runs `build.py resolve` daily. It reads
+`.github/workflows/erpnext-helpdesk-image.yml` runs `build.py resolve` daily. It reads
 the newest version of every input from upstream and compares it with what the
 newest published image records in its `io.catena.inputs` label. A new image
 is built only when one of them moved: a Frappe, ERPNext or Helpdesk release, a
@@ -49,15 +50,14 @@ input, and with `publish` off it stops before the image is pushed.
 
 Tags are `v<erpnext version>-<n>`: `v1.2.3-1` is the first build of
 ERPNext 1.2.3, `v1.2.3-2` the next build of it with another input moved.
-The Catena update engine orders them (`build_suffix` in catena-admin
-`payload/engines/stackupdate/overrides.go`, whose tag pattern holds them to
-one major line) and each
-host decides when to take one: after its soak, its CVE check, and with a
+The Catena update engine orders them (the `build_suffix` rule in the `images`
+entry of the template's `x-catena` block, whose tag pattern holds them to one
+major line) and each host decides when to take one: after its soak, its CVE check, and with a
 database snapshot it replays when the migration fails.
 
 ## Before an image is pushed
 
-`build.py test` runs the catalog template's own backend
+`build.py test` runs the `erpnext-helpdesk` template's own backend
 (`smoke-compose.yml` extends it), whose script writes the bench config,
 creates a site with every app and starts the app server. It then runs
 `bench --site all migrate` and expects `/api/method/ping` to answer. When a
