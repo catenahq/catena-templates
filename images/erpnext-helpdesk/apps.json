@@ -15,8 +15,8 @@
       "name": "erpnext",
       "repo": "https://github.com/frappe/erpnext",
       "tags": "^v16\\.\\d+\\.\\d+$",
-      "version": "v16.51.0",
-      "sha": "fd97695de7bfeb1d7728a7370c3e128d0cc1509e"
+      "version": "v16.52.1",
+      "sha": "ade850bbd6a7412e9994a9637d2c5c713771632a"
     },
     {
       "name": "telephony",
