@@ -601,8 +601,9 @@
           }
         },
         "ADMIN_PASS": {
-          "setting": {
-            "default": "{{ admin_password }}"
+          "generated": {
+            "alphabet": "alnum",
+            "length": 32
           }
         },
         "ADMIN_USERNAME": {
@@ -654,7 +655,7 @@
         "ROCKETCHAT_HOSTNAME=chat.{{ cloudflare_zone }}",
         "ROCKETCHAT_HOSTNAME_BASE={{ cloudflare_zone }}",
         "ADMIN_USERNAME=admin",
-        "ADMIN_PASS={{ admin_password }}",
+        "ADMIN_PASS={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
         "ADMIN_EMAIL={{ admin_email }}",
         "VPS_PUBLIC_IP={{ public_ip }}",
         "JITSI_JICOFO_AUTH_PASSWORD={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}",

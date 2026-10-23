@@ -10,7 +10,7 @@ x-catena:
     ADMIN_USERNAME:
       setting: {default: "admin"}
     ADMIN_PASS:
-      setting: {default: "{{ admin_password }}"}
+      generated: {length: 32, alphabet: alnum}
     ADMIN_EMAIL:
       setting: {default: "{{ admin_email }}"}
     VPS_PUBLIC_IP:
