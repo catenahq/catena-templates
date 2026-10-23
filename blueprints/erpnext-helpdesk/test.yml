@@ -26,8 +26,6 @@ seed:
         umask 0027
         target="/home/frappe/frappe-bench/sites/r25-marker.txt"
         printf 'fixture-{{ run_id }}\n' > "$target"
-        # The image runs as frappe (UID 1000).
-        chown 1000:1000 "$target"
     timeout_s: 60
 
   - name: wait_db_ready
