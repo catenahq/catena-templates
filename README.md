@@ -205,9 +205,11 @@ Then one job per app the change touches (`blueprints/<id>/**` or
 `sources/<id>.json`), each running:
 
 - `docker stack config` on the app's compose file.
-- The licence rule: a new app names a licence from the importer's list
-  (`x-catena.origin.licence`, the `sources.schema.json` enum); an app already
-  in the catalog may name none, and one it names must be on the list.
+- The licence rule: a new imported entry (`x-catena.status: imported`) names a
+  licence from the importer's list (`x-catena.origin.licence`, the
+  `sources.schema.json` enum), the licence of the registry it was copied from; a
+  hand-written app may name none, and any licence an entry names must be on the
+  list.
 - scanctl on the app's images: any vulnerability at high or above that has a
   fixed version fails, introduced by the change or not.
 - Provenance (`lib/provenance.py`): each image's `org.opencontainers.image.source`

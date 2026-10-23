@@ -3,7 +3,7 @@
 
   changed               repo-relative paths on stdin -> the app ids they touch
   images ID             the image references the app's compose pins
-  licence ID [--new]    the app's source names a permitted licence
+  licence ID [--new]    a new imported entry names a permitted licence; any named one is permitted
   provenance ID         each pulled image's project is old enough, with releases
 
 Provenance reads the image's `org.opencontainers.image.source` label from
@@ -35,15 +35,16 @@ def permitted_licences() -> list[str]:
 
 
 def licence_errors(app: str, source: dict, *, new: bool) -> list[str]:
-    """A new app names a permitted licence in `x-catena.origin.licence`. An
-    app already in the catalog is a reviewed entry: it may carry none, but one
-    it names must be permitted."""
+    """A new imported entry (`x-catena.status: imported`) names a permitted
+    licence in `x-catena.origin.licence`: the licence of the registry it
+    copies. A hand-written app, new or already in the catalog, may carry
+    none, but one it names must be permitted."""
     permitted = permitted_licences()
-    origin = (source.get("x-catena") or {}).get("origin") or {}
-    named = origin.get("licence")
+    catena = source.get("x-catena") or {}
+    named = (catena.get("origin") or {}).get("licence")
     if named is None:
-        if new:
-            return [f"{app}: sources/{app}.json names no licence; a new app sets "
+        if new and catena.get("status") == "imported":
+            return [f"{app}: sources/{app}.json names no licence; an imported entry sets "
                     f"x-catena.origin.licence to one of {', '.join(permitted)}"]
         return []
     if named not in permitted:

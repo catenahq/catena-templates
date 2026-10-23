@@ -153,14 +153,28 @@ def test_provenance_errors_checks_every_image_of_an_app(tmp_path, monkeypatch):
     assert errors[0].startswith("demo: ghcr.io/example/app:3: ")
 
 
-def _source(licence=None) -> dict:
-    origin = {"licence": licence} if licence else {}
-    return {"id": "demo", "x-catena": {"origin": origin} if origin else {}}
+def _source(licence=None, *, imported=False) -> dict:
+    catena = {"origin": {"licence": licence}} if licence else {}
+    if imported:
+        catena["status"] = "imported"
+    return {"id": "demo", "x-catena": catena}
 
 
-def test_a_new_app_must_name_a_permitted_licence():
-    assert app_checks.licence_errors("demo", _source("MIT"), new=True) == []
-    assert "names no licence" in app_checks.licence_errors("demo", _source(), new=True)[0]
+def test_a_new_imported_entry_must_name_a_permitted_licence():
+    assert app_checks.licence_errors("demo", _source("MIT", imported=True), new=True) == []
+    assert "names no licence" in app_checks.licence_errors("demo", _source(imported=True), new=True)[0]
+
+
+def test_a_new_hand_written_app_needs_no_origin():
+    assert app_checks.licence_errors("demo", _source(), new=True) == []
+    assert app_checks.licence_errors("demo", {"id": "demo"}, new=True) == []
+
+
+def test_a_licence_outside_the_list_fails_for_any_entry():
+    for imported in (True, False):
+        for new in (True, False):
+            errors = app_checks.licence_errors("demo", _source("GPL-3.0", imported=imported), new=new)
+            assert "GPL-3.0" in errors[0]
 
 
 def test_an_existing_app_without_a_licence_passes_but_a_bad_one_fails():
