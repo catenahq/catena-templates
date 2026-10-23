@@ -1,22 +1,35 @@
 #!/usr/bin/env python3
 """Build the Catena ERPNext image: Frappe plus the apps apps.json tracks.
 
-  resolve  the newest upstream version of every input, compared with what the
-           newest published image was built from (its io.catena.inputs label);
-           writes inputs.json, with "build": false when nothing moved
+  resolve  re-read the sha of every input (the commit of a pinned tag, the head
+           of a branch) and write apps.json;
+           with --newest, also move frappe to its newest release tag whose
+           frappe/build and frappe/base images exist on Docker Hub, and each
+           tag-tracked app to its newest tag that admits that frappe
+  plan     look for a published tag of this ERPNext release whose
+           io.catena.inputs label equals apps.json's inputs; write inputs.json
+           with the inputs, whether to build, the tag (that one, or the next),
+           whether the blueprint must move to it (pin) and the previous tag
+           the upgrade test starts from (the blueprint's pinned tag, when
+           published and older than the tag); --force builds anyway
   build    the image, from frappe_docker's layered Containerfile at the pinned
-           builder commit, build-only node_modules removed in the same layer
+           builder commit, Frappe at the tag apps.json names, build-only
+           node_modules removed in the same layer
   test     the catalog template's backend sets up a site with every app, which
            is migrated and pinged; when there is a previous published image,
            the site is set up on it, and the new image's backend starts on it
            before the migration
-  publish  push the tag
+  publish  push the tag; needs GHCR_TOKEN and refuses a tag the registry
+           already holds
+  pin      set the seven Frappe services of the blueprint to inputs.json's tag
 
+A GHCR_TOKEN in the environment (with GHCR_USER) authenticates registry reads.
 Stdlib only. Run from anywhere; paths resolve beside this file.
 """
 from __future__ import annotations
 
 import argparse
+import base64
 import hashlib
 import json
 import os
@@ -31,9 +44,14 @@ import urllib.request
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-SPEC = json.loads((HERE / "apps.json").read_text())
+APPS_JSON = HERE / "apps.json"
+SPEC = json.loads(APPS_JSON.read_text())
 INPUTS = HERE / "inputs.json"
+BLUEPRINT = HERE.parent.parent / "blueprints" / "erpnext-helpdesk" / "docker-compose.yml"
 TAG_RE = re.compile(r"^v(\d+)\.(\d+)\.(\d+)-(\d+)$")
+BUILDER_IMAGES = ("build", "base")
+FRAPPE_SERVICES = ("backend", "frontend", "websocket", "queue-default", "queue-short",
+                   "queue-long", "scheduler")
 
 # The last command of the builder stage's RUN in images/layered/Containerfile.
 # Build-time steps are appended to it, so removed files never reach a layer.
@@ -117,39 +135,76 @@ def frappe_range(repo: str, sha: str) -> str | None:
     return deps.get("frappe")
 
 
-def resolve_inputs() -> dict:
-    frappe = SPEC["frappe"]
-    head = ls_remote(frappe["repo"], f"refs/heads/{frappe['branch']}")
-    fsha = head[f"refs/heads/{frappe['branch']}"]
-    m = re.search(r'__version__ = "([^"]+)"', raw(frappe["repo"], fsha, "frappe/__init__.py"))
-    inputs = {"builder": SPEC["builder"]["sha"],
-              "recipe": hashlib.sha256(builder_steps().encode()).hexdigest()[:16],
-              "frappe": {"version": m.group(1), "sha": fsha}}
+def inputs() -> dict:
+    """What apps.json names, in the shape of the image's io.catena.inputs label."""
+    out = {"builder": SPEC["builder"]["sha"],
+           "recipe": hashlib.sha256(builder_steps().encode()).hexdigest()[:16],
+           "frappe": {"version": SPEC["frappe"]["version"], "sha": SPEC["frappe"]["sha"]}}
     for app in SPEC["apps"]:
-        if "branch" in app:
-            ref = f"refs/heads/{app['branch']}"
-            inputs[app["name"]] = {"branch": app["branch"], "sha": ls_remote(app["repo"], ref)[ref]}
+        key = "version" if "tags" in app else "branch"
+        out[app["name"]] = {key: app[key], "sha": app["sha"]}
+    return out
+
+
+def tag_shas(repo: str, pattern: str) -> dict[str, str]:
+    """{tag: commit sha} of the repo's tags matching the pattern."""
+    rx = re.compile(pattern)
+    return {ref.removeprefix("refs/tags/"): sha
+            for ref, sha in ls_remote(repo, tags=True).items()
+            if rx.match(ref.removeprefix("refs/tags/"))}
+
+
+def hub_tag_exists(name: str, tag: str) -> bool:
+    """Whether Docker Hub holds frappe/<name>:<tag> (200 yes, 404 no)."""
+    url = f"https://hub.docker.com/v2/namespaces/frappe/repositories/{name}/tags/{tag}"
+    try:
+        with urllib.request.urlopen(url, timeout=30):
+            return True
+    except urllib.error.HTTPError as exc:
+        if exc.code == 404:
+            return False
+        raise
+
+
+def move_to_newest() -> None:
+    """Frappe to its newest release tag whose builder images exist, each
+    tag-tracked app to its newest tag whose frappe-dependencies admit that
+    Frappe."""
+    frappe = SPEC["frappe"]
+    tags = tag_shas(frappe["repo"], frappe["tags"])
+    for tag in sorted(tags, key=vtuple, reverse=True):
+        missing = [f"frappe/{n}:{tag}" for n in BUILDER_IMAGES if not hub_tag_exists(n, tag)]
+        if not missing:
+            frappe["version"], frappe["sha"] = tag, tags[tag]
+            break
+        log(f"frappe {tag} skipped: {', '.join(missing)} not published")
+    else:
+        raise SystemExit(f"no frappe tag matching {frappe['tags']} has its frappe/build and frappe/base images")
+    for app in SPEC["apps"]:
+        if "tags" not in app:
             continue
-        pattern = re.compile(app["tags"])
-        tags = {ref.removeprefix("refs/tags/"): sha
-                for ref, sha in ls_remote(app["repo"], tags=True).items()}
-        for tag in sorted((t for t in tags if pattern.match(t)), key=vtuple, reverse=True):
+        tags = tag_shas(app["repo"], app["tags"])
+        for tag in sorted(tags, key=vtuple, reverse=True):
             spec = frappe_range(app["repo"], tags[tag])
-            if spec is None or admits(spec, inputs["frappe"]["version"]):
-                inputs[app["name"]] = {"version": tag, "sha": tags[tag]}
+            if spec is None or admits(spec, frappe["version"]):
+                app["version"], app["sha"] = tag, tags[tag]
                 break
             log(f"{app['name']} {tag} needs frappe {spec}; looking further back")
         else:
-            raise SystemExit(f"no {app['name']} release admits frappe {inputs['frappe']['version']}")
-    return inputs
+            raise SystemExit(f"no {app['name']} release admits frappe {frappe['version']}")
 
 
 def registry(path: str, accept: str = "application/json") -> dict | None:
-    """One anonymous GHCR read; None when the image does not exist yet."""
+    """One GHCR read, authenticated when GHCR_TOKEN is set; None when the image
+    does not exist or is not readable."""
     repo = SPEC["image"].removeprefix("ghcr.io/")
+    token_req = urllib.request.Request(f"https://ghcr.io/token?scope=repository:{repo}:pull")
+    if os.environ.get("GHCR_TOKEN"):
+        basic = base64.b64encode(
+            f"{os.environ.get('GHCR_USER', '')}:{os.environ['GHCR_TOKEN']}".encode()).decode()
+        token_req.add_header("Authorization", f"Basic {basic}")
     try:
-        with urllib.request.urlopen(
-                f"https://ghcr.io/token?scope=repository:{repo}:pull", timeout=30) as r:
+        with urllib.request.urlopen(token_req, timeout=30) as r:
             token = json.load(r)["token"]
         req = urllib.request.Request(f"https://ghcr.io/v2/{repo}/{path}", headers={
             "Authorization": f"Bearer {token}", "Accept": accept})
@@ -185,17 +240,81 @@ def next_tag(inputs: dict, tags: list[str]) -> str:
     return f"v{erpnext}-{max(same, default=0) + 1}"
 
 
+def refresh_shas() -> None:
+    """Every input's sha from upstream: the commit a tag-tracked input's tag
+    names, the head of a branch-tracked one."""
+    for node in (SPEC["frappe"], *SPEC["apps"]):
+        if "branch" in node:
+            ref = f"refs/heads/{node['branch']}"
+            node["sha"] = ls_remote(node["repo"], ref)[ref]
+            continue
+        ref = f"refs/tags/{node['version']}"
+        found = ls_remote(node["repo"], tags=True)
+        if ref not in found:
+            raise SystemExit(f"{node['repo']} has no tag {node['version']}")
+        node["sha"] = found[ref]
+
+
 def cmd_resolve(args) -> None:
-    inputs = resolve_inputs()
+    if args.newest:
+        move_to_newest()
+    refresh_shas()
+    APPS_JSON.write_text(json.dumps(SPEC, indent=2) + "\n")
+    log("apps.json: " + json.dumps(inputs(), sort_keys=True))
+
+
+def pinned_images(text: str) -> list[tuple[int, str, str]]:
+    """(line index, service, tag) of every `image: <SPEC image>:<tag>` line."""
+    found, service = [], None
+    pattern = re.compile(rf"^\s+image:\s*{re.escape(SPEC['image'])}:(\S+)\s*$")
+    for i, line in enumerate(text.splitlines()):
+        head = re.match(r"^  ([\w-]+):\s*$", line)
+        if head:
+            service = head.group(1)
+        m = pattern.match(line)
+        if m:
+            found.append((i, service, m.group(1)))
+    return found
+
+
+def pinned_tag() -> str | None:
+    """The tag the blueprint pins, None when its Frappe services disagree."""
+    tags = {tag for _i, _s, tag in pinned_images(BLUEPRINT.read_text())}
+    return tags.pop() if len(tags) == 1 else None
+
+
+def cmd_plan(args) -> None:
+    """A build happens unless a published tag of this ERPNext release already
+    carries these inputs; that tag is then the plan's tag. `pin` says the
+    blueprint must move to the tag."""
+    now = inputs()
     tags = published()
-    previous = tags[-1] if tags else None
-    last = built_from(previous) if previous else None
-    build = args.force or last != inputs
-    out = {"inputs": inputs, "build": build, "previous": previous,
-           "tag": next_tag(inputs, tags) if build else previous}
+    release = f"v{now['erpnext']['version'].lstrip('v')}-"
+    same = next((t for t in reversed(tags) if t.startswith(release) and built_from(t) == now), None)
+    build = args.force or same is None
+    tag = next_tag(now, tags) if build else same
+    pinned = pinned_tag()
+    out = {"inputs": now, "build": build,
+           "previous": pinned if pinned in tags and vtuple(pinned) < vtuple(tag) else None,
+           "pin": pinned != tag, "tag": tag}
     INPUTS.write_text(json.dumps(out, indent=2) + "\n")
-    log(f"previous={previous} build={build} tag={out['tag']}")
+    log(f"previous={out['previous']} build={build} pin={out['pin']} tag={tag}")
     print(json.dumps(out, indent=2))
+
+
+def cmd_pin(args) -> None:
+    tag = load()["tag"]
+    text = BLUEPRINT.read_text()
+    found = pinned_images(text)
+    if sorted(s for _i, s, _t in found) != sorted(FRAPPE_SERVICES):
+        raise SystemExit(f"{BLUEPRINT.name} pins {[s for _i, s, _t in found]} to {SPEC['image']}; "
+                         f"expected exactly {list(FRAPPE_SERVICES)}")
+    lines = text.splitlines(keepends=True)
+    for i, _service, _old in found:
+        lines[i] = re.sub(r"(image:\s*)\S+", lambda m: f"{m.group(1)}{SPEC['image']}:{tag}",
+                          lines[i], count=1)
+    BLUEPRINT.write_text("".join(lines))
+    log(f"{BLUEPRINT.name} pins {SPEC['image']}:{tag}")
 
 
 # --- build -------------------------------------------------------------------
@@ -227,13 +346,21 @@ def cmd_build(args) -> None:
     bust = hashlib.sha256(json.dumps(inputs, sort_keys=True).encode()).hexdigest()
     image = f"{SPEC['image']}:{state['tag']}"
     run("docker", "buildx", "build", "--load",
-        "--build-arg", f"FRAPPE_BRANCH={SPEC['frappe']['branch']}",
+        "--build-arg", f"FRAPPE_BRANCH={SPEC['frappe']['version']}",
         "--build-arg", f"CACHE_BUST={bust}",
         "--secret", f"id=apps_json,src={apps_json}",
         "--label", f"org.opencontainers.image.version={state['tag']}",
         "--label", f"org.opencontainers.image.source=https://github.com/catenahq/catena-templates",
         "--label", f"io.catena.inputs={json.dumps(inputs, sort_keys=True)}",
         "-f", str(containerfile), "-t", image, str(builder))
+
+    for app in SPEC["apps"]:
+        if "branch" in app:
+            ref = f"refs/heads/{app['branch']}"
+            head = ls_remote(app["repo"], ref)[ref]
+            if head != inputs[app["name"]]["sha"]:
+                raise SystemExit(f"{app['name']} {app['branch']} moved to {head} during the build; "
+                                 f"the image may hold a commit other than {inputs[app['name']]['sha']}")
 
     present = run("docker", "run", "--rm", "--entrypoint", "ls", image,
                   "/home/frappe/frappe-bench/apps", capture=True).split()
@@ -327,7 +454,12 @@ def cmd_test(args) -> None:
 
 
 def cmd_publish(args) -> None:
-    run("docker", "push", f"{SPEC['image']}:{load()['tag']}")
+    if not os.environ.get("GHCR_TOKEN"):
+        raise SystemExit("publish needs GHCR_TOKEN: the check that the tag is free is an authenticated read")
+    tag = load()["tag"]
+    if tag in published():
+        raise SystemExit(f"{SPEC['image']}:{tag} is already published; a tag is never overwritten")
+    run("docker", "push", f"{SPEC['image']}:{tag}")
 
 
 def main() -> None:
@@ -335,14 +467,17 @@ def main() -> None:
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = p.add_subparsers(dest="cmd", required=True)
     r = sub.add_parser("resolve")
-    r.add_argument("--force", action="store_true", help="build even when nothing moved")
+    r.add_argument("--newest", action="store_true", help="move tag-tracked inputs to their newest tags")
+    pl = sub.add_parser("plan")
+    pl.add_argument("--force", action="store_true", help="build even when nothing moved")
     sub.add_parser("build")
     t = sub.add_parser("test")
     t.add_argument("--fresh", action="store_true", help="skip the upgrade from the previous image")
     sub.add_parser("publish")
+    sub.add_parser("pin")
     args = p.parse_args()
-    {"resolve": cmd_resolve, "build": cmd_build, "test": cmd_test,
-     "publish": cmd_publish}[args.cmd](args)
+    {"resolve": cmd_resolve, "plan": cmd_plan, "build": cmd_build, "test": cmd_test,
+     "publish": cmd_publish, "pin": cmd_pin}[args.cmd](args)
 
 
 if __name__ == "__main__":

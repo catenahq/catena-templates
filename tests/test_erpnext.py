@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import copy
 import http.server
+import json
 import os
 import re
 import subprocess
@@ -206,6 +207,11 @@ def test_the_helpdesk_app_runs_catenas_build_under_its_tag_rule():
         assert rule["kind"] == "build_suffix"
         reference = f"{rule['registry']}/{rule['repo']}"
         assert re.fullmatch(re.escape(reference) + r":v16\.\d+\.\d+-\d+", compose["services"][name]["image"]), name
+    image = json.loads((ROOT / "images" / "erpnext-helpdesk" / "apps.json").read_text())["image"]
+    assert image == "ghcr.io/catenahq/erpnext-helpdesk"
+    for name in FRAPPE_SERVICES:
+        rule = images[name]["rule"]
+        assert f"{rule['registry']}/{rule['repo']}" == image, name
     assert _entry("erpnext-helpdesk").block["env"]["FRAPPE_APPS"]["setting"]["default"] == "erpnext,telephony,helpdesk"
     assert "$${FRAPPE_APPS//,/ }" in _backend_script("erpnext-helpdesk")
 

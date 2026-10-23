@@ -58,19 +58,19 @@ x-catena:
     db: {volume: db-data, upgrade: dump_restore}
   images:
     backend:
-      rule: {kind: build_suffix, registry: ghcr.io, repo: catenahq/erpnext, tag_pattern: 'v16\.\d+\.\d+-\d+'}
+      rule: {kind: build_suffix, registry: ghcr.io, repo: catenahq/erpnext-helpdesk, tag_pattern: 'v16\.\d+\.\d+-\d+'}
     frontend:
-      rule: {kind: build_suffix, registry: ghcr.io, repo: catenahq/erpnext, tag_pattern: 'v16\.\d+\.\d+-\d+'}
+      rule: {kind: build_suffix, registry: ghcr.io, repo: catenahq/erpnext-helpdesk, tag_pattern: 'v16\.\d+\.\d+-\d+'}
     websocket:
-      rule: {kind: build_suffix, registry: ghcr.io, repo: catenahq/erpnext, tag_pattern: 'v16\.\d+\.\d+-\d+'}
+      rule: {kind: build_suffix, registry: ghcr.io, repo: catenahq/erpnext-helpdesk, tag_pattern: 'v16\.\d+\.\d+-\d+'}
     queue-default:
-      rule: {kind: build_suffix, registry: ghcr.io, repo: catenahq/erpnext, tag_pattern: 'v16\.\d+\.\d+-\d+'}
+      rule: {kind: build_suffix, registry: ghcr.io, repo: catenahq/erpnext-helpdesk, tag_pattern: 'v16\.\d+\.\d+-\d+'}
     queue-short:
-      rule: {kind: build_suffix, registry: ghcr.io, repo: catenahq/erpnext, tag_pattern: 'v16\.\d+\.\d+-\d+'}
+      rule: {kind: build_suffix, registry: ghcr.io, repo: catenahq/erpnext-helpdesk, tag_pattern: 'v16\.\d+\.\d+-\d+'}
     queue-long:
-      rule: {kind: build_suffix, registry: ghcr.io, repo: catenahq/erpnext, tag_pattern: 'v16\.\d+\.\d+-\d+'}
+      rule: {kind: build_suffix, registry: ghcr.io, repo: catenahq/erpnext-helpdesk, tag_pattern: 'v16\.\d+\.\d+-\d+'}
     scheduler:
-      rule: {kind: build_suffix, registry: ghcr.io, repo: catenahq/erpnext, tag_pattern: 'v16\.\d+\.\d+-\d+'}
+      rule: {kind: build_suffix, registry: ghcr.io, repo: catenahq/erpnext-helpdesk, tag_pattern: 'v16\.\d+\.\d+-\d+'}
 
 x-common: &frappe-env
   SITE_NAME: ${ERPNEXT_HOSTNAME}
@@ -90,7 +90,7 @@ services:
   # server starts. The image is built from catena-templates
   # images/erpnext-helpdesk.
   backend:
-    image: ghcr.io/catenahq/erpnext:v16.37.0-1
+    image: ghcr.io/catenahq/erpnext-helpdesk:v16.51.0-1
     deploy:
       restart_policy:
         condition: any
@@ -137,7 +137,7 @@ services:
       - default
 
   frontend:
-    image: ghcr.io/catenahq/erpnext:v16.37.0-1
+    image: ghcr.io/catenahq/erpnext-helpdesk:v16.51.0-1
     deploy:
       restart_policy:
         condition: any
@@ -171,7 +171,7 @@ services:
       default: {}
 
   websocket:
-    image: ghcr.io/catenahq/erpnext:v16.37.0-1
+    image: ghcr.io/catenahq/erpnext-helpdesk:v16.51.0-1
     deploy:
       restart_policy:
         condition: any
@@ -189,7 +189,7 @@ services:
       - default
 
   queue-default:
-    image: ghcr.io/catenahq/erpnext:v16.37.0-1
+    image: ghcr.io/catenahq/erpnext-helpdesk:v16.51.0-1
     deploy:
       restart_policy:
         condition: any
@@ -207,7 +207,7 @@ services:
       - default
 
   queue-short:
-    image: ghcr.io/catenahq/erpnext:v16.37.0-1
+    image: ghcr.io/catenahq/erpnext-helpdesk:v16.51.0-1
     deploy:
       restart_policy:
         condition: any
@@ -225,7 +225,7 @@ services:
       - default
 
   queue-long:
-    image: ghcr.io/catenahq/erpnext:v16.37.0-1
+    image: ghcr.io/catenahq/erpnext-helpdesk:v16.51.0-1
     deploy:
       restart_policy:
         condition: any
@@ -243,7 +243,7 @@ services:
       - default
 
   scheduler:
-    image: ghcr.io/catenahq/erpnext:v16.37.0-1
+    image: ghcr.io/catenahq/erpnext-helpdesk:v16.51.0-1
     deploy:
       restart_policy:
         condition: any

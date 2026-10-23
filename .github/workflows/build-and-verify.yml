@@ -7,10 +7,10 @@ name: build-and-verify
 # touches.
 
 on:
-  # Every pushed branch. Renovate and engine-bump branches always carry a pull
-  # request, which tests each push to them.
+  # Every pushed branch. Renovate, engine-bump and image-pin branches always
+  # carry a pull request, which tests each push to them.
   push:
-    branches-ignore: ['renovate/**', 'engine-bump/**', 'scanctl/**']
+    branches-ignore: ['renovate/**', 'engine-bump/**', 'image-pin/**', 'scanctl/**']
   pull_request:
     branches: [main]
 

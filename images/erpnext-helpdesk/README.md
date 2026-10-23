@@ -16,15 +16,21 @@ template) has no Helpdesk, and
 
 | App | Tracks | Role |
 | --- | --- | --- |
-| frappe | the release branch `apps.json` names | the framework every app runs on |
-| erpnext | the newest release matching the tag pattern in `apps.json` | ERP, including its CRM (leads, prospects, opportunities) |
+| frappe | the newest release tag matching its pattern | the framework every app runs on |
+| erpnext | the newest release tag matching its pattern | ERP, including its CRM (leads, prospects, opportunities) |
 | telephony | the `develop` branch (no releases) | required by Helpdesk |
-| helpdesk | the newest release that supports the Frappe it builds against | tickets, linked both ways to ERPNext customers |
+| helpdesk | the newest release tag whose `frappe-dependencies` admit the Frappe pinned | tickets, linked both ways to ERPNext customers |
 
-`apps.json` declares this list and the frappe_docker commit the image is built
-with. Apps install on a site in that file's order. The template decides
-which of them a site installs; an app the site does not install costs disk
-only.
+`apps.json` declares this list, each input's tracking rule (tag pattern or
+branch) and the value it is pinned to now (`version` and the commit `sha`
+for a tag, `sha` for a branch), and the frappe_docker commit the image is built
+with. Every run of `build.py resolve` sets each `sha` from upstream: the commit
+a pinned tag names, the current head of a branch-tracked input. The build
+fails when a branch moves while the image builds. An image is built from
+exactly those values: Frappe is cloned at its pinned tag, each app at its
+pinned tag or branch. Apps install on a site in
+that file's order. The template decides which of them a site installs; an app
+the site does not install costs disk only.
 
 Each app's build-only `node_modules` are removed in the build layer, which
 keeps about 740 MiB out of the image. Frappe's own stay: the websocket service
@@ -38,15 +44,35 @@ a migration downloads one.
 
 ## When a new image is built
 
-`.github/workflows/erpnext-helpdesk-image.yml` runs `build.py resolve` daily. It reads
-the newest version of every input from upstream and compares it with what the
-newest published image records in its `io.catena.inputs` label. A new image
-is built only when one of them moved: a Frappe, ERPNext or Helpdesk release, a
-telephony commit, a frappe_docker commit pinned here, or the build-time steps
-`build.py` adds to frappe_docker's Containerfile (the `recipe` input).
+`.github/workflows/erpnext-helpdesk-image.yml` runs daily and on a manual
+dispatch: `build.py resolve --newest` moves `apps.json` to the newest version
+of every input (a Frappe tag only once Frappe has published its `frappe/build`
+and `frappe/base` images on Docker Hub, which the build is based on), then
+`build.py plan` compares `apps.json`'s inputs with what each published image of
+the ERPNext release records in its `io.catena.inputs` label. A new image is
+built only when none equals the inputs: a Frappe, ERPNext or Helpdesk release,
+a telephony commit, a frappe_docker commit pinned here, or the build-time steps
+`build.py` adds to frappe_docker's Containerfile (the `recipe` input) differ
+from every published build. When one equals them, that tag is the plan's tag. A
+push of `images/erpnext-helpdesk/**` to `main` runs `build.py resolve` instead,
+which only refreshes the shas, and plans from what `apps.json` names.
 
-A manual run of the workflow with `force` builds and tests without a moved
-input, and with `publish` off it stops before the image is pushed.
+A manual run of the workflow with `force` builds and tests without a difference,
+and with `publish` off it stops before the image is pushed and pins nothing.
+A tag the registry already holds is never pushed again.
+
+## The pin
+
+The template's seven Frappe services pin the image's tag in
+`blueprints/erpnext-helpdesk/docker-compose.yml`. After the image is published,
+or when the template pins another tag than the plan's, `build.py pin`
+sets the seven pins to the plan's tag. When that, or the new `apps.json`,
+differs from `main`, the workflow commits both files to the branch
+`image-pin/erpnext-helpdesk`, pushes it only when its content differs from
+the remote branch, opens a pull request and turns auto-merge on; the
+repository's required checks decide the merge. The GitHub App token that
+does this is minted in the last steps, after any build was tested and
+published.
 
 Tags are `v<erpnext version>-<n>`: `v1.2.3-1` is the first build of
 ERPNext 1.2.3, `v1.2.3-2` the next build of it with another input moved.
@@ -72,8 +98,14 @@ Docker with buildx and compose, git, and a python3 whose standard library
 has `tomllib`:
 
 ```sh
-python3 build.py resolve        # writes inputs.json; --force to build anyway
+python3 build.py resolve        # refreshes every sha in apps.json; --newest moves every input
+python3 build.py plan           # writes inputs.json; --force to build anyway
 python3 build.py build
 python3 build.py test           # --fresh skips the upgrade from the previous image
-python3 build.py publish        # needs a docker login to ghcr.io
+python3 build.py publish        # needs a docker login to ghcr.io and GHCR_TOKEN
+python3 build.py pin            # sets the blueprint's pins to inputs.json's tag
 ```
+
+`GHCR_USER` and `GHCR_TOKEN` in the environment authenticate the registry
+reads of `plan` and `publish`; a package that is not public lists no
+tags without them.

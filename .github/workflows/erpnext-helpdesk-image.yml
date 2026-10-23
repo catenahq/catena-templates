@@ -1,9 +1,15 @@
 name: erpnext-helpdesk-image
 
 # Builds ghcr.io/catenahq/erpnext-helpdesk (images/erpnext-helpdesk), the image
-# of the erpnext-helpdesk template, when one of its inputs moved upstream.
-# images/erpnext-helpdesk/build.py makes every decision; this file
-# runs its steps in order and supplies the registry login.
+# of the erpnext-helpdesk template, from the inputs images/erpnext-helpdesk/apps.json
+# names. A schedule or a dispatch first moves those inputs to the newest upstream
+# versions; a push builds what the file already names. images/erpnext-helpdesk/build.py
+# makes every decision; this file runs its steps in order and supplies the
+# registry login. Once the image is published, or when the blueprint pins
+# another tag than the plan's, the blueprint and apps.json are committed to the
+# branch image-pin/erpnext-helpdesk, and a pull request with auto-merge on
+# carries them to main. The catenahq-renovate GitHub App token for that is
+# minted in the last steps, after any build was tested and published.
 
 on:
   schedule:
@@ -15,7 +21,7 @@ on:
         type: boolean
         default: false
       publish:
-        description: Publish the image after it passes its test
+        description: Publish the image after it passes its test, and pin it
         type: boolean
         default: true
   push:
@@ -43,25 +49,100 @@ jobs:
         with:
           persist-credentials: false
       - name: Resolve
-        id: resolve
+        env:
+          NEWEST: ${{ github.event_name != 'push' && '--newest' || '' }}
+        run: python3 build.py resolve $NEWEST
+      - name: Plan
+        id: plan
         env:
           FORCE: ${{ inputs.force && '--force' || '' }}
+          GHCR_USER: ${{ github.actor }}
+          GHCR_TOKEN: ${{ github.token }}
         run: |
-          python3 build.py resolve $FORCE
-          build=$(python3 -c 'import json; print(str(json.load(open("inputs.json"))["build"]).lower())')
-          echo "build=$build" >> "$GITHUB_OUTPUT"
+          python3 build.py plan $FORCE
+          jq -r '"build=\(.build)", "pin=\(.pin)", "tag=\(.tag)"' inputs.json >> "$GITHUB_OUTPUT"
       - name: Build
-        if: steps.resolve.outputs.build == 'true'
+        if: steps.plan.outputs.build == 'true'
         run: python3 build.py build
       - name: Log in to GHCR
-        if: steps.resolve.outputs.build == 'true'
+        if: steps.plan.outputs.build == 'true'
         env:
           ACTOR: ${{ github.actor }}
           TOKEN: ${{ github.token }}
         run: printf '%s' "$TOKEN" | docker login ghcr.io -u "$ACTOR" --password-stdin
       - name: Test
-        if: steps.resolve.outputs.build == 'true'
+        if: steps.plan.outputs.build == 'true'
         run: python3 build.py test
       - name: Publish
-        if: steps.resolve.outputs.build == 'true' && (github.event_name != 'workflow_dispatch' || inputs.publish)
+        id: publish
+        if: steps.plan.outputs.build == 'true' && (github.event_name != 'workflow_dispatch' || inputs.publish)
+        env:
+          GHCR_USER: ${{ github.actor }}
+          GHCR_TOKEN: ${{ github.token }}
         run: python3 build.py publish
+      - name: Pin
+        id: pin
+        if: >-
+          (github.event_name != 'workflow_dispatch' || inputs.publish) &&
+          steps.plan.outputs.pin == 'true' &&
+          (steps.plan.outputs.build != 'true' || steps.publish.outcome == 'success')
+        working-directory: ${{ github.workspace }}
+        run: |
+          python3 images/erpnext-helpdesk/build.py pin
+          if git diff --quiet -- images/erpnext-helpdesk/apps.json blueprints/erpnext-helpdesk/docker-compose.yml; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Mint a GitHub App token for the pin pull request
+        id: app-token
+        if: steps.pin.outputs.changed == 'true'
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ secrets.RENOVATE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RENOVATE_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: catena-templates
+          permission-contents: write
+          permission-pull-requests: write
+      - name: Open the pin pull request
+        if: steps.pin.outputs.changed == 'true'
+        working-directory: ${{ github.workspace }}
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_REPO: ${{ github.repository }}
+          BASE: ${{ github.event.repository.default_branch }}
+          TAG: ${{ steps.plan.outputs.tag }}
+        run: |
+          set -euo pipefail
+          branch=image-pin/erpnext-helpdesk
+          title="chore(erpnext-helpdesk): pin $TAG"
+          body="Pins the erpnext-helpdesk template to ghcr.io/catenahq/erpnext-helpdesk:$TAG and records the inputs it was built from in images/erpnext-helpdesk/apps.json."
+          auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+          echo "::add-mask::$auth"
+          export GIT_CONFIG_COUNT=1
+          export GIT_CONFIG_KEY_0=http.https://github.com/.extraheader
+          export GIT_CONFIG_VALUE_0="AUTHORIZATION: basic $auth"
+          git config user.name "catena image pin"
+          git config user.email "image-pin@users.noreply.github.com"
+          git checkout -B "$branch"
+          git add images/erpnext-helpdesk/apps.json blueprints/erpnext-helpdesk/docker-compose.yml
+          git commit -m "$title"
+          push=true
+          if [ -n "$(git ls-remote origin "refs/heads/$branch")" ]; then
+            git fetch origin "$branch"
+            if git diff --quiet HEAD FETCH_HEAD; then
+              echo "$branch: unchanged since the last run; not pushed"
+              push=false
+            fi
+          fi
+          if [ "$push" = true ]; then
+            git push --force origin "$branch:$branch"
+          fi
+          url="$(gh pr list --head "$branch" --state open --json url --jq '.[0].url')"
+          if [ -n "$url" ]; then
+            gh api -X PATCH "repos/$GH_REPO/pulls/${url##*/}" -f "title=$title" -f "body=$body" > /dev/null
+          else
+            url="$(gh pr create --base "$BASE" --head "$branch" --title "$title" --body "$body")"
+          fi
+          gh pr merge "$url" --auto --squash

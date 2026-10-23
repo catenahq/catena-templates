@@ -6,24 +6,35 @@
   },
   "frappe": {
     "repo": "https://github.com/frappe/frappe",
-    "branch": "version-16"
+    "tags": "^v16\\.\\d+\\.\\d+$",
+    "version": "v16.52.0",
+    "sha": "4515014c87ece6cb20ee91d2cfb121c5cbd1ff4a"
   },
   "apps": [
     {
       "name": "erpnext",
       "repo": "https://github.com/frappe/erpnext",
-      "tags": "^v16\\.\\d+\\.\\d+$"
+      "tags": "^v16\\.\\d+\\.\\d+$",
+      "version": "v16.51.0",
+      "sha": "fd97695de7bfeb1d7728a7370c3e128d0cc1509e"
     },
     {
       "name": "telephony",
       "repo": "https://github.com/frappe/telephony",
-      "branch": "develop"
+      "branch": "develop",
+      "sha": "9447577500a25d242088398157b72c654fa34b20"
     },
     {
       "name": "helpdesk",
       "repo": "https://github.com/frappe/helpdesk",
       "tags": "^v\\d+\\.\\d+\\.\\d+$",
-      "nltk_data": ["averaged_perceptron_tagger_eng", "punkt_tab", "brown"]
+      "version": "v1.31.0",
+      "sha": "7d7e394e7571fbdbdda04a65a279566b0ac9ce7f",
+      "nltk_data": [
+        "averaged_perceptron_tagger_eng",
+        "punkt_tab",
+        "brown"
+      ]
     }
   ]
 }
