@@ -33,7 +33,7 @@ arranged beforehand, on request.
 
 **Resource note.** ERPNext is heavy -- 10+ containers, ~3 GB RAM + 2 CPUs recommended minimum. A dedicated VPS tier is the right home when Nextcloud + chat + other apps run alongside.
 
-**Apps.** `FRAPPE_APPS` lists the apps installed on the site: `erpnext,telephony,helpdesk` by default. An app added to the list is installed at the next redeploy; an app taken off the list stays installed. For ERPNext without the helpdesk, deploy [ERPNext](https://github.com/catenahq/catena-templates/blob/main/blueprints/erpnext/README.md) instead.
+**Apps.** `FRAPPE_APPS` lists the apps installed on the site: `erpnext,telephony,helpdesk` by default. An app added to the list is installed at the next redeploy; an app taken off the list stays installed. For ERPNext without the helpdesk, deploy [ERPNext](https://github.com/catenahq/catena-templates/blob/HEAD/blueprints/erpnext/README.md) instead.
 
 **Updates.** A new version of the image is built whenever one of its apps publishes one: ERPNext within version 16, Frappe, or the helpdesk. The nightly update applies it once it has aged a week and passed the vulnerability check. While it runs, the site shows a maintenance page for a few minutes: the database is saved, the new version starts, `bench migrate` brings the database up to it, and the site reopens. If the migration or the health check after it fails, the previous version and the saved database are put back. The move to the next major version is never automatic.
 
@@ -84,7 +84,7 @@ préalable, sur demande.
 
 **Ressources.** ERPNext est lourd -- 10+ conteneurs, minimum ~3 GB RAM + 2 CPUs recommandés. Un VPS dédié s'impose lorsque Nextcloud + chat + d'autres apps tournent en parallèle.
 
-**Apps.** `FRAPPE_APPS` liste les apps installées sur le site : `erpnext,telephony,helpdesk` par défaut. Une app ajoutée à la liste est installée au redéploiement suivant ; une app retirée de la liste reste installée. Pour ERPNext sans helpdesk, déployez plutôt [ERPNext](https://github.com/catenahq/catena-templates/blob/main/blueprints/erpnext/README.md).
+**Apps.** `FRAPPE_APPS` liste les apps installées sur le site : `erpnext,telephony,helpdesk` par défaut. Une app ajoutée à la liste est installée au redéploiement suivant ; une app retirée de la liste reste installée. Pour ERPNext sans helpdesk, déployez plutôt [ERPNext](https://github.com/catenahq/catena-templates/blob/HEAD/blueprints/erpnext/README.md).
 
 **Mises à jour.** Une nouvelle version de l'image est construite dès qu'une de ses apps en publie une : ERPNext dans la version 16, Frappe ou le helpdesk. La mise à jour nocturne l'applique une fois qu'elle a une semaine d'ancienneté et a réussi le contrôle de vulnérabilités. Pendant ce temps, le site affiche une page de maintenance quelques minutes : la base de données est sauvegardée, la nouvelle version démarre, `bench migrate` met la base à niveau, puis le site rouvre. Si la migration ou le contrôle de santé qui suit échoue, la version précédente et la base sauvegardée sont remises en place. Le passage à la version majeure suivante n'est jamais automatique.
 

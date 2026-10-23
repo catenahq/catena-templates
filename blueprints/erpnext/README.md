@@ -33,7 +33,7 @@ arranged beforehand, on request.
 
 **Checks.** Every hour the server asks the site to answer its ping, confirms the scheduler runs and that the three queue workers are registered. A failing check is reported on the maintenance feed.
 
-**Helpdesk.** For a helpdesk linked to your ERPNext customers, deploy [ERPNext with Helpdesk](https://github.com/catenahq/catena-templates/blob/main/blueprints/erpnext-helpdesk/README.md) instead.
+**Helpdesk.** For a helpdesk linked to your ERPNext customers, deploy [ERPNext with Helpdesk](https://github.com/catenahq/catena-templates/blob/HEAD/blueprints/erpnext-helpdesk/README.md) instead.
 
 ### Environment variables
 
@@ -79,7 +79,7 @@ préalable, sur demande.
 
 **Contrôles.** Chaque heure, le serveur demande au site de répondre à son ping, vérifie que le planificateur tourne et que les trois travailleurs de file sont enregistrés. Un contrôle en échec est signalé dans le fil de maintenance.
 
-**Helpdesk.** Pour un helpdesk relié à vos clients ERPNext, déployez plutôt [ERPNext avec Helpdesk](https://github.com/catenahq/catena-templates/blob/main/blueprints/erpnext-helpdesk/README.md).
+**Helpdesk.** Pour un helpdesk relié à vos clients ERPNext, déployez plutôt [ERPNext avec Helpdesk](https://github.com/catenahq/catena-templates/blob/HEAD/blueprints/erpnext-helpdesk/README.md).
 
 ### Variables d'environnement
 
