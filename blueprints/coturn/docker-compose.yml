@@ -32,7 +32,8 @@ x-catena:
   # certificate files again. verify runs hourly and before an update. It reads
   # the listening sockets from /proc/net and the end of the certificate's
   # validity from the DER text of the first certificate of the chain, with the
-  # tools the image has.
+  # tools the image has: its BusyBox grep matches no time among the DER's binary
+  # bytes, so tr leaves only digits and Z first.
   hooks:
     service: coturn
     timeout_seconds: 60
@@ -66,7 +67,7 @@ x-catena:
             fail="$$fail certificate-missing"
           else
             end=$$(sed -n '1,/END CERTIFICATE/p' "$$cert" | sed '/-----/d' | base64 -d 2>/dev/null \
-              | grep -a -o -E '[0-9]{12}Z' | sed -n 2p)
+              | tr -c '0-9Z' ' ' | grep -o -E '[0-9]{12}Z' | sed -n 2p)
             if [ -z "$$end" ]; then
               fail="$$fail certificate-validity-unreadable"
             else

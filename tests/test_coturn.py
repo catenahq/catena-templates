@@ -233,7 +233,7 @@ def test_the_start_script_ends_in_turnserver_so_it_receives_the_signals():
 
 # --- the hooks ----------------------------------------------------------------
 
-APPLETS = ("awk", "base64", "cat", "cut", "date", "grep", "sed", "sha256sum")
+APPLETS = ("awk", "base64", "cat", "cut", "date", "grep", "sed", "sha256sum", "tr")
 
 
 def _tools(tmp_path: Path) -> tuple[Path, list[str]]:
@@ -260,9 +260,10 @@ def _run_hook(tmp_path: Path, name: str, replace: dict[str, str], env: dict[str,
                           env={"PATH": str(bin_dir), **env})
 
 
-def _certificate(path: Path, days: int) -> None:
+def _certificate(path: Path, days: int, *, serial: str = "") -> None:
     subprocess.run(["openssl", "req", "-x509", "-newkey", "ec", "-pkeyopt", "ec_paramgen_curve:prime256v1", "-nodes",
-                    "-keyout", str(path) + ".key", "-out", str(path), "-days", str(days), "-subj", "/CN=turn.example.test"],
+                    "-keyout", str(path) + ".key", "-out", str(path), "-days", str(days), "-subj", "/CN=turn.example.test",
+                    *(["-set_serial", serial] if serial else [])],
                    check=True, capture_output=True)
 
 
@@ -305,6 +306,17 @@ def test_verify_names_a_port_that_does_not_listen(tmp_path):
     assert run.returncode == 1 and "tcp-5349-not-listening" in run.stderr
     run = _verify(tmp_path / "c", cert, tcp=(5349,), state="01")
     assert run.returncode == 1 and "tcp-5349-not-listening" in run.stderr
+
+
+@needs_openssl
+def test_verify_reads_a_certificate_whose_der_holds_a_nul_before_its_dates(tmp_path):
+    """A serial with its high bit set is written with a leading 00 byte, as a CA's often is; BusyBox grep matches
+    nothing past such a byte."""
+    cert = tmp_path / "fullchain.pem"
+    _certificate(cert, 30, serial="0x8000000000000001")
+    run = _verify(tmp_path, cert)
+    assert run.returncode == 0, run.stderr
+    assert "certificate is valid for 24 hours" in run.stdout
 
 
 @needs_openssl
