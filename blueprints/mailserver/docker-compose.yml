@@ -543,6 +543,11 @@ services:
           $$config['oauth_scope'] = 'openid email profile';
           $$config['oauth_auth_parameters'] = ['access_type' => 'offline'];
           $$config['oauth_login_redirect'] = true;
+          // Every request reaches the webmail through the tunnel's TLS and then Traefik over
+          // plain HTTP, and Roundcube trusts a forwarded scheme only from a listed proxy, so
+          // it is told it serves https: the sign-in return address it sends Keycloak is the
+          // registered https one.
+          $$config['use_https'] = true;
         }
         EOF
         exec /docker-entrypoint.sh apache2-foreground

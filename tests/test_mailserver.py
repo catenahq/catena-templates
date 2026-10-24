@@ -98,6 +98,16 @@ def test_the_webmail_signs_in_with_its_own_client_that_dovecot_introspects_with(
     assert not {k for k in _entry().env if k.startswith("OIDC_CLIENT") or k == "OIDC_ISSUER_URL"}
 
 
+def test_the_webmail_sends_keycloak_its_https_return_address():
+    body = _body(_compose()["services"]["roundcube"]["entrypoint"])
+    sign_in = body.split("> /var/roundcube/config/oauth.inc.php <<'EOF'\n")[1].split("\nEOF\n")[0]
+    block = sign_in[sign_in.index("if ("):]
+    assert "$config['use_https'] = true;" in block
+    assert "force_https" not in body
+    labels = _compose()["services"]["roundcube"]["labels"]
+    assert "vps.auth.oidc.redirect_uris=https://${DOMAIN_HOST}/index.php/login/oauth" in labels
+
+
 # --- the start script of dms ------------------------------------------------
 
 def _start(tmp_path: Path, **env: str) -> subprocess.CompletedProcess:
