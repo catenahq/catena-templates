@@ -200,12 +200,13 @@ services:
       placement:
         constraints:
           - node.labels.catena.role==data
-    command: server /export --console-address ":9090"
+    # The store is served from /data, the image's own VOLUME, so the named volume covers it.
+    command: server /data --console-address ":9090"
     environment:
       MINIO_ROOT_USER: ${PLANE_MINIO_ACCESS_KEY}
       MINIO_ROOT_PASSWORD: ${PLANE_MINIO_SECRET_KEY}
     volumes:
-      - minio-data:/export
+      - minio-data:/data
     labels:
       - "vps.auto-update=off"
     # The proxy's Caddyfile reaches the bucket by this name.
