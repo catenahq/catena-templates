@@ -8,12 +8,15 @@ name: app-tag
 #               annotated tag `<app>/<version>-<revision>` on the commit
 #   mark TAG    its newest tag was made by hand and holds the same files: that
 #               tag is annotated where it stands
-#   skip TAG    a passing run made its newest tag, which holds the same files
+#   skip TAG    a passing run made its newest tag, which holds the same files,
+#               or the newest tag is on a later commit
 # The annotation opens with `app-tests passed` and names the commit and the run.
 # The tags are written through the API with the catenahq-renovate GitHub App's
 # token (secrets RENOVATE_APP_CLIENT_ID and RENOVATE_APP_PRIVATE_KEY), the one
 # actor the tag ruleset lets create or move a `*/*` tag; ops sends the event
-# with the same App.
+# with the same App. Runs are not queued behind each other, which would drop all
+# but the newest waiting event: a run whose new tag another run created first
+# reads the tags again and plans that app once more.
 
 on:
   repository_dispatch:
@@ -21,11 +24,6 @@ on:
 
 permissions:
   contents: read
-
-# One run at a time: two would count the same tags for the next revision.
-concurrency:
-  group: app-tag
-  cancel-in-progress: false
 
 jobs:
   tag:
@@ -83,19 +81,26 @@ jobs:
         run: |
           set -euo pipefail
           message="app-tests passed at $SHA: $RUN"
-          while read -r app action tag; do
-            case "$action" in
-              skip)
-                echo "$app: a passing run made $tag already" ;;
-              mark)
-                object="$(gh api -X POST "repos/$REPO/git/tags" -f "tag=$tag" -f "message=$message" \
-                  -f "object=$(git rev-parse "$tag^{commit}")" -f type=commit --jq .sha)"
-                gh api -X PATCH "repos/$REPO/git/refs/tags/$tag" -f "sha=$object" -F force=true > /dev/null
-                echo "$app: marked $tag" ;;
-              create)
-                object="$(gh api -X POST "repos/$REPO/git/tags" -f "tag=$tag" -f "message=$message" \
-                  -f "object=$SHA" -f type=commit --jq .sha)"
-                gh api -X POST "repos/$REPO/git/refs" -f "ref=refs/tags/$tag" -f "sha=$object" > /dev/null
-                echo "$app: tagged $tag" ;;
-            esac
-          done < "$RUNNER_TEMP/plan.txt"
+          while read -r app action tag <&3; do
+            for try in 1 2 3; do
+              case "$action" in
+                skip)
+                  echo "$app: keeps $tag"; break ;;
+                mark)
+                  object="$(gh api -X POST "repos/$REPO/git/tags" -f "tag=$tag" -f "message=$message" \
+                    -f "object=$(git rev-parse "$tag^{commit}")" -f type=commit --jq .sha)"
+                  gh api -X PATCH "repos/$REPO/git/refs/tags/$tag" -f "sha=$object" -F force=true > /dev/null
+                  echo "$app: marked $tag"; break ;;
+                create)
+                  object="$(gh api -X POST "repos/$REPO/git/tags" -f "tag=$tag" -f "message=$message" \
+                    -f "object=$SHA" -f type=commit --jq .sha)"
+                  if gh api -X POST "repos/$REPO/git/refs" -f "ref=refs/tags/$tag" -f "sha=$object" > /dev/null; then
+                    echo "$app: tagged $tag"; break
+                  fi
+                  [ "$try" -lt 3 ] || { echo "::error::$app: $tag could not be created"; exit 1; }
+                  git fetch -q --force origin '+refs/tags/*:refs/tags/*'
+                  plan="$(env -u GH_TOKEN uv run build/versions.py plan "$app")"
+                  read -r action tag <<< "$plan" ;;
+              esac
+            done
+          done 3< "$RUNNER_TEMP/plan.txt"

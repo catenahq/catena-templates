@@ -18,7 +18,8 @@ its newest tag, and `untested` when it has no tag or its newest was made by
 hand. All of it is read from the checkout's git.
 
   plan APP              what a pass at the checked-out commit does to APP's tags:
-                        `skip TAG`, `mark TAG` (annotate the hand-made TAG) or `create TAG`
+                        `skip TAG` (tested, or TAG is on a later commit), `mark TAG`
+                        (annotate the hand-made TAG) or `create TAG`
   scope                 changed paths on stdin -> fail when they touch more than one app
   tested [--needs-run]  each app's state at the checked-out commit; with
                         --needs-run, the ids of the apps not `tested`
@@ -171,15 +172,22 @@ def tested_state(app: str, ref: str = "HEAD") -> tuple[str, str | None]:
     return (TESTED if tags[newest] else UNTESTED), newest
 
 
+def _is_ancestor(commit: str, of: str) -> bool:
+    return subprocess.run(["git", "-C", str(ROOT), "merge-base", "--is-ancestor", commit, of],
+                          capture_output=True, check=False).returncode == 0
+
+
 def plan(app: str) -> str:
     """What a pass at the checked-out commit does to the app's tags: nothing when a
-    passing run made the newest tag, annotate a hand-made newest tag that holds the
-    same files, else a new tag."""
+    passing run made the newest tag or the newest tag is on a later commit, annotate
+    a hand-made newest tag that holds the same files, else a new tag."""
     state, newest = tested_state(app)
     if state == TESTED:
         return f"skip {newest}"
     if state == UNTESTED and newest:
         return f"mark {newest}"
+    if newest and _is_ancestor("HEAD", f"{newest}^{{commit}}"):
+        return f"skip {newest}"
     return f"create {next_tag(app, app_tags(app))}"
 
 
