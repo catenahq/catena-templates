@@ -516,6 +516,10 @@ def test_the_database_match_reads_the_image_name_only():
     assert L.database_image("postgres:18.6-alpine")
     assert L.database_image("ghcr.io/immich-app/postgres:14-vectorchord0.4.3")
     assert L.database_image("mariadb:11.8.9@sha256:" + "0" * 64)
+    assert L.database_image("pgvector/pgvector:0.8.7-pg18-trixie")
+    assert L.database_image("postgis/postgis:17-3.5")
+    assert L.database_image("timescale/timescaledb-ha:pg17")
+    assert not L.database_image("acme/app:pgvector")
     assert not L.database_image("nextcloud:34.0.0-apache")
     assert not L.database_image("localhost:5000/acme/app:mysql-client")
 

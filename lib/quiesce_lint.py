@@ -178,16 +178,20 @@ def compose_services(entry) -> set[str]:
     return set(doc["services"])
 
 
-# The database engines the host dumps and replays, matched on the image name
-# as catena-admin payload/engines/appdb Family matches them.
+# The database engines the host dumps and replays, matched as catena-admin
+# payload/engines/appdb Family matches them: the reference holds one of
+# DATABASE_IMAGE_WORDS, or the image's own name starts with one of
+# DATABASE_NAME_PREFIXES (Postgres builds whose names do not say postgres).
 DATABASE_IMAGE_WORDS = ("mariadb", "mysql", "postgres")
+DATABASE_NAME_PREFIXES = ("postgis", "timescale", "pgvector")
 
 
 def database_image(image: str) -> bool:
     name = str(image).lower().split("@", 1)[0]
     if name.rfind(":") > name.rfind("/"):
         name = name[:name.rfind(":")]
-    return any(word in name for word in DATABASE_IMAGE_WORDS)
+    return (any(word in name for word in DATABASE_IMAGE_WORDS)
+            or name.rsplit("/", 1)[-1].startswith(DATABASE_NAME_PREFIXES))
 
 
 def mounted_volumes(service: dict) -> set[str]:
