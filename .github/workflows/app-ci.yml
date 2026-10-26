@@ -39,6 +39,13 @@ on:
 permissions:
   contents: read
 
+# A newer push to the branch, or a newer commit of the pull request, cancels the
+# run it supersedes. The prefix keeps the group apart from that of a calling
+# workflow in another repository.
+concurrency:
+  group: catena-templates-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   TEMPLATES_ROOT: ${{ format('{0}', inputs.catalog) == 'false' && github.workspace || '' }}
   TOOLS: ${{ format('{0}', inputs.catalog) == 'false' && '.tools' || '.' }}
