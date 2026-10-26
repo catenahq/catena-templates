@@ -1967,6 +1967,11 @@
             "bench",
             "set-maintenance-mode",
             "off"
+          ],
+          [
+            "node",
+            "-e",
+            "const http = require(\"http\");\nconst site = process.env.SITE_NAME;\nconst deadline = Date.now() + 120000;\nlet last = \"no answer\";\nconst ping = () => new Promise((resolve) => {\n  const request = http.get({host: \"127.0.0.1\", port: 8000, path: \"/api/method/ping\",\n                            headers: {Host: site}, timeout: 10000}, (answer) => {\n    let body = \"\";\n    answer.on(\"data\", (chunk) => { body += chunk; });\n    answer.on(\"end\", () => resolve([answer.statusCode, body]));\n  });\n  request.on(\"timeout\", () => request.destroy(new Error(\"timed out\")));\n  request.on(\"error\", (error) => resolve([0, String(error)]));\n});\n(async () => {\n  while (Date.now() < deadline) {\n    const [status, body] = await ping();\n    if (status === 200 && body.includes(\"pong\")) process.exit(0);\n    last = status ? \"HTTP \" + status : body;\n    await new Promise((resolve) => setTimeout(resolve, 2000));\n  }\n  console.error(\"the site \" + site + \" does not answer its ping after 120 s: \" + last);\n  process.exit(1);\n})();\n"
           ]
         ],
         "before_update": [
