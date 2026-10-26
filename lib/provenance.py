@@ -3,10 +3,15 @@ releases, stands behind each one.
 
 An image passes when its source repository is at least a year old and has
 three releases. The repository is the one the image's
-`org.opencontainers.image.source` label names, read from GitHub. An image with
-no such label that lives on Docker Hub is judged by its Docker Hub repository
-instead: registered at least a year ago, with three pushed tags. Any other
-image fails, naming the image: GHCR and the other registries expose no dates.
+`org.opencontainers.image.source` label names, read from GitHub. An image that
+lives on Docker Hub is judged by its Docker Hub repository instead when it has
+no such label, or when its GitHub repository is under a year old or has too few
+releases: registered at least a year ago, with three pushed tags. A GitHub
+repository that does not exist, a page that cannot be read, and an image of
+another registry (GHCR and the others expose no dates) fail, naming the image.
+An image whose repository is listed in the environment variable
+`PROVENANCE_OWN_IMAGES` (comma-separated, no tag) is the repository's own
+build and passes unchecked.
 
 The checks take `fetch(url) -> JSON | None` (None for a missing page), so a
 test answers from recorded responses and the CLI answers over HTTPS.
@@ -38,6 +43,10 @@ _GITHUB_SOURCE = re.compile(r"github\.com[/:]([^/\s]+)/([^/\s#?]+)")
 
 class ProvenanceError(Exception):
     """A page that could not be read, as opposed to one that is missing."""
+
+
+class SourceNotEstablished(Exception):
+    """A GitHub repository that exists but is too young or has too few releases."""
 
 
 def resolve_ref(raw: str) -> str:
@@ -101,11 +110,12 @@ def _github(owner: str, repo: str, fetch: Fetch, now: datetime) -> str | None:
     if not info:
         return f"GitHub has no repository {owner}/{repo}"
     if not _old_enough(info.get("created_at"), now):
-        return f"{owner}/{repo} is under a year old"
+        raise SourceNotEstablished(f"{owner}/{repo} is under a year old")
     releases = fetch(f"{GITHUB_API}/repos/{owner}/{repo}/releases?per_page=100") or []
     published = [r for r in releases if not r.get("draft")]
     if len(published) < MIN_RELEASES:
-        return f"{owner}/{repo} has {len(published)} release(s), needs {MIN_RELEASES}"
+        raise SourceNotEstablished(
+            f"{owner}/{repo} has {len(published)} release(s), needs {MIN_RELEASES}")
     return None
 
 
@@ -122,6 +132,26 @@ def _hub(path: str, fetch: Fetch, now: datetime) -> str | None:
     return None
 
 
+def own_images(environ: dict[str, str] | None = None) -> set[tuple[str, str]]:
+    """The repositories PROVENANCE_OWN_IMAGES lists, as split_ref yields them."""
+    raw = (environ if environ is not None else os.environ).get("PROVENANCE_OWN_IMAGES", "")
+    return {split_ref(item.strip()) for item in raw.split(",") if item.strip()}
+
+
+def is_own(ref: str, own: set[tuple[str, str]]) -> bool:
+    return split_ref(ref) in own
+
+
+def _hub_instead(ref: str, reason: str, fetch: Fetch, now: datetime) -> str | None:
+    """A GitHub source that is too young or has too few releases: an image on
+    Docker Hub falls back to its Docker Hub record."""
+    registry, path = split_ref(ref)
+    if registry != "docker.io":
+        return reason
+    hub = _hub(path, fetch, now)
+    return f"{reason}; {hub}" if hub else None
+
+
 def check_image(ref: str, labels: dict[str, str] | None, fetch: Fetch,
                 now: datetime | None = None) -> str | None:
     """None when the image's provenance holds, else the failure naming it."""
@@ -130,7 +160,10 @@ def check_image(ref: str, labels: dict[str, str] | None, fetch: Fetch,
     try:
         repo = github_repo(source)
         if repo:
-            why = _github(*repo, fetch, now)
+            try:
+                why = _github(*repo, fetch, now)
+            except SourceNotEstablished as exc:
+                why = _hub_instead(ref, str(exc), fetch, now)
         else:
             registry, path = split_ref(ref)
             if registry != "docker.io":

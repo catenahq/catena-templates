@@ -3,6 +3,8 @@ answered from recorded API responses in tests/fixtures/provenance."""
 from __future__ import annotations
 
 import json
+import os
+import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -108,6 +110,90 @@ def test_ghcr_without_a_label_fails_naming_the_image():
 def test_a_label_wins_over_docker_hub():
     pages = {**GITHUB_OK}
     assert provenance.check_image("redis:7", LABELS, _fetch(pages), NOW) is None
+
+
+HUB_APP = {
+    f"{HUB}/repositories/example/app/": "hub_repo.json",
+    f"{HUB}/repositories/example/app/tags?page_size=100": "hub_tags.json",
+}
+FEW_RELEASES = {f"{GH}/repos/example/app/releases?per_page=100": "github_releases_few.json"}
+
+
+def test_a_hub_image_whose_github_source_has_too_few_releases_passes_on_its_hub_record():
+    pages = {**GITHUB_OK, **FEW_RELEASES, **HUB_APP}
+    assert provenance.check_image("example/app:3", LABELS, _fetch(pages), NOW) is None
+
+
+def test_a_hub_image_whose_github_source_is_young_passes_on_its_hub_record():
+    pages = {**GITHUB_OK, f"{GH}/repos/example/app": "github_young.json", **HUB_APP}
+    assert provenance.check_image("example/app:3", LABELS, _fetch(pages), NOW) is None
+
+
+def test_the_hub_fallback_fails_when_the_hub_record_is_too_young():
+    pages = {**GITHUB_OK, **FEW_RELEASES,
+             f"{HUB}/repositories/example/app/": "hub_young.json"}
+    failure = provenance.check_image("example/app:3", LABELS, _fetch(pages), NOW)
+    assert failure.startswith("example/app:3: example/app has 1 release(s), needs 3; ")
+    assert "registered under a year ago" in failure
+
+
+def test_the_hub_fallback_fails_when_the_hub_has_too_few_tags():
+    pages = {**GITHUB_OK, **FEW_RELEASES, **HUB_APP,
+             f"{HUB}/repositories/example/app/tags?page_size=100": "hub_tags_few.json"}
+    assert "1 pushed tag(s), needs 3" in provenance.check_image("example/app:3", LABELS, _fetch(pages), NOW)
+
+
+def test_a_ghcr_image_with_too_few_releases_still_fails_despite_a_hub_record():
+    pages = {**GITHUB_OK, **FEW_RELEASES, **HUB_APP}
+    failure = provenance.check_image("ghcr.io/example/app:3", LABELS, _fetch(pages), NOW)
+    assert failure == "ghcr.io/example/app:3: example/app has 1 release(s), needs 3"
+
+
+def test_a_missing_github_repository_does_not_fall_back_to_the_hub():
+    failure = provenance.check_image("example/app:3", LABELS, _fetch(HUB_APP), NOW)
+    assert failure == "example/app:3: GitHub has no repository example/app"
+
+
+def test_an_unreadable_github_page_does_not_fall_back_to_the_hub():
+    def fetch(url: str):
+        if url.startswith(GH):
+            raise provenance.ProvenanceError(f"{url} answered HTTP 403")
+        return _fetch(HUB_APP)(url)
+    failure = provenance.check_image("example/app:3", LABELS, fetch, NOW)
+    assert "HTTP 403" in failure
+
+
+def test_own_images_read_the_environment_as_split_ref_yields_them():
+    own = provenance.own_images({"PROVENANCE_OWN_IMAGES": "ghcr.io/catenahq/repertoire, redis"})
+    assert own == {("ghcr.io", "catenahq/repertoire"), ("docker.io", "library/redis")}
+    assert provenance.is_own("ghcr.io/catenahq/repertoire:1.2@sha256:abc", own)
+    assert provenance.is_own("redis:7", own)
+    assert not provenance.is_own("ghcr.io/catenahq/other:1", own)
+    assert provenance.own_images({}) == set()
+
+
+def test_an_own_image_passes_with_a_line_and_is_not_looked_up(tmp_path, monkeypatch, capsys):
+    (tmp_path / "blueprints" / "demo").mkdir(parents=True)
+    (tmp_path / "blueprints" / "demo" / "docker-compose.yml").write_text(
+        "services:\n  a:\n    image: ghcr.io/catenahq/repertoire:1.0.0\n")
+    monkeypatch.setattr(app_checks, "ROOT", tmp_path)
+    monkeypatch.setenv("PROVENANCE_OWN_IMAGES", "ghcr.io/catenahq/repertoire")
+
+    def no_lookup(ref):
+        raise AssertionError("an own image is not inspected")
+    assert app_checks.provenance_errors("demo", labels_of=no_lookup, fetch=_fetch({})) == []
+    assert "the repository's own build" in capsys.readouterr().out
+
+
+def test_the_app_check_script_runs_in_its_own_uv_environment():
+    """build/app_check.py declares its own dependencies: run it where only they exist."""
+    done = subprocess.run(
+        ["uv", "run", "--quiet", str(ROOT / "build" / "app_check.py"), "changed"],
+        input="blueprints/foo/docker-compose.yml\nsources/foo.json\n",
+        cwd=ROOT.parent, capture_output=True, text=True, check=False,
+        env={k: v for k, v in os.environ.items() if k != "PYTHONPATH"})
+    assert done.returncode == 0, done.stderr
+    assert done.stdout.strip() == "foo"
 
 
 def test_an_unreadable_page_fails_the_image_instead_of_crashing():

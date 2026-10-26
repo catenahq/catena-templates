@@ -4,7 +4,8 @@
   changed               repo-relative paths on stdin -> the app ids they touch
   images ID             the image references the app's compose pins
   licence ID [--new]    a new imported entry names a permitted licence; any named one is permitted
-  provenance ID         each pulled image's project is old enough, with releases
+  provenance ID         each pulled image's project is old enough, with releases;
+                        an image listed in PROVENANCE_OWN_IMAGES is the repository's own build
 
 Provenance reads the image's `org.opencontainers.image.source` label from
 `docker image inspect`, so the app's images are pulled first.
@@ -52,7 +53,11 @@ def licence_errors(app: str, source: dict, *, new: bool) -> list[str]:
 def provenance_errors(app: str, labels_of=None, fetch=provenance.http_fetch) -> list[str]:
     refs, unresolved = provenance.compose_images(_compose(app))
     errors = [f"{app}: image {raw!r} is not a plain reference" for raw in unresolved]
+    own = provenance.own_images()
     for ref in refs:
+        if provenance.is_own(ref, own):
+            print(f"{app}: {ref}: the repository's own build")
+            continue
         labels = (labels_of or _docker_labels)(ref)
         failure = provenance.check_image(ref, labels, fetch)
         if failure:

@@ -15,7 +15,9 @@ Every pull request, from a fork too, runs `.github/workflows/app-ci.yml`
 before a person reviews it: the app checker, the swarm loader, a licence
 rule, scanctl on the app's images (a fixable high or critical vulnerability
 fails), image provenance (a source repository at least a year old with three
-releases) and ClamAV over each image's files. The workflow holds
+releases, else for a Docker Hub image its Docker Hub repository registered at
+least a year ago with three pushed tags; an image the repository builds itself
+is listed as its own) and ClamAV over each image's files. The workflow holds
 `contents: read` only and passes pull-request text to scripts through
 environment variables.
 
