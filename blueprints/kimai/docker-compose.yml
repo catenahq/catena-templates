@@ -35,7 +35,8 @@ services:
       ADMINMAIL: ${KIMAI_ADMIN_EMAIL}
       ADMINPASS: ${KIMAI_ADMIN_PASSWORD}
       TRUSTED_PROXIES: "0.0.0.0/0"
-      TRUSTED_HOSTS: "localhost,${KIMAI_HOSTNAME}"
+      # Kimai splits this list on "|"; the image's own healthcheck asks 127.0.0.1.
+      TRUSTED_HOSTS: "localhost|127.0.0.1|${KIMAI_HOSTNAME}"
       MAILER_FROM: ${KIMAI_MAIL_FROM}
       MAILER_URL: ${KIMAI_MAIL_URL}
       memory_limit: "512M"

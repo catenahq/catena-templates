@@ -52,7 +52,8 @@ services:
     volumes:
       - config-data:/var/www/html/config
       - logs-data:/var/www/html/var/logs
-      - media-data:/var/www/html/docroot/media
+      - media-files:/var/www/html/docroot/media/files
+      - media-images:/var/www/html/docroot/media/images
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://localhost/ >/dev/null || exit 1"]
       interval: 15s
@@ -90,7 +91,8 @@ services:
     volumes:
       - config-data:/var/www/html/config
       - logs-data:/var/www/html/var/logs
-      - media-data:/var/www/html/docroot/media
+      - media-files:/var/www/html/docroot/media/files
+      - media-images:/var/www/html/docroot/media/images
     labels:
       - "vps.auto-update=patch"
     networks:
@@ -114,7 +116,8 @@ services:
     volumes:
       - config-data:/var/www/html/config
       - logs-data:/var/www/html/var/logs
-      - media-data:/var/www/html/docroot/media
+      - media-files:/var/www/html/docroot/media/files
+      - media-images:/var/www/html/docroot/media/images
     labels:
       - "vps.auto-update=patch"
     networks:
@@ -149,7 +152,10 @@ services:
 volumes:
   config-data:
   logs-data:
-  media-data:
+  # The image declares docroot/media/files and docroot/media/images as volumes: each needs a named
+  # volume at that exact path, or every new container gets fresh anonymous ones and the uploads are lost.
+  media-files:
+  media-images:
   db-data:
 
 networks:
