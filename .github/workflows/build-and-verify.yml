@@ -5,6 +5,12 @@ name: build-and-verify
 # contracts' new-failures-only action, which fails only on failures the base
 # commit does not have, and the prose gate looks at the files the change
 # touches.
+#
+# Another repository with the same layout calls this workflow with
+# `catalog: false`. Its tools then come from a checkout of catena-templates at
+# `tools-ref` into .tools, TEMPLATES_ROOT names the caller's tree, the render
+# drift covers its blueprints only, its own tests/ run, and the duplication job
+# is skipped.
 
 on:
   # Every pushed branch. Renovate, engine-bump and image-pin branches always
@@ -13,9 +19,28 @@ on:
     branches-ignore: ['renovate/**', 'engine-bump/**', 'image-pin/**', 'scanctl/**']
   pull_request:
     branches: [main]
+  workflow_call:
+    inputs:
+      catalog:
+        description: true for the catalog itself, false for another repository's tree
+        type: boolean
+        default: true
+      tools-ref:
+        description: the catena-templates ref the tools are checked out at when catalog is false
+        type: string
+        default: main
+      own-images:
+        description: comma-separated image repositories (no tag) the caller builds itself
+        type: string
+        default: ''
 
 permissions:
   contents: read
+
+env:
+  TEMPLATES_ROOT: ${{ format('{0}', inputs.catalog) == 'false' && github.workspace || '' }}
+  TOOLS: ${{ format('{0}', inputs.catalog) == 'false' && '.tools' || '.' }}
+  DRIFT_PATHS: ${{ format('{0}', inputs.catalog) == 'false' && 'blueprints' || 'blueprints templates.json catalog.json index.html' }}
 
 jobs:
   render-idempotency:
@@ -25,14 +50,22 @@ jobs:
         with:
           persist-credentials: false
       - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+      - name: Check out the tools
+        if: env.TEMPLATES_ROOT != ''
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          repository: catenahq/catena-templates
+          ref: ${{ inputs.tools-ref }}
+          path: .tools
+          persist-credentials: false
       - name: Render and verify no drift between sources/ and the generated artifacts
         uses: catenahq/contracts/.github/actions/new-failures-only@main
         with:
           working-directory: ${{ github.workspace }}
           repo-path: ${{ github.workspace }}
           run: |
-            uv run build/render.py
-            if ! git diff --exit-code blueprints templates.json catalog.json index.html; then
+            uv run "$TOOLS/build/render.py"
+            if ! git diff --exit-code $DRIFT_PATHS; then
               echo ""
               echo "render output drifted from committed artifacts."
               echo "Run 'make render' locally, commit the diff, push."
@@ -46,8 +79,19 @@ jobs:
         with:
           persist-credentials: false
       - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+      - name: Check out the tools
+        if: env.TEMPLATES_ROOT != ''
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          repository: catenahq/catena-templates
+          ref: ${{ inputs.tools-ref }}
+          path: .tools
+          persist-credentials: false
+      - name: Render the generated files the validator reads
+        if: env.TEMPLATES_ROOT != ''
+        run: uv run "$TOOLS/build/render.py"
       - name: Validate sources/ and templates.json against their schemas
-        run: uv run build/validate.py
+        run: uv run "$TOOLS/build/validate.py"
 
   # The hygiene gates live in catenahq/contracts and are run from there,
   # so this repo holds no copy of them. Both checkouts use an explicit
@@ -121,6 +165,14 @@ jobs:
         with:
           persist-credentials: false
       - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+      - name: Check out the tools
+        if: env.TEMPLATES_ROOT != ''
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          repository: catenahq/catena-templates
+          ref: ${{ inputs.tools-ref }}
+          path: .tools
+          persist-credentials: false
       - name: pytest, quiesce lint and postgres pin lint
         # Three gates in one run: a failure line of one must not hide a new
         # failure of another, so the exit status decides.
@@ -131,8 +183,8 @@ jobs:
           run: |
             rc=0
             uv run --with pytest --with jsonschema --with pyyaml pytest tests/ -q || rc=1
-            uv run build/lint_quiesce.py || rc=1
-            uv run build/lint_postgres_pins.py || rc=1
+            uv run "$TOOLS/build/lint_quiesce.py" || rc=1
+            uv run "$TOOLS/build/lint_postgres_pins.py" || rc=1
             exit $rc
 
   duplication:
@@ -140,6 +192,7 @@ jobs:
     # exceeding it fails. Lower the threshold as duplication is paid
     # down, never raise it to admit new copy-paste.
     name: Duplication (jscpd)
+    if: format('{0}', inputs.catalog) != 'false'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7

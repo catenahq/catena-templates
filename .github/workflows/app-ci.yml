@@ -11,12 +11,37 @@ name: app-ci
 # through contracts' new-failures-only action, which fails only when the base
 # commit passes them; `scope` reads the change against its base; the per-app
 # jobs check each changed app absolutely, the image scan included.
+#
+# Another repository with the same layout calls this workflow with
+# `catalog: false`. Its tools then come from a checkout of catena-templates at
+# `tools-ref` into .tools, TEMPLATES_ROOT names the caller's tree, `repo` holds
+# the swarm lint and the app checker in folder mode (no --catalog), and
+# `own-images` lists the image repositories the caller builds, which the
+# provenance step passes.
 
 on:
   pull_request:
+  workflow_call:
+    inputs:
+      catalog:
+        description: true for the catalog itself, false for another repository's tree
+        type: boolean
+        default: true
+      tools-ref:
+        description: the catena-templates ref the tools are checked out at when catalog is false
+        type: string
+        default: main
+      own-images:
+        description: comma-separated image repositories (no tag) the caller builds itself
+        type: string
+        default: ''
 
 permissions:
   contents: read
+
+env:
+  TEMPLATES_ROOT: ${{ format('{0}', inputs.catalog) == 'false' && github.workspace || '' }}
+  TOOLS: ${{ format('{0}', inputs.catalog) == 'false' && '.tools' || '.' }}
 
 jobs:
   repo:
@@ -27,9 +52,18 @@ jobs:
         with:
           persist-credentials: false
       - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+      - name: Check out the tools
+        if: env.TEMPLATES_ROOT != ''
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          repository: catenahq/catena-templates
+          ref: ${{ inputs.tools-ref }}
+          path: .tools
+          persist-credentials: false
       - name: make (render, lint, test) and catena-applint over the catalog
         # The checker ships in the public catena-admin image, so a fork's run
         # needs no credential to get it. Two nodes, as every catalog check runs.
+        if: env.TEMPLATES_ROOT == ''
         uses: catenahq/contracts/.github/actions/new-failures-only@main
         with:
           working-directory: ${{ github.workspace }}
@@ -39,6 +73,18 @@ jobs:
             docker run --rm -v "$PWD:/work:ro" \
               --entrypoint /usr/local/share/catena-ee/bin/catena-applint \
               ghcr.io/catenahq/catena-admin:latest --catalog --nodes 2 /work/blueprints
+      - name: Swarm lint and catena-applint over the blueprints
+        # Folder mode: the tree is one repository's blueprints, not the catalog.
+        if: env.TEMPLATES_ROOT != ''
+        uses: catenahq/contracts/.github/actions/new-failures-only@main
+        with:
+          working-directory: ${{ github.workspace }}
+          repo-path: ${{ github.workspace }}
+          run: |
+            uv run "$TOOLS/build/lint_swarm.py"
+            docker run --rm -v "$PWD:/work:ro" \
+              --entrypoint /usr/local/share/catena-ee/bin/catena-applint \
+              ghcr.io/catenahq/catena-admin:latest --nodes 2 /work/blueprints
 
   scope:
     # One pull request changes one app, so one merge is one tag.
@@ -50,10 +96,18 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+      - name: Check out the tools
+        if: env.TEMPLATES_ROOT != ''
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          repository: catenahq/catena-templates
+          ref: ${{ inputs.tools-ref }}
+          path: .tools
+          persist-credentials: false
       - name: The change touches at most one app
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
-        run: git diff --name-only "$BASE_SHA" HEAD | uv run build/versions.py scope
+        run: git diff --name-only "$BASE_SHA" HEAD | uv run "$TOOLS/build/versions.py" scope
 
   plan:
     name: changed apps
@@ -66,6 +120,14 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+      - name: Check out the tools
+        if: env.TEMPLATES_ROOT != ''
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          repository: catenahq/catena-templates
+          ref: ${{ inputs.tools-ref }}
+          path: .tools
+          persist-credentials: false
       - name: Apps the change touches, and still has
         id: changed
         env:
@@ -73,7 +135,7 @@ jobs:
         run: |
           set -euo pipefail
           git diff --name-only "$BASE_SHA" HEAD > "$RUNNER_TEMP/paths.txt"
-          uv run build/app_check.py changed < "$RUNNER_TEMP/paths.txt" > "$RUNNER_TEMP/ids.txt"
+          uv run "$TOOLS/build/app_check.py" changed < "$RUNNER_TEMP/paths.txt" > "$RUNNER_TEMP/ids.txt"
           apps=()
           for id in $(cat "$RUNNER_TEMP/ids.txt"); do
             # An app the change deletes has nothing left to check.
@@ -103,6 +165,14 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+      - name: Check out the tools
+        if: env.TEMPLATES_ROOT != ''
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          repository: catenahq/catena-templates
+          ref: ${{ inputs.tools-ref }}
+          path: .tools
+          persist-credentials: false
       - name: Swarm loader reads the stack file
         run: docker stack config --skip-interpolation -c "blueprints/$APP/docker-compose.yml" > /dev/null
       - name: Licence
@@ -110,16 +180,17 @@ jobs:
           set -euo pipefail
           new=()
           if ! git cat-file -e "$BASE_SHA:sources/$APP.json" 2>/dev/null; then new=(--new); fi
-          uv run build/app_check.py licence "$APP" "${new[@]}"
+          uv run "$TOOLS/build/app_check.py" licence "$APP" "${new[@]}"
       - name: Pull the app's images
         run: |
           set -euo pipefail
-          uv run build/app_check.py images "$APP" > "$RUNNER_TEMP/images.txt"
+          uv run "$TOOLS/build/app_check.py" images "$APP" > "$RUNNER_TEMP/images.txt"
           while read -r image; do docker pull "$image"; done < "$RUNNER_TEMP/images.txt"
       - name: Provenance (project age and releases)
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: uv run build/app_check.py provenance "$APP"
+          PROVENANCE_OWN_IMAGES: ${{ inputs.own-images }}
+        run: uv run "$TOOLS/build/app_check.py" provenance "$APP"
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
           go-version: stable

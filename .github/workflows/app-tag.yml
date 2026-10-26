@@ -18,13 +18,40 @@ name: app-tag
 # with the same App. Runs are not queued behind each other, which would drop all
 # but the newest waiting event: a run whose new tag another run created first
 # reads the tags again and plans that app once more.
+#
+# Another repository with the same layout calls this workflow with
+# `catalog: false`: its tools come from a checkout of catena-templates at
+# `tools-ref` into .tools, and TEMPLATES_ROOT names the caller's tree.
 
 on:
   repository_dispatch:
     types: [app-passed]
+  workflow_call:
+    inputs:
+      catalog:
+        description: true for the catalog itself, false for another repository's tree
+        type: boolean
+        default: true
+      tools-ref:
+        description: the catena-templates ref the tools are checked out at when catalog is false
+        type: string
+        default: main
+      own-images:
+        description: comma-separated image repositories (no tag) the caller builds itself
+        type: string
+        default: ''
+    secrets:
+      RENOVATE_APP_CLIENT_ID:
+        required: true
+      RENOVATE_APP_PRIVATE_KEY:
+        required: true
 
 permissions:
   contents: read
+
+env:
+  TEMPLATES_ROOT: ${{ format('{0}', inputs.catalog) == 'false' && github.workspace || '' }}
+  TOOLS: ${{ format('{0}', inputs.catalog) == 'false' && '.tools' || '.' }}
 
 jobs:
   tag:
@@ -50,6 +77,14 @@ jobs:
           fetch-tags: true
           persist-credentials: false
       - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+      - name: Check out the tools
+        if: env.TEMPLATES_ROOT != ''
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          repository: catenahq/catena-templates
+          ref: ${{ inputs.tools-ref }}
+          path: .tools
+          persist-credentials: false
       - name: Plan each app's tag
         run: |
           set -euo pipefail
@@ -60,7 +95,7 @@ jobs:
             if ! git cat-file -e "$SHA:blueprints/$app/docker-compose.yml" 2>/dev/null; then
               echo "::error::$SHA holds no app $app"; exit 1
             fi
-            plan="$(uv run build/versions.py plan "$app" --ref "$SHA")"
+            plan="$(uv run "$TOOLS/build/versions.py" plan "$app" --ref "$SHA")"
             echo "$app $plan" >> "$RUNNER_TEMP/plan.txt"
           done
           cat "$RUNNER_TEMP/plan.txt"
@@ -98,7 +133,7 @@ jobs:
                   fi
                   [ "$try" -lt 3 ] || { echo "::error::$app: $tag could not be created"; exit 1; }
                   git fetch -q --force origin '+refs/tags/*:refs/tags/*'
-                  plan="$(env -u GH_TOKEN uv run build/versions.py plan "$app" --ref "$SHA")"
+                  plan="$(env -u GH_TOKEN uv run "$TOOLS/build/versions.py" plan "$app" --ref "$SHA")"
                   read -r action tag <<< "$plan" ;;
               esac
             done

@@ -56,6 +56,11 @@ for layout, consumer model, and BASE URL setup.
   in `sources/<id>.json` and reach the reader through the generated
   README. Comments inside the compose explain a construct that does not
   read as written, beside that construct.
+- The workflows `app-ci.yml`, `build-and-verify.yml`, `app-dispatch.yml` and
+  `app-tag.yml` also serve other repositories through `workflow_call`; their
+  steps run unchanged for this repository (`catalog` true), and a change to
+  them keeps both paths working. The build tools read another tree through
+  `TEMPLATES_ROOT`, and the schemas always come from this checkout.
 - A merge to `main` reaches every new deploy at once, so `main` stays
   deployable. A deployed app keeps the compose, and so the block, it was
   deployed with: a merge changes no running app.

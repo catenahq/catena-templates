@@ -71,6 +71,12 @@ Makefile                 # make render / validate / lint / test / verify
 Dockerfile               # nginx image serving the generated catalog
 ```
 
+The tools (`build/`, `lib/`) also run on another repository's tree of the same
+layout: the environment variable `TEMPLATES_ROOT` names the tree holding its
+`sources/`, `blueprints/` and generated files (default: this checkout), while the
+schemas are always read from this checkout. The render writes into that tree and
+`build/versions.py` reads its git tags.
+
 Three things are human-edited: `sources/<id>.json`, the compose in
 `blueprints/<id>/` with its `x-catena` block, and an optional logo beside
 it. Everything else listed as generated is a committed build artifact; CI
@@ -214,12 +220,29 @@ Then one job per app the change touches (`blueprints/<id>/**` or
   fixed version fails, introduced by the change or not.
 - Provenance (`lib/provenance.py`): each image's `org.opencontainers.image.source`
   repository on GitHub is at least a year old and has three releases (the
-  GitHub API, with the run's `GITHUB_TOKEN`). An image with no GitHub source
-  that lives on Docker Hub passes on its Docker Hub repository: registered at
-  least a year ago, three pushed tags. Any other image fails naming itself,
-  because GHCR and the other registries expose no dates.
+  GitHub API, with the run's `GITHUB_TOKEN`). An image on Docker Hub passes on
+  its Docker Hub repository when it has no GitHub source, or when that
+  repository is under a year old or has too few releases: registered at least
+  a year ago, three pushed tags. A GitHub repository that does not exist
+  fails, and any other image fails naming itself, because GHCR and the other
+  registries expose no dates. An image listed in `PROVENANCE_OWN_IMAGES`
+  (comma-separated repositories, no tag) is the repository's own build and
+  passes.
 - ClamAV over each image's exported files (`docker create`, `docker export`),
   with the databases the pinned `clamav/clamav` feature tag ships.
+
+`app-ci.yml`, `build-and-verify.yml`, `app-dispatch.yml` and `app-tag.yml` are
+also reusable workflows (`workflow_call`) for another repository with this
+layout. Their inputs are `catalog` (default true), `tools-ref` (default `main`)
+and `own-images` (default empty); `app-dispatch.yml` and `app-tag.yml` take the
+secrets `RENOVATE_APP_CLIENT_ID` and `RENOVATE_APP_PRIVATE_KEY`. With `catalog`
+false a called workflow checks out catena-templates at `tools-ref` into
+`.tools` and sets `TEMPLATES_ROOT` to the caller's tree. It runs the swarm lint
+and `catena-applint --nodes 2 blueprints` (no `--catalog`) instead of `make`,
+the caller's `tests/`, render drift over `blueprints` alone, and no jscpd;
+`own-images` reaches the provenance step as `PROVENANCE_OWN_IMAGES`. With
+`catalog` true every step runs as written above, under the names `app-checks`
+and `scope`.
 
 App ids come from changed file names, so the workflow hands them to scripts
 through `env:` only and refuses an id that is not a lowercase slug.
@@ -233,8 +256,9 @@ private runner this repository cannot reach):
 
 - `app-dispatch.yml` runs on a push to any branch, `adopt/*` included. It sends
   the private ops repository the event `app-test` with the commit, the commit
-  the change is judged from, the apps the change touches and the branch. On
-  `main`, each commit of the push is sent on its own, judged from its parent. A
+  the change is judged from, the apps the change touches, the branch and the
+  name of the repository the event comes from (`catena-templates` here; another
+  repository calls this workflow too). On `main`, each commit of the push is sent on its own, judged from its parent. A
   branch other than `main` is judged as a whole, from where it left `main`, and
   is sent only when it changes one app or none. The repository variable
   `APP_CI_PAUSED=true` stops it.
@@ -292,7 +316,9 @@ No file holds a version string: versions are git tags. A tested app is tagged
 `uv run build/versions.py tested` lists each app's state and newest tag
 (`--needs-run`: the ids of the apps not `tested`); `uv run build/versions.py
 plan <app>` prints what a pass does to the app's tags;
-`uv run build/versions.py scope` checks changed paths on stdin.
+`uv run build/versions.py scope` checks changed paths on stdin. With
+`TEMPLATES_ROOT` set, the tags and files read are those of that tree's git
+repository.
 
 ## Import from a registry
 
