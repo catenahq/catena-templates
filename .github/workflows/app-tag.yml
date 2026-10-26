@@ -1,14 +1,23 @@
 name: app-tag
 
-# Tags an app `<app>/<version>-<revision>` once the bench lifecycle has passed
-# it on a commit of main: the bench posts the commit status `app-tests`, and a
-# success on a commit main contains is the trigger. The version and revision
-# come from lib/versions.py. The tag is created through the API with the
-# catenahq-renovate GitHub App's token (secrets RENOVATE_APP_CLIENT_ID and
-# RENOVATE_APP_PRIVATE_KEY), the one actor the tag ruleset lets create tags.
+# Tags the apps a passing app-tests run names, on a commit of main. The ops
+# app-tests workflow sends the event `app-passed` with `{sha, apps, run}`: the
+# commit, the apps that passed on it (comma-separated slugs) and the address of
+# the run. `build/versions.py plan` reads each app's tags at the commit:
+#   create TAG  the app's files differ from its newest tag, or it has none: an
+#               annotated tag `<app>/<version>-<revision>` on the commit
+#   mark TAG    its newest tag was made by hand and holds the same files: that
+#               tag is annotated where it stands
+#   skip TAG    a passing run made its newest tag, which holds the same files
+# The annotation opens with `app-tests passed` and names the commit and the run.
+# The tags are written through the API with the catenahq-renovate GitHub App's
+# token (secrets RENOVATE_APP_CLIENT_ID and RENOVATE_APP_PRIVATE_KEY), the one
+# actor the tag ruleset lets create or move a `*/*` tag; ops sends the event
+# with the same App.
 
 on:
-  status:
+  repository_dispatch:
+    types: [app-passed]
 
 permissions:
   contents: read
@@ -20,13 +29,45 @@ concurrency:
 
 jobs:
   tag:
-    if: >-
-      github.event.state == 'success' &&
-      github.event.context == 'app-tests' &&
-      contains(github.event.branches.*.name, 'main')
     runs-on: ubuntu-latest
+    env:
+      SHA: ${{ github.event.client_payload.sha }}
+      APPS: ${{ github.event.client_payload.apps }}
+      RUN: ${{ github.event.client_payload.run }}
+      OWNER: ${{ github.repository_owner }}
     steps:
-      - name: Mint a GitHub App token that can create tags
+      - name: Validate the payload
+        run: |
+          set -euo pipefail
+          [[ "$SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::sha is not 40 lowercase hex"; exit 1; }
+          [[ "$APPS" =~ ^[a-z0-9][a-z0-9-]*(,[a-z0-9][a-z0-9-]*)*$ ]] \
+            || { echo "::error::apps are not plain app slugs"; exit 1; }
+          [[ "$RUN" =~ ^https://github\.com/$OWNER/ops/actions/runs/[0-9]+$ ]] \
+            || { echo "::error::run is not the address of an ops run"; exit 1; }
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          ref: ${{ env.SHA }}
+          fetch-depth: 0
+          fetch-tags: true
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+      - name: Plan each app's tag
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+          git merge-base --is-ancestor "$SHA" "origin/$DEFAULT_BRANCH" \
+            || { echo "::error::$SHA is not on $DEFAULT_BRANCH: nothing is tagged"; exit 1; }
+          : > "$RUNNER_TEMP/plan.txt"
+          for app in ${APPS//,/ }; do
+            if [ ! -f "blueprints/$app/docker-compose.yml" ]; then
+              echo "::error::$SHA holds no app $app"; exit 1
+            fi
+            plan="$(uv run build/versions.py plan "$app")"
+            echo "$app $plan" >> "$RUNNER_TEMP/plan.txt"
+          done
+          cat "$RUNNER_TEMP/plan.txt"
+      - name: Mint a GitHub App token that can write tags
         id: app-token
         uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
         with:
@@ -35,31 +76,26 @@ jobs:
           owner: ${{ github.repository_owner }}
           repositories: ${{ github.event.repository.name }}
           permission-contents: write
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
-        with:
-          ref: ${{ github.event.sha }}
-          fetch-depth: 2
-          persist-credentials: false
-      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
-      - name: Tag each app the commit changed
+      - name: Write the tags
         env:
-          SHA: ${{ github.event.sha }}
-          REPO: ${{ github.repository }}
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
-          git diff --name-only "$SHA^" "$SHA" > "$RUNNER_TEMP/paths.txt"
-          uv run build/app_check.py changed < "$RUNNER_TEMP/paths.txt" > "$RUNNER_TEMP/ids.txt"
-          for app in $(cat "$RUNNER_TEMP/ids.txt"); do
-            # An app the commit deletes has nothing to tag.
-            if [ ! -f "blueprints/$app/docker-compose.yml" ]; then continue; fi
-            refs="$(gh api --paginate "repos/$REPO/git/matching-refs/tags/$app/" | jq -s 'add // []')"
-            # The status can arrive more than once for a commit.
-            if jq -e --arg sha "$SHA" 'any(.[]; .object.sha == $sha)' <<< "$refs" > /dev/null; then
-              echo "$app is already tagged at $SHA"
-              continue
-            fi
-            tag="$(jq -r '.[].ref | ltrimstr("refs/tags/")' <<< "$refs" | uv run build/versions.py next "$app")"
-            gh api -X POST "repos/$REPO/git/refs" -f "ref=refs/tags/$tag" -f "sha=$SHA" > /dev/null
-            echo "tagged $tag"
-          done
+          message="app-tests passed at $SHA: $RUN"
+          while read -r app action tag; do
+            case "$action" in
+              skip)
+                echo "$app: a passing run made $tag already" ;;
+              mark)
+                object="$(gh api -X POST "repos/$REPO/git/tags" -f "tag=$tag" -f "message=$message" \
+                  -f "object=$(git rev-parse "$tag^{commit}")" -f type=commit --jq .sha)"
+                gh api -X PATCH "repos/$REPO/git/refs/tags/$tag" -f "sha=$object" -F force=true > /dev/null
+                echo "$app: marked $tag" ;;
+              create)
+                object="$(gh api -X POST "repos/$REPO/git/tags" -f "tag=$tag" -f "message=$message" \
+                  -f "object=$SHA" -f type=commit --jq .sha)"
+                gh api -X POST "repos/$REPO/git/refs" -f "ref=refs/tags/$tag" -f "sha=$object" > /dev/null
+                echo "$app: tagged $tag" ;;
+            esac
+          done < "$RUNNER_TEMP/plan.txt"

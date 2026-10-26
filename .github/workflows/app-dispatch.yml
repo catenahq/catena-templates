@@ -4,15 +4,19 @@ name: app-dispatch
 # event `app-test` to the private catenahq/ops repository, whose app-tests
 # workflow runs the lifecycle on the bench and posts the commit status
 # `app-tests` back on this commit. Every branch is dispatched, adopt/<pr>
-# branches and the renovate branches included. Setting the repository variable
+# branches and the renovate branches included. The default branch is judged
+# from the commit before the push; any other branch as a whole, from where it
+# left the default branch, and only when it changes one app or none: a branch
+# that changes more fails here and is not sent. Setting the repository variable
 # APP_CI_PAUSED to `true` stops the dispatch; no status is then posted and the
 # required `app-tests` check stays pending.
 #
-# The payload is `{sha, base, ids}`: the commit, the commit the change is
-# judged from and the apps it touches (comma-separated slugs). The ops workflow
-# validates all three again before using them. The dispatch needs a token that
-# writes to ops: the catenahq-renovate GitHub App's (secrets
-# RENOVATE_APP_CLIENT_ID and RENOVATE_APP_PRIVATE_KEY).
+# The payload is `{sha, base, ids, ref}`: the commit, the commit the change is
+# judged from, the apps it touches (comma-separated slugs) and the branch. The
+# ops workflow validates all four again before using them, and skips a commit
+# its branch has since moved past. The dispatch needs a token that writes to
+# ops: the catenahq-renovate GitHub App's (secrets RENOVATE_APP_CLIENT_ID and
+# RENOVATE_APP_PRIVATE_KEY).
 
 on:
   push:
@@ -38,15 +42,20 @@ jobs:
         env:
           SHA: ${{ github.sha }}
           BEFORE: ${{ github.event.before }}
+          BRANCH: ${{ github.ref_name }}
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
           set -euo pipefail
           base="$BEFORE"
-          # A new branch has no previous commit: judge it from where it left the default branch.
-          if [ -z "${base//0/}" ] || ! git cat-file -e "$base^{commit}" 2>/dev/null; then
+          if [ "$BRANCH" != "$DEFAULT_BRANCH" ] || [ -z "${base//0/}" ] \
+            || ! git cat-file -e "$base^{commit}" 2>/dev/null; then
             base="$(git merge-base "$SHA" "origin/$DEFAULT_BRANCH")"
           fi
           git diff --name-only "$base" "$SHA" > "$RUNNER_TEMP/paths.txt"
+          if [ "$BRANCH" != "$DEFAULT_BRANCH" ] && ! uv run build/versions.py scope < "$RUNNER_TEMP/paths.txt"; then
+            echo "::error::a branch changes one app or none; this one is not sent to the bench"
+            exit 1
+          fi
           uv run build/app_check.py changed < "$RUNNER_TEMP/paths.txt" > "$RUNNER_TEMP/ids.txt"
           ids=()
           for id in $(cat "$RUNNER_TEMP/ids.txt"); do
@@ -74,9 +83,11 @@ jobs:
           SHA: ${{ github.sha }}
           BASE: ${{ steps.scope.outputs.base }}
           IDS: ${{ steps.scope.outputs.ids }}
+          BRANCH: ${{ github.ref_name }}
         run: |
           gh api -X POST "repos/$OWNER/ops/dispatches" \
             -f event_type=app-test \
             -f "client_payload[sha]=$SHA" \
             -f "client_payload[base]=$BASE" \
-            -f "client_payload[ids]=$IDS"
+            -f "client_payload[ids]=$IDS" \
+            -f "client_payload[ref]=$BRANCH"

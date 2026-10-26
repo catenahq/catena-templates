@@ -4,10 +4,11 @@
 #   pipx install pre-commit  (or: pip install --user pre-commit)
 #   pre-commit install --hook-type pre-commit --hook-type pre-push
 #
-# Behavior: gitleaks runs against the staged diff before every
-# commit (~1s). Blocks the commit if a leaked secret is detected.
-# Same gitleaks version as .github/workflows/gitleaks.yml, so the
-# local pre-commit verdict matches the CI gate.
+# Behavior: before every commit, gitleaks scans the staged diff and
+# blocks a leaked secret (same version as .github/workflows/gitleaks.yml,
+# so the local verdict matches the CI gate); `one-app` blocks a commit
+# that changes more than one app; `render` re-renders the generated files
+# and blocks the commit when that changes any of them (stage the render).
 #
 # Bypass (use sparingly, only for documented false positives):
 #   git commit --no-verify
@@ -22,6 +23,20 @@ repos:
 
   - repo: local
     hooks:
+      # The bench tests one app at a time and a tag names one app.
+      - id: one-app
+        name: The commit changes at most one app
+        language: system
+        entry: bash -c 'git diff --cached --name-only | uv run build/versions.py scope'
+        pass_filenames: false
+        stages: [pre-commit]
+      # A hand edit of a generated file is undone by the next render, in every branch.
+      - id: render
+        name: The generated files match their sources
+        language: system
+        entry: uv run build/render.py
+        pass_filenames: false
+        stages: [pre-commit]
       # Push-protection parity: scan the exact commit range being pushed, so a
       # secret committed with --no-verify (or before hooks were installed) is
       # blocked before it reaches the remote. Requires gitleaks on PATH (pin

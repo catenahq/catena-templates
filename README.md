@@ -233,12 +233,16 @@ private runner this repository cannot reach):
 
 - `app-dispatch.yml` runs on a push to any branch, `adopt/*` included. It sends
   the private ops repository the event `app-test` with the commit, the commit
-  the change is judged from and the apps the change touches. The repository
-  variable `APP_CI_PAUSED=true` stops it.
+  the change is judged from, the apps the change touches and the branch. A
+  branch other than `main` is judged as a whole, from where it left `main`, and
+  is sent only when it changes one app or none. The repository variable
+  `APP_CI_PAUSED=true` stops it.
 - ops runs install, checks, backup, restore, rollback, updates and the outbound
   check, then posts the commit status `app-tests` on the commit (success,
-  failure, or error when the bench gave no verdict). `app-tag.yml` tags on a
-  success on `main`.
+  failure, or error when the bench gave no verdict). A commit its branch has
+  moved past by the time a runner takes it is skipped. For a commit of `main`,
+  ops sends back the event `app-passed` with the apps that passed, and
+  `app-tag.yml` tags them (see "Versions").
 - `adopt-fork.yml` serves pull requests from forks, which the bench never sees
   directly. When `app-ci` has passed a fork's pull request, it copies the fork's
   files for exactly one app (`blueprints/<id>/**` and `sources/<id>.json`) onto
@@ -265,19 +269,29 @@ No file holds a version string: versions are git tags. A tested app is tagged
 - **Revision.** 1 plus the number of tags the app already has at that version,
   so a change that leaves the image alone still gets a new tag. Tags order by
   version, then revision, as numbers.
-- **When.** `app-tag.yml` runs on the `app-tests` commit status the bench
-  lifecycle posts. A success on a commit `main` contains tags each app that
-  commit changed, through the API with the CI GitHub App's token (secrets
-  `RENOVATE_APP_CLIENT_ID` and `RENOVATE_APP_PRIVATE_KEY`). A tag ruleset
-  (catenahq/renovate `scripts/apply-rulesets.sh`) lets only that App create,
-  move or delete a `*/*` tag.
+- **When.** `app-tag.yml` runs on the event `app-passed`, which the bench sends
+  with the apps that passed on a commit of `main`. An app whose files
+  (`blueprints/<id>/`, `sources/<id>.json`) differ from its newest tag, or that
+  has none, gets a new tag on the commit. An app whose newest tag was made by
+  hand and holds the same files has that tag annotated where it stands. The
+  tags are annotated `app-tests passed at <commit>: <run>` and written through
+  the API with the CI GitHub App's token (secrets `RENOVATE_APP_CLIENT_ID` and
+  `RENOVATE_APP_PRIVATE_KEY`). A tag ruleset (catenahq/renovate
+  `scripts/apply-rulesets.sh`) lets only that App create, move or delete a
+  `*/*` tag.
+- **Tested.** An app is `tested` when a passing run made its newest tag and
+  that tag holds the files `main` holds, `changed` when the files differ from
+  its newest tag, `untested` when it has no tag or its newest was made by hand.
+  The nightly bench run takes the apps that are not `tested` first.
 - **Scope.** The `scope` check fails a pull request that changes more than one
   app (distinct ids across `blueprints/<id>/**` and `sources/<id>.json`), so
-  one merge is one tag. `app-checks`, `scope` and `app-tests` are required on
-  `main`.
+  one merge is one tag; the `one-app` pre-commit hook does the same for a
+  commit. `app-checks`, `scope` and `app-tests` are required on `main`.
 
-`uv run build/versions.py next <app>` prints the next tag from the existing tags
-on stdin; `uv run build/versions.py scope` checks changed paths on stdin.
+`uv run build/versions.py tested` lists each app's state and newest tag
+(`--needs-run`: the ids of the apps not `tested`); `uv run build/versions.py
+plan <app>` prints what a pass does to the app's tags;
+`uv run build/versions.py scope` checks changed paths on stdin.
 
 ## Import from a registry
 

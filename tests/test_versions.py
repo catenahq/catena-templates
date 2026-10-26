@@ -1,8 +1,10 @@
-"""Unit tests for lib/versions.py: version, revision, tag order and the
-one-app scope check."""
+"""Unit tests for lib/versions.py: version, revision, tag order, the
+one-app scope check and the tested state."""
 from __future__ import annotations
 
 import io
+import json
+import subprocess
 import sys
 from pathlib import Path
 
@@ -101,19 +103,73 @@ def test_an_app_is_one_app_across_its_blueprint_and_its_source():
 
 def test_a_change_to_two_apps_fails_the_scope_check():
     errors = versions.scope_errors(["blueprints/outline/docker-compose.yml", "sources/kimai.json"])
-    assert errors == ["the change touches 2 apps (kimai, outline); a pull request changes one app"]
+    assert errors == ["the change touches 2 apps (kimai, outline); "
+                      "a commit or pull request changes one app"]
 
 
 def test_a_change_to_no_app_passes_the_scope_check():
     assert versions.scope_errors(["lib/model.py", "sources/_meta.json"]) == []
 
 
-def test_next_prints_the_tag_for_an_app_in_the_repo(monkeypatch, capsys):
-    monkeypatch.setattr(sys, "stdin", io.StringIO("outline/0.0.1-1\n"))
-    assert versions.main(["next", "outline"]) == 0
-    tag = capsys.readouterr().out.strip()
-    assert tag.startswith("outline/") and tag.endswith("-1")
-    assert versions.parse_tag("outline", tag) is not None
+@pytest.fixture
+def repo(tmp_path, monkeypatch):
+    """A catalog checkout holding the app `web` at image web:1.2.0, as versions reads it."""
+    for key, value in (("GIT_CONFIG_GLOBAL", "/dev/null"), ("GIT_CONFIG_NOSYSTEM", "1"),
+                       ("GIT_AUTHOR_NAME", "t"), ("GIT_AUTHOR_EMAIL", "t@example.test"),
+                       ("GIT_COMMITTER_NAME", "t"), ("GIT_COMMITTER_EMAIL", "t@example.test")):
+        monkeypatch.setenv(key, value)
+    monkeypatch.setattr(versions, "ROOT", tmp_path)
+
+    def git(*args):
+        subprocess.run(["git", "-C", str(tmp_path), *args], check=True, capture_output=True)
+
+    def commit(image):
+        (tmp_path / "blueprints" / "web").mkdir(parents=True, exist_ok=True)
+        (tmp_path / "blueprints" / "web" / "docker-compose.yml").write_text(
+            f"services:\n  web:\n    image: {image}\n")
+        (tmp_path / "sources").mkdir(exist_ok=True)
+        (tmp_path / "sources" / "web.json").write_text(json.dumps(_source("web")))
+        git("add", "-A")
+        git("commit", "-qm", image)
+
+    git("init", "-q")
+    commit("web:1.2.0")
+    return git, commit
+
+
+def test_an_app_without_a_tag_is_untested_and_a_pass_creates_its_first(repo):
+    assert versions.tested_state("web") == (versions.UNTESTED, None)
+    assert versions.plan("web") == "create web/1.2.0-1"
+
+
+def test_a_pass_marks_the_hand_made_tag_that_holds_the_same_files(repo):
+    git, _ = repo
+    git("tag", "web/1.2.0-1")
+    assert versions.tested_state("web") == (versions.UNTESTED, "web/1.2.0-1")
+    assert versions.plan("web") == "mark web/1.2.0-1"
+
+
+def test_an_app_whose_newest_tag_a_pass_made_is_tested(repo):
+    git, _ = repo
+    git("tag", "web/1.2.0-1")
+    git("tag", "-a", "web/1.2.0-2", "-m", f"{versions.PASSED} at abc: https://x")
+    assert versions.tested_state("web") == (versions.TESTED, "web/1.2.0-2")
+    assert versions.plan("web") == "skip web/1.2.0-2"
+
+
+def test_an_app_changed_since_its_tag_gets_a_new_one(repo):
+    git, commit = repo
+    git("tag", "-a", "web/1.2.0-1", "-m", f"{versions.PASSED} at abc: https://x")
+    commit("web:1.3.0")
+    assert versions.tested_state("web") == (versions.CHANGED, "web/1.2.0-1")
+    assert versions.plan("web") == "create web/1.3.0-1"
+
+
+def test_tested_lists_the_apps_that_need_a_run(repo, capsys):
+    assert versions.main(["tested"]) == 0
+    assert capsys.readouterr().out == "web\tuntested\t-\n"
+    assert versions.main(["tested", "--needs-run"]) == 0
+    assert capsys.readouterr().out == "web\n"
 
 
 def test_every_app_in_the_catalog_has_a_readable_version():

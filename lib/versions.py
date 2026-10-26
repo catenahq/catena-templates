@@ -10,17 +10,28 @@ version, then revision; the update engine's full tag rules live in
 catena-admin `payload/engines/stackupdate`, and this reads only the number a
 catalog pin is required to carry.
 
-  next APP     existing tags on stdin, one per line -> the next tag for APP
-  scope        changed paths on stdin -> fail when they touch more than one app
+A tag a passing app-tests run made is annotated, its message opening with
+PASSED; the tags made by hand are not. An app is `tested` when its newest
+tag is a passing run's and holds the files (`blueprints/<id>/`,
+`sources/<id>.json`) the commit holds, `changed` when those files differ from
+its newest tag, and `untested` when it has no tag or its newest was made by
+hand. All of it is read from the checkout's git.
 
-`scope` is the pull-request check that keeps a change to one app, so one
-merge is one tag.
+  plan APP              what a pass at the checked-out commit does to APP's tags:
+                        `skip TAG`, `mark TAG` (annotate the hand-made TAG) or `create TAG`
+  scope                 changed paths on stdin -> fail when they touch more than one app
+  tested [--needs-run]  each app's state at the checked-out commit; with
+                        --needs-run, the ids of the apps not `tested`
+
+`scope` is the check that keeps a commit or a pull request to one app, so
+one merge is one tag.
 """
 from __future__ import annotations
 
 import argparse
 import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any, Iterable
@@ -31,6 +42,8 @@ from . import changes, provenance
 
 ROOT = Path(__file__).resolve().parent.parent
 BLOCK_KEY = "x-catena"
+PASSED = "app-tests passed"
+TESTED, CHANGED, UNTESTED = "tested", "changed", "untested"
 
 _NUMERIC = re.compile(r"v?(\d+(?:[._]\d+)*)")
 _TAG = re.compile(r"(?P<version>.+)-(?P<revision>\d+)")
@@ -114,7 +127,7 @@ def scope_errors(paths: Iterable[str]) -> list[str]:
     ids = changes.app_ids(paths)
     if len(ids) > 1:
         return [f"the change touches {len(ids)} apps ({', '.join(ids)}); "
-                f"a pull request changes one app"]
+                f"a commit or pull request changes one app"]
     return []
 
 
@@ -125,24 +138,82 @@ def next_tag(app: str, tags: Iterable[str]) -> str:
     return tag_name(app, version, next_revision(app, version, tags))
 
 
+def _object(spec: str) -> str:
+    """The object `<rev>:<path>` names in the checkout, empty when there is none."""
+    r = subprocess.run(["git", "-C", str(ROOT), "rev-parse", "-q", "--verify", spec],
+                       capture_output=True, text=True, check=False)
+    return r.stdout.strip()
+
+
+def app_tags(app: str) -> dict[str, bool]:
+    """The app's tags in the checkout, each with whether a passing run made it."""
+    out = subprocess.run(
+        ["git", "-C", str(ROOT), "for-each-ref",
+         "--format=%(refname)%09%(objecttype)%09%(contents:subject)", f"refs/tags/{app}/"],
+        capture_output=True, text=True, check=True).stdout
+    tags = {}
+    for line in out.splitlines():
+        ref, kind, subject = (line.split("\t", 2) + ["", ""])[:3]
+        tags[ref.removeprefix("refs/tags/")] = kind == "tag" and subject.startswith(PASSED)
+    return tags
+
+
+def tested_state(app: str, ref: str = "HEAD") -> tuple[str, str | None]:
+    """(TESTED, CHANGED or UNTESTED, the newest tag) of the app at `ref`."""
+    tags = app_tags(app)
+    order = sort_tags(app, tags)
+    if not order:
+        return UNTESTED, None
+    newest = order[-1]
+    if any(_object(f"{newest}:{path}") != _object(f"{ref}:{path}")
+           for path in (f"blueprints/{app}", f"sources/{app}.json")):
+        return CHANGED, newest
+    return (TESTED if tags[newest] else UNTESTED), newest
+
+
+def plan(app: str) -> str:
+    """What a pass at the checked-out commit does to the app's tags: nothing when a
+    passing run made the newest tag, annotate a hand-made newest tag that holds the
+    same files, else a new tag."""
+    state, newest = tested_state(app)
+    if state == TESTED:
+        return f"skip {newest}"
+    if state == UNTESTED and newest:
+        return f"mark {newest}"
+    return f"create {next_tag(app, app_tags(app))}"
+
+
+def apps() -> list[str]:
+    return sorted(p.parent.name for p in (ROOT / "blueprints").glob("*/docker-compose.yml"))
+
+
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(prog="versions")
     sub = parser.add_subparsers(dest="command", required=True)
-    sub.add_parser("next").add_argument("app")
+    sub.add_parser("plan").add_argument("app")
     sub.add_parser("scope")
+    sub.add_parser("tested").add_argument("--needs-run", action="store_true")
     args = parser.parse_args(argv)
-    lines = [line.strip() for line in sys.stdin.read().splitlines() if line.strip()]
 
     if args.command == "scope":
+        lines = [line.strip() for line in sys.stdin.read().splitlines() if line.strip()]
         errors = scope_errors(lines)
         for error in errors:
             print(error, file=sys.stderr)
         return 1 if errors else 0
+    if args.command == "tested":
+        for app in apps():
+            state, newest = tested_state(app)
+            if not args.needs_run:
+                print(f"{app}\t{state}\t{newest or '-'}")
+            elif state != TESTED:
+                print(app)
+        return 0
     if changes.slug_errors([args.app]):
         print(f"{args.app!r} is not a plain app id", file=sys.stderr)
         return 1
     try:
-        print(next_tag(args.app, lines))
+        print(plan(args.app))
     except VersionError as exc:
         print(f"{args.app}: {exc}", file=sys.stderr)
         return 1
