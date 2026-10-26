@@ -34,14 +34,13 @@ import json
 import re
 import subprocess
 import sys
-from pathlib import Path
 from typing import Any, Iterable
 
 import yaml
 
 from . import changes, provenance
+from .model import ROOT
 
-ROOT = Path(__file__).resolve().parent.parent
 BLOCK_KEY = "x-catena"
 PASSED = "app-tests passed"
 TESTED, CHANGED, UNTESTED = "tested", "changed", "untested"

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import io
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -184,6 +185,16 @@ def test_a_plan_reads_the_passed_commit_not_the_checkout(repo):
     commit("web:1.3.0")
     assert versions.plan("web", older) == "create web/1.2.0-1"
     assert versions.plan("web") == "create web/1.3.0-1"
+
+
+def test_templates_root_points_the_tags_at_another_tree(repo, tmp_path):
+    git, _ = repo
+    git("tag", "web/1.2.0-1")
+    env = {**os.environ, "TEMPLATES_ROOT": str(tmp_path), "PYTHONPATH": str(ROOT)}
+    done = subprocess.run([sys.executable, str(ROOT / "build" / "versions.py"), "plan", "web"],
+                          cwd=ROOT.parent, env=env, capture_output=True, text=True, check=False)
+    assert done.returncode == 0, done.stderr
+    assert done.stdout.strip() == "mark web/1.2.0-1"
 
 
 def test_tested_lists_the_apps_that_need_a_run(repo, capsys):

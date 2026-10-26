@@ -74,7 +74,7 @@ REFUSED_RULES = frozenset({"X1", "X2", "X3", "X4", "X5", "X6"})
 
 # The banned-word list contracts/scripts/check-unicode.mjs reads, in the
 # contracts checkout beside this one.
-BANNED_WORDS = model.ROOT.parent / "contracts" / "banned-words.json"
+BANNED_WORDS = model.TOOLS_ROOT.parent / "contracts" / "banned-words.json"
 
 
 @dataclass

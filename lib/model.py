@@ -26,6 +26,7 @@ Validation runs in two layers:
 from __future__ import annotations
 
 import json
+import os
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -38,15 +39,19 @@ try:
 except ModuleNotFoundError:  # see _validate_schema
     jsonschema = None
 
-ROOT = Path(__file__).resolve().parent.parent
+# TOOLS_ROOT is the checkout these tools live in and holds the schemas. ROOT is
+# the data root: the tree holding sources/, blueprints/ and the generated
+# files, which TEMPLATES_ROOT points at another repository's tree.
+TOOLS_ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(os.environ.get("TEMPLATES_ROOT") or TOOLS_ROOT).resolve()
 SOURCES = ROOT / "sources"
 BLUEPRINTS = ROOT / "blueprints"
 COMPOSE_NAME = "docker-compose.yml"
 BLOCK_KEY = "x-catena"
 META_NAME = "_meta.json"
-SOURCE_SCHEMA = ROOT / "sources.schema.json"
-BLOCK_SCHEMA = ROOT / "block.schema.json"
-OUTPUT_SCHEMA = ROOT / "Schema.json"
+SOURCE_SCHEMA = TOOLS_ROOT / "sources.schema.json"
+BLOCK_SCHEMA = TOOLS_ROOT / "block.schema.json"
+OUTPUT_SCHEMA = TOOLS_ROOT / "Schema.json"
 
 
 class SourceError(Exception):

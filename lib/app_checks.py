@@ -15,12 +15,9 @@ import argparse
 import json
 import subprocess
 import sys
-from pathlib import Path
 
 from . import changes, provenance
-
-ROOT = Path(__file__).resolve().parent.parent
-SOURCE_SCHEMA = ROOT / "sources.schema.json"
+from .model import ROOT, SOURCE_SCHEMA
 
 
 def _compose(app: str) -> str:

@@ -4,6 +4,8 @@ invariants a JSON Schema cannot express.
 from __future__ import annotations
 
 import json
+import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -425,3 +427,53 @@ def test_the_real_catalog_renders_without_jsonschema(monkeypatch):
     """The no-pip render end to end: no monkeypatched sources, no jsonschema."""
     monkeypatch.setattr(model, "jsonschema", None)
     assert len(model.load_sources()) >= 20
+
+
+def _fixture_tree(root: Path) -> None:
+    """A one-app tree in another repository's layout."""
+    (root / "sources").mkdir()
+    (root / "sources" / "example.json").write_text(json.dumps(_valid_doc()))
+    (root / "sources" / model.META_NAME).write_text(json.dumps({
+        "order": ["example"],
+        "sizing": {"measurement_host": "host", "last_measured_at": "2026-01-01"}}))
+    _blueprint(root / "blueprints", "example")
+
+
+def _tools(root: Path, *args: str) -> subprocess.CompletedProcess:
+    """Run a tools entrypoint with TEMPLATES_ROOT at `root`, from outside the
+    tools' checkout."""
+    env = {**os.environ, "TEMPLATES_ROOT": str(root), "PYTHONPATH": str(ROOT)}
+    return subprocess.run([sys.executable, *args], cwd=root, env=env,
+                          capture_output=True, text=True, check=False)
+
+
+def test_the_data_root_defaults_to_the_tools_checkout():
+    assert model.TOOLS_ROOT == ROOT
+    if "TEMPLATES_ROOT" not in os.environ:
+        assert model.ROOT == ROOT
+
+
+def test_templates_root_moves_the_data_but_not_the_schemas(tmp_path):
+    _fixture_tree(tmp_path)
+    code = ("from lib import model; "
+            "print(model.ROOT, model.SOURCES, model.BLUEPRINTS, model.SOURCE_SCHEMA, "
+            "[e.slug for e in model.load_sources()], sep='\\n')")
+    done = _tools(tmp_path, "-c", code)
+    assert done.returncode == 0, done.stderr
+    root, sources, blueprints, schema, slugs = done.stdout.splitlines()
+    assert Path(root) == tmp_path.resolve()
+    assert Path(sources) == tmp_path.resolve() / "sources"
+    assert Path(blueprints) == tmp_path.resolve() / "blueprints"
+    assert Path(schema) == ROOT / "sources.schema.json"
+    assert slugs == "['example']"
+
+
+def test_the_render_writes_into_the_tree_templates_root_names(tmp_path):
+    _fixture_tree(tmp_path)
+    done = _tools(tmp_path, str(ROOT / "build" / "render.py"))
+    assert done.returncode == 0, done.stderr
+    for name in ("templates.json", "catalog.json", "index.html"):
+        assert (tmp_path / name).is_file(), name
+    assert (tmp_path / "blueprints" / "example" / "README.md").is_file()
+    templates = json.loads((tmp_path / "templates.json").read_text())["templates"]
+    assert [t["name"] for t in templates] == ["example"]
