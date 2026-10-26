@@ -140,6 +140,8 @@ services:
 
             location = /favicon.ico { access_log off; log_not_found off; }
             location = /robots.txt  { access_log off; log_not_found off; }
+            # The health check's: nginx answers it alone, while the app may still be migrating.
+            location = /nginx-health { access_log off; return 204; }
 
             error_page 404 /index.php;
 
@@ -156,7 +158,8 @@ services:
         NGINX
         exec nginx -g 'daemon off;'
     healthcheck:
-      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost/ || exit 1"]
+      # 127.0.0.1: busybox wget tries localhost's ::1 first, which `listen 80` leaves unbound.
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://127.0.0.1/nginx-health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
