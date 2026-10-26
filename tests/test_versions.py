@@ -172,9 +172,18 @@ def test_a_late_pass_of_an_older_commit_leaves_the_newer_tag_the_newest(repo):
                            capture_output=True, text=True, check=True).stdout.strip()
     commit("web:1.2.0\n    restart: always")
     git("tag", "-a", "web/1.2.0-1", "-m", f"{versions.PASSED} at def: https://x")
-    git("checkout", "-q", older)
-    assert versions.tested_state("web") == (versions.CHANGED, "web/1.2.0-1")
-    assert versions.plan("web") == "skip web/1.2.0-1"
+    assert versions.tested_state("web", older) == (versions.CHANGED, "web/1.2.0-1")
+    assert versions.plan("web", older) == "skip web/1.2.0-1"
+
+
+def test_a_plan_reads_the_passed_commit_not_the_checkout(repo):
+    # app-tag.yml runs the default branch's tools over a commit that may predate them.
+    git, commit = repo
+    older = subprocess.run(["git", "-C", str(versions.ROOT), "rev-parse", "HEAD"],
+                           capture_output=True, text=True, check=True).stdout.strip()
+    commit("web:1.3.0")
+    assert versions.plan("web", older) == "create web/1.2.0-1"
+    assert versions.plan("web") == "create web/1.3.0-1"
 
 
 def test_tested_lists_the_apps_that_need_a_run(repo, capsys):

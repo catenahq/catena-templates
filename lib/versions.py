@@ -17,7 +17,7 @@ tag is a passing run's and holds the files (`blueprints/<id>/`,
 its newest tag, and `untested` when it has no tag or its newest was made by
 hand. All of it is read from the checkout's git.
 
-  plan APP              what a pass at the checked-out commit does to APP's tags:
+  plan APP [--ref REF]  what a pass at commit REF (default HEAD) does to APP's tags:
                         `skip TAG` (tested, or TAG is on a later commit), `mark TAG`
                         (annotate the hand-made TAG) or `create TAG`
   scope                 changed paths on stdin -> fail when they touch more than one app
@@ -132,9 +132,15 @@ def scope_errors(paths: Iterable[str]) -> list[str]:
     return []
 
 
-def next_tag(app: str, tags: Iterable[str]) -> str:
-    source = json.loads((ROOT / "sources" / f"{app}.json").read_text(encoding="utf-8"))
-    compose = yaml.safe_load((ROOT / "blueprints" / app / "docker-compose.yml").read_text(encoding="utf-8"))
+def _show(ref: str, path: str) -> str:
+    return subprocess.run(["git", "-C", str(ROOT), "show", f"{ref}:{path}"],
+                          capture_output=True, text=True, check=True).stdout
+
+
+def next_tag(app: str, tags: Iterable[str], ref: str = "HEAD") -> str:
+    """The next tag of the app as commit `ref` holds it."""
+    source = json.loads(_show(ref, f"sources/{app}.json"))
+    compose = yaml.safe_load(_show(ref, f"blueprints/{app}/docker-compose.yml"))
     version = app_version(source, compose)
     return tag_name(app, version, next_revision(app, version, tags))
 
@@ -177,18 +183,18 @@ def _is_ancestor(commit: str, of: str) -> bool:
                           capture_output=True, check=False).returncode == 0
 
 
-def plan(app: str) -> str:
-    """What a pass at the checked-out commit does to the app's tags: nothing when a
-    passing run made the newest tag or the newest tag is on a later commit, annotate
-    a hand-made newest tag that holds the same files, else a new tag."""
-    state, newest = tested_state(app)
+def plan(app: str, ref: str = "HEAD") -> str:
+    """What a pass at commit `ref` does to the app's tags: nothing when a passing run
+    made the newest tag or the newest tag is on a later commit, annotate a hand-made
+    newest tag that holds the same files, else a new tag."""
+    state, newest = tested_state(app, ref)
     if state == TESTED:
         return f"skip {newest}"
     if state == UNTESTED and newest:
         return f"mark {newest}"
-    if newest and _is_ancestor("HEAD", f"{newest}^{{commit}}"):
+    if newest and _is_ancestor(ref, f"{newest}^{{commit}}"):
         return f"skip {newest}"
-    return f"create {next_tag(app, app_tags(app))}"
+    return f"create {next_tag(app, app_tags(app), ref)}"
 
 
 def apps() -> list[str]:
@@ -198,7 +204,9 @@ def apps() -> list[str]:
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(prog="versions")
     sub = parser.add_subparsers(dest="command", required=True)
-    sub.add_parser("plan").add_argument("app")
+    plan_cmd = sub.add_parser("plan")
+    plan_cmd.add_argument("app")
+    plan_cmd.add_argument("--ref", default="HEAD")
     sub.add_parser("scope")
     sub.add_parser("tested").add_argument("--needs-run", action="store_true")
     args = parser.parse_args(argv)
@@ -221,7 +229,7 @@ def main(argv: list[str]) -> int:
         print(f"{args.app!r} is not a plain app id", file=sys.stderr)
         return 1
     try:
-        print(plan(args.app))
+        print(plan(args.app, args.ref))
     except VersionError as exc:
         print(f"{args.app}: {exc}", file=sys.stderr)
         return 1

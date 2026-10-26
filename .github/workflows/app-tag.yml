@@ -3,7 +3,8 @@ name: app-tag
 # Tags the apps a passing app-tests run names, on a commit of main. The ops
 # app-tests workflow sends the event `app-passed` with `{sha, apps, run}`: the
 # commit, the apps that passed on it (comma-separated slugs) and the address of
-# the run. `build/versions.py plan` reads each app's tags at the commit:
+# the run. `build/versions.py plan --ref <sha>`, from the default branch's own
+# checkout, reads each app at the commit against its tags:
 #   create TAG  the app's files differ from its newest tag, or it has none: an
 #               annotated tag `<app>/<version>-<revision>` on the commit
 #   mark TAG    its newest tag was made by hand and holds the same files: that
@@ -42,26 +43,24 @@ jobs:
             || { echo "::error::apps are not plain app slugs"; exit 1; }
           [[ "$RUN" =~ ^https://github\.com/$OWNER/ops/actions/runs/[0-9]+$ ]] \
             || { echo "::error::run is not the address of an ops run"; exit 1; }
+      # The default branch's commit: its tools read the passed commit, which may predate them.
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
-          ref: ${{ env.SHA }}
           fetch-depth: 0
           fetch-tags: true
           persist-credentials: false
       - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
       - name: Plan each app's tag
-        env:
-          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
           set -euo pipefail
-          git merge-base --is-ancestor "$SHA" "origin/$DEFAULT_BRANCH" \
-            || { echo "::error::$SHA is not on $DEFAULT_BRANCH: nothing is tagged"; exit 1; }
+          git merge-base --is-ancestor "$SHA" HEAD \
+            || { echo "::error::$SHA is not on the default branch: nothing is tagged"; exit 1; }
           : > "$RUNNER_TEMP/plan.txt"
           for app in ${APPS//,/ }; do
-            if [ ! -f "blueprints/$app/docker-compose.yml" ]; then
+            if ! git cat-file -e "$SHA:blueprints/$app/docker-compose.yml" 2>/dev/null; then
               echo "::error::$SHA holds no app $app"; exit 1
             fi
-            plan="$(uv run build/versions.py plan "$app")"
+            plan="$(uv run build/versions.py plan "$app" --ref "$SHA")"
             echo "$app $plan" >> "$RUNNER_TEMP/plan.txt"
           done
           cat "$RUNNER_TEMP/plan.txt"
@@ -99,7 +98,7 @@ jobs:
                   fi
                   [ "$try" -lt 3 ] || { echo "::error::$app: $tag could not be created"; exit 1; }
                   git fetch -q --force origin '+refs/tags/*:refs/tags/*'
-                  plan="$(env -u GH_TOKEN uv run build/versions.py plan "$app")"
+                  plan="$(env -u GH_TOKEN uv run build/versions.py plan "$app" --ref "$SHA")"
                   read -r action tag <<< "$plan" ;;
               esac
             done
