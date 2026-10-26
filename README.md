@@ -233,7 +233,8 @@ private runner this repository cannot reach):
 
 - `app-dispatch.yml` runs on a push to any branch, `adopt/*` included. It sends
   the private ops repository the event `app-test` with the commit, the commit
-  the change is judged from, the apps the change touches and the branch. A
+  the change is judged from, the apps the change touches and the branch. On
+  `main`, each commit of the push is sent on its own, judged from its parent. A
   branch other than `main` is judged as a whole, from where it left `main`, and
   is sent only when it changes one app or none. The repository variable
   `APP_CI_PAUSED=true` stops it.
