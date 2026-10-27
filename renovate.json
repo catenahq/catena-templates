@@ -21,11 +21,6 @@
       "automerge": true
     },
     {
-      "matchManagers": ["npm"],
-      "matchUpdateTypes": ["major"],
-      "automerge": false
-    },
-    {
       "matchManagers": ["pep723"],
       "matchUpdateTypes": ["minor", "patch"],
       "groupName": "python pep723 (minor+patch)",
