@@ -63,7 +63,7 @@ def test_a_service_without_an_image_has_no_version():
         versions.app_version(_source("worker"), _compose())
 
 
-def test_the_revision_is_one_plus_the_tags_at_that_version():
+def test_the_revision_is_one_plus_the_highest_revision_at_that_version():
     tags = [
         "nextcloud/31.0.7-1",
         "nextcloud/31.0.8-1",
@@ -76,6 +76,8 @@ def test_the_revision_is_one_plus_the_tags_at_that_version():
     assert versions.next_revision("nextcloud", "31.0.9", tags) == 1
     assert versions.next_revision("nextcloud", "31.0.8", []) == 1
     assert versions.tag_name("nextcloud", "31.0.8", 3) == "nextcloud/31.0.8-3"
+    # A deleted lower revision leaves a gap: the next tag follows the highest one.
+    assert versions.next_revision("nextcloud", "34.0.5", ["nextcloud/34.0.5-2"]) == 3
 
 
 def test_tags_order_by_version_then_revision_not_as_text():

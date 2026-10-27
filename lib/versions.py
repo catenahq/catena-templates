@@ -4,8 +4,9 @@ A tested app is tagged `<app>/<version>-<revision>` (`nextcloud-s3-oidc/31.0.8-1
 The version is the numeric part of the image tag of the app's main address
 service: the compose block's `version_from` service when it names one, else
 the service `sources/<id>.json` names in `x-catena.domain.service`. The
-revision is 1 plus the number of tags the app already has at that version, so
-a change that leaves the image alone still gets a new tag. Tags order by
+revision is 1 plus the highest revision the app already has at that version,
+so a change that leaves the image alone still gets a new tag, and a deleted
+tag's revision is never reused while a later one stands. Tags order by
 version, then revision; the update engine's full tag rules live in
 catena-admin `payload/engines/stackupdate`, and this reads only the number a
 catalog pin is required to carry.
@@ -107,9 +108,9 @@ def parse_tag(app: str, tag: str) -> tuple[str, int] | None:
 
 
 def next_revision(app: str, version: str, tags: Iterable[str]) -> int:
-    """1 plus the app's tags at this version."""
+    """1 plus the app's highest revision at this version."""
     parsed = (parse_tag(app, tag) for tag in tags)
-    return 1 + sum(1 for p in parsed if p and p[0] == version)
+    return 1 + max((p[1] for p in parsed if p and p[0] == version), default=0)
 
 
 def sort_tags(app: str, tags: Iterable[str]) -> list[str]:

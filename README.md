@@ -291,8 +291,8 @@ No file holds a version string: versions are git tags. A tested app is tagged
   service: the service `x-catena.domain.service` names in the source, or the
   compose block's `version_from` service when it has one (`34.0.5-apache` is
   `34.0.5`).
-- **Revision.** 1 plus the number of tags the app already has at that version,
-  so a change that leaves the image alone still gets a new tag. Tags order by
+- **Revision.** 1 plus the highest revision the app already has at that
+  version, so a change that leaves the image alone still gets a new tag. Tags order by
   version, then revision, as numbers.
 - **When.** `app-tag.yml` runs on the event `app-passed`, which the bench sends
   with the apps that passed on a commit of `main`. An app whose files
