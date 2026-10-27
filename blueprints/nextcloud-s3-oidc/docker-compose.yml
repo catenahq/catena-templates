@@ -917,6 +917,14 @@ services:
 
   redis:
     image: redis:7.4.11-alpine
+    # Cache and file locks only: nothing here is worth keeping, and a lock
+    # restored from a backup would be stale. No snapshots, /data is memory.
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    volumes:
+      - type: tmpfs
+        target: /data
+        tmpfs:
+          size: 67108864
     deploy:
       restart_policy:
         condition: any
