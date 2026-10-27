@@ -1065,11 +1065,15 @@ services:
   #      credentials against TURN_SECRET, the secret the relay validates
   #      with. Clients dialing Talk get the same relay from the configure
   #      hook, which wires Talk to this service only while the relay runs.
-  #   2. start.sh refuses to start with an empty TURN_SECRET. The wrapper
-  #      below mints one when the relay provides none; without the relay
-  #      the service idles and nothing is wired to it. aio-talk's bundled
-  #      eturnal binds TALK_PORT inside the container's own network
-  #      namespace and stays unused.
+  #   2. start.sh refuses to start with an empty TURN_SECRET, and Janus
+  #      exits when TURN_DOMAIN does not resolve inside the container
+  #      (start.sh falls back to NC_DOMAIN when it is empty). When the
+  #      relay provides no secret, the wrapper below mints one and sets
+  #      TURN_DOMAIN to 127.0.0.1: Janus then points at aio-talk's bundled
+  #      eturnal, which listens on TALK_PORT inside the container's own
+  #      network namespace, and no name is resolved. Nothing is wired to
+  #      the service while no relay runs. With a relay, the bundled
+  #      eturnal is unused.
   #
   # The image's entrypoint is /start.sh and its command the dinit line
   # below. Overriding the entrypoint drops the image's command, so both are
@@ -1095,7 +1099,8 @@ services:
       - |
         if [ -z "$${TURN_SECRET:-}" ]; then
           TURN_SECRET=$$(openssl rand -hex 24)
-          export TURN_SECRET
+          TURN_DOMAIN=127.0.0.1
+          export TURN_SECRET TURN_DOMAIN
         fi
         exec /start.sh "$$@"
       - sh
