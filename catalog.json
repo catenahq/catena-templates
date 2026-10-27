@@ -2937,7 +2937,7 @@
         "replaces": [
           "A scanner per application"
         ],
-        "setup_steps": "1. Click **Deploy**. The first start downloads the signature database, which takes a few minutes.\n2. Applications that scan through it (Nextcloud, the mail server) are set up by themselves: each one is redeployed once with the scanner's address. Removing the scanner sets them back.\n\nThe scanner has no web address and no sign-in. The Apps page reports it as unhealthy while it cannot answer a PING.\n",
+        "setup_steps": "1. Click **Deploy**. The scanner starts with the signature database its image carries and keeps it current.\n2. Applications that scan through it (Nextcloud, the mail server) are set up by themselves: each one is redeployed once with the scanner's address. Removing the scanner sets them back.\n\nThe scanner has no web address and no sign-in. The Apps page reports it as unhealthy while it cannot answer a PING.\n",
         "what_it_is": "One antivirus scanner for the whole server. The mail server scans every message through it and Nextcloud scans every uploaded file; the compliance evidence store scans its files through it too."
       },
       "env": {
@@ -2978,7 +2978,7 @@
         "replaces": [
           "Un analyseur par application"
         ],
-        "setup_steps": "1. Cliquez **Deploy**. Le premier d\u00e9marrage t\u00e9l\u00e9charge la base de signatures, ce qui prend quelques minutes.\n2. Les applications qui analysent par son entremise (Nextcloud, le serveur de courriel) se configurent d'elles-m\u00eames : chacune est red\u00e9ploy\u00e9e une fois avec l'adresse de l'analyseur. Le retirer les remet comme avant.\n\nL'analyseur n'a ni adresse web ni connexion. La page Apps le signale en mauvaise sant\u00e9 tant qu'il ne r\u00e9pond pas \u00e0 un PING.\n",
+        "setup_steps": "1. Cliquez **Deploy**. L'analyseur d\u00e9marre avec la base de signatures que porte son image et la tient \u00e0 jour.\n2. Les applications qui analysent par son entremise (Nextcloud, le serveur de courriel) se configurent d'elles-m\u00eames : chacune est red\u00e9ploy\u00e9e une fois avec l'adresse de l'analyseur. Le retirer les remet comme avant.\n\nL'analyseur n'a ni adresse web ni connexion. La page Apps le signale en mauvaise sant\u00e9 tant qu'il ne r\u00e9pond pas \u00e0 un PING.\n",
         "what_it_is": "Un seul analyseur antivirus pour tout le serveur. Le serveur de courriel y analyse chaque message et Nextcloud chaque fichier d\u00e9pos\u00e9 ; le registre de preuves de conformit\u00e9 y analyse aussi ses fichiers."
       },
       "hostname_baked": false,
@@ -2987,8 +2987,8 @@
         "disk_baseline_mb": 400,
         "idle_cpu_pct": null,
         "idle_ram_mb": null,
-        "notes": "The daemon keeps its signature database resident, about 1.5 GB, and a\nreload that keeps scanning holds two copies for its length. The disk\nbaseline is the downloaded database. Conservative pre-launch estimate,\nnot yet measured.",
-        "notes_fr": "Le d\u00e9mon garde sa base de signatures en m\u00e9moire, environ 1,5 Go, et\nun rechargement qui continue d'analyser en tient deux copies pendant sa\ndur\u00e9e. Le disque de base est la base t\u00e9l\u00e9charg\u00e9e. Estimation prudente\npr\u00e9-lancement, pas encore mesur\u00e9e.",
+        "notes": "The daemon keeps its signature database resident, about 1.5 GB, and a\nreload that keeps scanning holds two copies for its length. The disk\nbaseline is the database the image carries. Conservative pre-launch estimate,\nnot yet measured.",
+        "notes_fr": "Le d\u00e9mon garde sa base de signatures en m\u00e9moire, environ 1,5 Go, et\nun rechargement qui continue d'analyser en tient deux copies pendant sa\ndur\u00e9e. Le disque de base est la base que porte l'image. Estimation prudente\npr\u00e9-lancement, pas encore mesur\u00e9e.",
         "peak_cpu_pct": null,
         "peak_ram_mb": 1700
       },

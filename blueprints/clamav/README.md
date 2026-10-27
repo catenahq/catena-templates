@@ -17,7 +17,7 @@ It has no web address.
 
 ### Setup steps
 
-1. Click **Deploy**. The first start downloads the signature database, which takes a few minutes.
+1. Click **Deploy**. The scanner starts with the signature database its image carries and keeps it current.
 2. Applications that scan through it (Nextcloud, the mail server) are set up by themselves: each one is redeployed once with the scanner's address. Removing the scanner sets them back.
 
 The scanner has no web address and no sign-in. The Apps page reports it as unhealthy while it cannot answer a PING.
@@ -50,7 +50,7 @@ Il n'a pas d'adresse web.
 
 ### Étapes de configuration
 
-1. Cliquez **Deploy**. Le premier démarrage télécharge la base de signatures, ce qui prend quelques minutes.
+1. Cliquez **Deploy**. L'analyseur démarre avec la base de signatures que porte son image et la tient à jour.
 2. Les applications qui analysent par son entremise (Nextcloud, le serveur de courriel) se configurent d'elles-mêmes : chacune est redéployée une fois avec l'adresse de l'analyseur. Le retirer les remet comme avant.
 
 L'analyseur n'a ni adresse web ni connexion. La page Apps le signale en mauvaise santé tant qu'il ne répond pas à un PING.
