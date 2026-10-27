@@ -1,0 +1,16 @@
+# Test for the collabora template: the editor keeps no data, so the check is its
+# image's own health probe, run after the install, the restore and each update.
+
+id: collabora
+description: >-
+  coolwsd answers its own probe.
+
+assert:
+  - name: coolwsd_answers_its_probe
+    type: docker_exec
+    container: "{{ container_collabora }}"
+    command:
+      - /usr/bin/coolwsd
+      - --probe
+      - --use-env-vars
+    timeout_s: 30
