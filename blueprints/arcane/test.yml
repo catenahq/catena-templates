@@ -1,0 +1,24 @@
+# Test for the arcane template: a marker in the volume that holds Arcane's
+# database survives the backup, the restore and each update. The steps mount the
+# volume in a throwaway container.
+
+id: arcane
+description: >-
+  A marker file in the arcane-data volume round-trips through the backup, the
+  restore and the updates unchanged.
+
+seed:
+  - name: volume_marker_write
+    type: volume_file
+    volume: "{{ app_name }}_arcane-data"
+    path: /catena_canary.txt
+    content: "{{ run_id }}"
+    timeout_s: 60
+
+assert:
+  - name: volume_marker_present
+    type: volume_file
+    volume: "{{ app_name }}_arcane-data"
+    path: /catena_canary.txt
+    expect_stdout_contains: "{{ run_id }}"
+    timeout_s: 60
