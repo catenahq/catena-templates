@@ -439,6 +439,9 @@ services:
   # opens video calls in an embedded Jitsi widget pointing at the
   # bundled instance at elementmeet.<base>. The video bridge advertises the
   # server's public address in its ICE candidates, so a call reaches it directly.
+  # Each Jitsi image declares its configuration folders as volumes and rewrites
+  # them from the environment at every start, so they live in memory and are
+  # never kept.
   #
   # Hostname is intentionally elementmeet.<base> (not meet.<base>) to
   # avoid collision with the Rocket.Chat bundled Jitsi when both
@@ -449,6 +452,15 @@ services:
     deploy:
       restart_policy:
         condition: any
+    volumes:
+      - type: tmpfs
+        target: /config
+        tmpfs:
+          size: 16777216
+      - type: tmpfs
+        target: /prosody-plugins-custom
+        tmpfs:
+          size: 16777216
     environment:
       AUTH_TYPE: internal
       ENABLE_AUTH: "1"
@@ -494,6 +506,11 @@ services:
     deploy:
       restart_policy:
         condition: any
+    volumes:
+      - type: tmpfs
+        target: /config
+        tmpfs:
+          size: 16777216
     environment:
       XMPP_DOMAIN: meet.jitsi
       XMPP_AUTH_DOMAIN: auth.meet.jitsi
@@ -517,6 +534,11 @@ services:
     deploy:
       restart_policy:
         condition: any
+    volumes:
+      - type: tmpfs
+        target: /config
+        tmpfs:
+          size: 16777216
     # Media UDP MUST be host-published. mode: host bypasses Swarm's
     # routing mesh so packets carry the real public source IP and
     # JVB's ICE candidates point at a routable address. Uses port
@@ -555,6 +577,15 @@ services:
     deploy:
       restart_policy:
         condition: any
+    volumes:
+      - type: tmpfs
+        target: /config
+        tmpfs:
+          size: 16777216
+      - type: tmpfs
+        target: /usr/share/jitsi-meet/transcripts
+        tmpfs:
+          size: 16777216
     environment:
       ENABLE_LETSENCRYPT: "0"
       ENABLE_HTTP_REDIRECT: "0"
@@ -586,6 +617,15 @@ services:
     deploy:
       restart_policy:
         condition: any
+    volumes:
+      - type: tmpfs
+        target: /config
+        tmpfs:
+          size: 16777216
+      - type: tmpfs
+        target: /tmp/transcripts
+        tmpfs:
+          size: 16777216
     # SIP gateway. It publishes no port on the host: with the three
     # JIGASI_SIP_* values below it registers outbound to the SIP provider
     # over UDP, and phone dial-in into a room is not a supported feature.

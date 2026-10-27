@@ -97,6 +97,26 @@ def test_the_template_reads_the_relay_the_host_provides_and_stores_no_secret_of_
     assert "secrets" not in entry.block
 
 
+# The folders each Jitsi image declares as a VOLUME at docker-jitsi-meet tag
+# stable-11031 (prosody/Dockerfile, jicofo/Dockerfile, jvb/Dockerfile,
+# web/Dockerfile, jigasi/Dockerfile).
+JITSI_VOLUMES = {
+    "prosody": {"/config", "/prosody-plugins-custom"},
+    "jicofo": {"/config"},
+    "jvb": {"/config"},
+    "jitsi-web": {"/config", "/usr/share/jitsi-meet/transcripts"},
+    "jigasi": {"/config", "/tmp/transcripts"},
+}
+
+
+def test_each_jitsi_volume_is_memory_and_no_jitsi_service_mounts_a_named_volume():
+    services = _compose()["services"]
+    for name, folders in JITSI_VOLUMES.items():
+        mounts = services[name]["volumes"]
+        assert {m["target"] for m in mounts if m.get("type") == "tmpfs"} == folders, name
+        assert all(m.get("type") == "tmpfs" for m in mounts), name
+
+
 def test_the_video_bridge_takes_no_relay_setting():
     jvb = _compose()["services"]["jvb"]["environment"]
     assert not [key for key in jvb if "TURN" in key]
