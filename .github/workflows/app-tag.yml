@@ -108,6 +108,9 @@ jobs:
           owner: ${{ github.repository_owner }}
           repositories: ${{ github.event.repository.name }}
           permission-contents: write
+          # Writing a ref (git/refs) also takes the workflows permission when the tagged
+          # history holds workflow changes (GitHub lists those endpoints under Workflows too).
+          permission-workflows: write
       - name: Write the tags
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
