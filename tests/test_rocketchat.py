@@ -40,6 +40,33 @@ def test_no_hook_wires_jitsi():
     assert "hooks" not in blueprint["x-catena"]
 
 
+# The folders each Jitsi image declares as a VOLUME at docker-jitsi-meet tag
+# stable-11031 (prosody/Dockerfile, jicofo/Dockerfile, jvb/Dockerfile,
+# web/Dockerfile).
+JITSI_VOLUMES = {
+    "prosody": {"/config", "/prosody-plugins-custom"},
+    "jicofo": {"/config"},
+    "jvb": {"/config"},
+    "jitsi-web": {"/config", "/usr/share/jitsi-meet/transcripts"},
+}
+
+
+def test_each_jitsi_volume_is_memory_and_no_jitsi_service_mounts_a_named_volume():
+    services = _compose()["services"]
+    for name, folders in JITSI_VOLUMES.items():
+        mounts = services[name]["volumes"]
+        assert {m["target"] for m in mounts if m.get("type") == "tmpfs"} == folders, name
+        assert all(m.get("type") == "tmpfs" for m in mounts), name
+
+
+def test_uploads_sit_on_a_named_volume_pinned_to_the_data_node():
+    blueprint = _compose()
+    rocketchat = blueprint["services"]["rocketchat"]
+    assert "rocketchat-uploads:/app/uploads" in rocketchat["volumes"]
+    assert "rocketchat-uploads" in blueprint["volumes"]
+    assert "node.labels.catena.role==data" in rocketchat["deploy"]["placement"]["constraints"]
+
+
 def test_the_video_bridge_takes_no_relay_setting():
     """The Jitsi video bridge reads no JVB_TURN_* value, so the template reads
     nothing of the call relay: it advertises the server's own address."""

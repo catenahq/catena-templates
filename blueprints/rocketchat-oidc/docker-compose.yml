@@ -83,6 +83,13 @@ services:
     deploy:
       restart_policy:
         condition: any
+      placement:
+        constraints:
+          - node.labels.catena.role==data
+    # Uploaded files go to the database unless an administrator picks file-system
+    # storage, which this image keeps here.
+    volumes:
+      - rocketchat-uploads:/app/uploads
     environment:
       ROOT_URL: https://${ROCKETCHAT_HOSTNAME}
       PORT: "3000"
@@ -167,13 +174,24 @@ services:
   # no calls leave the server, no fallback to public meet.jit.si.
   # JVB advertises ${VPS_PUBLIC_IP} in its ICE candidates, so a call reaches
   # it directly over UDP. The rocketchat service's Jitsi_* settings point
-  # Rocket.Chat at jitsi-web.
+  # Rocket.Chat at jitsi-web. Each Jitsi image declares its configuration
+  # folders as volumes and rewrites them from the environment at every start, so
+  # they live in memory and are never kept.
 
   prosody:
     image: jitsi/prosody:stable-11031
     deploy:
       restart_policy:
         condition: any
+    volumes:
+      - type: tmpfs
+        target: /config
+        tmpfs:
+          size: 16777216
+      - type: tmpfs
+        target: /prosody-plugins-custom
+        tmpfs:
+          size: 16777216
     environment:
       AUTH_TYPE: internal
       ENABLE_AUTH: "1"
@@ -219,6 +237,11 @@ services:
     deploy:
       restart_policy:
         condition: any
+    volumes:
+      - type: tmpfs
+        target: /config
+        tmpfs:
+          size: 16777216
     environment:
       XMPP_DOMAIN: meet.jitsi
       XMPP_AUTH_DOMAIN: auth.meet.jitsi
@@ -239,6 +262,11 @@ services:
     deploy:
       restart_policy:
         condition: any
+    volumes:
+      - type: tmpfs
+        target: /config
+        tmpfs:
+          size: 16777216
     # Media UDP MUST be host-published. mode: host bypasses Swarm's
     # routing mesh so packets carry the real public source IP and
     # JVB's ICE candidates point at a routable address.
@@ -275,6 +303,15 @@ services:
     deploy:
       restart_policy:
         condition: any
+    volumes:
+      - type: tmpfs
+        target: /config
+        tmpfs:
+          size: 16777216
+      - type: tmpfs
+        target: /usr/share/jitsi-meet/transcripts
+        tmpfs:
+          size: 16777216
     environment:
       ENABLE_LETSENCRYPT: "0"
       ENABLE_HTTP_REDIRECT: "0"
@@ -306,6 +343,7 @@ services:
 volumes:
   mongodb-data:
   mongodb-config:
+  rocketchat-uploads:
 
 networks:
   catena-network:
