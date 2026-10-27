@@ -1073,7 +1073,12 @@ services:
   #      eturnal, which listens on TALK_PORT inside the container's own
   #      network namespace, and no name is resolved. Nothing is wired to
   #      the service while no relay runs. With a relay, the bundled
-  #      eturnal is unused.
+  #      eturnal is unused while TURN_DOMAIN resolves inside the container
+  #      (getent, as Janus resolves). When it does not resolve yet, the
+  #      wrapper logs the name and sets TURN_DOMAIN to 127.0.0.1 too: Janus
+  #      uses the bundled eturnal, which takes the same TURN_SECRET, and
+  #      calls get no relay until the service restarts with a name that
+  #      resolves.
   #
   # The image's entrypoint is /start.sh and its command the dinit line
   # below. Overriding the entrypoint drops the image's command, so both are
@@ -1101,6 +1106,13 @@ services:
           TURN_SECRET=$$(openssl rand -hex 24)
           TURN_DOMAIN=127.0.0.1
           export TURN_SECRET TURN_DOMAIN
+        elif [ "$${TURN_DOMAIN:-}" != 127.0.0.1 ] && [ -n "$${TURN_DOMAIN:-}" ]; then
+          command -v getent >/dev/null || { echo "catena: getent is missing from the image" >&2; exit 1; }
+          if ! getent hosts "$$TURN_DOMAIN" >/dev/null; then
+            echo "catena: the call relay name $$TURN_DOMAIN does not resolve; Janus uses the bundled relay until the service restarts" >&2
+            TURN_DOMAIN=127.0.0.1
+            export TURN_DOMAIN
+          fi
         fi
         exec /start.sh "$$@"
       - sh
