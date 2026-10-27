@@ -22,7 +22,7 @@ x-catena:
 
 services:
   mautic_web:
-    image: mautic/mautic:7.2.1-apache
+    image: mautic/mautic:7.2.2-apache
     deploy:
       restart_policy:
         condition: any
@@ -72,7 +72,7 @@ services:
       default: {}
 
   mautic_worker:
-    image: mautic/mautic:7.2.1-apache
+    image: mautic/mautic:7.2.2-apache
     deploy:
       restart_policy:
         condition: any
@@ -99,7 +99,7 @@ services:
       - default
 
   mautic_cron:
-    image: mautic/mautic:7.2.1-apache
+    image: mautic/mautic:7.2.2-apache
     deploy:
       restart_policy:
         condition: any
