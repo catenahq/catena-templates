@@ -875,6 +875,9 @@ services:
       - "vps.auth.groups=staff"
       - "vps.auth.oidc.redirect_uris=https://${NEXTCLOUD_HOSTNAME}/apps/user_oidc/code"
       - "vps.auto-update=patch"
+      # status.php answers 200 before the install and in maintenance; the body says which.
+      - "vps.health.path=/status.php"
+      - 'vps.health.expect="installed":true,"maintenance":false'
     cap_drop:
       - NET_RAW
     networks:
