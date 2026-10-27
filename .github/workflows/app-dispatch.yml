@@ -12,12 +12,28 @@ name: app-dispatch
 # APP_CI_PAUSED to `true` stops the dispatch; no status is then posted and the
 # required `app-tests` check stays pending.
 #
-# The payload is `{sha, base, ids, ref, repo}`: the commit, the commit the change
-# is judged from, the apps it touches (comma-separated slugs), the branch and the
-# name of the repository the event comes from. The ops workflow validates the
-# commit, the base, the apps and the branch again before using them, and skips a
-# commit its branch has since moved past. The dispatch needs a token that writes to ops: the catenahq-renovate
-# GitHub App's (secrets RENOVATE_APP_CLIENT_ID and RENOVATE_APP_PRIVATE_KEY).
+# The payload is `{sha, base, ids, ref, repo, carry, carry_state}`: the commit, the
+# commit the change is judged from, the apps it touches (comma-separated slugs),
+# the branch, the name of the repository the event comes from, and a verdict the
+# same change already has. The ops workflow validates the commit, the base, the
+# apps, the branch and the verdict again before using them, and skips a commit its
+# branch has since moved past. The dispatch needs a token that writes to ops: the
+# catenahq-renovate GitHub App's (secrets RENOVATE_APP_CLIENT_ID and
+# RENOVATE_APP_PRIVATE_KEY).
+#
+# `carry` is the address of an ops run and `carry_state` its state, `success` or
+# `failure`, both empty when the commit has to run. A commit of one app carries
+# the `app-tests` status the App posted on the first of these that holds the
+# same change: the commit itself; on the default branch the head of the pull
+# request merged as the commit, on another branch the head the branch had before
+# the push; and, with the state `success`, the run that made the app's newest tag
+# when the app is tested at the commit. A `failure` is carried only on a branch
+# other than the default branch. A candidate holds the same change when the app's
+# files (`build/versions.py same`) are the same at the candidate and at the commit
+# and at the points each is judged from. A read token of the App (contents,
+# pull requests and statuses read, on the repository that pushed) fetches the
+# candidate and reads its pull requests and statuses. The status description must
+# name exactly the commit's app. Without the read token every commit runs in full.
 #
 # Another repository with the same layout calls this workflow with
 # `catalog: false`: its tools come from a checkout of catena-templates at
@@ -117,6 +133,120 @@ jobs:
           fi
           cat "$RUNNER_TEMP/dispatches.txt"
           if [ -s "$RUNNER_TEMP/dispatches.txt" ]; then echo "any=true" >> "$GITHUB_OUTPUT"; fi
+      - name: Mint a token that reads the repository
+        if: steps.scope.outputs.any == 'true'
+        id: read-token
+        continue-on-error: true
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ secrets.RENOVATE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RENOVATE_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          permission-contents: read
+          permission-pull-requests: read
+          permission-statuses: read
+      - name: A verdict the same change already has
+        if: steps.scope.outputs.any == 'true'
+        id: carry
+        env:
+          GH_TOKEN: ${{ steps.read-token.outputs.token }}
+          APP_SLUG: ${{ steps.read-token.outputs.app-slug }}
+          OWNER: ${{ github.repository_owner }}
+          REPO_NAME: ${{ github.event.repository.name }}
+          BRANCH: ${{ github.ref_name }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          shopt -s inherit_errexit
+          auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+          echo "::add-mask::$auth"
+          run_url="^https://github\\.com/$OWNER/ops/actions/runs/[0-9]+\$"
+          # Succeeds when commit $1 is in the checkout or can be fetched by its SHA.
+          have() {
+            git cat-file -e "$1^{commit}" 2>/dev/null && return 0
+            GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=http.extraheader \
+              GIT_CONFIG_VALUE_0="AUTHORIZATION: basic $auth" \
+              git fetch -q --no-tags origin "$1" 2>/dev/null || return 1
+            git cat-file -e "$1^{commit}" 2>/dev/null
+          }
+          # "state creator url" of the newest app-tests status of commit $1, empty when it has none.
+          verdict() {
+            gh api "repos/$OWNER/$REPO_NAME/commits/$1/statuses" 2>/dev/null --jq \
+              '[.[] | select(.context == "app-tests")] | .[0] | select(. != null)
+               | [.state, .creator.login, .target_url, .description] | @tsv' || true
+          }
+          # Succeeds, and sets state and url, when commit $1 has a verdict of the App for the
+          # change $sha holds (app $2, judged from $base). The status description names the
+          # apps the run judged: only exactly this one qualifies.
+          qualifies() {
+            local state creator url description
+            [[ "$1" =~ ^[0-9a-f]{40}$ ]] || return 1
+            have "$1" || return 1
+            IFS=$'\t' read -r state creator url description <<< "$(verdict "$1")" || true
+            case "$state" in
+              success)
+                [[ "$description" == "passed 1 app(s): $2" || "$description" == "passed 1 app(s): $2 ("* ]] \
+                  || return 1 ;;
+              failure)
+                [ "$BRANCH" != "$DEFAULT_BRANCH" ] || return 1
+                [[ "$description" == "failed: $2" || "$description" == "failed: $2 "* ]] || return 1 ;;
+              *) return 1 ;;
+            esac
+            [ "$creator" = "${APP_SLUG}[bot]" ] || return 1
+            [[ "$url" =~ $run_url ]] || return 1
+            uv run "$TOOLS/build/versions.py" same "$2" --ref "$sha" --base "$base" --from "$1" \
+              || return 1
+            carry_state="$state"
+            carry_url="$url"
+          }
+          # The head of the pull request merged as commit $1 into the default branch.
+          merged_head() {
+            gh api "repos/$OWNER/$REPO_NAME/commits/$1/pulls" 2>/dev/null --jq \
+              '[.[] | select(.merged_at != null and .base.ref == env.DEFAULT_BRANCH)]
+               | .[0].head.sha // empty' || true
+          }
+          : > "$RUNNER_TEMP/payloads.txt"
+          while read -r sha base ids <&3; do
+            carry_state=""
+            carry_url=""
+            taken=""
+            if [ -z "$GH_TOKEN" ]; then
+              echo "::warning::no read token: every commit runs in full"
+            elif [[ "$ids" =~ ^[^,]+$ ]]; then
+              if qualifies "$sha" "$ids"; then
+                taken="$sha"
+              else
+                if [ "$BRANCH" = "$DEFAULT_BRANCH" ]; then
+                  prev="$(merged_head "$sha")"
+                  if [ -z "$prev" ]; then
+                    sleep 10
+                    prev="$(merged_head "$sha")"
+                  fi
+                elif [ -n "${BEFORE//0/}" ]; then
+                  prev="$BEFORE"
+                else
+                  prev=""
+                fi
+                if [ -n "$prev" ] && qualifies "$prev" "$ids"; then taken="$prev"; fi
+              fi
+              if [ -z "$taken" ]; then
+                tag_run="$(uv run "$TOOLS/build/versions.py" tested-run "$ids" --ref "$sha" || true)"
+                if [[ "$tag_run" =~ $run_url ]]; then
+                  taken="the newest tag of $ids"
+                  carry_state="success"
+                  carry_url="$tag_run"
+                fi
+              fi
+            fi
+            if [ -n "$taken" ]; then
+              echo "$sha: carries the $carry_state of $taken ($carry_url)"
+            else
+              echo "$sha: runs"
+            fi
+            echo "$sha $base ${ids:--} ${carry_url:--} ${carry_state:--}" >> "$RUNNER_TEMP/payloads.txt"
+          done 3< "$RUNNER_TEMP/dispatches.txt"
       - name: Mint a GitHub App token that can dispatch to ops
         if: steps.scope.outputs.any == 'true'
         id: app-token
@@ -136,12 +266,17 @@ jobs:
           REPO_NAME: ${{ github.event.repository.name }}
         run: |
           set -euo pipefail
-          while read -r sha base ids <&3; do
+          while read -r sha base ids carry state <&3; do
+            [ "$ids" != "-" ] || ids=""
+            [ "$carry" != "-" ] || carry=""
+            [ "$state" != "-" ] || state=""
             gh api -X POST "repos/$OWNER/ops/dispatches" \
               -f event_type=app-test \
               -f "client_payload[sha]=$sha" \
               -f "client_payload[base]=$base" \
               -f "client_payload[ids]=$ids" \
               -f "client_payload[ref]=$BRANCH" \
-              -f "client_payload[repo]=$REPO_NAME"
-          done 3< "$RUNNER_TEMP/dispatches.txt"
+              -f "client_payload[repo]=$REPO_NAME" \
+              -f "client_payload[carry]=$carry" \
+              -f "client_payload[carry_state]=$state"
+          done 3< "$RUNNER_TEMP/payloads.txt"

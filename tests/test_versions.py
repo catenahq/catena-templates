@@ -1,5 +1,5 @@
 """Unit tests for lib/versions.py: version, revision, tag order, the
-one-app scope check and the tested state."""
+one-app scope check, the tested state and the same-change test."""
 from __future__ import annotations
 
 import io
@@ -179,14 +179,115 @@ def test_a_late_pass_of_an_older_commit_leaves_the_newer_tag_the_newest(repo):
     assert versions.plan("web", older) == "skip web/1.2.0-1"
 
 
+def _head():
+    return subprocess.run(["git", "-C", str(versions.ROOT), "rev-parse", "HEAD"],
+                          capture_output=True, text=True, check=True).stdout.strip()
+
+
+def _outside_file(git, name):
+    """A commit that changes a file outside the app."""
+    (versions.ROOT / name).write_text(name)
+    git("add", "-A")
+    git("commit", "-qm", name)
+
+
 def test_a_plan_reads_the_passed_commit_not_the_checkout(repo):
     # app-tag.yml runs the default branch's tools over a commit that may predate them.
-    git, commit = repo
-    older = subprocess.run(["git", "-C", str(versions.ROOT), "rev-parse", "HEAD"],
-                           capture_output=True, text=True, check=True).stdout.strip()
-    commit("web:1.3.0")
+    git, _ = repo
+    older = _head()
+    _outside_file(git, "notes.txt")
     assert versions.plan("web", older) == "create web/1.2.0-1"
-    assert versions.plan("web") == "create web/1.3.0-1"
+    assert versions.plan("web") == "create web/1.2.0-1"
+
+
+def test_a_pass_of_a_commit_whose_app_main_has_since_changed_is_skipped(repo):
+    git, commit = repo
+    older = _head()
+    commit("web:1.3.0")
+    assert versions.plan("web", older) == "skip -"
+    git("tag", "-a", "web/1.3.0-1", "-m", f"{versions.PASSED} at {'a' * 40}: https://x")
+    assert versions.plan("web", older) == "skip web/1.3.0-1"
+
+
+def _squash(repo, main_move, merged_image):
+    """(sha, base, cand): a branch holding `web:1.3.0`, and the commit that squashes it onto main."""
+    git, commit = repo
+    git("branch", "-M", "main")
+    git("checkout", "-q", "-b", "br")
+    commit("web:1.3.0")
+    cand = _head()
+    git("checkout", "-q", "main")
+    main_move(git, commit)
+    base = _head()
+    commit(merged_image)
+    return _head(), base, cand
+
+
+def test_a_squash_of_the_same_files_is_the_same_change_whatever_main_did_outside_the_app(repo):
+    sha, base, cand = _squash(repo, lambda git, _: _outside_file(git, "notes.txt"), "web:1.3.0")
+    assert versions.same_change("web", sha, base, cand)
+    assert versions.main(["same", "web", "--ref", sha, "--base", base, "--from", cand]) == 0
+
+
+def test_a_squash_that_holds_other_app_files_than_the_branch_is_a_different_change(repo):
+    sha, base, cand = _squash(repo, lambda git, _: _outside_file(git, "notes.txt"), "web:1.4.0")
+    assert not versions.same_change("web", sha, base, cand)
+    assert versions.main(["same", "web", "--ref", sha, "--base", base, "--from", cand]) == 1
+
+
+def test_main_changing_the_app_between_the_two_forks_is_a_different_change(repo):
+    sha, base, cand = _squash(repo, lambda _, commit: commit("web:1.1.0"), "web:1.3.0")
+    assert not versions.same_change("web", sha, base, cand)
+
+
+def test_a_commit_is_the_same_change_as_itself(repo):
+    _, commit = repo
+    base = _head()
+    commit("web:1.3.0")
+    sha = _head()
+    assert versions.same_change("web", sha, base, sha)
+
+
+def test_a_candidate_absent_from_the_checkout_is_not_the_same_change(repo):
+    _, commit = repo
+    base = _head()
+    commit("web:1.3.0")
+    sha = _head()
+    assert not versions.same_change("web", sha, base, "0" * 40)
+    assert versions.main(["same", "web", "--ref", sha, "--base", base, "--from", "0" * 40]) == 1
+
+
+def test_same_takes_only_full_lowercase_shas_and_plain_app_ids(repo):
+    sha = _head()
+    assert versions.main(["same", "web", "--ref", sha, "--base", sha, "--from=--upload-pack=x"]) == 1
+    assert versions.main(["same", "web", "--ref", sha, "--base", sha, "--from", sha.upper()]) == 1
+    assert versions.main(["same", "../web", "--ref", sha, "--base", sha, "--from", sha]) == 1
+    assert versions.main(["same", "web", "--ref", sha, "--base", sha, "--from", sha]) == 0
+
+
+def test_tested_run_is_the_address_of_the_run_that_made_the_newest_tag(repo, capsys):
+    git, _ = repo
+    run = "https://github.com/o/ops/actions/runs/7"
+    git("tag", "-a", "web/1.2.0-1", "-m", f"{versions.PASSED} at {'a' * 40}: {run}")
+    assert versions.tested_run("web") == run
+    assert versions.main(["tested-run", "web"]) == 0
+    assert capsys.readouterr().out == run + "\n"
+
+
+def test_tested_run_is_empty_for_a_hand_made_newest_tag(repo, capsys):
+    git, _ = repo
+    git("tag", "-a", "web/1.2.0-1", "-m", f"{versions.PASSED} at {'a' * 40}: https://x")
+    git("tag", "web/1.2.0-2")
+    assert versions.tested_run("web") is None
+    assert versions.main(["tested-run", "web"]) == 0
+    assert capsys.readouterr().out == ""
+
+
+def test_tested_run_is_empty_for_changed_files(repo):
+    git, commit = repo
+    git("tag", "-a", "web/1.2.0-1", "-m", f"{versions.PASSED} at {'a' * 40}: https://x")
+    commit("web:1.3.0")
+    assert versions.tested_run("web") is None
 
 
 def test_templates_root_points_the_tags_at_another_tree(repo, tmp_path):

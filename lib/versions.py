@@ -19,11 +19,19 @@ its newest tag, and `untested` when it has no tag or its newest was made by
 hand. All of it is read from the checkout's git.
 
   plan APP [--ref REF]  what a pass at commit REF (default HEAD) does to APP's tags:
-                        `skip TAG` (tested, or TAG is on a later commit), `mark TAG`
-                        (annotate the hand-made TAG) or `create TAG`
+                        `skip TAG` (tested, TAG is on a later commit, or the checked-out
+                        commit holds other files of APP than REF; `skip -` with no tag),
+                        `mark TAG` (annotate the hand-made TAG) or `create TAG`
   scope                 changed paths on stdin -> fail when they touch more than one app
   tested [--needs-run]  each app's state at the checked-out commit; with
                         --needs-run, the ids of the apps not `tested`
+  same APP --ref SHA --base BASE --from CAND
+                        exit 0 when commit CAND holds the change SHA holds: APP's files
+                        are the same at both, and the same where each is judged from
+                        (the merge base of CAND and BASE, and BASE)
+  tested-run APP [--ref REF]
+                        the address of the passing run that made APP's newest tag, when
+                        APP is `tested` at REF (default HEAD)
 
 `scope` is the check that keeps a commit or a pull request to one app, so
 one merge is one tag.
@@ -47,6 +55,7 @@ PASSED = "app-tests passed"
 TESTED, CHANGED, UNTESTED = "tested", "changed", "untested"
 
 _NUMERIC = re.compile(r"v?(\d+(?:[._]\d+)*)")
+_SHA = re.compile(r"[0-9a-f]{40}")
 _TAG = re.compile(r"(?P<version>.+)-(?P<revision>\d+)")
 
 
@@ -165,6 +174,16 @@ def app_tags(app: str) -> dict[str, bool]:
     return tags
 
 
+def app_paths(app: str) -> tuple[str, str]:
+    """The paths that make up an app."""
+    return f"blueprints/{app}", f"sources/{app}.json"
+
+
+def same_files(app: str, a: str, b: str) -> bool:
+    """Whether commits `a` and `b` hold the same files of the app."""
+    return all(_object(f"{a}:{path}") == _object(f"{b}:{path}") for path in app_paths(app))
+
+
 def tested_state(app: str, ref: str = "HEAD") -> tuple[str, str | None]:
     """(TESTED, CHANGED or UNTESTED, the newest tag) of the app at `ref`."""
     tags = app_tags(app)
@@ -172,8 +191,7 @@ def tested_state(app: str, ref: str = "HEAD") -> tuple[str, str | None]:
     if not order:
         return UNTESTED, None
     newest = order[-1]
-    if any(_object(f"{newest}:{path}") != _object(f"{ref}:{path}")
-           for path in (f"blueprints/{app}", f"sources/{app}.json")):
+    if not same_files(app, newest, ref):
         return CHANGED, newest
     return (TESTED if tags[newest] else UNTESTED), newest
 
@@ -184,10 +202,13 @@ def _is_ancestor(commit: str, of: str) -> bool:
 
 
 def plan(app: str, ref: str = "HEAD") -> str:
-    """What a pass at commit `ref` does to the app's tags: nothing when a passing run
-    made the newest tag or the newest tag is on a later commit, annotate a hand-made
-    newest tag that holds the same files, else a new tag."""
+    """What a pass at commit `ref` does to the app's tags: nothing when the checked-out
+    commit holds other files of the app than `ref`, a passing run made the newest tag
+    or the newest tag is on a later commit; annotate a hand-made newest tag that holds
+    the same files, else a new tag."""
     state, newest = tested_state(app, ref)
+    if not same_files(app, "HEAD", ref):
+        return f"skip {newest or '-'}"
     if state == TESTED:
         return f"skip {newest}"
     if state == UNTESTED and newest:
@@ -195,6 +216,29 @@ def plan(app: str, ref: str = "HEAD") -> str:
     if newest and _is_ancestor(ref, f"{newest}^{{commit}}"):
         return f"skip {newest}"
     return f"create {next_tag(app, app_tags(app), ref)}"
+
+
+def same_change(app: str, ref: str, base: str, cand: str) -> bool:
+    """Whether commit `cand` holds the change `ref` holds, judged from `base`: the app's
+    files are the same at both commits and at the points each is judged from."""
+    done = subprocess.run(["git", "-C", str(ROOT), "merge-base", cand, base],
+                          capture_output=True, text=True, check=False)
+    fork = done.stdout.strip()
+    if done.returncode != 0 or not fork:
+        return False
+    return same_files(app, cand, ref) and same_files(app, fork, base)
+
+
+def tested_run(app: str, ref: str = "HEAD") -> str | None:
+    """The address of the run that made the app's newest tag, when the app is tested at `ref`."""
+    state, newest = tested_state(app, ref)
+    if state != TESTED:
+        return None
+    subject = subprocess.run(
+        ["git", "-C", str(ROOT), "for-each-ref", "--format=%(contents:subject)", f"refs/tags/{newest}"],
+        capture_output=True, text=True, check=True).stdout.strip()
+    match = re.fullmatch(re.escape(PASSED) + r" at \S+: (\S+)", subject)
+    return match.group(1) if match else None
 
 
 def apps() -> list[str]:
@@ -209,6 +253,14 @@ def main(argv: list[str]) -> int:
     plan_cmd.add_argument("--ref", default="HEAD")
     sub.add_parser("scope")
     sub.add_parser("tested").add_argument("--needs-run", action="store_true")
+    same_cmd = sub.add_parser("same")
+    same_cmd.add_argument("app")
+    same_cmd.add_argument("--ref", required=True)
+    same_cmd.add_argument("--base", required=True)
+    same_cmd.add_argument("--from", dest="cand", required=True)
+    run_cmd = sub.add_parser("tested-run")
+    run_cmd.add_argument("app")
+    run_cmd.add_argument("--ref", default="HEAD")
     args = parser.parse_args(argv)
 
     if args.command == "scope":
@@ -228,6 +280,15 @@ def main(argv: list[str]) -> int:
     if changes.slug_errors([args.app]):
         print(f"{args.app!r} is not a plain app id", file=sys.stderr)
         return 1
+    if args.command == "same":
+        shas = (args.ref, args.base, args.cand)
+        return 0 if all(_SHA.fullmatch(sha) for sha in shas) and same_change(
+            args.app, args.ref, args.base, args.cand) else 1
+    if args.command == "tested-run":
+        run = tested_run(args.app, args.ref)
+        if run:
+            print(run)
+        return 0
     try:
         print(plan(args.app, args.ref))
     except VersionError as exc:

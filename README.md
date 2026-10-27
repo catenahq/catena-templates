@@ -262,6 +262,16 @@ private runner this repository cannot reach):
   branch other than `main` is judged as a whole, from where it left `main`, and
   is sent only when it changes one app or none. The repository variable
   `APP_CI_PAUSED=true` stops it.
+- A commit of one app whose change already has an `app-tests` verdict carries
+  it: the event holds `carry` (the address of the ops run) and `carry_state`,
+  and ops posts that verdict on the commit without a run. The dispatch looks
+  at the commit itself, then, on `main`, at the head of the merged pull
+  request, on another branch at the head the branch had before the push, and
+  then at the run that made the app's newest tag. A candidate counts when the
+  CI GitHub App posted its verdict, and the app's files, and the files its
+  change is judged from, are the same (`build/versions.py same`). A failure is
+  carried only on a branch other than `main`. A carried pass on `main` is
+  tagged with the address of the run that tested the change.
 - ops runs install, checks, backup, restore, rollback, updates and the outbound
   check, then posts the commit status `app-tests` on the commit (success,
   failure, or error when the bench gave no verdict). A commit its branch has
@@ -297,7 +307,9 @@ No file holds a version string: versions are git tags. A tested app is tagged
 - **When.** `app-tag.yml` runs on the event `app-passed`, which the bench sends
   with the apps that passed on a commit of `main`. An app whose files
   (`blueprints/<id>/`, `sources/<id>.json`) differ from its newest tag, or that
-  has none, gets a new tag on the commit. An app whose newest tag was made by
+  has none, gets a new tag on the commit, but only while `main` still holds the
+  commit's files of the app: a pass of a commit whose app `main` has since
+  changed tags nothing. An app whose newest tag was made by
   hand and holds the same files has that tag annotated where it stands. The
   tags are annotated `app-tests passed at <commit>: <run>` and written through
   the API with the CI GitHub App's token (secrets `RENOVATE_APP_CLIENT_ID` and
@@ -316,7 +328,13 @@ No file holds a version string: versions are git tags. A tested app is tagged
 `uv run build/versions.py tested` lists each app's state and newest tag
 (`--needs-run`: the ids of the apps not `tested`); `uv run build/versions.py
 plan <app>` prints what a pass does to the app's tags;
-`uv run build/versions.py scope` checks changed paths on stdin. With
+`uv run build/versions.py scope` checks changed paths on stdin;
+`uv run build/versions.py same <app> --ref <sha> --base <sha> --from <sha>`
+exits 0 when the `--from` commit holds the change `--ref` holds, judged from
+`--base`: the app's files are the same at both commits, and the same at the
+merge base of `--from` and `--base` and at `--base`;
+`uv run build/versions.py tested-run <app> [--ref <rev>]` prints the address of
+the run that made the app's newest tag when the app is `tested` there. With
 `TEMPLATES_ROOT` set, the tags and files read are those of that tree's git
 repository.
 

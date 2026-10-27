@@ -2,7 +2,7 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["github>catenahq/renovate-config"],
   "docker-compose": {
-    "description": "The catalog's image pins (blueprints/<id>/docker-compose.yml) are moved by the catena-admin update engine's repository job (catenahq/renovate engine-bump.yml), the same decision a host makes for a running service. Renovate does not manage them, so the two cannot disagree.",
+    "description": "The catalog's image pins (blueprints/<id>/docker-compose.yml) are moved by the catena-admin update engine's repository job (catena-admin .github/workflows/engine-bump.yml), the same decision a host makes for a running service. Renovate does not manage them, so the two cannot disagree.",
     "enabled": false
   },
   "packageRules": [
