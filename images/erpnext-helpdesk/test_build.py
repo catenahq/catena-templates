@@ -477,17 +477,34 @@ def test_registry_reads_are_anonymous_without_ghcr_token(monkeypatch):
 
 # --- build -------------------------------------------------------------------
 
-def _build(monkeypatch, tmp_path, telephony_head):
+CONFIG = {"Env": ["PATH=/usr/bin", "NOTE=a $b \"c\" \\d"], "User": "frappe",
+          "WorkingDir": "/home/frappe/frappe-bench", "Entrypoint": ["entrypoint.sh"],
+          "Cmd": ["start.sh"], "Volumes": {"/home/frappe/frappe-bench/sites": {}},
+          "ExposedPorts": {"8000/tcp": {}}, "Labels": {"a": "b $c"}}
+WALK_TEXT = "\n".join(["\t".join([json.dumps(p), "f", "1000", "0", "0o644", "3", '""', "", "ab", "1", '""'])
+                       for p in ("/a", "/b")]) + "\n"
+
+
+def _build(monkeypatch, tmp_path, telephony_head, walks=None, history="1000\tCOPY x\n"):
     """cmd_build with docker and git recorded; the registry of branch heads
-    answers `telephony_head`. Returns the recorded calls."""
+    answers `telephony_head`; `walks` {image suffix: walk text}. Returns the
+    recorded calls."""
     calls = []
+    walks = walks or {}
 
     def run(*argv, **_k):
         calls.append(argv)
         if argv[:2] == ("git", "clone"):
             containerfile = Path(argv[-1]) / "images" / "layered" / "Containerfile"
             containerfile.parent.mkdir(parents=True)
-            containerfile.write_text(f"RUN x && \\\n  {B.ANCHOR}\n")
+            containerfile.write_text(f"# syntax=docker/dockerfile:1\nFROM x AS backend\nRUN x && \\\n  {B.ANCHOR}\n")
+        if argv[:3] == ("docker", "image", "inspect"):
+            return json.dumps(CONFIG)
+        if argv[:2] == ("docker", "history"):
+            return history
+        if argv[:2] == ("docker", "run") and "python3" in argv:
+            image = argv[argv.index("python3") + 1]
+            return walks.get(image.rsplit("-", 1)[-1], WALK_TEXT)
         if argv[:2] == ("docker", "run"):
             return "frappe erpnext telephony helpdesk"
         return ""
@@ -502,7 +519,7 @@ def _build(monkeypatch, tmp_path, telephony_head):
 
 def test_build_passes_the_frappe_tag_as_frappe_branch(spec, monkeypatch, tmp_path):
     calls = _build(monkeypatch, tmp_path, "t1")
-    [build] = [c for c in calls if c[:3] == ("docker", "buildx", "build")]
+    [build] = [c for c in calls if c[:3] == ("docker", "buildx", "build") and "backend" in c]
     assert "FRAPPE_BRANCH=v16.1.0" in build
     sent = json.loads((tmp_path / "work" / "apps.json").read_text())
     assert [a["branch"] for a in sent] == ["v16.1.0", "develop", "v1.0.0"]
@@ -511,3 +528,150 @@ def test_build_passes_the_frappe_tag_as_frappe_branch(spec, monkeypatch, tmp_pat
 def test_build_fails_when_a_branch_moved_while_it_ran(spec, monkeypatch, tmp_path):
     with pytest.raises(SystemExit, match="telephony develop moved to t2"):
         _build(monkeypatch, tmp_path, "t2")
+
+
+def test_build_runs_backend_inspect_final_compare_history_in_order(spec, monkeypatch, tmp_path):
+    calls = _build(monkeypatch, tmp_path, "t1")
+    image = f"{B.SPEC['image']}:v16.1.0-1"
+    kinds = []
+    for c in calls:
+        if c[:3] == ("docker", "buildx", "build"):
+            kinds.append(("build", c[c.index("--target") + 1], c[c.index("-t") + 1]))
+        elif c[:3] == ("docker", "image", "inspect"):
+            kinds.append(("inspect", c[-1]))
+        elif "python3" in c:
+            kinds.append(("walk", c[c.index("python3") + 1]))
+        elif c[:2] in (("docker", "history"), ("docker", "image")):
+            kinds.append((c[1], c[-1]))
+    assert kinds == [("build", "backend", f"{image}-backend"), ("inspect", f"{image}-backend"),
+                     ("build", "catena", image), ("inspect", image),
+                     ("walk", f"{image}-backend"), ("walk", image),
+                     ("history", image), ("image", f"{image}-backend")]
+    work = tmp_path / "work" / "frappe_docker" / "images" / "layered" / "Containerfile"
+    text = work.read_text()
+    assert text.startswith(B.SYNTAX + "\n")
+    assert text.count("# syntax=") == 1
+    assert text.endswith(B.stage(CONFIG))
+
+
+def test_build_fails_on_a_difference_between_the_images(spec, monkeypatch, tmp_path):
+    changed = WALK_TEXT.replace("1000", "0", 1)
+    with pytest.raises(SystemExit, match="differs from the backend image"):
+        _build(monkeypatch, tmp_path, "t1", walks={"backend": WALK_TEXT, "1": changed})
+
+
+def test_build_fails_on_a_layer_above_the_bound(spec, monkeypatch, tmp_path):
+    with pytest.raises(SystemExit, match="layer above"):
+        _build(monkeypatch, tmp_path, "t1", history=f"{B.LAYER_BOUND + 1}\tCOPY big\n")
+
+
+def test_build_stops_when_the_containerfile_has_no_backend_stage(spec, monkeypatch, tmp_path):
+    def run(*argv, **_k):
+        if argv[:2] == ("git", "clone"):
+            containerfile = Path(argv[-1]) / "images" / "layered" / "Containerfile"
+            containerfile.parent.mkdir(parents=True)
+            containerfile.write_text(f"FROM x\nRUN {B.ANCHOR}\n")
+        return ""
+
+    monkeypatch.setattr(B, "run", run)
+    monkeypatch.setattr(B.tempfile, "mkdtemp", lambda **_k: str(tmp_path / "work"))
+    monkeypatch.setattr(B, "load", lambda: {"inputs": B.inputs(), "tag": "v16.1.0-1"})
+    with pytest.raises(SystemExit, match="no backend stage"):
+        B.cmd_build(argparse.Namespace())
+
+
+# --- the repack ---------------------------------------------------------------
+
+def test_the_stage_copies_each_group_parent_first_with_its_children_excluded():
+    lines = B.copy_lines()
+    assert lines[0] == ("COPY --from=backend --exclude=home/frappe/* --exclude=usr/lib/*"
+                        " --exclude=usr/share/* --exclude=usr/local/* / /")
+    assert ("COPY --from=backend --exclude=frappe-bench/* --exclude=.nvm/* /home/frappe /home/frappe"
+            ) in lines
+    assert ("COPY --from=backend --exclude=env/* --exclude=apps/frappe/* --exclude=apps/erpnext/*"
+            " /home/frappe/frappe-bench /home/frappe/frappe-bench") in lines
+    assert "COPY --from=backend --exclude=x86_64-linux-gnu/* /usr/lib /usr/lib" in lines
+    assert "COPY --from=backend /usr/share /usr/share" in lines
+    assert len(lines) == len(B.LAYERS)
+    index = {path: next(i for i, x in enumerate(lines) if x.endswith(f" {path} {path}"))
+             for path in B.LAYERS}
+    assert all(index[parent] < index[child] for child in B.LAYERS for parent in B.LAYERS
+               if B.under(child, parent))
+
+
+def test_the_stage_renders_the_configuration_after_the_copies():
+    text = B.stage(CONFIG)
+    lines = text.splitlines()
+    assert lines[0] == "FROM scratch AS catena"
+    assert lines[1:1 + len(B.LAYERS)] == B.copy_lines()
+    assert lines[1 + len(B.LAYERS):] == [
+        'ENV PATH="/usr/bin"',
+        'ENV NOTE="a \\$b \\"c\\" \\\\d"',
+        "USER frappe", "WORKDIR /home/frappe/frappe-bench",
+        'ENTRYPOINT ["entrypoint.sh"]', 'CMD ["start.sh"]',
+        'VOLUME ["/home/frappe/frappe-bench/sites"]', "EXPOSE 8000/tcp",
+        'LABEL "a"="b \\$c"']
+
+
+def test_the_stage_leaves_out_what_the_image_does_not_set():
+    assert B.stage({}).splitlines() == ["FROM scratch AS catena", *B.copy_lines()]
+
+
+def test_a_value_with_a_newline_is_refused():
+    with pytest.raises(SystemExit, match="control character"):
+        B.quote("a\nb")
+
+
+def test_the_syntax_line_replaces_the_first_line_or_is_added():
+    assert B.with_syntax("# syntax=docker/dockerfile:1\nFROM x\n") == B.SYNTAX + "\nFROM x\n"
+    assert B.with_syntax("FROM x\n") == B.SYNTAX + "\nFROM x\n"
+
+
+def test_the_recipe_changes_when_the_layers_change(spec, monkeypatch):
+    before = B.inputs()["recipe"]
+    monkeypatch.setattr(B, "LAYERS", (*B.LAYERS, "/opt"))
+    assert B.inputs()["recipe"] != before
+
+
+def _line(path, **over):
+    fields = dict(zip(B.WALK_FIELDS, [json.dumps(path), "f", "1000", "0", "0o644", "3", '""', "",
+                                      "ab", "1", '""']))
+    fields.update(over)
+    return "\t".join(fields[n] for n in B.WALK_FIELDS)
+
+
+@pytest.mark.parametrize("over,needle", [
+    ({"uid": "0"}, "uid 1000 -> 0"), ({"mode": "0o600"}, "mode 0o644 -> 0o600"),
+    ({"type": "l", "link": json.dumps("/x")}, "link"), ({"sha256": "cd"}, "sha256 ab -> cd"),
+    ({"xattrs": "user.a=00"}, "xattrs"), ({"nlink": "2"}, "nlink 1 -> 2")])
+def test_the_comparison_reports_a_changed_field(over, needle):
+    [found] = B.tree_diff(_line("/a") + "\n", _line("/a", **over) + "\n")
+    assert found.startswith("/a: ") and needle in found
+
+
+def test_the_comparison_reports_a_missing_and_an_added_file():
+    found = B.tree_diff(_line("/a") + "\n" + _line("/b") + "\n", _line("/a") + "\n" + _line("/c") + "\n")
+    assert found == ["missing from the repack: /b", "added by the repack: /c"]
+
+
+def test_equal_trees_and_configurations_differ_in_nothing():
+    assert B.tree_diff(WALK_TEXT, WALK_TEXT) == []
+    assert B.config_diff(CONFIG, {**CONFIG, "Volumes": dict(CONFIG["Volumes"])}) == []
+    assert B.config_diff({"Cmd": None}, {"Cmd": []}) == []
+
+
+def test_the_comparison_reports_a_changed_configuration_field():
+    [found] = B.config_diff(CONFIG, {**CONFIG, "User": "root"})
+    assert found.startswith("User:")
+
+
+def test_the_comparison_reports_a_field_the_stage_does_not_restate():
+    health = {"Test": ["CMD", "true"]}
+    [found] = B.config_diff({**CONFIG, "Healthcheck": health}, CONFIG)
+    assert found.startswith("Healthcheck:")
+    assert B.config_diff({**CONFIG, "Image": "sha256:a", "Hostname": "x"}, CONFIG) == []
+
+
+def test_the_history_bound_flags_only_layers_above_it():
+    history = f"{B.LAYER_BOUND}\tok\n{B.LAYER_BOUND + 1}\tCOPY big\n0\tENV x\n<missing>\tx\n"
+    assert B.oversize(history) == [f"{B.LAYER_BOUND + 1} bytes: COPY big"]

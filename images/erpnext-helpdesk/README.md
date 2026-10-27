@@ -36,6 +36,19 @@ Each app's build-only `node_modules` are removed in the build layer, which
 keeps about 740 MiB out of the image. Frappe's own stay: the websocket service
 runs from them.
 
+The image is repacked at the end of the build. The built image's tree is copied
+into a scratch stage, one `COPY` per group of `LAYERS` in `build.py` (the bench
+venv, each of Frappe and ERPNext, the rest of the bench, `.nvm`, the rest of
+the frappe home, the system libraries, `/usr/share`, `/usr/local`, the rest of
+`/`), so the image holds about ten layers and a host pulls them in parallel. The scratch stage restates the built image's
+environment, user, working directory, entrypoint, command, volumes, ports and
+labels. The build then fails unless a walk inside each image finds the same
+paths with the same type, owner, mode, size, link target, extended attributes,
+content hash and hard-link groups, and the same configuration (every field of
+the image's config except its parent image id and hostname), and unless
+every layer is at most `LAYER_BOUND` (400 MB). A hard-link group split across
+two groups shows up as a difference.
+
 The NLTK corpora an app lists under `nltk_data` in `apps.json` are part of the
 image. Helpdesk loads them for its search and downloads any it cannot find
 into the container, after every migration and from its scheduler, so a host
