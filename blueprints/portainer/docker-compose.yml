@@ -7,7 +7,7 @@ x-catena:
 
 services:
   portainer:
-    image: portainer/portainer-ce:2.45.2
+    image: portainer/portainer-ce:2.45.3
     deploy:
       restart_policy:
         condition: any
