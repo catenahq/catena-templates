@@ -1,0 +1,20 @@
+# Test for the coturn template: the relay listens on its port and holds the
+# certificate the server issued for its name.
+
+id: coturn
+description: >-
+  The relay listens on its UDP port and holds its certificate.
+
+assert:
+  - name: relay_listens_and_holds_its_certificate
+    type: docker_exec
+    container: "{{ container_coturn }}"
+    command:
+      - sh
+      - -c
+      - |
+        grep -q ":$(printf '%04X' "$TURN_PORT") " /proc/net/udp || { echo "udp $TURN_PORT does not listen"; exit 1; }
+        test -s /certs/fullchain.pem || { echo "no certificate"; exit 1; }
+        echo "relay ok"
+    expect_stdout_contains: "relay ok"
+    timeout_s: 30

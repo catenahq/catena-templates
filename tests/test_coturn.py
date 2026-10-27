@@ -76,13 +76,23 @@ def _hook(name: str) -> list[str]:
 
 def test_the_relay_has_no_web_address_and_no_bench_restore_drill():
     """The relay keeps no data, so the bench restore drill has nothing to seed
-    or to check after a restore, and the per-app checks cannot install it."""
+    or to check after a restore."""
     catena = _entry().catena
     assert "domain" not in catena
     assert catena["sso_mode"] == "n/a"
     assert catena["bench"]["fixture"] == "skip" and catena["bench"]["pack"] == "nodb"
-    assert not (BLUEPRINT / "test.yml").exists()
     assert _entry().block["version_from"] == "coturn"
+
+
+def test_the_per_app_check_asserts_in_the_relay_and_seeds_nothing():
+    test = yaml.safe_load((BLUEPRINT / "test.yml").read_text(encoding="utf-8"))
+    assert test["id"] == "coturn" and "seed" not in test
+    [step] = test["assert"]
+    assert step["type"] == "docker_exec" and step["container"] == "{{ container_coturn }}"
+    assert step["expect_stdout_contains"] == "relay ok"
+    script = step["command"][2]
+    assert "$TURN_PORT" in script and "/certs/fullchain.pem" in script
+    subprocess.run(["sh", "-n", "-c", script], check=True)
 
 
 def test_the_block_asks_for_the_host_network_and_declares_its_ports():
