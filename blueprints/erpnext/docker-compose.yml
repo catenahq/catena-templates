@@ -102,7 +102,7 @@ services:
   # swarm starts the task again. The two setup secrets leave the environment
   # before the app server starts.
   backend:
-    image: frappe/erpnext:v16.51.0
+    image: frappe/erpnext:v16.52.1
     deploy:
       restart_policy:
         condition: any
@@ -148,7 +148,7 @@ services:
       - default
 
   frontend:
-    image: frappe/erpnext:v16.51.0
+    image: frappe/erpnext:v16.52.1
     deploy:
       restart_policy:
         condition: any
@@ -182,7 +182,7 @@ services:
       default: {}
 
   websocket:
-    image: frappe/erpnext:v16.51.0
+    image: frappe/erpnext:v16.52.1
     deploy:
       restart_policy:
         condition: any
@@ -200,7 +200,7 @@ services:
       - default
 
   queue-default:
-    image: frappe/erpnext:v16.51.0
+    image: frappe/erpnext:v16.52.1
     deploy:
       restart_policy:
         condition: any
@@ -218,7 +218,7 @@ services:
       - default
 
   queue-short:
-    image: frappe/erpnext:v16.51.0
+    image: frappe/erpnext:v16.52.1
     deploy:
       restart_policy:
         condition: any
@@ -236,7 +236,7 @@ services:
       - default
 
   queue-long:
-    image: frappe/erpnext:v16.51.0
+    image: frappe/erpnext:v16.52.1
     deploy:
       restart_policy:
         condition: any
@@ -254,7 +254,7 @@ services:
       - default
 
   scheduler:
-    image: frappe/erpnext:v16.51.0
+    image: frappe/erpnext:v16.52.1
     deploy:
       restart_policy:
         condition: any
