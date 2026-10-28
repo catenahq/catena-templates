@@ -271,7 +271,8 @@ The bench runs these legs in this order in a test VM (see
 2. `volumes` -- no container keeps a path on an anonymous volume, which a new
    container replaces.
 3. `checks` -- the `seed` steps of `test.yml` run and the `assert` steps pass.
-4. `verify` -- the verify hook answers ok.
+4. `verify` -- the verify hook answers ok. An app with no verify hook gets a
+   skipped `verify` leg, and the run's summary names it.
 5. `backup` -- a backup holds the seeded data.
 6. `restore` -- the app is removed with its data, then restored from that backup
    alone: the asserts pass with no seed step, the app runs the commit's tag and
@@ -286,7 +287,7 @@ The bench runs these legs in this order in a test VM (see
    version.
 9. `rollback` -- a next revision that cannot start is deployed by the update
    engine and reverted: the service was redeployed, its image is back, the tag is
-   quarantined and the data is as before.
+   quarantined, the data is as before and the verify hook answers ok.
 10. `egress` -- the clone still drops a connection the app's declared `egress`
     does not allow.
 
