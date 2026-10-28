@@ -20,7 +20,7 @@ x-catena:
     verify:
       - [sh, -c, clamdcheck.sh]
     # scan reads one file on its standard input. clamdscan exits 0 for a clean
-    # file and 1 for a signature found, which it prints as "stdin: <name> FOUND";
+    # file and 1 for a signature found, which it prints as "stream: <name> FOUND";
     # the hook answers that as "FLAGGED <name>". Any other exit passes through.
     scan:
       - - sh
@@ -30,7 +30,7 @@ x-catena:
           rc=$$?
           case "$$rc" in
           0) ;;
-          1) printf '%s\n' "$$out" | sed -n 's/^stdin: \(.*\) FOUND$$/FLAGGED \1/p' ;;
+          1) printf '%s\n' "$$out" | sed -n 's/^stream: \(.*\) FOUND$$/FLAGGED \1/p' ;;
           *) printf '%s\n' "$$out" ;;
           esac
           exit "$$rc"

@@ -54,12 +54,12 @@ def test_the_block_declares_a_scan_hook_that_passes_the_lint():
 
 
 def test_a_clean_file_ends_with_zero(tmp_path):
-    out = _scan(tmp_path, "cat >/dev/null; echo 'stdin: OK'\n")
+    out = _scan(tmp_path, "cat >/dev/null; echo 'stream: OK'\n")
     assert out.returncode == 0 and out.stdout == ""
 
 
 def test_a_flagged_file_ends_with_one_and_names_the_signature(tmp_path):
-    out = _scan(tmp_path, "cat >/dev/null; echo 'stdin: Win.Test.EICAR_HDB-1 FOUND'; exit 1\n")
+    out = _scan(tmp_path, "cat >/dev/null; echo 'stream: Win.Test.EICAR_HDB-1 FOUND'; exit 1\n")
     assert out.returncode == 1 and out.stdout == "FLAGGED Win.Test.EICAR_HDB-1\n"
 
 
