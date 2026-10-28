@@ -162,6 +162,12 @@ services:
       TURN_SECRET: ${TURN_SECRET}
     volumes:
       - certs:/certs:ro
+      # turnserver's database folder, which the image declares as a volume. The
+      # shared secret keeps no users, so nothing in it needs keeping.
+      - type: tmpfs
+        target: /var/lib/coturn
+        tmpfs:
+          size: 16777216
     # The host network is the swarm's external network named host:
     # network_mode is not read by a stack deploy.
     networks:

@@ -136,7 +136,16 @@ def test_the_needs_name_the_certificate_and_the_address_record():
     needs = _entry().block["needs"]
     assert needs["certificate"] == {"names": ["{{ turn_hostname }}"], "volume": "certs"}
     assert needs["dns"] == [{"type": "A", "name": "{{ turn_hostname }}", "value": "{{ public_ip }}"}]
-    assert _service()["volumes"] == ["certs:/certs:ro"] and "certs" in _compose()["volumes"]
+    assert "certs:/certs:ro" in _service()["volumes"] and "certs" in _compose()["volumes"]
+
+
+def test_the_database_folder_the_image_declares_as_a_volume_is_a_tmpfs():
+    """The pinned image declares VOLUME /var/lib/coturn; the shared secret keeps no
+    users, so a tmpfs there replaces the anonymous volume."""
+    mounts = [v for v in _service()["volumes"] if isinstance(v, dict)]
+    assert [m for m in mounts if m["target"] == "/var/lib/coturn"] == [
+        {"type": "tmpfs", "target": "/var/lib/coturn", "tmpfs": {"size": 16777216}}]
+    assert "volumes" in _compose() and set(_compose()["volumes"]) == {"certs"}
 
 
 def test_the_image_pin_runs_as_its_own_user():
