@@ -33,6 +33,10 @@ on:
         description: comma-separated image repositories (no tag) the caller builds itself
         type: string
         default: ''
+      runner:
+        description: runs-on label of every job
+        type: string
+        default: ubuntu-latest
 
 permissions:
   contents: read
@@ -51,7 +55,7 @@ env:
 
 jobs:
   render-idempotency:
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
@@ -80,7 +84,7 @@ jobs:
             fi
 
   schema:
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
@@ -105,7 +109,7 @@ jobs:
   # path to put contracts alongside this repo, the same layout local dev
   # uses.
   unicode-hygiene:
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
@@ -166,7 +170,7 @@ jobs:
           fi
 
   lint-quiesce-tests:
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
@@ -200,7 +204,7 @@ jobs:
     # down, never raise it to admit new copy-paste.
     name: Duplication (jscpd)
     if: format('{0}', inputs.catalog) != 'false'
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:

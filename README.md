@@ -200,7 +200,8 @@ deployed keeps the block it was deployed with.
 
 ## Checks on every pull request
 
-`.github/workflows/app-ci.yml` runs on GitHub-hosted runners for every pull
+`.github/workflows/app-ci.yml` runs on GitHub-hosted runners (the `runner`
+input of its `workflow_call` sets another label) for every pull
 request, forks included (no secret, a read-only token). The bench lifecycle
 runs later and elsewhere. One job covers the catalog:
 

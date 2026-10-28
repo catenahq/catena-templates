@@ -42,6 +42,10 @@ on:
         description: comma-separated image repositories (no tag) the caller builds itself
         type: string
         default: ''
+      runner:
+        description: runs-on label of every job
+        type: string
+        default: ubuntu-latest
     secrets:
       RENOVATE_APP_CLIENT_ID:
         required: true
@@ -57,7 +61,7 @@ env:
 
 jobs:
   tag:
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner || 'ubuntu-latest' }}
     env:
       SHA: ${{ github.event.client_payload.sha }}
       APPS: ${{ github.event.client_payload.apps }}

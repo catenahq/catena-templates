@@ -56,6 +56,10 @@ on:
         description: comma-separated image repositories (no tag) the caller builds itself
         type: string
         default: ''
+      runner:
+        description: runs-on label of every job
+        type: string
+        default: ubuntu-latest
     secrets:
       RENOVATE_APP_CLIENT_ID:
         required: true
@@ -74,7 +78,7 @@ jobs:
     if: >-
       !github.event.deleted &&
       vars.APP_CI_PAUSED != 'true'
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
