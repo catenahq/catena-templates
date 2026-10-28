@@ -462,13 +462,17 @@ registry, one adapter per format (`lib/importers/`; `--format` picks it,
 | `awesome-selfhosted` | awesome-selfhosted-data: one `software/<name>.yml` per project | the commit in GitHub's file listing address |
 
 ```
-uv run build/import_registry.py --applint /path/to/catena-applint [--dry-run] \
+uv run build/import_registry.py --applint /path/to/catena-applint [--dry-run] [--entry TITLE ...] \
     https://raw.githubusercontent.com/<owner>/<repo>/<commit>/templates.json
 uv run build/import_registry.py --format <format> [--dry-run] \
     'https://api.github.com/repos/<owner>/<repo>/git/trees/<commit>?recursive=1'
 uv run build/import_registry.py --wave 5 --also arcane=<registry.json address> <address>
 ```
 
+- **Entries.** `--entry TITLE`, repeatable, reads only the entries of that
+  title (case ignored) from every registry of the run; titles of one app
+  named together give one app and its aliases. A title no registry holds
+  stops the run before anything is written.
 - **Names.** An entry whose title or id holds a word on the banned-word
   list `check:unicode` reads (`contracts/banned-words.json`, in the
   sibling checkout) is skipped, and the import stops when that list
@@ -492,12 +496,17 @@ uv run build/import_registry.py --wave 5 --also arcane=<registry.json address> <
   `GITHUB_TOKEN` lifts GitHub's rate limit. When the registry or a listing
   names the app's upstream repository (a per-app `meta.json` link, or an
   awesome-selfhosted project of the entry's name, whose list is read for the
-  repository only), that repository's licence is held to the same list and
-  its address is recorded as `origin.project`. Otherwise the importer looks
-  for it from the main image: the image's `org.opencontainers.image.source`
-  label, read from its registry without pulling it, then the source linked on
-  its Docker Hub repository (`lib/importers/upstream.py`). An entry whose
-  upstream repository is found nowhere is skipped as licence unknown.
+  repository only), that repository is the upstream project and its address
+  is recorded as `origin.project`. Otherwise the importer looks for it from
+  the main image: the image's `org.opencontainers.image.source` label, read
+  from its registry without pulling it, then the source linked on its Docker
+  Hub repository (`lib/importers/upstream.py`). An entry whose upstream
+  repository is found nowhere is skipped as licence unknown. An upstream
+  project other than the repository the compose file is copied from may
+  carry those licences or GPL, LGPL or AGPL: its licence covers the app the
+  image runs, and the catalog copies none of its files. An app whose only
+  compose file sits in a GPL or AGPL repository is written by hand instead
+  ("How to add a template").
 - **Compose.** A stack entry's file is fetched from its repository; a
   single-container entry gets a one-service file from its image, ports,
   volumes, env and labels. The address the registry routes (the first

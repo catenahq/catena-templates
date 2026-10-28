@@ -9,7 +9,7 @@ Thin entrypoint; the shared pipeline is lib/importers/pipeline.py and each
 registry format has its adapter beside it.
 
   uv run build/import_registry.py [--format portainer|dokploy|arcane|awesome-selfhosted]
-                                  [--also FORMAT=ADDRESS] [--applint PATH]
+                                  [--also FORMAT=ADDRESS] [--entry TITLE] [--applint PATH]
                                   [--wave N] [--dry-run] REGISTRY_URL
 """
 from __future__ import annotations

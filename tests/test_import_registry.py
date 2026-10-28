@@ -592,6 +592,8 @@ FORGE_WEB = {
         b"MIT License\n\nCopyright (c) 2023 Lab Example\n",
     f"{GITLAB}/example%2Fgpl?license=true": _gitlab_project("gitlab.com", "example/gpl", "gpl-3.0"),
     f"{GITLAB}/example%2Fgpl/repository/files/LICENSE/raw": b"GNU GPL\n",
+    f"{GITLAB}/example%2Fsspl?license=true": _gitlab_project("gitlab.com", "example/sspl", "sspl-1.0"),
+    f"{GITLAB}/example%2Fsspl/repository/files/LICENSE/raw": b"Server Side Public License\n",
     f"{GITLAB}/example%2Fodd?license=true": _gitlab_project("gitlab.com", "example/odd", "other"),
     f"{GITLAB}/example%2Fplain?license=true": _gitlab_project("gitlab.com", "example/plain", None),
     f"{SELF_GITLAB}/group%2Fsub%2Ftool?license=true":
@@ -646,8 +648,10 @@ def _read(host: str, path: str) -> pipeline.Licence:
 def test_gitlab_names_the_licence_and_its_file_the_copyright(forges):
     assert _read("gitlab.com", "example/lab") == pipeline.Licence(
         "MIT", "Copyright (c) 2023 Lab Example")
-    # A licence outside the permitted list keeps GitLab's key, for the report.
-    assert _read("gitlab.com", "example/gpl").spdx == "gpl-3.0"
+    # A licence an upstream project may carry reads in SPDX's spelling; any
+    # other keeps GitLab's key, for the report.
+    assert _read("gitlab.com", "example/gpl").spdx == "GPL-3.0"
+    assert _read("gitlab.com", "example/sspl").spdx == "sspl-1.0"
     assert _read("gitlab.com", "example/odd").problem == (
         "GitLab cannot name the licence in https://gitlab.com/example/odd/-/blob/trunk/LICENSE")
     assert _read("gitlab.com", "example/plain").problem == (
@@ -913,12 +917,24 @@ def test_an_awesome_selfhosted_project_gives_an_entry_its_upstream_repository(fe
 
 def test_the_upstream_projects_licence_is_checked_too(feed, capsys, monkeypatch):
     monkeypatch.setitem(WEB, f"{AWESOME_RAW}/notes.yml", _awesome_entry(
-        "Notes", "https://github.com/example/notes-gpl", ["Docker"]))
+        "Notes", "https://github.com/example/notes-sspl", ["Docker"]))
+    monkeypatch.setitem(WEB, f"{API}/repos/example/notes-sspl/license", _licence(
+        "example/notes-sspl", "SSPL-1.0", "Server Side Public License\n"))
     assert _run("--also", f"awesome-selfhosted={AWESOME}") == 0
     out = capsys.readouterr().out
-    assert "Notes: upstream project AGPL-3.0 (example/notes-gpl)" in out
+    assert "Notes: upstream project SSPL-1.0 (example/notes-sspl)" in out
     assert "skipped, licence not permitted: 2" in out
     assert not (model.SOURCES / "notes.json").exists()
+
+
+def test_an_upstream_project_may_carry_a_copyleft_licence(feed, capsys, monkeypatch):
+    monkeypatch.setitem(WEB, f"{AWESOME_RAW}/notes.yml", _awesome_entry(
+        "Notes", "https://github.com/example/notes-gpl", ["Docker"]))
+    assert _run("--also", f"awesome-selfhosted={AWESOME}") == 0
+    # A compose file copied from a GPL repository is still refused.
+    assert "skipped, licence not permitted: 1\n  Copyleft: GPL-3.0 (example/gpl)" in capsys.readouterr().out
+    origin = _source("notes")["x-catena"]["origin"]
+    assert origin["project"] == "https://github.com/example/notes-gpl" and origin["licence"] == "MIT"
 
 
 def test_an_upstream_project_with_no_readable_licence_skips_the_entry(feed, capsys, monkeypatch):
@@ -928,6 +944,25 @@ def test_an_upstream_project_with_no_readable_licence_skips_the_entry(feed, caps
     assert _run("--also", f"awesome-selfhosted={AWESOME}") == 0
     assert "Notes: upstream project GitHub finds no licence file in example/notes-bare" \
         in capsys.readouterr().out
+
+
+def test_the_entry_option_reads_only_the_entries_it_names(catalog, capsys):
+    assert _run("--entry", "notes") == 0
+    out = capsys.readouterr().out
+    assert "entries: 1\n" in out and "imported: 1\n  notes (Notes)" in out
+    assert not (model.SOURCES / "web-stack.json").exists()
+
+
+def test_entries_named_together_are_one_app_and_its_aliases(feed, capsys):
+    assert _main(LISSY, "--also", f"arcane={ARCANE}", "--entry", "Actual", "--entry", "actual budget") == 0
+    assert "imported: 1\n  actual (Actual)" in capsys.readouterr().out
+    assert [a["entry"] for a in _source("actual")["x-catena"]["origin"]["aliases"]] == ["Actual Budget"]
+
+
+def test_an_entry_title_the_registry_lacks_stops_the_run(catalog, capsys):
+    assert _run("--entry", "Notes", "--entry", "Gone") == 1
+    assert "no entry titled 'Gone'" in capsys.readouterr().err
+    assert not (model.SOURCES / "notes.json").exists()
 
 
 def test_imported_entries_not_in_the_order_follow_the_listed_ones_by_id(catalog):
@@ -1105,10 +1140,11 @@ def test_an_entry_whose_upstream_repository_cannot_be_found_is_skipped(catalog, 
 
 def test_a_found_upstream_repository_is_licence_checked_and_recorded(catalog, capsys, monkeypatch):
     _image_web(monkeypatch, {
-        f"{provenance.HUB_API}/repositories/example/notes/": {"source": "https://github.com/example/notes-gpl"},
-        f"{API}/repos/example/notes-gpl/license": _licence("example/notes-gpl", "GPL-3.0", "GNU GPL\n")})
+        f"{provenance.HUB_API}/repositories/example/notes/": {"source": "https://github.com/example/notes-sspl"},
+        f"{API}/repos/example/notes-sspl/license": _licence(
+            "example/notes-sspl", "SSPL-1.0", "Server Side Public License\n")})
     assert _run() == 0
-    assert "Notes: upstream project GPL-3.0 (example/notes-gpl)" in capsys.readouterr().out
+    assert "Notes: upstream project SSPL-1.0 (example/notes-sspl)" in capsys.readouterr().out
     cat = _source("web-stack")["x-catena"]
     assert cat["origin"]["project"] == "https://github.com/upstream/web"
     assert any("comes from the Docker Hub repository's linked source of example/web:2.1.0"
