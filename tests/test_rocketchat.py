@@ -1,6 +1,6 @@
 """Rocket.Chat's own declarations: the bundled Jitsi is wired through the
-settings Rocket.Chat reads from its environment, with no hook and no post-deploy
-call."""
+settings Rocket.Chat reads from its environment, with no configure hook and no
+post-deploy call."""
 from __future__ import annotations
 
 from pathlib import Path
@@ -35,9 +35,14 @@ def test_the_other_jitsi_settings_are_seeded_not_forced():
         "OVERWRITE_SETTING_Jitsi_Domain", "OVERWRITE_SETTING_Jitsi_SSL"}
 
 
-def test_no_hook_wires_jitsi():
-    blueprint = yaml.safe_load(COMPOSE.read_text(encoding="utf-8"))
-    assert "hooks" not in blueprint["x-catena"]
+def test_the_only_hook_is_the_verify_check_that_asks_the_servers():
+    hooks = _compose()["x-catena"]["hooks"]
+    assert set(hooks) == {"service", "timeout_seconds", "verify"}
+    assert hooks["service"] == "rocketchat"
+    (argv,) = hooks["verify"]
+    assert argv[:2] == ["node", "-e"]
+    assert "/api/info" in argv[2]
+    assert '"jitsi-web", 80' in argv[2]
 
 
 # The folders each Jitsi image declares as a VOLUME at docker-jitsi-meet tag

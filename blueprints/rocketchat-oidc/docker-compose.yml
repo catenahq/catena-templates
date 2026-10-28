@@ -28,6 +28,42 @@ x-catena:
     post:
       - ["mongosh", "--quiet", "--eval", "while (db.adminCommand({currentOp:1}).fsyncLock) { db.fsyncUnlock() }"]
     timeout_seconds: 60
+  # verify asks the running server in the rocketchat service, with the node of
+  # its image, for /api/info (the answer names the version) and the bundled
+  # Jitsi web server for its front page, the host the Jitsi_Domain setting
+  # points calls at. The MongoDB lock of the backup mode stops writes only, and
+  # both requests are reads.
+  hooks:
+    service: rocketchat
+    timeout_seconds: 60
+    verify:
+      - - node
+        - -e
+        - |
+          const http = require("http");
+          const get = (host, port, path) => new Promise((resolve) => {
+            const request = http.get({host, port, path, timeout: 15000}, (answer) => {
+              let body = "";
+              answer.on("data", (chunk) => { body += chunk; });
+              answer.on("end", () => resolve([answer.statusCode, body]));
+            });
+            request.on("timeout", () => request.destroy(new Error("timed out")));
+            request.on("error", (error) => resolve([0, String(error)]));
+          });
+          (async () => {
+            const failed = [];
+            const [status, body] = await get("127.0.0.1", 3000, "/api/info");
+            let version = "";
+            try { version = String(JSON.parse(body).version || ""); } catch (error) {}
+            if (status !== 200 || !version) failed.push("/api/info answered " + (status ? "HTTP " + status : body.slice(0, 100)) + " with no version");
+            const [jitsi] = await get("jitsi-web", 80, "/");
+            if (jitsi !== 200) failed.push("the Jitsi web server answered " + (jitsi ? "HTTP " + jitsi : "nothing"));
+            if (failed.length) {
+              console.error("the chat check failed: " + failed.join("; "));
+              process.exit(1);
+            }
+            console.log("Rocket.Chat " + version + " answers and the Jitsi web server answers");
+          })();
   images:
     prosody:
       rule: {kind: pattern, tag_pattern: 'stable-(\d+)(?:-(\d+))?', migrate_from: 'unstable-(\d{4})-(\d{2})-(\d{2})'}
