@@ -15,6 +15,47 @@ x-catena:
     post:
       - ["pkill", "-CONT", "-x", "node"]
     timeout_seconds: 10
+  # verify asks the running server for /info and reads the build name. A backup or an update
+  # that holds the server stopped (quiesce) answers ok.
+  hooks:
+    service: actual
+    timeout_seconds: 60
+    verify:
+      - - node
+        - -e
+        - |
+          const fs = require('fs');
+          const stopped = fs.readdirSync('/proc').some((p) => {
+            if (!/^[0-9]+/.test(p) || p === String(process.pid)) return false;
+            try {
+              const m = fs.readFileSync('/proc/' + p + '/stat', 'utf8').match(/^[0-9]+ \((.*)\) (.)/);
+              return m !== null && m[1] === 'node' && m[2] === 'T';
+            } catch (e) {
+              return false;
+            }
+          });
+          if (stopped) {
+            console.log('Actual Budget is paused for a backup or an update');
+            process.exit(0);
+          }
+          const fail = (m) => {
+            console.error(m);
+            process.exit(1);
+          };
+          require('http').get({ host: '127.0.0.1', port: 5006, path: '/info', timeout: 10000 }, (res) => {
+            let body = '';
+            res.on('data', (d) => { body += d; });
+            res.on('end', () => {
+              let build = null;
+              try { build = JSON.parse(body).build; } catch (e) {}
+              if (res.statusCode !== 200 || !build || build.name !== '@actual-app/sync-server') {
+                fail('Actual Budget /info answered ' + res.statusCode + ' without its build name');
+              }
+              console.log('Actual Budget answers /info: sync-server ' + build.version);
+            });
+          }).on('timeout', function () {
+            this.destroy(new Error('no answer in 10s'));
+          }).on('error', (e) => fail('Actual Budget does not answer on 5006: ' + e.message));
 
 services:
   actual:
