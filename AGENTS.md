@@ -38,6 +38,10 @@ for layout, consumer model, and BASE URL setup.
   application provides the capability, so the user's hook handles absence, and a
   capability is provided by one running application at a time. `make lint`
   fails a read no template provides.
+- An application that offers access levels to invited people declares them in the
+  block's `access` (`{<level>: {label: {en, fr}}}`); Catena names a realm group
+  per level and admits its members at the application's own sign-in; a users
+  hook, when declared, receives each member's levels.
 - The outgoing mail chosen in Settings reaches an application as the facts
   `smtp_relay_host`, `smtp_relay_port`, `smtp_relay_user`, `smtp_relay_tls`
   (`ssl` or `tls`) and `smtp_relay_sender` in a managed expression, empty when

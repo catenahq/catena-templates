@@ -168,6 +168,10 @@ input, not a catalog to deploy from.
    redeploys the user when the provider is deployed, stopped or removed.
    An application with no web address leaves `domain` out of its source and
    names `version_from` in its block.
+   An application that offers access levels to invited people adds `access`
+   (`access: {user: {label: {en: "Nextcloud", fr: "Nextcloud"}}}`): the panel
+   shows each label, and Catena admits the level's members at the application's
+   sign-in.
 3. `blueprints/<id>/logo.png` -- optional, square, 512x512. Without it
    the render emits a deterministic `logo.svg` placeholder.
 4. `x-catena.sizing.peak_ram_mb` is required: the bench scheduler

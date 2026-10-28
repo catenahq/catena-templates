@@ -753,6 +753,19 @@ def test_capabilities_are_names_a_service_adds(tmp_path):
     assert L.lint_capabilities(SimpleNamespace(slug="demo", compose_path=compose, block={})) == []
 
 
+def test_access_levels_are_slugs_with_a_label_in_both_languages():
+    import jsonschema
+    schema = json.loads((ROOT / "block.schema.json").read_text(encoding="utf-8"))
+    label = {"en": "Nextcloud", "fr": "Nextcloud"}
+    for good in ({"user": {"label": label}}, {"user": {"label": label}, "read-only": {"label": label}}):
+        jsonschema.validate({"schema": 2, "access": good}, schema)
+    for bad in ({}, {"User": {"label": label}}, {"1": {"label": label}}, {"user": {}},
+                {"user": {"label": {"en": "Nextcloud"}}}, {"user": {"label": {"en": "", "fr": "x"}}},
+                {"user": {"label": label, "extra": 1}}, {"user": "Nextcloud"}):
+        with pytest.raises(jsonschema.ValidationError):
+            jsonschema.validate({"schema": 2, "access": bad}, schema)
+
+
 def test_host_paths_that_hold_nothing_forbidden_pass():
     from types import SimpleNamespace
     entry = SimpleNamespace(slug="demo", block={"host_paths": ["/mnt", "/media/disk", "/var/www", "/srv/catena/apps/web"]})

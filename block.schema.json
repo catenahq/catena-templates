@@ -425,6 +425,30 @@
         }
       },
       "description": "The capabilities the application offers, each value the name of a key of env. Another application reads them in a managed expression as provided.<capability>.<name>."
+    },
+    "access": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": false,
+      "patternProperties": {
+        "^[a-z][a-z0-9_-]*$": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["label"],
+          "properties": {
+            "label": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["en", "fr"],
+              "properties": {
+                "en": { "type": "string", "minLength": 1 },
+                "fr": { "type": "string", "minLength": 1 }
+              }
+            }
+          }
+        }
+      },
+      "description": "The access levels the application offers to invited people, each named by a lowercase slug and shown by its label in both languages. Catena names a realm group for each level and admits its members at the application's own sign-in. A users hook, when declared, receives each member's levels."
     }
   },
   "$defs": {
