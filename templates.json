@@ -5,7 +5,7 @@
         "Files",
         "Collaboration"
       ],
-      "description": "Requires Catena 0.11.0 or later. Self-hosted file sharing + collaboration. Replaces Google Drive / Dropbox / OneDrive.",
+      "description": "Requires Catena 0.11.10 or later. Self-hosted file sharing + collaboration. Replaces Google Drive / Dropbox / OneDrive.",
       "env": [
         {
           "default": "__CATENA_OPERATOR_WIRED__",
@@ -167,12 +167,48 @@
           "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
           "label": "Office JWT secret",
           "name": "OFFICE_JWT_SECRET"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
+          "label": "SMTP relay host",
+          "name": "SMTP_RELAY_HOST"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
+          "label": "SMTP relay port",
+          "name": "SMTP_RELAY_PORT"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
+          "label": "SMTP relay user",
+          "name": "SMTP_RELAY_USER"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
+          "label": "SMTP relay password",
+          "name": "SMTP_RELAY_PASSWORD"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
+          "label": "SMTP relay TLS",
+          "name": "SMTP_RELAY_TLS"
+        },
+        {
+          "default": "__CATENA_OPERATOR_WIRED__",
+          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
+          "label": "SMTP relay sender",
+          "name": "SMTP_RELAY_SENDER"
         }
       ],
       "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/nextcloud-s3-oidc/logo.svg",
       "maintainer": "https://github.com/catenahq/catena-templates",
       "name": "catena-nextcloud",
-      "note": "<p>Requires Catena 0.11.0 or later.</p><p>Self-hosted file sharing and collaboration -- the file hub that other templates plug into. Calls work without the relay; adding the Call relay app gives calls from restrictive networks and Talk&#x27;s high-performance backend for larger calls.</p><p>Replaces Google Drive, Dropbox, OneDrive for Business.</p>",
+      "note": "<p>Requires Catena 0.11.10 or later.</p><p>Self-hosted file sharing and collaboration -- the file hub that other templates plug into. Calls work without the relay; adding the Call relay app gives calls from restrictive networks and Talk&#x27;s high-performance backend for larger calls.</p><p>Replaces Google Drive, Dropbox, OneDrive for Business.</p>",
       "platform": "linux",
       "repository": {
         "stackfile": "blueprints/nextcloud-s3-oidc/docker-compose.yml",

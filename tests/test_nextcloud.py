@@ -161,6 +161,10 @@ if cmd == "config:system:get":
         print(system[key])
         sys.exit(0)
     sys.exit(1)
+if cmd == "config:system:delete":
+    system.pop("/".join(rest), None)
+    save()
+    sys.exit(0)
 if cmd == "config:system:set":
     opts, plain = options(rest)
     system["/".join(plain)] = opts.get("value", "")
@@ -221,6 +225,12 @@ def _body(name: str) -> str:
     [argv] = _entry().block["hooks"][name]
     assert argv[:2] == ["sh", "-c"]
     return argv[2].replace("$$", "$")
+
+
+RELAY = {"SMTP_RELAY_HOST": "smtp.example.test", "SMTP_RELAY_PORT": "587", "SMTP_RELAY_USER": "mailer",
+         "SMTP_RELAY_PASSWORD": "relay-pass", "SMTP_RELAY_TLS": "tls", "SMTP_RELAY_SENDER": "noreply@example.test"}
+MAIL_KEYS = ("mail_smtpmode", "mail_smtphost", "mail_smtpport", "mail_smtpsecure", "mail_smtpauth",
+             "mail_smtpname", "mail_smtppassword", "mail_from_address", "mail_domain")
 
 
 def test_the_hooks_run_in_the_app_service_as_www_data():
@@ -559,6 +569,106 @@ def test_the_scanner_is_on_no_shared_network():
     joined = set(clamav["services"]["clamav"]["networks"])
     assert joined == {"antivirus", "default"}
     assert clamav["networks"] == {"antivirus": {"external": True, "name": "catena-antivirus"}}
+
+
+# outgoing mail
+
+def _mail(nc) -> dict:
+    return {k: v for k, v in nc.state["system"].items() if k.startswith("mail_")}
+
+
+def test_the_block_offers_the_user_level_and_needs_the_release_that_reads_it():
+    entry = _entry()
+    assert entry.block["access"] == {"user": {"label": {"en": "Nextcloud", "fr": "Nextcloud"}}}
+    assert entry.requires_catena == "0.11.10"
+    assert quiesce_lint.lint_block(entry) == []
+
+
+def test_the_relay_password_is_read_from_the_env_file_only():
+    entry = _entry()
+    app_env = _compose()["services"]["app"]["environment"]
+    assert entry.block["secrets"] == ["smtp_password"]
+    assert entry.managed_env["SMTP_RELAY_PASSWORD"] == "{{ smtp_password }}"
+    for key in RELAY:
+        assert key in entry.managed_env and key not in app_env
+    assert quiesce_lint.lint_managed_secrets(entry) == []
+
+
+def test_a_first_configure_with_a_relay_writes_the_mail_settings(nc):
+    run = nc.run("configure", **RELAY)
+    assert run.returncode == 0, run.stderr
+    assert _mail(nc) == {
+        "mail_smtpmode": "smtp", "mail_smtphost": "smtp.example.test", "mail_smtpport": "587",
+        "mail_smtpsecure": "", "mail_smtpauth": "true", "mail_smtpname": "mailer",
+        "mail_smtppassword": "relay-pass", "mail_from_address": "noreply", "mail_domain": "example.test"}
+    assert nc.state["appconfig"]["catena/mail_wired"].startswith("smtp.example.test|587|tls|mailer|")
+    assert "relay-pass" not in nc.state["appconfig"]["catena/mail_wired"]
+    assert "relay-pass" not in run.stdout + run.stderr
+
+
+def test_implicit_tls_sets_the_secure_mode_and_no_user_means_no_login(nc):
+    run = nc.run("configure", **{**RELAY, "SMTP_RELAY_TLS": "ssl", "SMTP_RELAY_USER": "", "SMTP_RELAY_PASSWORD": ""})
+    assert run.returncode == 0, run.stderr
+    mail = _mail(nc)
+    assert mail["mail_smtpsecure"] == "ssl" and mail["mail_smtpauth"] == "false"
+    assert "mail_smtpname" not in mail and "mail_smtppassword" not in mail
+
+
+def test_a_second_configure_changes_no_mail_setting(nc):
+    assert nc.run("configure", **RELAY).returncode == 0
+    first = _mail(nc)
+    assert nc.run("configure", **RELAY).returncode == 0
+    assert _mail(nc) == first
+    assert not any(c.startswith(("config:system:set mail_", "config:system:delete mail_")) for c in nc.calls())
+
+
+def test_a_persons_own_mail_setting_holds_while_the_relay_is_unchanged(nc):
+    assert nc.run("configure", **RELAY).returncode == 0
+    nc.state["system"]["mail_smtptimeout"] = "30"
+    nc.state["system"]["mail_from_address"] = "mine"
+    assert nc.run("configure", **RELAY).returncode == 0
+    assert nc.state["system"]["mail_smtptimeout"] == "30" and nc.state["system"]["mail_from_address"] == "mine"
+
+
+def test_a_changed_relay_replaces_the_mail_settings(nc):
+    assert nc.run("configure", **RELAY).returncode == 0
+    nc.state["system"]["mail_from_address"] = "mine"
+    run = nc.run("configure", **{**RELAY, "SMTP_RELAY_HOST": "smtp2.example.test", "SMTP_RELAY_PASSWORD": "rotated"})
+    assert run.returncode == 0, run.stderr
+    mail = _mail(nc)
+    assert mail["mail_smtphost"] == "smtp2.example.test" and mail["mail_smtppassword"] == "rotated"
+    assert mail["mail_from_address"] == "noreply"
+
+
+def test_without_a_relay_the_mail_settings_the_hook_wrote_are_removed(nc):
+    assert nc.run("configure", **RELAY).returncode == 0
+    nc.state["system"]["mail_smtptimeout"] = "30"
+    run = nc.run("configure")
+    assert run.returncode == 0, run.stderr
+    assert _mail(nc) == {"mail_smtptimeout": "30"}
+    assert "catena/mail_wired" not in nc.state["appconfig"]
+
+
+def test_without_a_relay_a_mail_setting_nothing_wrote_is_left_alone(nc):
+    nc.state["system"].update({"mail_smtphost": "own.example.test", "mail_smtpmode": "smtp"})
+    run = nc.run("configure")
+    assert run.returncode == 0, run.stderr
+    assert _mail(nc) == {"mail_smtphost": "own.example.test", "mail_smtpmode": "smtp"}
+
+
+def test_a_sender_without_an_at_sign_writes_no_sender(nc):
+    run = nc.run("configure", **{**RELAY, "SMTP_RELAY_SENDER": ""})
+    assert run.returncode == 0, run.stderr
+    assert "mail_from_address" not in _mail(nc) and "mail_domain" not in _mail(nc)
+
+
+def test_a_mail_command_that_fails_fails_the_hook_and_is_retried(nc):
+    nc.state["fail"] = "config:system:set mail_smtpport"
+    assert nc.run("configure", **RELAY).returncode == 1
+    assert "catena/mail_wired" not in nc.state["appconfig"]
+    nc.state["fail"] = ""
+    assert nc.run("configure", **RELAY).returncode == 0
+    assert _mail(nc)["mail_smtpport"] == "587"
 
 
 # office

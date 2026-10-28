@@ -59,6 +59,22 @@ x-catena:
       managed: {expr: "{{ provided.office.url }}"}
     OFFICE_JWT_SECRET:
       managed: {expr: "{{ provided.office.jwt_secret }}"}
+    SMTP_RELAY_HOST:
+      managed: {expr: "{{ smtp_relay_host }}"}
+    SMTP_RELAY_PORT:
+      managed: {expr: "{{ smtp_relay_port }}"}
+    SMTP_RELAY_USER:
+      managed: {expr: "{{ smtp_relay_user }}"}
+    SMTP_RELAY_PASSWORD:
+      managed: {expr: "{{ smtp_password }}"}
+    SMTP_RELAY_TLS:
+      managed: {expr: "{{ smtp_relay_tls }}"}
+    SMTP_RELAY_SENDER:
+      managed: {expr: "{{ smtp_relay_sender }}"}
+  secrets: [smtp_password]
+  access:
+    user:
+      label: {en: "Nextcloud", fr: "Nextcloud"}
   lifecycle:
     service: "app"
     user: "www-data"
@@ -104,10 +120,11 @@ x-catena:
   # restore) and wires Nextcloud to the rest of the server: the object store
   # file, Keycloak sign-in, Mail, the virus scanner and the office editor the
   # applications on this server provide, Talk with its signaling server and the
-  # call relay application, and the Webmail link. Talk's relay and signaling
-  # entries are written only while the relay application runs, and taken away
-  # when it goes; the entries written are recorded in the app settings of
-  # "catena". It leaves with 0 whenever
+  # call relay application, Nextcloud's outgoing mail from the server's mail
+  # relay, and the Webmail link. Talk's relay and signaling entries are written
+  # only while the relay application runs, and taken away when it goes; the
+  # mail settings follow the mail relay the same way; the entries written are
+  # recorded in the app settings of "catena". It leaves with 0 whenever
   # occ cannot be used (first install running, maintenance mode on, a restore
   # whose database is not replayed yet) and with 1 only when occ answers and a
   # wiring command fails. An app an administrator disabled stays disabled; the
@@ -285,6 +302,56 @@ x-catena:
             fi
           }
 
+          # Nextcloud's outgoing mail is the server's mail relay. The settings
+          # written are recorded with a digest of the password: a changed relay
+          # replaces them, an unchanged one leaves a person's own mail settings
+          # alone, and a removed one takes them away.
+          mail_record() {
+            printf '%s|%s|%s|%s|%s|%s' "$${SMTP_RELAY_HOST:-}" "$${SMTP_RELAY_PORT:-}" "$${SMTP_RELAY_TLS:-}" "$${SMTP_RELAY_USER:-}" "$${SMTP_RELAY_SENDER:-}" "$$(printf %s "$${SMTP_RELAY_PASSWORD:-}" | sha256sum | cut -c1-16)"
+          }
+          mail_login() {
+            if [ -n "$${SMTP_RELAY_USER:-}" ]; then
+              occ config:system:set mail_smtpauth --value true --type boolean &&
+              occ config:system:set mail_smtpname --value "$$SMTP_RELAY_USER" &&
+              occ config:system:set mail_smtppassword --value "$${SMTP_RELAY_PASSWORD:-}"
+            else
+              occ config:system:set mail_smtpauth --value false --type boolean &&
+              occ config:system:delete mail_smtpname &&
+              occ config:system:delete mail_smtppassword
+            fi
+          }
+          mail_sender() {
+            case "$${SMTP_RELAY_SENDER:-}" in
+              ?*@?*)
+                occ config:system:set mail_from_address --value "$${SMTP_RELAY_SENDER%@*}" &&
+                occ config:system:set mail_domain --value "$${SMTP_RELAY_SENDER##*@}"
+                ;;
+              *)
+                occ config:system:delete mail_from_address &&
+                occ config:system:delete mail_domain
+                ;;
+            esac
+          }
+          wire_mail() {
+            [ "$$(occ config:app:get catena mail_wired 2>/dev/null || true)" != "$$(mail_record)" ] || return 0
+            secure=""
+            [ "$${SMTP_RELAY_TLS:-}" != ssl ] || secure=ssl
+            occ config:system:set mail_smtpmode --value smtp &&
+            occ config:system:set mail_smtphost --value "$$SMTP_RELAY_HOST" &&
+            occ config:system:set mail_smtpport --value "$${SMTP_RELAY_PORT:-587}" --type integer &&
+            occ config:system:set mail_smtpsecure --value "$$secure" &&
+            mail_login &&
+            mail_sender &&
+            occ config:app:set catena mail_wired --value "$$(mail_record)"
+          }
+          unwire_mail() {
+            [ -n "$$(occ config:app:get catena mail_wired 2>/dev/null || true)" ] || return 0
+            for key in mail_smtpmode mail_smtphost mail_smtpport mail_smtpsecure mail_smtpauth mail_smtpname mail_smtppassword mail_from_address mail_domain; do
+              occ config:system:delete "$$key" || return 1
+            done
+            occ config:app:delete catena mail_wired
+          }
+
           # The object store reads the OBJECTSTORE_S3_* variables of the container
           # through the image's s3.config.php, which a restored config volume may lack.
           if [ -n "$${S3_BUCKET:-}" ] && [ -f "$$CONFIG/config.php" ] && [ ! -f "$$CONFIG/s3.config.php" ] \
@@ -376,6 +443,12 @@ x-catena:
               echo "catena: the $$OFFICE_EDITOR editor at $$OFFICE_URL does not answer; the next deploy wires it" >&2
               failed=1
             fi
+          fi
+
+          if [ -n "$${SMTP_RELAY_HOST:-}" ]; then
+            step "the outgoing mail settings" wire_mail
+          else
+            step "the outgoing mail settings removal" unwire_mail
           fi
 
           if [ -n "$${WEBMAIL_HOSTNAME:-}" ] && getent hosts catena-mailserver_roundcube >/dev/null 2>&1; then
