@@ -9,6 +9,25 @@ x-catena:
       generated: {length: 32, alphabet: alnum}
     DB_ROOT_PASSWORD:
       generated: {length: 32, alphabet: alnum}
+  # verify asks Apache for the booking page and looks for the product name.
+  hooks:
+    service: easyappointments
+    timeout_seconds: 60
+    verify:
+      - - sh
+        - -c
+        - |
+          body=$$(curl -fsS --max-time 20 http://localhost/) || {
+            echo "Easy!Appointments does not answer on port 80" >&2
+            exit 1
+          }
+          case "$$body" in
+            *Easy!Appointments*) echo "Easy!Appointments answers on port 80" ;;
+            *)
+              echo "port 80 answers, but not with the Easy!Appointments page" >&2
+              exit 1
+              ;;
+          esac
 
 services:
   easyappointments:
