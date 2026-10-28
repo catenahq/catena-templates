@@ -153,10 +153,15 @@ input, not a catalog to deploy from.
 
 1. `sources/<id>.json` -- copy the closest existing file and edit. The
    shape is enforced by `sources.schema.json`; the validator names the
-   field and the reason on failure.
+   field and the reason on failure. Required: `id` (equal to the file
+   name without `.json` and to the blueprint directory name), `type` (2),
+   `title`, `name`, `categories`, `platform`, and the `x-catena` block
+   (`app_name`, `upstream_url`, `sso_mode`, `domain` (absent for an app
+   with no web address), `bench.pack`, `sizing.peak_ram_mb`, `en`, `fr`).
 2. `blueprints/<id>/docker-compose.yml` -- found by the directory name,
-   so there is no path to keep in step with it. Its `x-catena` block
-   starts with `schema: 2` and lists the app's `env`: each key is one of
+   so there is no path to keep in step with it. Jinja stays in place: the
+   render never writes into this file. Its root `x-catena` block, written by
+   hand, starts with `schema: 2` and lists the app's `env`: each key is one of
    a `setting` (`default`, and a `label` in `en` and `fr`), a `generated`
    secret (`length`, `alphabet` of `alnum` or `hex`) or a `managed`
    expression (`expr`). The deploy form shows the keys in that order.
@@ -172,8 +177,8 @@ input, not a catalog to deploy from.
    (`access: {user: {label: {en: "Nextcloud", fr: "Nextcloud"}}}`): the panel
    shows each label, and Catena admits the level's members at the application's
    sign-in.
-3. `blueprints/<id>/logo.png` -- optional, square, 512x512. Without it
-   the render emits a deterministic `logo.svg` placeholder.
+3. `blueprints/<id>/logo.png` -- optional, square, 512x512, at most 100 KB.
+   Without it the render emits a deterministic `logo.svg` placeholder.
 4. `x-catena.sizing.peak_ram_mb` is required: the bench scheduler
    multiplies it by 1.15 to gate parallel slot acquisition. The other
    numbers stay null until a measured run.
@@ -182,21 +187,120 @@ input, not a catalog to deploy from.
    add `quiesce` to the `x-catena` block at the top of the compose, with `service`, `pre`, `timeout_seconds` and
    optionally `user` and `post`. Each command is an argv array the
    nightly maintenance runs inside that service with `docker exec`, no
-   shell; `post` must succeed when `pre` never ran. Real examples:
+   shell. `post` also runs after a failed or resumed backup and after a
+   restore, so it must succeed when `pre` never ran. Real examples:
    Nextcloud (`occ maintenance:mode` on/off), Rocket.Chat (MongoDB
    fsyncLock/unlock), and Actual Budget and the webmail (`pkill -STOP` /
    `-CONT` on the server process). `make lint` holds each command to an
    allowlist of the application's own admin clients, plus `pkill` for an
    application with no admin client that can hold its writes.
-6. If the entry works only on a Catena release newer than some servers
+6. If the application keeps a schema its new code expects migrated, add
+   `lifecycle` to the block. `migrate` runs after every update the host
+   applies to the image of the service `lifecycle` names, and after a forward
+   restore (a start-time migration runs against the pre-replay database, which
+   the replay then overwrites). `before_update` and `after_update` wrap an
+   update, for an application with a maintenance mode. `ready` is one command
+   the update lane runs before each phase, and a forward restore before its
+   migration, until it exits 0; every lifecycle declares it (the
+   application's own status command, or a probe of the port its server opens
+   last), and `make lint` fails one without it. Commands are argv arrays:
+   `docker exec` gives them no shell. `versioned_volumes` names the volumes
+   the new version of that service upgrades in place and the old one refuses
+   to start on or misreads (code tree, configuration, add-ons, or a SQLite
+   database; never a volume of the users' files the old one still reads): the
+   lane copies them before an update, in the backup mode when the entry
+   declares one, and puts the copies back when it rolls back, losing what was
+   written since, as a database dump's replay does. An application that
+   upgrades such a volume as it starts declares `service`,
+   `versioned_volumes` and `timeout_seconds` alone. Real examples: the
+   compose blocks of `blueprints/outline`, `blueprints/nextcloud-s3-oidc`,
+   `blueprints/erpnext` and `blueprints/actualbudget`.
+   An application that keeps its files in an object-store bucket the host can
+   point at another bucket adds `object_store`: `env` names the stack env keys
+   that hold the bucket, its access key and secret (and host, port, ssl and
+   region when the template exposes them), and `switch` (`service`, `user`,
+   argv `commands`, which may carry the placeholders `{old_bucket}` and
+   `{new_bucket}`) runs once the app runs on the new bucket. `make lint`
+   checks that the compose reads each key and that `switch` runs in one of its
+   services. Real example: `blueprints/nextcloud-s3-oidc`.
+7. If the entry works only on a Catena release newer than some servers
    run, `x-catena.requires_catena` names the oldest one it works on
    (`0.11.0`). The render opens the entry's Portainer description and its
    README with that release.
-7. `make` -- renders, lints, and runs the tests. Commit the regenerated
-   `blueprints/<id>/README.md`, `templates.json`, `catalog.json` and
-   `index.html` with the source change.
-8. Open a PR. CI runs `build-and-verify.yml`, `app-ci.yml` (see "Checks on
-   every pull request"), `check:unicode` and `check:prose`.
+8. Declare the verify hook, `x-catena.hooks.verify`, which asks the running
+   app whether it works: it makes the app's own server answer on the path users
+   reach, checks each feature the app claims and its server provides, writes
+   nothing, prints one line, exits 0 only when every check holds, and answers ok
+   while a maintenance mode that a backup or an update holds is on. Its fields,
+   when the server runs it and what a good check asks are in
+   [Declare a verify check](https://docs.catena.run/en/configure-apps/#declare-a-verify-check-optional).
+   Real examples: the hooks of `blueprints/erpnext` and
+   `blueprints/nextcloud-s3-oidc`.
+9. `blueprints/<id>/test.yml` -- the data the bench seeds and reads back. It
+   holds `id` (the template id), `description`, and the lists `seed` and
+   `assert`. Each step has a unique `name` and a `type`: `docker_exec` runs the
+   argv `command` in `container` (`expect_exit_code`, default 0, and
+   `expect_stdout_contains`, a substring of the output, `timeout_s`, default
+   30), and `volume_file` writes (`content`) or reads (`expect_stdout_contains`)
+   one `path` in the named `volume`, for an image with no shell. `{{ run_id }}`,
+   `{{ app_name }}`, `{{ primary_container }}` and `{{ container_<service> }}`
+   are filled in. The seed writes its data through the app itself (its API or
+   command line) wherever the app allows it, so the restore proves data the
+   app wrote. The asserts read that data back through the app and exercise it;
+   an assert that reads only a file the seed wrote proves the volume, not the
+   app. Real example: `blueprints/erpnext`.
+10. `make` -- renders, lints, and runs the tests. Commit the regenerated
+    `blueprints/<id>/README.md`, `templates.json`, `catalog.json` and
+    `index.html` with the source change.
+11. Open a PR from a branch that changes this one app and nothing else. CI
+    runs `build-and-verify.yml`, `app-ci.yml` (see "Checks on every pull
+    request"), `check:unicode` and `check:prose`; the bench then runs the legs
+    below.
+
+One app per branch, pull request and commit: the `scope` check fails a pull
+request that touches two, and the bench judges a branch only when it changes one
+app or none.
+
+### What each app-tests leg proves
+
+The bench runs these legs in this order in a test VM (see
+"The bench lifecycle"); a leg that cannot run is a failed leg, not a skip.
+
+1. `install` -- the app is added at the commit's tag from a repository holding
+   its files.
+2. `volumes` -- no container keeps a path on an anonymous volume, which a new
+   container replaces.
+3. `checks` -- the `seed` steps of `test.yml` run and the `assert` steps pass.
+4. `verify` -- the verify hook answers ok.
+5. `backup` -- a backup holds the seeded data.
+6. `restore` -- the app is removed with its data, then restored from that backup
+   alone: the asserts pass with no seed step, the app runs the commit's tag and
+   the verify hook answers ok.
+7. The update legs -- `update_newest` from the newest tag to the commit,
+   `update_oldest` from the oldest tag of the last 12 months through the
+   versions the block declares as stops, or `update_previous` for an app with no
+   tag, from the image's previous upstream release. Each ends with the asserts
+   and the verify hook.
+8. `data_upgrade:<service>` -- for each service the block declares under
+   `data`, its volume and the seeded data survive the update from the oldest
+   version.
+9. `rollback` -- a next revision that cannot start is deployed by the update
+   engine and reverted: the service was redeployed, its image is back, the tag is
+   quarantined and the data is as before.
+10. `egress` -- the clone still drops a connection the app's declared `egress`
+    does not allow.
+
+A failed `install` skips every leg but `egress`; a failed `checks` skips `verify`, `backup`,
+`restore` and `rollback`.
+
+### Where to read a failed leg
+
+The `app-tests` status on the commit links to the ops run; the job of the app
+there logs one line per leg with its reason when it failed, and, when the bench
+held any, the last lines of the evidence about it. On `main`, the failure also opens or rewrites
+the issue `app-tests failing: <id>` of this repository, labelled `app:<id>`,
+with the failing leg's last 200 lines; a branch's failures show on its pull
+request only. See "The bench lifecycle".
 
 A merge to `main` is live for every new deploy as soon as the consumers
 next fetch the catalog; there are no releases to cut. An app already

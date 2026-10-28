@@ -265,61 +265,23 @@ it.
 
 ## Add a new template
 
-1. `sources/<id>.json`. Required: `id`, `type` (2), `title`, `name`,
-   `categories`, `platform`, and the `x-catena` block (`app_name`,
-   `upstream_url`, `sso_mode`, `domain` (absent for an app with no web address),
-   `bench.pack`, `sizing.peak_ram_mb`, `en`, `fr`).
-2. `blueprints/<id>/docker-compose.yml` (Jinja stays in place; the
-   render never writes into it). Its root `x-catena:` block holds the
-   env and steps 4 and 5, written by hand.
-3. `blueprints/<id>/logo.png` (512x512 PNG, max 100KB). Optional.
-   `blueprints/<id>/test.yml` is optional too: the `seed` and `assert` steps
-   (`docker_exec` into a service, `{{ run_id }}` and `{{ container_<service> }}`
-   filled in) the CI harness runs after a deploy and after a restore. The
-   harness reads it from the blueprint (ops `automation/test_bench/orchestrator/fixtures.py`).
-   Real example: `blueprints/erpnext`.
-4. If the application keeps live state that a file-level snapshot can
-   tear and the backup's own Postgres and MariaDB dumps do not cover,
-   add `quiesce` to the compose block: argv arrays the nightly maintenance runs
-   inside one service before (`pre`) and after (`post`) its backup, with
-   no shell. `post` must succeed when `pre` never ran: it also runs after
-   a failed or resumed backup and after a restore. Real examples: the
-   compose blocks of `blueprints/nextcloud-s3-oidc` (maintenance mode)
-   and `blueprints/rocketchat-oidc` (MongoDB fsync lock).
-5. If the application keeps a schema its new code expects migrated, add
-   `lifecycle` to the compose block: `migrate` runs after every update the host applies
-   to the image of the service it names, and after a forward restore (a
-   start-time migration runs
-   against the pre-replay database, which the replay then overwrites).
-   `before_update` / `after_update` wrap an update, for an application
-   with a maintenance mode. `ready` is one command the update lane runs
-   before each phase, and a forward restore before its migration, until
-   it exits 0; every lifecycle declares it (the application's own status
-   command, or a probe of the port its server opens last), and `make lint`
-   fails one without it. Commands are
-   argv arrays -- `docker exec` gives them no shell. `versioned_volumes`
-   names the volumes the new version of that service upgrades in place
-   and the old one refuses to start on or misreads (code tree,
-   configuration, add-ons, or a SQLite database; never a volume of the
-   users' files the old one still reads): the lane copies them before an
-   update, in the backup mode when the entry declares one, and puts the
-   copies back when it rolls back, losing what was written since, as a
-   database dump's replay does. An application that upgrades such a
-   volume as it starts declares `service`, `versioned_volumes` and
-   `timeout_seconds` alone. Real examples: the compose blocks of
-   `blueprints/outline`, `blueprints/nextcloud-s3-oidc`,
-   `blueprints/erpnext` and `blueprints/actualbudget`.
-   If the application keeps its files in an object-store bucket that the
-   host can point at another bucket, add `object_store` to the block:
-   `env` names the stack env keys that hold the bucket, its access key and
-   secret (and host, port, ssl and region when the template exposes them),
-   and `switch` (`service`, `user`, argv `commands`, which may carry the
-   placeholders `{old_bucket}` and `{new_bucket}`) runs once the app runs on
-   the new bucket. `make lint` checks that the compose reads each key and
-   that `switch` runs in one of its services. Real example:
-   `blueprints/nextcloud-s3-oidc`.
-6. `make` -- render + lint + test. Commit the regenerated artifacts.
-7. Open a PR. CI must pass `build-and-verify.yml`, `app-ci.yml`, `check:unicode` and `check:prose`.
+README.md, "How to add a template", says how; these are the rules.
+
+- Every app declares a verify hook (`x-catena.hooks.verify`) that makes the
+  app's own server answer on the path users reach, checks each feature the
+  app claims and its server provides, writes nothing, prints one line, exits 0
+  only when every check holds, and answers ok while a maintenance mode that a
+  backup or an update holds is on.
+- `test.yml` seeds through the app itself (its API or command line) wherever
+  the app allows it. Its asserts exercise the app; an assert that reads only
+  data the seed itself wrote is never enough.
+- An app that keeps live state a file snapshot can tear declares `quiesce`,
+  one that migrates a schema declares `lifecycle` with `ready`, and one that
+  keeps its files in a bucket the host can repoint declares `object_store`.
+  `post` must succeed when `pre` never ran.
+- Never weaken or remove a check, an assert or a leg to make an app pass:
+  fix the app or its declaration.
+- One app or none per branch, pull request and commit.
 
 ## Changing catalog.json
 
