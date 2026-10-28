@@ -87,6 +87,11 @@ if tool == "curl":
             sys.exit(7)
         print("<wopi-discovery>" if url.endswith("discovery") else "true")
         sys.exit(0)
+    if url.endswith("/status.php"):
+        if state["status_php"] is None:
+            sys.exit(7)
+        print(json.dumps(state["status_php"], separators=(",", ":")))
+        sys.exit(0)
     up = state["signaling_up"] if "signaling:8081" in url else state["s3_up"]
     sys.exit(0 if up else 7)
 
@@ -288,6 +293,7 @@ class Instance:
                       "external": "5.4", "richdocuments": "9.0", "onlyoffice": "9.0"},
             "ready": True, "signaling_up": True, "roundcube": True, "s3_up": True, "office_up": True,
             "db_rc": 1, "bucket": [], "filecache_ids": [], "filecache_down": False,
+            "status_php": {"installed": True, "maintenance": False, "needsDbUpgrade": False, "version": "34.0.5"},
         }
         self.installed()
 
@@ -698,7 +704,34 @@ def test_verify_fails_when_the_endpoint_does_not_answer(nc):
 
 def test_verify_without_a_bucket_only_asks_nextcloud_to_answer(nc):
     run = nc.run("verify", S3_BUCKET="")
-    assert run.returncode == 0 and run.stdout.strip() == "Nextcloud answers"
+    assert run.returncode == 0 and run.stdout.strip() == "Nextcloud answers and Apache serves status.php"
+
+
+def test_verify_asks_apache_for_status_php_on_the_address_the_boot_probe_uses(nc):
+    _healthy(nc)
+    assert nc.run("verify").returncode == 0
+    assert "curl http://localhost/status.php" in nc.calls()
+
+
+def test_verify_fails_when_apache_does_not_answer_status_php(nc):
+    _healthy(nc)
+    nc.state["status_php"] = None
+    run = nc.run("verify")
+    assert run.returncode == 1 and "Apache does not answer status.php" in run.stderr
+
+
+def test_verify_fails_when_status_php_reports_an_instance_that_is_not_installed(nc):
+    _healthy(nc)
+    nc.state["status_php"] = {"installed": False, "maintenance": False, "version": "34.0.5"}
+    run = nc.run("verify")
+    assert run.returncode == 1 and "Apache does not answer status.php with an installed instance" in run.stderr
+
+
+def test_verify_passes_when_status_php_reports_the_maintenance_mode_a_backup_holds(nc):
+    _healthy(nc)
+    nc.state["status_php"] = {"installed": True, "maintenance": True, "version": "34.0.5"}
+    run = nc.run("verify")
+    assert run.returncode == 0 and "maintenance mode" in run.stdout
 
 
 # the declarations the engines read

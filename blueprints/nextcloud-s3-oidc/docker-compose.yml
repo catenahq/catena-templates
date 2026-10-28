@@ -111,7 +111,8 @@ x-catena:
   # occ cannot be used (first install running, maintenance mode on, a restore
   # whose database is not replayed yet) and with 1 only when occ answers and a
   # wiring command fails. An app an administrator disabled stays disabled; the
-  # scanner settings are written once. verify runs hourly and before an update.
+  # scanner settings are written once. verify runs hourly and before an update:
+  # it asks occ, then Apache for status.php, then the object store.
   # reconcile runs after a restore, an app start and a bucket repair: it counts
   # the files the database indexes that the object store lacks, and reports.
   hooks:
@@ -403,6 +404,18 @@ x-catena:
             echo "Nextcloud does not answer: occ status --exit-code failed" >&2
             exit 1
           fi
+          status=$$(curl -sS --max-time 20 http://localhost/status.php 2>/dev/null || true)
+          case "$$status" in
+            *'"maintenance":true'*)
+              echo "Nextcloud is in maintenance mode, which a backup or an update holds"
+              exit 0
+              ;;
+            *'"installed":true'*'"maintenance":false'*) ;;
+            *)
+              echo "Apache does not answer status.php with an installed instance: '$$status'" >&2
+              exit 1
+              ;;
+          esac
           if [ -n "$${S3_BUCKET:-}" ]; then
             class=$$(occ config:system:get objectstore class 2>/dev/null || true)
             case "$$class" in
@@ -425,9 +438,9 @@ x-catena:
               echo "the object store at $$S3_HOST:$${S3_PORT:-443} does not answer" >&2
               exit 1
             fi
-            echo "Nextcloud answers, uses the bucket $$bucket, and the object store at $$S3_HOST answers"
+            echo "Nextcloud answers, Apache serves status.php, Nextcloud uses the bucket $$bucket, and the object store at $$S3_HOST answers"
           else
-            echo "Nextcloud answers"
+            echo "Nextcloud answers and Apache serves status.php"
           fi
     reconcile:
       - - sh
