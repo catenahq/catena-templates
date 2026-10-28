@@ -14,7 +14,10 @@ An adapter reads one registry format into Candidates. For each, in order:
             Gitea's APIs are read (repo_licence). A licence outside
             sources.schema.json's origin.licence list skips the entry; so
             does a licence the forge cannot name, and an upstream on no
-            forge the importer reads.
+            forge the importer reads. The app's upstream project, read the
+            same way when it is another repository, may also carry a GPL,
+            LGPL or AGPL licence: that licence covers the app the image runs,
+            and the catalog copies none of the project's files.
   compose   fetched for a stack entry, or the adapter's, changed by the
             adapter where its registry's format asks, then made into a
             catalog stack file: no version key, no Traefik labels, a restart
@@ -72,6 +75,10 @@ ZONE = "{{ cloudflare_zone }}"
 # The checker's rules that refuse a feature giving the app the server itself.
 REFUSED_RULES = frozenset({"X1", "X2", "X3", "X4", "X5", "X6"})
 
+# The licences an app's upstream project may carry beyond origin.licence's
+# list. A compose file the catalog copies stays held to that list.
+PROJECT_COPYLEFT = ("GPL-2.0", "GPL-3.0", "LGPL-2.1", "LGPL-3.0", "AGPL-3.0")
+
 # The banned-word list contracts/scripts/check-unicode.mjs reads, in the
 # contracts checkout beside this one.
 BANNED_WORDS = model.TOOLS_ROOT.parent / "contracts" / "banned-words.json"
@@ -93,7 +100,8 @@ class Candidate:
 
     `registry` is the address the entry was read from, when it differs from
     the importer's own. `project` is the app's upstream repository when the
-    registry or a listing names it: its licence is checked too, and it keys
+    registry or a listing names it: its licence is checked too (against the
+    permitted list plus PROJECT_COPYLEFT), and it keys
     the deduplication. `compose_repo` and `compose_path` name a stack file
     fetched at the repository's pinned commit (`env_path` is a file of
     KEY=value defaults beside it); `commit` and `path` record where the
@@ -342,7 +350,7 @@ def _gitlab(repo: Repo) -> Licence | None:
         return Licence("", "", f"GitLab finds no licence file in {repo}")
     if key == "other":
         return Licence("", "", f"GitLab cannot name the licence in {url}")
-    spdx = {name.lower(): name for name in permissive_licences()}.get(key, key)
+    spdx = {name.lower(): name for name in (*permissive_licences(), *PROJECT_COPYLEFT)}.get(key, key)
     page = f"{doc.get('web_url')}/-/blob/{doc.get('default_branch')}/"
     text = ""
     if url.startswith(page):
@@ -867,10 +875,12 @@ class Importer:
                 break
         return report
 
-    def _licence(self, repo: Repo | None, slug: str, problem: str = "") -> tuple[Licence, list[str]]:
-        """The licence that admits the entry, and what a person checks about
-        the repository it is read from: an owner's page reads as the owner's
-        repository named as the entry's id."""
+    def _licence(self, repo: Repo | None, slug: str, problem: str = "",
+                 allowed: tuple[str, ...] = ()) -> tuple[Licence, list[str]]:
+        """The licence that admits the entry, out of `allowed` (default the
+        permitted list), and what a person checks about the repository it is
+        read from: an owner's page reads as the owner's repository named as
+        the entry's id."""
         if repo is None:
             raise Skip(problem or "no repository names its licence", "unknown")
         page = ""
@@ -888,16 +898,16 @@ class Importer:
         if not licence.spdx:
             where = f"{page} is an owner's page, read as {repo}: " if page else ""
             raise Skip(where + licence.problem, "unknown")
-        if licence.spdx not in self.allowed:
+        if licence.spdx not in (allowed or self.allowed):
             raise Skip(f"{licence.spdx} ({repo})", "licence")
         return licence, checks
 
     def _project_licence(self, c: Candidate) -> None:
-        """The upstream project's licence is held to the same list as the
-        licence of the repository the entry is copied from."""
+        """The upstream project's licence is held to the permitted list plus
+        PROJECT_COPYLEFT, when the entry is copied from another repository."""
         if c.project is not None and c.project != c.licence_repo:
             try:
-                self._licence(c.project, c.slug)
+                self._licence(c.project, c.slug, allowed=(*self.allowed, *PROJECT_COPYLEFT))
             except Skip as exc:
                 raise Skip(f"upstream project {exc}", exc.kind) from exc
 
@@ -1087,6 +1097,9 @@ def main(argv: list[str], adapters: dict[str, Callable[[Any, str], list[Candidat
     parser.add_argument("--also", action="append", default=[], metavar="FORMAT=ADDRESS",
                         help="a further registry read in the same run, so an app both list "
                              "is imported once, from the richer entry")
+    parser.add_argument("--entry", action="append", default=[], metavar="TITLE",
+                        help="read only the entries of this title, case ignored (repeatable); "
+                             "titles of one app named together give one app and its aliases")
     parser.add_argument("--applint", default=os.environ.get(APPLINT_ENV, ""),
                         help=f"the catena-applint binary (default: ${APPLINT_ENV})")
     parser.add_argument("--dry-run", action="store_true",
@@ -1148,6 +1161,14 @@ def main(argv: list[str], adapters: dict[str, Callable[[Any, str], list[Candidat
     except (FetchError, ValueError) as exc:
         print(f"import_registry: cannot read the registry: {exc}", file=sys.stderr)
         return 1
+    if args.entry:
+        titles = {c.entry.casefold() for c in candidates if not c.listing}
+        missing = [title for title in args.entry if plain(title).casefold() not in titles]
+        if missing:
+            print(f"import_registry: no entry titled {', '.join(map(repr, missing))}", file=sys.stderr)
+            return 1
+        wanted = {plain(title).casefold() for title in args.entry}
+        candidates = [c for c in candidates if c.listing or c.entry.casefold() in wanted]
     applint = args.applint.strip()
     if applint and shutil.which(applint) is None:
         print(f"import_registry: WARN: {applint} is not an executable", file=sys.stderr)

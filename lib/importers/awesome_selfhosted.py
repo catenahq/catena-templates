@@ -5,9 +5,9 @@ description, licenses (SPDX ids), platforms and tags.
 The list holds no compose file, so nothing is imported from it. It tells the
 importer which repository a project is at: an entry of another registry whose
 id is the project's name gets that repository as its upstream project, whose
-licence is then read from its forge and held to the same list as the entry's
-own. Only the project's name and repository are used, as facts; none of the
-list's text reaches the catalog.
+licence is then read from its forge and held to the rule for upstream
+projects (pipeline.PROJECT_COPYLEFT). Only the project's name and repository
+are used, as facts; none of the list's text reaches the catalog.
 
 The registry document is GitHub's file listing of the repository at one
 commit, and every file is read at that commit:
