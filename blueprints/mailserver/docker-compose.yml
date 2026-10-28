@@ -54,9 +54,9 @@ x-catena:
   # The hooks run in dms. configure runs after every deploy and after a renewed
   # certificate: it reloads the mail daemons when the certificate file differs
   # from the one they last loaded. verify runs hourly and before an update.
-  # users keeps one mailbox for each member of staff and client that has an
-  # email address; it removes only the mailboxes it created, and never
-  # postmaster.
+  # users keeps one mailbox for each member of staff and client whose email
+  # address is on MAIL_DOMAIN; it removes only the mailboxes it created, those
+  # outside MAIL_DOMAIN included, and never postmaster.
   hooks:
     service: dms
     timeout_seconds: 300
@@ -130,11 +130,16 @@ x-catena:
               os.replace(tmp, STATE)
 
 
+          domain = os.environ.get("MAIL_DOMAIN", "").strip().lower()
+          if not domain:
+              print("MAIL_DOMAIN is not set; no mailbox is changed", file=sys.stderr)
+              sys.exit(1)
           members = json.load(sys.stdin)
-          desired = {m["email"].strip().lower() for m in members if (m.get("email") or "").strip()}
-          if not desired:
+          listed = {m["email"].strip().lower() for m in members if (m.get("email") or "").strip()}
+          if not listed:
               print("no member has an email address; no mailbox is changed")
               sys.exit(0)
+          desired = {a for a in listed if a.rpartition("@")[0] and a.rpartition("@")[2] == domain}
           listing = setup("email", "list")
           if listing.returncode != 0:
               print("the mailboxes could not be listed: " + listing.stderr.strip(), file=sys.stderr)
@@ -142,13 +147,12 @@ x-catena:
           current = {m.group(0).lower() for line in listing.stdout.splitlines() for m in [EMAIL.search(line)] if m}
           created = load()
           if created is None:
-              created = desired & current
+              created = listed & current
               save(created)
-              print("no record of the mailboxes made here: %d wanted and present are taken as made here, none is removed" % len(created))
+              print("no record of the mailboxes made here: %d listed and present are taken as made here, none is removed" % len(created))
               deletable = set()
           else:
               deletable = set(created)
-          domains = {a.split("@", 1)[1] for a in desired if "@" in a}
           added = removed = 0
           failed = False
           for address in sorted(desired - current):
@@ -159,8 +163,7 @@ x-catena:
               created.add(address)
               added += 1
           for address in sorted(current - desired):
-              local, _, domain = address.partition("@")
-              if address not in deletable or domain not in domains or local in PROTECTED:
+              if address not in deletable or address.partition("@")[0] in PROTECTED:
                   continue
               if setup("email", "del", "-y", address).returncode != 0:
                   print("removing " + address + " failed", file=sys.stderr)

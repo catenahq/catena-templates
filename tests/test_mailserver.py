@@ -251,13 +251,16 @@ class _Mailboxes:
             f'esac\n')
         self.tmp = tmp_path
 
-    def run(self, members: list[dict]) -> subprocess.CompletedProcess:
+    def run(self, members: list[dict], domain: str | None = "a.example") -> subprocess.CompletedProcess:
         bin_dir = self.tmp / "bin"
         bin_dir.mkdir(exist_ok=True)
         _command(bin_dir / "setup", self.script)
         body = _body(_hook("users")).replace(STATE, str(self.state))
+        env = {"PATH": f"{bin_dir}:{os.environ['PATH']}"}
+        if domain is not None:
+            env["MAIL_DOMAIN"] = domain
         return subprocess.run([sys.executable, "-c", body], input=json.dumps(members), capture_output=True,
-                              text=True, check=False, env={"PATH": f"{bin_dir}:{os.environ['PATH']}"})
+                              text=True, check=False, env=env)
 
     def changes(self) -> list[str]:
         """The adds (without the password) and the removals, in order."""
@@ -305,6 +308,46 @@ def test_the_users_hook_removes_only_what_it_made_and_never_postmaster(tmp_path)
     assert box.changes() == ["email del -y gone@a.example"]
     assert json.loads(box.state.read_text()) == ["ana@a.example", "postmaster@a.example"]
     assert "info@a.example" in box.listing.read_text()
+
+
+def test_the_users_hook_makes_no_mailbox_for_an_address_outside_the_mail_domain(tmp_path):
+    box = _Mailboxes(tmp_path, ["postmaster@a.example"])
+    out = box.run(_members("ana@a.example", "cli@client.example", "x@sub.a.example", "y@a.example.evil"))
+    assert out.returncode == 0, out.stderr
+    assert box.changes() == ["email add ana@a.example"]
+    assert json.loads(box.state.read_text()) == ["ana@a.example"]
+
+
+def test_the_users_hook_removes_a_mailbox_it_made_outside_the_mail_domain(tmp_path):
+    box = _Mailboxes(tmp_path, ["postmaster@a.example", "ana@a.example", "cli@client.example", "mine@other.example"])
+    box.state.write_text(json.dumps(["ana@a.example", "cli@client.example"]))
+    out = box.run(_members("ana@a.example", "cli@client.example"))
+    assert out.returncode == 0, out.stderr
+    assert box.changes() == ["email del -y cli@client.example"]
+    assert json.loads(box.state.read_text()) == ["ana@a.example"]
+    assert "mine@other.example" in box.listing.read_text()
+
+
+def test_the_users_hook_removes_outside_mailboxes_when_every_member_is_outside(tmp_path):
+    box = _Mailboxes(tmp_path, ["postmaster@a.example", "cli@client.example"])
+    box.state.write_text(json.dumps(["cli@client.example", "postmaster@a.example"]))
+    out = box.run(_members("cli@client.example"))
+    assert out.returncode == 0, out.stderr
+    assert box.changes() == ["email del -y cli@client.example"]
+
+
+def test_the_users_hook_compares_the_mail_domain_without_regard_to_case(tmp_path):
+    box = _Mailboxes(tmp_path, ["postmaster@a.example"])
+    out = box.run(_members("Ana@A.Example", "bob@b.example"), domain="A.EXAMPLE")
+    assert out.returncode == 0, out.stderr
+    assert box.changes() == ["email add ana@a.example"]
+
+
+def test_the_users_hook_changes_nothing_without_a_mail_domain(tmp_path):
+    box = _Mailboxes(tmp_path, ["postmaster@a.example"])
+    out = box.run(_members("ana@a.example"), domain=None)
+    assert out.returncode == 1 and "MAIL_DOMAIN" in out.stderr
+    assert box.changes() == []
 
 
 def test_the_users_hook_changes_nothing_for_an_empty_list_or_a_listing_that_failed(tmp_path):

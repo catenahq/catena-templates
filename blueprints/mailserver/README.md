@@ -23,7 +23,7 @@ arranged beforehand, on request.
 1. **Before deploy -- DNS + relay.** Mail needs an outbound relay and some DNS records set up first. The MX, SPF, DKIM, DMARC and reverse-DNS records are set up for the domain by its owner, and the relay credentials pasted in, before the first deploy.
 2. **Deploy** is the only step. The server completes the mail wiring on its own -- the address of the mail host, the MTA-STS and TLS-RPT records, the TLS certificate, the postmaster mailbox, single sign-on, spam and virus filtering. The deploy needs the server's domain and its Cloudflare access to be set first.
 3. Webmail then answers at its address (`webmail.` followed by the domain). The login goes through Keycloak -- one account for every app in the suite. There is no separate mail password.
-4. Mailboxes are created automatically for staff and client users from Keycloak. A new user can sign in to webmail as soon as their account exists.
+4. A mailbox is made for each staff or client account whose email address is on the mail domain; an account with an outside address gets none. A new user can sign in to webmail as soon as their mailbox exists.
 
 ### How sign-in works
 
@@ -83,7 +83,7 @@ préalable, sur demande.
 1. **Avant le déploiement -- DNS + relais.** Le courriel nécessite un relais d'envoi et des enregistrements DNS configurés au préalable. Les enregistrements MX, SPF, DKIM, DMARC et DNS inverse sont configurés pour le domaine par son propriétaire, et les identifiants du relais renseignés, avant le premier déploiement.
 2. **Deploy** est la seule étape. Le serveur termine lui-même le câblage du courriel -- l'adresse de l'hôte de courriel, les enregistrements MTA-STS et TLS-RPT, le certificat TLS, la boîte postmaster, l'authentification unique, le filtrage antipourriel et antivirus. Le déploiement exige que le domaine du serveur et son accès Cloudflare soient configurés au préalable.
 3. Le webmail répond ensuite à son adresse (`webmail.` suivi du domaine). La connexion passe par Keycloak -- un seul compte pour toutes les applications de la suite. Aucun mot de passe de courriel distinct.
-4. Les boîtes sont créées automatiquement pour les utilisateurs staff et client depuis Keycloak. Un nouvel utilisateur peut se connecter au webmail dès que son compte existe.
+4. Une boîte est créée pour chaque compte staff ou client dont l'adresse courriel est sur le domaine de courriel ; un compte dont l'adresse est ailleurs n'en reçoit aucune. Un nouvel utilisateur peut se connecter au webmail dès que sa boîte existe.
 
 ### Fonctionnement de la connexion
 
