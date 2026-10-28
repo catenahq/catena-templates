@@ -28,6 +28,26 @@ x-catena:
       setting: {default: "invoice@{{ cloudflare_zone }}"}
     INVOICENINJA_MAIL_FROM_NAME:
       setting: {default: "Invoicing"}
+  # verify asks nginx for /health, which nginx hands to the PHP application: nginx alone
+  # answers /nginx-health. 127.0.0.1: busybox wget tries ::1 first for localhost.
+  hooks:
+    service: nginx
+    timeout_seconds: 60
+    verify:
+      - - sh
+        - -c
+        - |
+          body=$$(wget -q -T 20 -O - http://127.0.0.1/health) || {
+            echo "Invoice Ninja does not answer /health through nginx" >&2
+            exit 1
+          }
+          case "$$body" in
+            *"API is healthy"*) echo "Invoice Ninja answers /health through nginx" ;;
+            *)
+              echo "/health answers, but not with the Invoice Ninja health reply" >&2
+              exit 1
+              ;;
+          esac
 
 services:
   app:
