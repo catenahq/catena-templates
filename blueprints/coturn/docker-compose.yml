@@ -29,11 +29,15 @@ x-catena:
       - {type: A, name: "{{ turn_hostname }}", value: "{{ public_ip }}"}
   # The hooks run in coturn as the image's user. configure runs after every
   # deploy and after a renewed certificate: SIGUSR2 makes turnserver load the
-  # certificate files again. verify runs hourly and before an update. It reads
-  # the listening sockets from /proc/net and the end of the certificate's
-  # validity from the DER text of the first certificate of the chain, with the
-  # tools the image has: its BusyBox grep matches no time among the DER's binary
-  # bytes, so tr leaves only digits and Z first.
+  # certificate files again. verify runs hourly and before an update. It asks
+  # turnserver for a TURN allocation with the REST secret, through the image's
+  # turnutils_uclient: the client exits nonzero when the allocation fails, and
+  # -n 0 sends no data, so the peer it names is only parsed (an address outside
+  # denied-peer-ip). It reads the TLS listeners' sockets from /proc/net and the
+  # end of the certificate's validity from the DER text of the first
+  # certificate of the chain, with the tools the image has: its BusyBox grep
+  # matches no time among the DER's binary bytes, so tr leaves only digits and
+  # Z first.
   hooks:
     service: coturn
     timeout_seconds: 60
@@ -56,11 +60,11 @@ x-catena:
           set -u
           fail=""
           port_hex() { printf '%04X' "$$1"; }
+          timeout 30 turnutils_uclient -p "$$TURN_PORT" -W "$$TURN_SECRET" -u catena-verify -n 0 -e 1.1.1.1 127.0.0.1 >/dev/null 2>&1 \
+            || fail="$$fail allocation-on-$${TURN_PORT}-refused"
           udp=$$(cat /proc/net/udp /proc/net/udp6 2>/dev/null || true)
           tcp=$$(awk '$$4 == "0A" {print $$2}' /proc/net/tcp /proc/net/tcp6 2>/dev/null || true)
-          for port in "$$TURN_PORT" "$$TURN_TLS_PORT"; do
-            printf '%s\n' "$$udp" | grep -q ":$$(port_hex "$$port") " || fail="$$fail udp-$${port}-not-listening"
-          done
+          printf '%s\n' "$$udp" | grep -q ":$$(port_hex "$$TURN_TLS_PORT") " || fail="$$fail udp-$${TURN_TLS_PORT}-not-listening"
           printf '%s\n' "$$tcp" | grep -q ":$$(port_hex "$$TURN_TLS_PORT")\$$" || fail="$$fail tcp-$${TURN_TLS_PORT}-not-listening"
           cert=/certs/fullchain.pem
           if [ ! -f "$$cert" ]; then
@@ -80,7 +84,7 @@ x-catena:
             echo "the relay check failed:$$fail" >&2
             exit 1
           fi
-          echo "the relay listens on $${TURN_PORT} and $${TURN_TLS_PORT} and its certificate is valid for 24 hours"
+          echo "the relay allocates on $${TURN_PORT}, listens on $${TURN_TLS_PORT} and its certificate is valid for 24 hours"
 
 services:
   coturn:

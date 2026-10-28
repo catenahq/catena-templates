@@ -3,6 +3,7 @@ script writes (with the secret kept out of every command), its hooks run with
 the tools of its image, and the applications that read what it provides."""
 from __future__ import annotations
 
+import ipaddress
 import os
 import re
 import shutil
@@ -252,7 +253,7 @@ def test_the_start_script_ends_in_turnserver_so_it_receives_the_signals():
 
 # --- the hooks ----------------------------------------------------------------
 
-APPLETS = ("awk", "base64", "cat", "cut", "date", "grep", "sed", "sha256sum", "tr")
+APPLETS = ("awk", "base64", "cat", "cut", "date", "grep", "sed", "sha256sum", "timeout", "tr")
 
 
 def _tools(tmp_path: Path) -> tuple[Path, list[str]]:
@@ -286,7 +287,7 @@ def _certificate(path: Path, days: int, *, serial: str = "") -> None:
                    check=True, capture_output=True)
 
 
-def _sockets(proc: Path, *, udp=(3478, 5349), tcp=(5349,), state="0A") -> None:
+def _sockets(proc: Path, *, udp=(5349,), tcp=(5349,), state="0A") -> None:
     """The /proc/net tables of a host that listens on these ports."""
     proc.mkdir(parents=True, exist_ok=True)
     head = "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode\n"
@@ -300,10 +301,22 @@ def _sockets(proc: Path, *, udp=(3478, 5349), tcp=(5349,), state="0A") -> None:
 needs_openssl = pytest.mark.skipif(shutil.which("openssl") is None, reason="openssl is not installed")
 
 
-def _verify(tmp_path: Path, cert: Path, **sockets) -> subprocess.CompletedProcess:
+def _uclient(tmp_path: Path, exit_code: int = 0) -> Path:
+    """turnutils_uclient standing in as a program that records its arguments and
+    exits with `exit_code`, as the real one does when the allocation is refused."""
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir(parents=True, exist_ok=True)
+    stub = bin_dir / "turnutils_uclient"
+    stub.write_text(f'#!/bin/sh\nprintf "%s\\n" "$@" > {tmp_path}/uclient.argv\nexit {exit_code}\n', encoding="utf-8")
+    stub.chmod(0o755)
+    return tmp_path / "uclient.argv"
+
+
+def _verify(tmp_path: Path, cert: Path, uclient_exit: int = 0, **sockets) -> subprocess.CompletedProcess:
     _sockets(tmp_path / "proc", **sockets)
+    _uclient(tmp_path, uclient_exit)
     return _run_hook(tmp_path, "verify", {"/proc/net/": str(tmp_path / "proc") + "/", "/certs/fullchain.pem": str(cert)},
-                     {"TURN_PORT": "3478", "TURN_TLS_PORT": "5349"})
+                     {"TURN_PORT": "3478", "TURN_TLS_PORT": "5349", "TURN_SECRET": SECRET})
 
 
 @needs_openssl
@@ -319,7 +332,7 @@ def test_verify_passes_with_the_ports_open_and_a_certificate_valid_for_a_day(tmp
 def test_verify_names_a_port_that_does_not_listen(tmp_path):
     cert = tmp_path / "fullchain.pem"
     _certificate(cert, 30)
-    run = _verify(tmp_path, cert, udp=(3478,))
+    run = _verify(tmp_path, cert, udp=())
     assert run.returncode == 1 and "udp-5349-not-listening" in run.stderr
     run = _verify(tmp_path / "b", cert, tcp=())
     assert run.returncode == 1 and "tcp-5349-not-listening" in run.stderr
@@ -359,6 +372,31 @@ def test_verify_reads_the_first_certificate_of_the_chain(tmp_path):
     leaf_long.parent.mkdir()
     leaf_long.write_text(long_.read_text() + short.read_text())
     assert _verify(tmp_path / "b", leaf_long).returncode == 0
+
+
+@needs_openssl
+def test_verify_asks_turnserver_for_an_allocation_with_the_rest_secret_and_a_peer_outside_the_denied_ranges(tmp_path):
+    cert = tmp_path / "fullchain.pem"
+    _certificate(cert, 30)
+    run = _verify(tmp_path, cert)
+    assert run.returncode == 0, run.stderr
+    argv = (tmp_path / "uclient.argv").read_text().split()
+    assert argv[argv.index("-W") + 1] == SECRET and argv[argv.index("-p") + 1] == "3478"
+    assert argv[argv.index("-n") + 1] == "0"
+    peer = ipaddress.ip_address(argv[argv.index("-e") + 1])
+    for denied in (r for r in DENIED_PEERS if ":" not in r):
+        low, _, high = denied.partition("-")
+        assert not ipaddress.ip_address(low) <= peer <= ipaddress.ip_address(high or low), denied
+    assert SECRET not in run.stdout + run.stderr
+
+
+@needs_openssl
+def test_verify_names_an_allocation_turnserver_refuses(tmp_path):
+    cert = tmp_path / "fullchain.pem"
+    _certificate(cert, 30)
+    run = _verify(tmp_path, cert, uclient_exit=255)
+    assert run.returncode == 1 and "allocation-on-3478-refused" in run.stderr
+    assert SECRET not in run.stdout + run.stderr
 
 
 def test_verify_names_a_missing_certificate(tmp_path):
