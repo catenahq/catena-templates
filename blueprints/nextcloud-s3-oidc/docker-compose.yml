@@ -118,7 +118,8 @@ x-catena:
         - ["php", "occ", "status", "--exit-code"]
   # configure runs after every deploy (add, settings, start, update, rollback,
   # restore) and wires Nextcloud to the rest of the server: the object store
-  # file, Keycloak sign-in, Mail, the virus scanner and the office editor the
+  # file (put back only for an instance whose database holds the bucket's object
+  # store, removed from an installed instance that keeps its files on disk), Keycloak sign-in, Mail, the virus scanner and the office editor the
   # applications on this server provide, Talk with its signaling server and the
   # call relay application, Nextcloud's outgoing mail from the server's mail
   # relay, and the Webmail link. Talk's relay and signaling entries are written
@@ -128,7 +129,9 @@ x-catena:
   # occ cannot be used (first install running, maintenance mode on, a restore
   # whose database is not replayed yet) and with 1 only when occ answers and a
   # wiring command fails. An app an administrator disabled stays disabled; the
-  # scanner settings are written once. verify runs hourly and before an update.
+  # scanner settings are written once. verify runs hourly and before an update;
+  # it fails, naming the disk, for a bucket set on an instance that keeps its
+  # files there.
   # reconcile runs after a restore, an app start and a bucket repair: it counts
   # the files the database indexes that the object store lacks, and reports.
   hooks:
@@ -167,6 +170,38 @@ x-catena:
             );
             $$found = $$db->query("SELECT count(*) FROM information_schema.tables WHERE table_name = " . $$db->quote($$prefix . "appconfig"))->fetchColumn();
             exit($$found > 0 ? 1 : 0);
+          } catch (Throwable $$e) {
+            exit(2);
+          }
+          PHP
+          }
+          # 0 when the storages table holds the object store of the configured bucket
+          # (named object::store:amazon::<bucket>, or the md5 of that name when it is
+          # longer than 64 characters), 1 when it holds none, which is an instance that
+          # keeps its files on disk, 2 when the database does not answer or has no
+          # storages table.
+          object_store_state() {
+            id="object::store:amazon::$${S3_BUCKET}"
+            if [ "$${#id}" -gt 64 ]; then
+              id=$$(printf '%s' "$$id" | md5sum | cut -d' ' -f1)
+            fi
+            CATENA_STORE_ID="$$id" php <<'PHP'
+          <?php
+          include "/var/www/html/config/config.php";
+          $$prefix = !empty($$CONFIG["dbtableprefix"]) ? $$CONFIG["dbtableprefix"] : "oc_";
+          try {
+            $$db = new PDO(
+              "pgsql:host=".getenv("POSTGRES_HOST").";dbname=".getenv("POSTGRES_DB"),
+              getenv("POSTGRES_USER"), getenv("POSTGRES_PASSWORD"),
+              [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
+            );
+            $$found = $$db->query("SELECT count(*) FROM information_schema.tables WHERE table_name = " . $$db->quote($$prefix . "storages"))->fetchColumn();
+            if ($$found == 0) {
+              exit(2);
+            }
+            $$held = $$db->prepare("SELECT count(*) FROM " . $$prefix . "storages WHERE id = ?");
+            $$held->execute([getenv("CATENA_STORE_ID")]);
+            exit($$held->fetchColumn() > 0 ? 0 : 1);
           } catch (Throwable $$e) {
             exit(2);
           }
@@ -354,10 +389,30 @@ x-catena:
 
           # The object store reads the OBJECTSTORE_S3_* variables of the container
           # through the image's s3.config.php, which a restored config volume may lack.
-          if [ -n "$${S3_BUCKET:-}" ] && [ -f "$$CONFIG/config.php" ] && [ ! -f "$$CONFIG/s3.config.php" ] \
-              && [ -f /usr/src/nextcloud/config/s3.config.php ]; then
-            cp /usr/src/nextcloud/config/s3.config.php "$$CONFIG/s3.config.php"
-            say "the object store file was put back from the image"
+          # The file is put back only for an instance whose database holds the object
+          # store of the bucket. On any other installed instance, which keeps its files
+          # on disk, the file is removed: with a bucket in the environment it would
+          # switch the instance to an empty object store. The image copies it only into
+          # an empty config folder, so an image update does not bring it back.
+          if [ -n "$${S3_BUCKET:-}" ] && [ -f "$$CONFIG/config.php" ]; then
+            state=0
+            object_store_state || state=$$?
+            case "$$state" in
+              0)
+                if [ ! -f "$$CONFIG/s3.config.php" ] && [ -f /usr/src/nextcloud/config/s3.config.php ]; then
+                  cp /usr/src/nextcloud/config/s3.config.php "$$CONFIG/s3.config.php"
+                  say "the object store file was put back from the image"
+                fi
+                ;;
+              1)
+                if installed && ! maintenance; then
+                  say "this instance keeps its files on disk; the bucket setting is ignored"
+                  if [ -f "$$CONFIG/s3.config.php" ]; then
+                    rm -f "$$CONFIG/s3.config.php" && say "the object store file was removed"
+                  fi
+                fi
+                ;;
+            esac
           fi
 
           waited=0
@@ -468,6 +523,38 @@ x-catena:
           set -u
           CONFIG=/var/www/html/config
           occ() { timeout 60 php /var/www/html/occ "$$@"; }
+          # 0 when the storages table holds the object store of the configured bucket
+          # (named object::store:amazon::<bucket>, or the md5 of that name when it is
+          # longer than 64 characters), 1 when it holds none, which is an instance that
+          # keeps its files on disk, 2 when the database does not answer or has no
+          # storages table.
+          object_store_state() {
+            id="object::store:amazon::$${S3_BUCKET}"
+            if [ "$${#id}" -gt 64 ]; then
+              id=$$(printf '%s' "$$id" | md5sum | cut -d' ' -f1)
+            fi
+            CATENA_STORE_ID="$$id" php <<'PHP'
+          <?php
+          include "/var/www/html/config/config.php";
+          $$prefix = !empty($$CONFIG["dbtableprefix"]) ? $$CONFIG["dbtableprefix"] : "oc_";
+          try {
+            $$db = new PDO(
+              "pgsql:host=".getenv("POSTGRES_HOST").";dbname=".getenv("POSTGRES_DB"),
+              getenv("POSTGRES_USER"), getenv("POSTGRES_PASSWORD"),
+              [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
+            );
+            $$found = $$db->query("SELECT count(*) FROM information_schema.tables WHERE table_name = " . $$db->quote($$prefix . "storages"))->fetchColumn();
+            if ($$found == 0) {
+              exit(2);
+            }
+            $$held = $$db->prepare("SELECT count(*) FROM " . $$prefix . "storages WHERE id = ?");
+            $$held->execute([getenv("CATENA_STORE_ID")]);
+            exit($$held->fetchColumn() > 0 ? 0 : 1);
+          } catch (Throwable $$e) {
+            exit(2);
+          }
+          PHP
+          }
           if grep -q "'maintenance' => true" "$$CONFIG/config.php" 2>/dev/null; then
             echo "Nextcloud is in maintenance mode, which a backup or an update holds"
             exit 0
@@ -477,6 +564,12 @@ x-catena:
             exit 1
           fi
           if [ -n "$${S3_BUCKET:-}" ]; then
+            state=0
+            object_store_state || state=$$?
+            if [ "$$state" -eq 1 ]; then
+              echo "this instance keeps its files on disk; the bucket setting is ignored" >&2
+              exit 1
+            fi
             class=$$(occ config:system:get objectstore class 2>/dev/null || true)
             case "$$class" in
               *ObjectStore*S3) ;;

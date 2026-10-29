@@ -99,6 +99,10 @@ if not argv:
             sys.exit(2)
         print("\n".join(str(i) for i in state["filecache_ids"]))
         sys.exit(0)
+    if "CATENA_STORE_ID" in script:
+        if state["storages_down"]:
+            sys.exit(2)
+        sys.exit(0 if os.environ["CATENA_STORE_ID"] in state["storage_ids"] else 1)
     sys.exit(state["db_rc"])
 cmd, rest = argv[1], argv[2:]
 line = " ".join(argv[1:])
@@ -298,6 +302,7 @@ class Instance:
                       "external": "5.4", "richdocuments": "9.0", "onlyoffice": "9.0"},
             "ready": True, "signaling_up": True, "roundcube": True, "s3_up": True, "office_up": True,
             "db_rc": 1, "bucket": [], "filecache_ids": [], "filecache_down": False,
+            "storage_ids": ["object::store:amazon::files-bucket"], "storages_down": False,
         }
         self.installed()
 
@@ -752,6 +757,65 @@ def test_no_object_store_file_is_written_without_a_bucket(nc):
     assert not (nc.root / "config" / "s3.config.php").exists()
 
 
+DISK = "this instance keeps its files on disk; the bucket setting is ignored"
+
+
+def test_an_instance_on_disk_gets_no_object_store_file_and_is_told_so(nc):
+    nc.state["storage_ids"] = ["home::admin", "local::/var/www/html/data/"]
+    run = nc.run("configure")
+    assert run.returncode == 0, run.stderr
+    assert not (nc.root / "config" / "s3.config.php").exists()
+    assert DISK in run.stdout
+    assert "put back" not in run.stdout
+
+
+def test_an_instance_on_disk_loses_the_object_store_file_the_image_copied_at_its_first_start(nc):
+    nc.state["storage_ids"] = []
+    (nc.root / "config" / "s3.config.php").write_text("<?php // first start\n")
+    run = nc.run("configure")
+    assert run.returncode == 0, run.stderr
+    assert not (nc.root / "config" / "s3.config.php").exists()
+    assert DISK in run.stdout and "the object store file was removed" in run.stdout
+
+
+def test_the_object_store_file_stays_while_the_instance_is_not_installed_or_in_maintenance(nc):
+    nc.state["storage_ids"] = []
+    (nc.root / "config" / "s3.config.php").write_text("<?php // mid-install\n")
+    nc.installed(maintenance=True)
+    assert nc.run("configure").returncode == 0
+    assert (nc.root / "config" / "s3.config.php").exists()
+    (nc.root / "config" / "config.php").write_text("<?php\n$CONFIG = array (\n  'instanceid' => 'x',\n);\n")
+    assert nc.run("configure").returncode == 0
+    assert (nc.root / "config" / "s3.config.php").exists()
+
+
+def test_an_object_store_instance_keeps_its_file_and_is_not_told_it_keeps_its_files_on_disk(nc):
+    (nc.root / "config" / "s3.config.php").write_text("<?php // mine\n")
+    run = nc.run("configure")
+    assert run.returncode == 0, run.stderr
+    assert (nc.root / "config" / "s3.config.php").read_text() == "<?php // mine\n"
+    assert DISK not in run.stdout
+
+
+def test_a_bucket_name_too_long_for_a_storage_id_is_found_by_its_hash(nc):
+    import hashlib
+
+    bucket = "b" * 60
+    nc.state["storage_ids"] = [hashlib.md5(f"object::store:amazon::{bucket}".encode()).hexdigest()]
+    run = nc.run("configure", S3_BUCKET=bucket)
+    assert run.returncode == 0, run.stderr
+    assert (nc.root / "config" / "s3.config.php").exists()
+    assert DISK not in run.stdout
+
+
+def test_a_database_that_does_not_answer_decides_nothing_about_the_object_store_file(nc):
+    nc.state["storages_down"] = True
+    run = nc.run("configure")
+    assert run.returncode == 0, run.stderr
+    assert not (nc.root / "config" / "s3.config.php").exists()
+    assert DISK not in run.stdout
+
+
 # verify
 
 def _healthy(nc: Instance):
@@ -804,6 +868,20 @@ def test_verify_fails_when_the_endpoint_does_not_answer(nc):
     nc.state["s3_up"] = False
     run = nc.run("verify")
     assert run.returncode == 1 and "s3.example.test:443 does not answer" in run.stderr
+
+
+def test_verify_fails_naming_the_disk_when_a_bucket_is_set_on_an_instance_on_disk(nc):
+    nc.state["storage_ids"] = ["home::admin"]
+    run = nc.run("verify")
+    assert run.returncode == 1
+    assert DISK in run.stderr
+    assert "the object store is not configured" not in run.stderr
+
+
+def test_verify_still_checks_the_object_store_when_the_database_does_not_answer(nc):
+    nc.state["storages_down"] = True
+    run = nc.run("verify")
+    assert run.returncode == 1 and "the object store is not configured" in run.stderr
 
 
 def test_verify_without_a_bucket_only_asks_nextcloud_to_answer(nc):

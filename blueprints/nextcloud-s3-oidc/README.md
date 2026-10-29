@@ -51,7 +51,11 @@ administrator changed inside Nextcloud:
 - **Webmail link.** When the mail server runs on the host, a Webmail
   entry in the Nextcloud menu opens it in a new tab (`WEBMAIL_HOSTNAME`).
 - **Object store.** The file that points Nextcloud at the S3 bucket is
-  put back from the image when a restored configuration lacks it.
+  put back from the image when a restored configuration lacks it and
+  Nextcloud's database holds the bucket's object store. An instance
+  installed without a bucket keeps its files on the server's disk: the
+  file is taken away from it, and the deploy log and the hourly check say
+  so when a bucket is named for it.
 
 An app an administrator disabled stays disabled. While Nextcloud is in
 maintenance mode (during a backup or an update) or a restore has not
@@ -191,7 +195,11 @@ et laisse intact ce qu'un administrateur a modifié dans Nextcloud :
   entrée Webmail du menu Nextcloud l'ouvre dans un nouvel onglet
   (`WEBMAIL_HOSTNAME`).
 - **Stockage objet.** Le fichier qui dirige Nextcloud vers le seau S3 est
-  remis depuis l'image quand une configuration restaurée ne l'a pas.
+  remis depuis l'image quand une configuration restaurée ne l'a pas et
+  que la base de données de Nextcloud contient le stockage objet du seau.
+  Une instance installée sans seau garde ses fichiers sur le disque du
+  serveur : ce fichier lui est retiré, et le journal du déploiement et le
+  contrôle horaire le disent quand un seau lui est attribué.
 
 Une application désactivée par un administrateur le reste. Tant que
 Nextcloud est en mode maintenance (pendant une sauvegarde ou une mise à
