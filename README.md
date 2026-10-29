@@ -321,8 +321,9 @@ Then one job per app the change touches (`blueprints/<id>/**` or
 `sources/<id>.json`), each running:
 
 - `docker stack config` on the app's compose file.
-- scanctl on the app's images, judged from the change's base (the pull
-  request's base, or the commit's parent on `main`): a vulnerability at high or
+- scanctl on the app's images, judged from the change's base (the first
+  parent of the pull request's merge commit, which is `main` as the pull request
+  merges into it now, or the commit's parent on `main`): a vulnerability at high or
   above that has a fixed version, or a secret in an image, fails when the change
   adds it, as in the security scan of a pull request; the ones already there do
   not fail the step and are counted among the job summary's advisory findings.

@@ -252,13 +252,17 @@ def test_app_ci_groups_runs_by_the_checked_commit_and_checks_it_out():
     for job in ("repo", "scope", "plan", "app"):
         checkout = doc["jobs"][job]["steps"][0]
         assert checkout["with"]["ref"] == "${{ inputs.sha }}", job
+    # A pull request's base is its merge commit's first parent, never the event's base.sha.
+    assert "pull_request.base" not in (WORKFLOWS / "app-ci.yml").read_text()
     for job, step in (("scope", "The change"), ("plan", "Apps the change"), ("app", "scanctl on the app")):
-        assert _step("app-ci.yml", job, step)["env"]["BASE_SHA"] == (
-            "${{ inputs.base || github.event.pull_request.base.sha }}")
-    for job in ("repo",):
-        for step in doc["jobs"][job]["steps"]:
-            if "new-failures-only" in step.get("uses", ""):
-                assert step["with"]["base"] == "${{ inputs.base }}"
+        found = _step("app-ci.yml", job, step)
+        assert found["env"]["BASE_SHA"] == "${{ inputs.base }}"
+        assert '${BASE_SHA:-$(git rev-parse HEAD^1)}' in found["run"]
+    base = _step("app-ci.yml", "repo", "The commit the change is judged from")
+    assert base["env"]["BASE_SHA"] == "${{ inputs.base }}" and '${BASE_SHA:-$(git rev-parse HEAD^1)}' in base["run"]
+    assert doc["jobs"]["repo"]["steps"][0]["with"]["fetch-depth"] == 2
+    nfo = [s for s in doc["jobs"]["repo"]["steps"] if "new-failures-only" in s.get("uses", "")]
+    assert len(nfo) == 2 and all(s["with"]["base"] == "${{ steps.base.outputs.sha }}" for s in nfo)
 
 
 def test_app_dispatch_leaves_main_to_app_main_and_takes_the_commits():
@@ -375,6 +379,21 @@ def test_the_pull_request_path_judges_a_merge_commit_as_before(scratch):
     done = _scope(scratch, first, "")
     assert done.returncode == 1
     assert "touches 2 apps" in done.stderr
+
+
+@needs_uv
+def test_a_pull_request_is_judged_from_its_merge_commit_s_first_parent(scratch):
+    # main changed app y after the branch left it; the event's base.sha would still name that point.
+    _, git, commit, _ = scratch
+    point = commit("README.md")
+    git("checkout", "-q", "-b", "pr")
+    commit("blueprints/x/docker-compose.yml")
+    git("checkout", "-q", "main")
+    commit("blueprints/y/docker-compose.yml")
+    git("merge", "--no-ff", "-qm", "the merge ref of pr", "pr")
+    assert _scope(scratch, "", "").returncode == 0
+    done = _scope(scratch, point, "")
+    assert done.returncode == 1 and "touches 2 apps" in done.stderr
 
 
 @needs_uv

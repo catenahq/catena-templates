@@ -12,7 +12,9 @@ name: app-ci
 # through contracts' new-failures-only action, which fails only when the base
 # commit passes them; `scope` reads the change against its base; the image scan
 # judges the change against its base too; the other per-app checks judge the app
-# as it is.
+# as it is. A pull request's base is the first parent of its merge commit, the
+# branch it merges into as it is now: the event's base.sha can name an older
+# commit of that branch (a reopened pull request keeps the one it had).
 #
 # app-main calls this workflow once per commit of a push to main, with `sha`
 # (the commit checked) and `base` (the commit it is judged from, its parent).
@@ -79,6 +81,7 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
           ref: ${{ inputs.sha }}
+          fetch-depth: 2
           persist-credentials: false
       - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
       - name: Check out the tools
@@ -89,6 +92,11 @@ jobs:
           ref: ${{ inputs.tools-ref }}
           path: .tools
           persist-credentials: false
+      - name: The commit the change is judged from
+        id: base
+        env:
+          BASE_SHA: ${{ inputs.base }}
+        run: echo "sha=${BASE_SHA:-$(git rev-parse HEAD^1)}" >> "$GITHUB_OUTPUT"
       - name: make (render, lint, test) and catena-applint over the catalog
         # The checker ships in the public catena-admin image, so a fork's run
         # needs no credential to get it. Two nodes, as every catalog check runs.
@@ -97,7 +105,7 @@ jobs:
         with:
           working-directory: ${{ github.workspace }}
           repo-path: ${{ github.workspace }}
-          base: ${{ inputs.base }}
+          base: ${{ steps.base.outputs.sha }}
           run: |
             make
             docker run --rm -v "$PWD:/work:ro" \
@@ -110,7 +118,7 @@ jobs:
         with:
           working-directory: ${{ github.workspace }}
           repo-path: ${{ github.workspace }}
-          base: ${{ inputs.base }}
+          base: ${{ steps.base.outputs.sha }}
           run: |
             uv run "$TOOLS/build/lint_swarm.py"
             docker run --rm -v "$PWD:/work:ro" \
@@ -138,7 +146,7 @@ jobs:
           persist-credentials: false
       - name: The change touches at most one app
         env:
-          BASE_SHA: ${{ inputs.base || github.event.pull_request.base.sha }}
+          BASE_SHA: ${{ inputs.base }}
           CHECKED_SHA: ${{ inputs.sha }}
         run: |
           set -euo pipefail
@@ -148,7 +156,7 @@ jobs:
             echo "$CHECKED_SHA is a merge: its sides are checked on their own"
             exit 0
           fi
-          git diff --name-only "$BASE_SHA" HEAD | uv run "$TOOLS/build/versions.py" scope
+          git diff --name-only "${BASE_SHA:-$(git rev-parse HEAD^1)}" HEAD | uv run "$TOOLS/build/versions.py" scope
 
   plan:
     name: changed apps
@@ -173,10 +181,10 @@ jobs:
       - name: Apps the change touches, and still has
         id: changed
         env:
-          BASE_SHA: ${{ inputs.base || github.event.pull_request.base.sha }}
+          BASE_SHA: ${{ inputs.base }}
         run: |
           set -euo pipefail
-          git diff --name-only "$BASE_SHA" HEAD > "$RUNNER_TEMP/paths.txt"
+          git diff --name-only "${BASE_SHA:-$(git rev-parse HEAD^1)}" HEAD > "$RUNNER_TEMP/paths.txt"
           uv run "$TOOLS/build/app_check.py" changed < "$RUNNER_TEMP/paths.txt" > "$RUNNER_TEMP/ids.txt"
           apps=()
           for id in $(cat "$RUNNER_TEMP/ids.txt"); do
@@ -249,9 +257,11 @@ jobs:
         # as in security.yml's pull request scan; the ones already there do not
         # fail the step and are counted among the summary's advisory findings.
         env:
-          BASE_SHA: ${{ inputs.base || github.event.pull_request.base.sha }}
+          BASE_SHA: ${{ inputs.base }}
         run: |
           set -euo pipefail
+          shopt -s inherit_errexit
+          base="${BASE_SHA:-$(git rev-parse HEAD^1)}"
           go install github.com/catenahq/scanctl/cmd/scanctl@latest
           cat > "$RUNNER_TEMP/scanctl-app.yml" <<EOF
           profile: sellable
@@ -272,7 +282,7 @@ jobs:
           EOF
           "$(go env GOPATH)/bin/scanctl" run \
             -config "$RUNNER_TEMP/scanctl-app.yml" \
-            -baseline-ref "$BASE_SHA" \
+            -baseline-ref "$base" \
             -out "$RUNNER_TEMP/scanctl.sarif" \
             -summary "$RUNNER_TEMP/scanctl-summary.md" .
       - name: Scan summary
