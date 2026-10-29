@@ -9,6 +9,9 @@ x-catena:
       generated: {length: 24, alphabet: alnum}
     DB_ROOT_PASSWORD:
       generated: {length: 32, alphabet: alnum}
+  access:
+    customer:
+      label: {en: "Customer portal", fr: "Portail client"}
   lifecycle:
     service: "backend"
     ready: ["bash", "-c", ": > /dev/tcp/127.0.0.1/8000"]
@@ -50,18 +53,115 @@ x-catena:
             process.exit(1);
           })();
     timeout_seconds: 3600
-  # The scheduler's process is the container's first process, so an exec into it
-  # proves it runs. From there the check asks the app server for the site's ping
-  # and the queue's Redis for the registered workers: one per queue service.
+  # Once its start has finished, the scheduler's process is the container's first
+  # process, so an exec into it proves it runs; while the start waits for the
+  # backend the first process is bash. From there the check asks the app server
+  # for the site's ping and the queue's Redis for the registered workers: one per
+  # queue service. The users hook gives the Customer role to the people invited
+  # with customer access and removes it when they lose it; what it did is kept
+  # in the site's global default catena_access_customer, as
+  # {email: made | added | had | closed}: made is an account the hook created,
+  # added a role it put on an existing account, had a role the account held
+  # already, closed an account it disabled.
   hooks:
     service: scheduler
     timeout_seconds: 120
+    users:
+      - - bash
+        - -c
+        - |
+          set -eu
+          export CATENA_MEMBERS="$$(cat)"
+          cd /home/frappe/frappe-bench/sites
+          exec ../env/bin/python - <<'PY'
+          import json
+          import os
+          import sys
+
+          import frappe
+
+          LEVEL = "customer"
+          ROLE = "Customer"
+          KEY = "catena_access_customer"
+
+          wanted = {}
+          for member in json.loads(os.environ.get("CATENA_MEMBERS") or "[]"):
+              email = (member.get("email") or "").strip().lower()
+              if email and member.get("enabled", True) and LEVEL in (member.get("access") or []):
+                  wanted[email] = member
+
+          try:
+              frappe.init(os.environ["SITE_NAME"])
+              frappe.connect()
+          except Exception as error:
+              sys.exit("catena access: the site does not answer: " + str(error))
+
+
+          def roles_of(user):
+              return {row.role for row in user.roles}
+
+
+          def grant(email, member, state):
+              if not frappe.db.exists("User", email):
+                  user = frappe.new_doc("User")
+                  user.update({"name": email, "email": email, "enabled": 1,
+                               "first_name": member.get("first_name") or email.split("@")[0],
+                               "last_name": member.get("last_name") or "",
+                               "user_type": "Website User", "send_welcome_email": 0})
+                  user.insert()
+                  user.add_roles(ROLE)
+                  return "made"
+              user = frappe.get_doc("User", email)
+              if ROLE in roles_of(user):
+                  return state if state in ("made", "added") else "had"
+              if state == "closed":
+                  user.enabled = 1
+              user.add_roles(ROLE)
+              return "made" if state in ("made", "closed") else "added"
+
+
+          def revoke(email, state):
+              if state == "closed":
+                  return state
+              if state == "had" or not frappe.db.exists("User", email):
+                  return None
+              user = frappe.get_doc("User", email)
+              user.remove_roles(ROLE)
+              if state == "made" and not user.roles:
+                  user.enabled = 0
+                  user.save()
+                  return "closed"
+              return None
+
+
+          try:
+              stored = frappe.db.get_value("DefaultValue", {"parent": "__default", "defkey": KEY}, "defvalue")
+              record = json.loads(stored) if stored else {}
+              granted = removed = 0
+              for email, member in sorted(wanted.items()):
+                  state = grant(email, member, record.get(email))
+                  granted += state != record.get(email) and state in ("made", "added")
+                  record[email] = state
+              for email in sorted(set(record) - set(wanted)):
+                  removed += record[email] in ("made", "added")
+                  state = revoke(email, record[email])
+                  if state:
+                      record[email] = state
+                  else:
+                      del record[email]
+              frappe.defaults.set_global_default(KEY, json.dumps(record, sort_keys=True))
+              frappe.db.commit()
+              print("catena access: customer: " + str(granted) + " granted, " + str(removed) + " removed", flush=True)
+          finally:
+              frappe.destroy()
+          PY
     verify:
       - - bash
         - -c
         - |
           set -eu
           case "$$(tr '\0' ' ' < /proc/1/cmdline)" in
+            bash\ *) echo "the scheduler has not started: its start waits for the backend" >&2; exit 1 ;;
             *schedule*) ;;
             *) echo "the scheduler is not the container's first process" >&2; exit 1 ;;
           esac
@@ -174,6 +274,9 @@ services:
       - "vps.auth.mode=public"
       - "vps.health.path=/api/method/ping"
       - "vps.health.expect=pong"
+      - "vps.auth.oidc=true"
+      - "vps.auth.groups=staff"
+      - "vps.auth.oidc.redirect_uris=https://${ERPNEXT_HOSTNAME}/api/method/frappe.integrations.oauth2_logins.custom/keycloak"
       - "vps.auto-update=minor"
     cap_drop:
       - NET_RAW
@@ -253,6 +356,11 @@ services:
     networks:
       - default
 
+  # Once the sign-in values are in the environment, the start waits until the
+  # backend serves the site, then puts the Keycloak entry of Social Login Keys
+  # in step with them (FRAPPE_SIGNIN_PY): it creates the entry when absent and
+  # corrects the client, the secret and Keycloak's addresses when they differ.
+  # The client secret leaves the environment before the scheduler runs.
   scheduler:
     image: frappe/erpnext:v16.51.0
     deploy:
@@ -261,8 +369,80 @@ services:
       placement:
         constraints:
           - node.labels.catena.role==data
-    command: ["bench", "schedule"]
-    environment: *frappe-env
+    command:
+      - bash
+      - -c
+      - |
+        set -e
+        if [ -n "$${OIDC_CLIENT_ID:-}" ]; then
+          echo "catena sign-in: waiting for the backend to serve the site"
+          until (: > /dev/tcp/backend/8000) 2>/dev/null; do sleep 5; done
+          (cd sites && ../env/bin/python -c "$$FRAPPE_SIGNIN_PY")
+        fi
+        unset OIDC_CLIENT_SECRET
+        exec bench schedule
+    environment:
+      <<: *frappe-env
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-}
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-}
+      OIDC_ISSUER_URL: ${OIDC_ISSUER_URL:-}
+      SIGNIN_SIGN_UPS: "Deny"
+      FRAPPE_SIGNIN_PY: |
+        import json
+        import os
+
+        import frappe
+
+        client_id = os.environ.get("OIDC_CLIENT_ID", "")
+        secret = os.environ.get("OIDC_CLIENT_SECRET", "")
+        issuer = os.environ.get("OIDC_ISSUER_URL", "").rstrip("/")
+        sign_ups = os.environ.get("SIGNIN_SIGN_UPS", "Deny")
+        site = os.environ["SITE_NAME"]
+
+
+        def say(message):
+            print("catena sign-in: " + message, flush=True)
+
+
+        if not (client_id and secret and issuer):
+            say("no sign-in values yet; Keycloak sign-in stays off")
+            raise SystemExit(0)
+        endpoint = issuer + "/protocol/openid-connect/"
+        owned = {
+            "client_id": client_id, "base_url": issuer, "custom_base_url": 0,
+            "authorize_url": endpoint + "auth", "access_token_url": endpoint + "token",
+            "api_endpoint": endpoint + "userinfo",
+            "redirect_url": "https://" + site + "/api/method/frappe.integrations.oauth2_logins.custom/keycloak",
+        }
+        frappe.init(site)
+        frappe.connect()
+        try:
+            if frappe.db.exists("Social Login Key", "keycloak"):
+                doc = frappe.get_doc("Social Login Key", "keycloak")
+                changed = sorted(key for key, value in owned.items() if doc.get(key) != value)
+                if doc.get_password("client_secret", raise_exception=False) != secret:
+                    changed.append("client_secret")
+                if changed:
+                    doc.update(owned)
+                    doc.client_secret = secret
+                    doc.save()
+                    say("Keycloak sign-in entry put back in step: " + ", ".join(changed))
+            else:
+                doc = frappe.new_doc("Social Login Key")
+                doc.update({"provider_name": "Keycloak", "social_login_provider": "Custom",
+                            "enable_social_login": 1, "sign_ups": sign_ups, "user_id_property": "sub",
+                            "show_in_resource_metadata": 0,
+                            "auth_url_data": json.dumps({"response_type": "code",
+                                                         "scope": "openid email profile"}),
+                            **owned})
+                doc.client_secret = secret
+                doc.insert()
+                # Set with the entry only: the site is not the company website.
+                frappe.db.set_single_value("Contact Us Settings", "is_disabled", 1)
+                say("Keycloak sign-in on; the public contact form off")
+            frappe.db.commit()
+        finally:
+            frappe.destroy()
     volumes:
       - sites:/home/frappe/frappe-bench/sites
       - logs:/home/frappe/frappe-bench/logs
