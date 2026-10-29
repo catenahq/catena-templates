@@ -6,6 +6,13 @@ x-catena:
       setting: {default: "arcane.{{ cloudflare_zone }}"}
     ENCRYPTION_KEY:
       generated: {length: 64, alphabet: hex}
+  # The image has no shell, curl or wget. verify runs Arcane's own health
+  # command, which asks the running server for /api/health over the loopback.
+  hooks:
+    service: arcane
+    timeout_seconds: 60
+    verify:
+      - ["/app/arcane", "health", "--timeout", "10s"]
 
 services:
   arcane:
