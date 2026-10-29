@@ -9,6 +9,14 @@ x-catena:
       managed: {expr: "https://office.{{ cloudflare_zone }}"}
   provides:
     office: {editor: OFFICE_EDITOR, url: OFFICE_URL}
+  # The image has no shell and no HTTP client. verify runs coolwsd's own probe
+  # (the image's health check), which reads the server's configuration for its
+  # port and scheme and asks the running server for /livez over the loopback.
+  hooks:
+    service: collabora
+    timeout_seconds: 60
+    verify:
+      - ["/usr/bin/coolwsd", "--probe", "--use-env-vars"]
   images:
     collabora:
       rule: {kind: pattern, tag_pattern: '(\d+)\.(\d+)\.(\d+)\.(\d+)\.(\d+)'}
