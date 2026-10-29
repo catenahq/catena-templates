@@ -102,7 +102,7 @@ def test_the_hook_runs_in_the_wp_service_as_www_data():
     hooks = _entry().block["hooks"]
     assert hooks["service"] in _compose()["services"]
     assert hooks["user"] == "www-data"
-    assert set(hooks) - {"service", "user", "timeout_seconds"} == {"configure"}
+    assert set(hooks) - {"service", "user", "timeout_seconds"} == {"configure", "verify"}
     assert quiesce_lint.lint_hooks(_entry()) == []
     assert quiesce_lint.lint_block(_entry()) == []
 
