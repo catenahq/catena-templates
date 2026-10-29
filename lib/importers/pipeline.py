@@ -11,13 +11,10 @@ An adapter reads one registry format into Candidates. For each, in order:
             names: the one a stack entry's compose file sits in, the
             registry's own for a compose the adapter writes from the
             registry's fields, or the app's own. GitHub's, GitLab's and
-            Gitea's APIs are read (repo_licence). A licence outside
-            sources.schema.json's origin.licence list skips the entry; so
-            does a licence the forge cannot name, and an upstream on no
-            forge the importer reads. The app's upstream project, read the
-            same way when it is another repository, may also carry a GPL,
-            LGPL or AGPL licence: that licence covers the app the image runs,
-            and the catalog copies none of the project's files.
+            Gitea's APIs are read (repo_licence). It is recorded with its
+            notice in origin and refuses nothing. The app's own licence, read
+            from its upstream project, must be one of APP_LICENCES; one the
+            forge cannot name, or an upstream found nowhere, skips the entry.
   compose   fetched for a stack entry, or the adapter's, changed by the
             adapter where its registry's format asks, then made into a
             catalog stack file: no version key, no Traefik labels, a restart
@@ -75,9 +72,11 @@ ZONE = "{{ cloudflare_zone }}"
 # The checker's rules that refuse a feature giving the app the server itself.
 REFUSED_RULES = frozenset({"X1", "X2", "X3", "X4", "X5", "X6"})
 
-# The licences an app's upstream project may carry beyond origin.licence's
-# list. A compose file the catalog copies stays held to that list.
-PROJECT_COPYLEFT = ("GPL-2.0", "GPL-3.0", "LGPL-2.1", "LGPL-3.0", "AGPL-3.0")
+# The licences an app's own project may carry. A file the catalog copies (a
+# compose file, a registry's settings) is recorded with its licence and
+# notice, whatever they are.
+APP_LICENCES = ("MIT", "Apache-2.0", "BSD-2-Clause", "BSD-3-Clause",
+                "GPL-2.0", "GPL-3.0", "LGPL-2.1", "LGPL-3.0", "AGPL-3.0")
 
 # The banned-word list contracts/scripts/check-unicode.mjs reads, in the
 # contracts checkout beside this one.
@@ -92,17 +91,16 @@ class Candidate:
     `compose_url` is where a stack entry's file is fetched from, and
     `convert` is the adapter's own change to that file, made first. `route`
     is the service and port the registry routes, when it names one. The
-    licence that applies is the one of `licence_repo` on its forge; an
+    licence recorded in origin is the one of `licence_repo` on its forge; an
     adapter that has no repository to name says why in `licence_problem`.
     `notice` is a further copyright notice the attribution carries: the
-    registry's, when the licence that applies is the app's. A non-empty
-    `skip` keeps the entry out, with that reason.
+    registry's, when `licence_repo` is the app's. A non-empty `skip` keeps
+    the entry out, with that reason.
 
     `registry` is the address the entry was read from, when it differs from
     the importer's own. `project` is the app's upstream repository when the
-    registry or a listing names it: its licence is checked too (against the
-    permitted list plus PROJECT_COPYLEFT), and it keys
-    the deduplication. `compose_repo` and `compose_path` name a stack file
+    registry or a listing names it: its licence is the app's, checked against
+    APP_LICENCES, and it keys the deduplication. `compose_repo` and `compose_path` name a stack file
     fetched at the repository's pinned commit (`env_path` is a file of
     KEY=value defaults beside it); `commit` and `path` record where the
     entry was read, once known. A `listing` entry names a project and has no
@@ -138,7 +136,7 @@ class Candidate:
 
 class Skip(Exception):
     """An entry the importer leaves out. `kind` sorts the report: "licence"
-    for a licence outside the permitted list, "unknown" for one nobody can
+    for an app licence outside APP_LICENCES, "unknown" for one nobody can
     name, "other" for the rest."""
 
     def __init__(self, reason: str, kind: str = "other"):
@@ -350,7 +348,7 @@ def _gitlab(repo: Repo) -> Licence | None:
         return Licence("", "", f"GitLab finds no licence file in {repo}")
     if key == "other":
         return Licence("", "", f"GitLab cannot name the licence in {url}")
-    spdx = {name.lower(): name for name in (*permissive_licences(), *PROJECT_COPYLEFT)}.get(key, key)
+    spdx = {name.lower(): name for name in APP_LICENCES}.get(key, key)
     page = f"{doc.get('web_url')}/-/blob/{doc.get('default_branch')}/"
     text = ""
     if url.startswith(page):
@@ -412,14 +410,6 @@ def repo_licence(repo: Repo) -> Licence:
     else:
         where = f"{repo.host}, through Gitea's API or GitLab's"
     return Licence("", "", f"no repository {repo.path} on {where}")
-
-
-def permissive_licences() -> tuple[str, ...]:
-    """origin.licence's list in sources.schema.json, which refuses any other
-    licence on a source file."""
-    schema = json.loads(model.SOURCE_SCHEMA.read_text())
-    origin = schema["properties"]["x-catena"]["properties"]["origin"]
-    return tuple(origin["properties"]["licence"]["enum"])
 
 
 def banned_words() -> list[tuple[str, re.Pattern[str]]]:
@@ -790,7 +780,7 @@ def write_entry(slug: str, source: dict[str, Any], compose: str) -> None:
 
 @dataclass
 class Prepared:
-    """An entry that passed the licence rule and whose compose file is a catalog
+    """An entry whose app licence passed and whose compose file is a catalog
     stack file, before the checker runs. `keys` identify the app it is."""
 
     c: Candidate
@@ -816,7 +806,6 @@ class Importer:
         self.banned = banned
         self.limit = limit
         self.emit = emit or (lambda slug, source, compose: write_entry(slug, source, compose))
-        self.allowed = permissive_licences()
         self.licences: dict[tuple[str, str], Licence] = {}
         self.pins: dict[str, str] = {}
         self.found: dict[str, tuple[Repo | None, str]] = {}
@@ -876,11 +865,14 @@ class Importer:
         return report
 
     def _licence(self, repo: Repo | None, slug: str, problem: str = "",
-                 allowed: tuple[str, ...] = ()) -> tuple[Licence, list[str]]:
-        """The licence that admits the entry, out of `allowed` (default the
-        permitted list), and what a person checks about the repository it is
-        read from: an owner's page reads as the owner's repository named as
-        the entry's id."""
+                 app: bool = False) -> tuple[Licence, list[str]]:
+        """The licence of `repo`, and what a person checks about it: an
+        owner's page reads as the owner's repository named as the entry's id.
+        The licence of the app's own project (`app`) admits the entry when it
+        is one of APP_LICENCES. The licence of a repository a file is copied
+        from is recorded with its notice and refuses nothing; when the forge
+        names none it reads NOASSERTION, attributed to the repository's
+        address."""
         if repo is None:
             raise Skip(problem or "no repository names its licence", "unknown")
         page = ""
@@ -895,19 +887,21 @@ class Importer:
         if key not in self.licences:
             self.licences[key] = repo_licence(repo)
         licence = self.licences[key]
+        if not app:
+            return licence if licence.spdx else Licence("NOASSERTION", f"https://{repo.host}/{repo.path}"), checks
         if not licence.spdx:
             where = f"{page} is an owner's page, read as {repo}: " if page else ""
             raise Skip(where + licence.problem, "unknown")
-        if licence.spdx not in (allowed or self.allowed):
+        if licence.spdx not in APP_LICENCES:
             raise Skip(f"{licence.spdx} ({repo})", "licence")
         return licence, checks
 
     def _project_licence(self, c: Candidate) -> None:
-        """The upstream project's licence is held to the permitted list plus
-        PROJECT_COPYLEFT, when the entry is copied from another repository."""
-        if c.project is not None and c.project != c.licence_repo:
+        """The app's own licence, its upstream project's, is one of
+        APP_LICENCES."""
+        if c.project is not None:
             try:
-                self._licence(c.project, c.slug, allowed=(*self.allowed, *PROJECT_COPYLEFT))
+                self._licence(c.project, c.slug, app=True)
             except Skip as exc:
                 raise Skip(f"upstream project {exc}", exc.kind) from exc
 

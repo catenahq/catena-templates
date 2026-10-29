@@ -3,7 +3,7 @@ name: app-ci
 # The cheap checks every app pull request passes before the bench lifecycle
 # runs, on the runner label the caller passes (GitHub-hosted by default), for
 # forks too (no secrets, a read-only token). `repo` checks the catalog as a whole; `app` checks each app the
-# change touches: its stack file, its licence, its images' CVEs, provenance and
+# change touches: its stack file, its images' CVEs, provenance and
 # files. App ids come from changed file names, so they reach scripts through
 # env: only, and the plan job refuses any id outside the plain slug form.
 #
@@ -167,7 +167,6 @@ jobs:
         app: ${{ fromJSON(needs.plan.outputs.apps) }}
     env:
       APP: ${{ matrix.app }}
-      BASE_SHA: ${{ github.event.pull_request.base.sha }}
       # The feature tag carries the databases the image shipped with.
       CLAMAV_IMAGE: clamav/clamav:1.5
     steps:
@@ -186,12 +185,6 @@ jobs:
           persist-credentials: false
       - name: Swarm loader reads the stack file
         run: docker stack config --skip-interpolation -c "blueprints/$APP/docker-compose.yml" > /dev/null
-      - name: Licence
-        run: |
-          set -euo pipefail
-          new=()
-          if ! git cat-file -e "$BASE_SHA:sources/$APP.json" 2>/dev/null; then new=(--new); fi
-          uv run "$TOOLS/build/app_check.py" licence "$APP" "${new[@]}"
       - name: Pull the app's images
         run: |
           set -euo pipefail

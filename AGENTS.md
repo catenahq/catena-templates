@@ -93,9 +93,11 @@ for layout, consumer model, and BASE URL setup.
   required, no EN-only or FR-only templates.
 - An entry `build/import_registry.py` writes carries
   `x-catena.status: imported` and publishes marked untested, with stubs
-  for its bench pack, sizing and prose. Import only from MIT, Apache-2.0
-  or BSD sources: never widen `origin.licence` in the schema, and never
-  import an entry whose licence the importer reports unknown. An imported
+  for its bench pack, sizing and prose. `origin` records where its compose
+  file was copied from, with that source's licence and notice. Import only
+  an app whose own licence is on the importer's `APP_LICENCES`
+  (`lib/importers/pipeline.py`), and never one whose own licence the
+  importer reports unknown. An imported
   entry merges only once `make` passes and the app checker reports no
   error on it (catena-admin CI runs `catena-applint --catalog` over every
   blueprint): every error the importer records in `pending.findings` is

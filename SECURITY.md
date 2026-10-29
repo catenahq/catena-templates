@@ -12,8 +12,8 @@ weakens a template's isolation (network exposure, dropped auth labels,
 privileged mounts) is squarely in scope.
 
 Every pull request, from a fork too, runs `.github/workflows/app-ci.yml`
-before a person reviews it: the app checker, the swarm loader, a licence
-rule, scanctl on the app's images (a fixable high or critical vulnerability
+before a person reviews it: the app checker, the swarm loader, scanctl on the
+app's images (a fixable high or critical vulnerability
 fails), image provenance (a source repository at least a year old with three
 releases, else for a Docker Hub image its Docker Hub repository registered at
 least a year ago with three pushed tags; an image the repository builds itself
@@ -27,7 +27,7 @@ exactly one app onto a branch of this repository through the API, as data: it
 checks out and runs nothing of the fork, and refuses links, submodules, files
 over 1 MB, paths outside the app and a change to more than one app. The bench
 then runs that branch's app, and the fork's `test.yml` steps as root, on a
-private runner in a disposable VM copied from a golden VM. That VM holds only
+private runner in a disposable test VM copied from the Catena base VM. That VM holds only
 throwaway credentials (its own backup repositories and a sandbox licence, and
 Catena's own generated secrets made new; none the bench's, checked by a scan), is refused unless the app checker finds no X7, X8 or X9 in the
 compose file, runs only the steps of `test.yml` that touch the app's own

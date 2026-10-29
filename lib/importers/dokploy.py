@@ -44,8 +44,8 @@ combines it with other text is written into the compose file in place of
 its own.
 
 The compose file and template.toml are the registry's text: the registry's
-licence must be permitted, and its notice joins each entry's attribution.
-The licence that admits an entry is the app's.
+licence and notice join each entry's attribution. The licence that admits
+an entry is the app's.
 """
 from __future__ import annotations
 
@@ -110,10 +110,7 @@ def read(doc: Any, registry_url: str) -> list[Candidate]:
 def _notice(repo: Repo) -> str:
     licence = pipeline.repo_licence(repo)
     if not licence.spdx:
-        raise ValueError(f"the registry's own licence is unknown: {licence.problem}")
-    if licence.spdx not in pipeline.permissive_licences():
-        raise ValueError(f"the registry's own licence, {licence.spdx}, is not one the catalog "
-                         f"imports from")
+        return f"compose file and settings, NOASSERTION: https://{repo.host}/{repo.path}"
     return f"compose file and settings, {licence.spdx}: {licence.attribution}"
 
 

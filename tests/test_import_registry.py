@@ -275,24 +275,32 @@ def test_a_single_container_entry_becomes_a_one_service_compose(catalog):
     assert any(c.startswith("ports service notes publishes on the server (53/udp)") for c in to_choose)
 
 
-def test_a_licence_outside_the_permitted_list_is_skipped(catalog, capsys):
-    assert _run() == 0
-    assert not (model.SOURCES / "copyleft.json").exists()
-    out = capsys.readouterr().out
-    assert "skipped, licence not permitted: 1\n  Copyleft: GPL-3.0 (example/gpl)" in out
+def _copied_from(monkeypatch, repo: str) -> None:
+    """The fixture network holds a pinned compose file in `repo`."""
+    monkeypatch.setitem(WEB, f"{API}/repos/{repo}/commits/HEAD", json.dumps({"sha": STACKS_COMMIT}).encode())
+    image = f"{repo}:1.0.0"
+    monkeypatch.setitem(WEB, f"https://raw.githubusercontent.com/{repo}/{STACKS_COMMIT}/docker-compose.yml",
+                        f"services:\n  app:\n    image: {image}\n    ports:\n      - '8080:80'\n".encode())
 
 
-def test_an_unknown_licence_is_skipped_and_listed(catalog, capsys):
-    _, calls = catalog
+def test_a_copied_files_licence_is_recorded_whatever_it_is(catalog, capsys, monkeypatch):
+    _copied_from(monkeypatch, "example/gpl")
+    _copied_from(monkeypatch, "example/bare")
     assert _run() == 0
-    for slug in ("no-licence", "elsewhere"):
-        assert not (model.SOURCES / f"{slug}.json").exists()
+    origin = _source("copyleft")["x-catena"]["origin"]
+    assert origin["licence"] == "GPL-3.0"
+    assert origin["attribution"] == "https://github.com/example/gpl/blob/main/LICENSE"
+    origin = _source("no-licence")["x-catena"]["origin"]
+    assert origin["licence"] == "NOASSERTION" and origin["attribution"] == "https://github.com/example/bare"
+    assert "skipped, licence not permitted: 0" in capsys.readouterr().out
+
+
+def test_a_source_on_no_forge_the_importer_pins_is_skipped(catalog, capsys):
+    assert _run() == 0
+    assert not (model.SOURCES / "elsewhere.json").exists()
     out = capsys.readouterr().out
-    assert "skipped, licence unknown: 2" in out
-    assert "No Licence: GitHub finds no licence file in example/bare" in out
+    assert "skipped, licence unknown: 1" in out
     assert "Elsewhere: the repository https://gitlab.com/example/app is not on GitHub" in out
-    # Nothing is fetched for an entry whose licence is unknown.
-    assert not any("example/bare/HEAD" in url for url in calls)
 
 
 def test_settings_named_like_a_password_secret_or_key_are_minted(catalog):
@@ -466,11 +474,14 @@ def test_a_curated_entry_carries_no_import_stubs(catalog):
     assert "notes" in {e.slug for e in model.load_sources()}
 
 
-def test_an_imported_entry_names_a_permitted_licence_and_its_origin(catalog):
+def test_an_imported_entry_names_its_origin_and_any_licence_it_has(catalog):
     assert _run() == 0
     path = model.SOURCES / "notes.json"
     doc = json.loads(path.read_text())
     doc["x-catena"]["origin"]["licence"] = "GPL-3.0"
+    path.write_text(json.dumps(doc))
+    assert "notes" in {e.slug for e in model.load_sources()}
+    doc["x-catena"]["origin"]["licence"] = ""
     path.write_text(json.dumps(doc))
     with pytest.raises(model.SourceError, match="origin/licence"):
         model.load_sources()
@@ -478,7 +489,6 @@ def test_an_imported_entry_names_a_permitted_licence_and_its_origin(catalog):
     path.write_text(json.dumps(doc))
     with pytest.raises(model.SourceError, match="'origin' is a required property"):
         model.load_sources()
-    assert pipeline.permissive_licences() == ("MIT", "Apache-2.0", "BSD-2-Clause", "BSD-3-Clause")
 
 
 def test_an_id_already_in_the_catalog_is_left_alone(catalog, capsys):
@@ -922,8 +932,7 @@ def test_the_upstream_projects_licence_is_checked_too(feed, capsys, monkeypatch)
         "example/notes-sspl", "SSPL-1.0", "Server Side Public License\n"))
     assert _run("--also", f"awesome-selfhosted={AWESOME}") == 0
     out = capsys.readouterr().out
-    assert "Notes: upstream project SSPL-1.0 (example/notes-sspl)" in out
-    assert "skipped, licence not permitted: 2" in out
+    assert "skipped, licence not permitted: 1\n  Notes: upstream project SSPL-1.0 (example/notes-sspl)" in out
     assert not (model.SOURCES / "notes.json").exists()
 
 
@@ -931,8 +940,7 @@ def test_an_upstream_project_may_carry_a_copyleft_licence(feed, capsys, monkeypa
     monkeypatch.setitem(WEB, f"{AWESOME_RAW}/notes.yml", _awesome_entry(
         "Notes", "https://github.com/example/notes-gpl", ["Docker"]))
     assert _run("--also", f"awesome-selfhosted={AWESOME}") == 0
-    # A compose file copied from a GPL repository is still refused.
-    assert "skipped, licence not permitted: 1\n  Copyleft: GPL-3.0 (example/gpl)" in capsys.readouterr().out
+    assert "skipped, licence not permitted: 0" in capsys.readouterr().out
     origin = _source("notes")["x-catena"]["origin"]
     assert origin["project"] == "https://github.com/example/notes-gpl" and origin["licence"] == "MIT"
 

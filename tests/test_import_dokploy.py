@@ -352,14 +352,16 @@ def test_the_apps_licence_admits_an_entry_and_the_registrys_notice_joins_it(cata
         "project": "https://github.com/example/webapp",
     }
     out = capsys.readouterr().out
-    assert "skipped, licence not permitted: 1\n  Copyleft: GPL-3.0 (example/gpl-app)" in out
+    # The app's own GPL licence admits it; its compose file then routes nothing.
+    assert "skipped, licence not permitted: 0" in out
+    assert "Copyleft: no service publishes a TCP port to route" in out
     assert "skipped, licence unknown: 2" in out
-    assert "Offsite: no repository example/app on gitlab.com" in out
-    assert "Bare: GitHub finds no licence file in example/bare" in out
+    assert "Offsite: upstream project no repository example/app on gitlab.com" in out
+    assert "Bare: upstream project GitHub finds no licence file in example/bare" in out
     assert "half: the registry has no template.toml or docker-compose.yml for it" in out
     assert "Worker: no service publishes a TCP port to route" in out
-    # The compose file of an entry the licence keeps out is never fetched.
-    for slug in ("copyleft", "offsite", "bare"):
+    # The compose file of an entry whose own licence is unknown is never fetched.
+    for slug in ("offsite", "bare"):
         assert f"{RAW}/{slug}/docker-compose.yml" not in calls
         assert not (model.SOURCES / f"{slug}.json").exists()
 
@@ -384,17 +386,18 @@ def test_an_upstream_on_another_forge_or_an_owners_page_has_its_licence_read(
             "https://github.com/example-org, and the licence is read from example-org/orgapp, its "
             "repository named as the entry: confirm it holds the app") in org["pending"]["to_choose"]
     assert not any(c.startswith("upstream repository:") for c in _cat("lab")["pending"]["to_choose"])
-    assert ("skipped, licence unknown: 1\n  Lonely: https://codeberg.org/example-group is an "
+    assert ("skipped, licence unknown: 1\n  Lonely: upstream project https://codeberg.org/example-group is an "
             "owner's page, read as codeberg.org/example-group/lonely: no repository "
             "example-group/lonely on codeberg.org\n") in out
 
 
-def test_a_registry_whose_own_licence_is_not_permitted_is_refused(catalog, capsys, monkeypatch):
+def test_the_registrys_own_licence_is_noted_whatever_it_is(catalog, monkeypatch):
     monkeypatch.setitem(WEB, f"{API}/repos/example/templates/license",
                         _licence("example/templates", "GPL-3.0", "GNU GPL\n"))
-    assert _run() == 1
-    assert "the registry's own licence, GPL-3.0, is not one the catalog imports from" in \
-        capsys.readouterr().err
+    assert _run() == 0
+    assert _cat("webapp")["origin"]["attribution"] == (
+        "Copyright (c) 2025 Example Web; compose file and settings, GPL-3.0: "
+        "https://github.com/example/templates/blob/main/LICENSE")
 
 
 def test_a_document_that_is_not_a_tree_listing_is_refused(catalog, capsys, monkeypatch):
