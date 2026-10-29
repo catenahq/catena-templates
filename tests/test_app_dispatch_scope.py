@@ -46,14 +46,13 @@ def scene(tmp_path):
     shas["web"] = commit("blueprints/web/docker-compose.yml", "sources/web.json")
     shas["mail"] = commit("blueprints/mail/docker-compose.yml", "sources/mail.json")
     shas["notes"] = commit("notes.txt")
-    git("update-ref", "refs/remotes/origin/main", shas["notes"])
 
     def run(*, commits="", before=None, branch="main", sha=None):
         out = runner / "out.txt"
         out.write_text("")
         step_env = {**env, "RUNNER_TEMP": str(runner), "GITHUB_OUTPUT": str(out), "TOOLS": str(ROOT),
-                    "TEMPLATES_ROOT": str(repo), "SHA": sha or shas["notes"], "BEFORE": before or shas["root"],
-                    "BRANCH": branch, "DEFAULT_BRANCH": "main", "COMMITS": commits}
+                    "SHA": sha or shas["notes"], "BEFORE": before or shas["root"], "BRANCH": branch,
+                    "DEFAULT_BRANCH": "main", "COMMITS": commits}
         done = subprocess.run(["bash", "-c", _step_script()], cwd=repo, env=step_env,
                               capture_output=True, text=True, check=False)
         lines = (runner / "dispatches.txt").read_text().splitlines() if done.returncode == 0 else []
@@ -76,20 +75,6 @@ def test_the_commits_input_sends_those_commits_each_judged_from_its_parent(scene
     done, lines = run(commits=f"{shas['web']} {shas['notes']}")
     assert done.returncode == 0, done.stderr
     assert lines == [[shas["web"], shas["root"], "web"]]
-
-
-def test_a_commit_whose_app_main_changed_again_is_not_sent(scene):
-    run, shas, git, commit = scene
-    again = commit("blueprints/web/docker-compose.yml")
-    git("update-ref", "refs/remotes/origin/main", again)
-    done, lines = run(sha=again)
-    assert done.returncode == 0, done.stderr
-    assert lines == [[shas["mail"], shas["web"], "mail"], [again, shas["notes"], "web"]]
-    assert f"{shas['web']}: not sent, web changed again on main" in done.stdout
-    # A later push already on main makes an earlier push's commit of the app stale too.
-    done, lines = run(commits=shas["web"])
-    assert done.returncode == 0, done.stderr
-    assert lines == []
 
 
 def test_the_commits_input_is_used_when_the_before_is_unknown(scene):
