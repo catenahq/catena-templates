@@ -23,7 +23,9 @@ name: app-ci
 # `tools-ref` into .tools, TEMPLATES_ROOT names the caller's tree, `repo` holds
 # the swarm lint and the app checker in folder mode (no --catalog), and
 # `own-images` lists the image repositories the caller builds, which the
-# provenance step passes.
+# provenance step passes. The catalog itself builds an image for each folder of
+# `images/`, published as ghcr.io/<owner>/<folder>; the provenance step adds
+# those to the list.
 
 on:
   pull_request:
@@ -222,8 +224,20 @@ jobs:
       - name: Provenance (project age and releases)
         env:
           GITHUB_TOKEN: ${{ github.token }}
-          PROVENANCE_OWN_IMAGES: ${{ inputs.own-images }}
-        run: uv run "$TOOLS/build/app_check.py" provenance "$APP"
+          OWNER: ${{ github.repository_owner }}
+          CALLER_OWN_IMAGES: ${{ inputs.own-images }}
+        run: |
+          set -euo pipefail
+          # The catalog builds an image for each folder of images/ and publishes it
+          # as ghcr.io/<owner>/<folder>.
+          own="$CALLER_OWN_IMAGES"
+          if [ -z "$TEMPLATES_ROOT" ]; then
+            for dir in images/*/; do
+              [ -d "$dir" ] || continue
+              own="$own${own:+,}ghcr.io/${OWNER,,}/$(basename "$dir")"
+            done
+          fi
+          PROVENANCE_OWN_IMAGES="$own" uv run "$TOOLS/build/app_check.py" provenance "$APP"
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
           go-version: stable

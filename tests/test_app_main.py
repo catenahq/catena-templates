@@ -268,6 +268,43 @@ def test_app_dispatch_leaves_main_to_app_main_and_takes_the_commits():
     assert _step("app-dispatch.yml", "dispatch", "The apps the push")["env"]["COMMITS"] == "${{ inputs.commits }}"
 
 
+# own images in the provenance step
+
+def _provenance(scratch, folders, templates_root, caller=""):
+    run, _, _, runner = scratch
+    (runner.parent / "repo" / "images").mkdir(exist_ok=True)
+    for folder in folders:
+        (runner.parent / "repo" / "images" / folder).mkdir(exist_ok=True)
+    (runner.parent / "repo" / "images" / "README.md").write_text("x")
+    uv = runner.parent / "bin" / "uv"
+    uv.write_text('#!/bin/bash\nprintf "%s" "$PROVENANCE_OWN_IMAGES" > "$RUNNER_TEMP/own.txt"\n')
+    uv.chmod(0o755)
+    step = _step("app-ci.yml", "app", "Provenance")
+    done, _ = run(step["run"], APP="web", OWNER="CatenaHQ", CALLER_OWN_IMAGES=caller,
+                  TEMPLATES_ROOT=templates_root)
+    assert done.returncode == 0, done.stderr
+    return (runner / "own.txt").read_text()
+
+
+def test_the_catalog_lists_an_own_image_for_each_folder_of_images(scratch):
+    assert _provenance(scratch, ["erpnext-helpdesk", "other"], "") == (
+        "ghcr.io/catenahq/erpnext-helpdesk,ghcr.io/catenahq/other")
+
+
+def test_the_callers_own_images_join_the_catalogs(scratch):
+    assert _provenance(scratch, ["erpnext-helpdesk"], "", caller="ghcr.io/x/y") == (
+        "ghcr.io/x/y,ghcr.io/catenahq/erpnext-helpdesk")
+
+
+def test_another_repository_keeps_only_its_own_images_list(scratch, tmp_path):
+    assert _provenance(scratch, ["erpnext-helpdesk"], str(tmp_path), caller="ghcr.io/x/y") == "ghcr.io/x/y"
+    assert _provenance(scratch, [], str(tmp_path)) == ""
+
+
+def test_a_catalog_without_images_adds_nothing(scratch):
+    assert _provenance(scratch, [], "") == ""
+
+
 # scope of a merge commit
 
 def _merge_scene(scratch):
