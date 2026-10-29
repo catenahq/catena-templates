@@ -1179,6 +1179,11 @@
           "default": "erpnext,telephony,helpdesk",
           "label": "Frappe apps",
           "name": "FRAPPE_APPS"
+        },
+        {
+          "default": "off",
+          "label": "ERPNext issue and task forms",
+          "name": "ERPNEXT_WEB_FORMS"
         }
       ],
       "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/erpnext-helpdesk/logo.svg",

@@ -33,6 +33,7 @@ FRAPPE_SERVICES = ("backend", "frontend", "websocket", "queue-default", "queue-s
 # The apps that sign in through Keycloak, and the hooks each declares.
 SIGNIN_APPS = SLUGS
 CUSTOMER_APPS = ("erpnext",)
+HELPDESK_APPS = ("erpnext-helpdesk",)
 GROUPS = {"erpnext": "staff", "erpnext-helpdesk": "staff,client"}
 SIGN_UPS = {"erpnext": "Deny", "erpnext-helpdesk": "Allow"}
 HOOKS = {"erpnext": {"verify", "users"}, "erpnext-helpdesk": {"verify"}}
@@ -43,6 +44,7 @@ RETURN_ADDRESS = ("vps.auth.oidc.redirect_uris=https://${ERPNEXT_HOSTNAME}"
 each_app = pytest.mark.parametrize("slug", SLUGS)
 each_signin_app = pytest.mark.parametrize("slug", SIGNIN_APPS)
 each_customer_app = pytest.mark.parametrize("slug", CUSTOMER_APPS)
+each_helpdesk_app = pytest.mark.parametrize("slug", HELPDESK_APPS)
 
 
 def _entry(slug: str) -> model.Entry:
@@ -243,9 +245,10 @@ def test_the_helpdesk_app_runs_catenas_build_under_its_tag_rule():
 def _without_the_differences(slug: str) -> dict:
     """The compose with what the two apps differ in set aside: the Frappe
     images and their tag rules, FRAPPE_APPS and the install-app line, the
-    address defaults, and what the sign-in differs in: the access level, the
-    users hook, the groups the main address admits and the sign-ups the entry
-    is made with."""
+    address defaults, what the sign-in differs in (the access level, the users
+    hook, the groups the main address admits and the sign-ups the entry is made
+    with) and what the helpdesk closes (the web forms setting and its start
+    step, the site setting block_endpoints)."""
     compose = copy.deepcopy(_compose(slug))
     block = compose["x-catena"]
     block.pop("images", None)
@@ -253,8 +256,13 @@ def _without_the_differences(slug: str) -> dict:
     block["hooks"].pop("users", None)
     frontend = compose["services"]["frontend"]
     frontend["labels"] = [label for label in frontend["labels"] if not label.startswith("vps.auth.groups")]
-    compose["services"]["scheduler"]["environment"].pop("SIGNIN_SIGN_UPS")
+    scheduler = compose["services"]["scheduler"]
+    scheduler["environment"].pop("SIGNIN_SIGN_UPS")
+    scheduler["environment"].pop("ERPNEXT_WEB_FORMS", None)
+    scheduler["environment"].pop("FRAPPE_FORMS_PY", None)
+    scheduler["command"] = "start"
     block["env"].pop("FRAPPE_APPS", None)
+    block["env"].pop("ERPNEXT_WEB_FORMS", None)
     for key in ("DOMAIN_HOST", "ERPNEXT_HOSTNAME"):
         block["env"][key] = "address"
     for name in FRAPPE_SERVICES:
@@ -262,7 +270,8 @@ def _without_the_differences(slug: str) -> dict:
     backend = compose["services"]["backend"]
     backend["environment"].pop("FRAPPE_APPS", None)
     shell, flag, script = backend["command"]
-    backend["command"] = [shell, flag, re.sub(r".*install-app.*", "install-app", script)]
+    script = re.sub(r"if ! jq.*?\nfi\n", "", re.sub(r".*install-app.*", "install-app", script), flags=re.S)
+    backend["command"] = [shell, flag, script]
     return compose
 
 
@@ -336,7 +345,7 @@ def _start(slug: str, tmp_path: Path, **env: str) -> subprocess.CompletedProcess
     (tmp_path / "sites").mkdir(exist_ok=True)
     (tmp_path / "bin").mkdir(exist_ok=True)
     python = tmp_path / "bin" / "python"
-    python.write_text('#!/bin/sh\necho "script ran secret=[${OIDC_CLIENT_SECRET-unset}]"\n')
+    python.write_text('#!/bin/sh\necho "$2 ran secret=[${OIDC_CLIENT_SECRET-unset}]"\n')
     python.chmod(0o755)
     listener = socket.socket()
     listener.bind(("127.0.0.1", 0))
@@ -347,26 +356,36 @@ def _start(slug: str, tmp_path: Path, **env: str) -> subprocess.CompletedProcess
                 .replace("../env/bin/python", str(python))
                 .replace("exec bench schedule", 'echo "schedule secret=[${OIDC_CLIENT_SECRET-unset}]"'))
         return subprocess.run(["bash", "-c", body], cwd=tmp_path, capture_output=True, text=True, timeout=30,
-                              env={"PATH": os.environ["PATH"], "FRAPPE_SIGNIN_PY": "ignored", **env})
+                              env={"PATH": os.environ["PATH"], "FRAPPE_SIGNIN_PY": "sign-in",
+                                   "FRAPPE_FORMS_PY": "forms", **env})
     finally:
         listener.close()
 
 
+WAITS = {"erpnext": "catena sign-in: waiting for the backend to serve the site",
+         "erpnext-helpdesk": "catena start: waiting for the backend to serve the site"}
+
+
 @each_signin_app
-def test_the_scheduler_start_waits_runs_the_script_drops_the_secret_and_starts(slug, tmp_path):
+def test_the_scheduler_start_waits_runs_the_scripts_drops_the_secret_and_starts(slug, tmp_path):
     out = _start(slug, tmp_path, OIDC_CLIENT_ID="app-x", OIDC_CLIENT_SECRET="s3cret")
     assert out.returncode == 0, out.stderr
-    assert out.stdout.splitlines() == [
-        "catena sign-in: waiting for the backend to serve the site",
-        "script ran secret=[s3cret]",
-        "schedule secret=[unset]"]
+    steps = ["sign-in ran secret=[s3cret]"] + (["forms ran secret=[s3cret]"] if slug in HELPDESK_APPS else [])
+    assert out.stdout.splitlines() == [WAITS[slug], *steps, "schedule secret=[unset]"]
 
 
-@each_signin_app
-def test_the_scheduler_start_without_sign_in_values_starts_at_once(slug, tmp_path):
+@each_customer_app
+def test_the_plain_scheduler_without_sign_in_values_starts_at_once(slug, tmp_path):
     out = _start(slug, tmp_path, OIDC_CLIENT_SECRET="")
     assert out.returncode == 0, out.stderr
     assert out.stdout.splitlines() == ["schedule secret=[unset]"]
+
+
+@each_helpdesk_app
+def test_the_helpdesk_scheduler_waits_for_the_backend_and_closes_the_forms_even_without_sign_in_values(slug, tmp_path):
+    out = _start(slug, tmp_path, OIDC_CLIENT_SECRET="")
+    assert out.returncode == 0, out.stderr
+    assert out.stdout.splitlines() == [WAITS[slug], "forms ran secret=[]", "schedule secret=[unset]"]
 
 
 FRAPPE_STUB = '''
@@ -407,7 +426,7 @@ class Doc:
         return self.data.get(fieldname)
 
     def _name(self):
-        return self.data["name"] if self.doctype == "User" else self.data["provider_name"].lower()
+        return self.data["provider_name"].lower() if self.doctype == "Social Login Key" else self.data["name"]
 
     def _store(self):
         _state["docs"].setdefault(self.doctype, {})[self._name()] = json.loads(json.dumps(self.data))
@@ -440,6 +459,8 @@ class _Db:
         return name in _state["docs"].get(doctype, {})
 
     def get_value(self, doctype, filters, fieldname):
+        if doctype == "Web Form":
+            return _state["docs"].get(doctype, {}).get(filters, {}).get(fieldname)
         assert doctype == "DefaultValue" and fieldname == "defvalue"
         return _state["defaults"].get(filters["defkey"])
 
@@ -522,6 +543,10 @@ class _Site:
     def record(self) -> dict:
         return json.loads(json.loads(self.state.read_text())["defaults"]["catena_access_customer"])
 
+    def close_forms(self, slug: str, **env: str) -> subprocess.CompletedProcess:
+        return subprocess.run([sys.executable, "-c", _scheduler(slug)["environment"]["FRAPPE_FORMS_PY"]],
+                              capture_output=True, text=True, timeout=30, env=self._env(**env))
+
     def sign_in(self, slug: str, **env: str) -> subprocess.CompletedProcess:
         values = {"OIDC_CLIENT_ID": "app-x", "OIDC_CLIENT_SECRET": "s3cret", "OIDC_ISSUER_URL": ISSUER}
         values.update(env)
@@ -602,6 +627,92 @@ def test_a_stale_secret_and_issuer_change_only_the_fields_catena_owns(slug, tmp_
     kept = site.docs("Social Login Key")["keycloak"]
     assert kept["sign_ups"] == "Allow" and kept["enable_social_login"] == 0
     assert kept["base_url"] == ISSUER and kept["client_secret"] == "s3cret"
+
+
+# The helpdesk closes what visitors and customers do not need.
+
+def _web_forms(*published: int) -> dict:
+    return {"Web Form": {name: {"name": name, "published": value}
+                         for name, value in zip(("issues", "tasks"), published)}}
+
+
+@each_helpdesk_app
+def test_the_forms_setting_is_off_by_default_and_only_the_scheduler_reads_it(slug):
+    setting = _entry(slug).block["env"]["ERPNEXT_WEB_FORMS"]["setting"]
+    assert setting["default"] == "off"
+    assert setting["label"] == {"en": "ERPNext issue and task forms",
+                                "fr": "Formulaires d'incident et de tâche d'ERPNext"}
+    readers = [name for name, service in _compose(slug)["services"].items()
+               if "ERPNEXT_WEB_FORMS" in (service.get("environment") or {})]
+    assert readers == ["scheduler"]
+    assert _scheduler(slug)["environment"]["ERPNEXT_WEB_FORMS"] == "${ERPNEXT_WEB_FORMS:-off}"
+    script = _scheduler(slug)["environment"]["FRAPPE_FORMS_PY"]
+    compile(script, "forms", "exec")
+    assert "$" not in script
+
+
+def test_the_plain_app_has_neither_the_forms_setting_nor_the_endpoint_guard():
+    assert "ERPNEXT_WEB_FORMS" not in _entry("erpnext").block["env"]
+    assert "FRAPPE_FORMS_PY" not in _scheduler("erpnext")["environment"]
+    assert "block_endpoints" not in _backend_script("erpnext")
+
+
+@each_helpdesk_app
+@pytest.mark.parametrize("setting", [{"ERPNEXT_WEB_FORMS": "off"}, {}])
+def test_while_the_forms_setting_is_off_or_unset_both_forms_are_unpublished(slug, setting, tmp_path):
+    site = _Site(tmp_path, docs=_web_forms(1, 1))
+    out = site.close_forms(slug, **setting)
+    assert out.returncode == 0, out.stderr
+    assert out.stdout.strip() == "catena start: ERPNext web forms closed: issues, tasks"
+    assert [c[1:] for c in site.calls() if c[0] == "save"] == [
+        ["Web Form", "issues", ["published"]], ["Web Form", "tasks", ["published"]]]
+    assert {name: form["published"] for name, form in site.docs("Web Form").items()} == {"issues": 0, "tasks": 0}
+
+
+@each_helpdesk_app
+@pytest.mark.parametrize("setting", ["on", " On "])
+def test_while_the_forms_setting_is_on_the_forms_are_left_alone(slug, setting, tmp_path):
+    site = _Site(tmp_path, docs=_web_forms(1, 1))
+    out = site.close_forms(slug, ERPNEXT_WEB_FORMS=setting)
+    assert out.returncode == 0, out.stderr
+    assert site.calls() == []
+    assert {form["published"] for form in site.docs("Web Form").values()} == {1}
+
+
+@each_helpdesk_app
+def test_a_form_already_closed_or_absent_is_not_saved_again(slug, tmp_path):
+    site = _Site(tmp_path, docs={"Web Form": {"issues": {"name": "issues", "published": 0}}})
+    out = site.close_forms(slug, ERPNEXT_WEB_FORMS="off")
+    assert out.returncode == 0, out.stderr
+    assert out.stdout == ""
+    assert "save" not in site.kinds()
+
+
+@each_helpdesk_app
+def test_the_backend_writes_block_endpoints_after_the_install_and_only_when_the_site_has_none(slug, tmp_path):
+    script = _backend_script(slug).replace("$$", "$")
+    assert script.index("install-app") < script.index("block_endpoints") < script.index("unset ")
+    snippet = re.search(r"if ! jq.*?\nfi\n", script, re.S).group(0)
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    jq = bin_dir / "jq"
+    jq.write_text(f'#!/bin/sh\nexec {sys.executable} -c \'import json, sys; '
+                  'sys.exit(0 if "block_endpoints" in json.load(open(sys.argv[1])) else 1)\' "$3"\n')
+    bench = bin_dir / "bench"
+    bench.write_text(f'#!/bin/sh\necho "$@" >> {tmp_path}/bench.log\n')
+    for tool in (jq, bench):
+        tool.chmod(0o755)
+    (tmp_path / "sites" / "erp.a.example").mkdir(parents=True)
+    config = tmp_path / "sites" / "erp.a.example" / "site_config.json"
+    for content, called in (({}, True), ({"db_name": "x"}, True), ({"block_endpoints": 0}, False),
+                            ({"block_endpoints": 1}, False)):
+        config.write_text(json.dumps(content))
+        (tmp_path / "bench.log").unlink(missing_ok=True)
+        run = subprocess.run(["bash", "-ec", snippet], cwd=tmp_path, capture_output=True, text=True,
+                             env={"PATH": f"{bin_dir}:{os.environ['PATH']}", "SITE_NAME": "erp.a.example"})
+        assert run.returncode == 0, run.stderr
+        log = (tmp_path / "bench.log").read_text().splitlines() if (tmp_path / "bench.log").exists() else []
+        assert log == (["--site erp.a.example set-config -p block_endpoints 1"] if called else []), content
 
 
 # The users hook.

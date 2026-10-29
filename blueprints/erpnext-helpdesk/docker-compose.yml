@@ -11,6 +11,10 @@ x-catena:
       generated: {length: 32, alphabet: alnum}
     FRAPPE_APPS:
       setting: {default: "erpnext,telephony,helpdesk"}
+    ERPNEXT_WEB_FORMS:
+      setting:
+        default: "off"
+        label: {en: "ERPNext issue and task forms", fr: "Formulaires d'incident et de tâche d'ERPNext"}
   lifecycle:
     service: "backend"
     ready: ["bash", "-c", ": > /dev/tcp/127.0.0.1/8000"]
@@ -119,9 +123,12 @@ services:
   # start.sh. Every start runs each step, and each is a no-op once done: the
   # bench config is written once, the site is created on the first start, and
   # install-app skips an app the site already has, so a redeploy with a longer
-  # FRAPPE_APPS adds the new ones. A step that fails exits, and swarm starts
-  # the task again. The two setup secrets leave the environment before the app
-  # server starts. The image is built from catena-templates
+  # FRAPPE_APPS adds the new ones. The site setting block_endpoints is written
+  # when the site has none: the helpdesk's own endpoint guard then leaves
+  # accounts without desk access and visitors the helpdesk's calls and a fixed
+  # list, and an administrator's 0 holds. A step that fails exits, and
+  # swarm starts the task again. The two setup secrets leave the environment
+  # before the app server starts. The image is built from catena-templates
   # images/erpnext-helpdesk.
   backend:
     image: ghcr.io/catenahq/erpnext-helpdesk:v16.52.1-1
@@ -155,6 +162,9 @@ services:
             --set-default "$$SITE_NAME"
         fi
         bench --site "$$SITE_NAME" install-app $${FRAPPE_APPS//,/ }
+        if ! jq -e 'has("block_endpoints")' "sites/$$SITE_NAME/site_config.json" > /dev/null; then
+          bench --site "$$SITE_NAME" set-config -p block_endpoints 1
+        fi
         unset ERPNEXT_ADMIN_PASSWORD DB_ROOT_PASSWORD
         exec start.sh
     environment:
@@ -279,11 +289,14 @@ services:
     networks:
       - default
 
-  # Once the sign-in values are in the environment, the start waits until the
-  # backend serves the site, then puts the Keycloak entry of Social Login Keys
-  # in step with them (FRAPPE_SIGNIN_PY): it creates the entry when absent and
-  # corrects the client, the secret and Keycloak's addresses when they differ.
-  # The client secret leaves the environment before the scheduler runs.
+  # The start waits until the backend serves the site. With the sign-in values
+  # in the environment it puts the Keycloak entry of Social Login Keys in step
+  # with them (FRAPPE_SIGNIN_PY): it creates the entry when absent and corrects
+  # the client, the secret and Keycloak's addresses when they differ. While
+  # ERPNEXT_WEB_FORMS is off it unpublishes ERPNext's issue and task web forms
+  # (FRAPPE_FORMS_PY); every start does so, because an ERPNext update that
+  # ships a newer form file publishes it again. The client secret leaves the
+  # environment before the scheduler runs.
   scheduler:
     image: ghcr.io/catenahq/erpnext-helpdesk:v16.52.1-1
     deploy:
@@ -297,11 +310,12 @@ services:
       - -c
       - |
         set -e
+        echo "catena start: waiting for the backend to serve the site"
+        until (: > /dev/tcp/backend/8000) 2>/dev/null; do sleep 5; done
         if [ -n "$${OIDC_CLIENT_ID:-}" ]; then
-          echo "catena sign-in: waiting for the backend to serve the site"
-          until (: > /dev/tcp/backend/8000) 2>/dev/null; do sleep 5; done
           (cd sites && ../env/bin/python -c "$$FRAPPE_SIGNIN_PY")
         fi
+        (cd sites && ../env/bin/python -c "$$FRAPPE_FORMS_PY")
         unset OIDC_CLIENT_SECRET
         exec bench schedule
     environment:
@@ -310,6 +324,29 @@ services:
       OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-}
       OIDC_ISSUER_URL: ${OIDC_ISSUER_URL:-}
       SIGNIN_SIGN_UPS: "Allow"
+      ERPNEXT_WEB_FORMS: ${ERPNEXT_WEB_FORMS:-off}
+      FRAPPE_FORMS_PY: |
+        import os
+
+        import frappe
+
+        forms = ("issues", "tasks")
+        if os.environ.get("ERPNEXT_WEB_FORMS", "off").strip().lower() != "on":
+            frappe.init(os.environ["SITE_NAME"])
+            frappe.connect()
+            try:
+                closed = []
+                for name in forms:
+                    if frappe.db.get_value("Web Form", name, "published"):
+                        form = frappe.get_doc("Web Form", name)
+                        form.published = 0
+                        form.save()
+                        closed.append(name)
+                frappe.db.commit()
+                if closed:
+                    print("catena start: ERPNext web forms closed: " + ", ".join(closed), flush=True)
+            finally:
+                frappe.destroy()
       FRAPPE_SIGNIN_PY: |
         import json
         import os
