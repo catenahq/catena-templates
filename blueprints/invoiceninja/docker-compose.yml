@@ -28,6 +28,42 @@ x-catena:
       setting: {default: "invoice@{{ cloudflare_zone }}"}
     INVOICENINJA_MAIL_FROM_NAME:
       setting: {default: "Invoicing"}
+  # verify asks nginx for /health, which nginx hands to the PHP application: nginx alone
+  # answers /nginx-health. 127.0.0.1: busybox wget tries ::1 first for localhost.
+  # The application behind nginx starts after nginx does, so verify asks again every 4 seconds while the
+  # port refuses or nginx answers 502/503 (wget names both in its error line), for up to 150 seconds,
+  # then judges the last answer.
+  hooks:
+    service: nginx
+    timeout_seconds: 180
+    verify:
+      - - sh
+        - -c
+        - |
+          end=$$(( $$(date +%s) + 150 ))
+          while :; do
+            body=$$(wget -q -T 10 -O - http://127.0.0.1/health 2>&1)
+            rc=$$?
+            [ "$$rc" != 0 ] || break
+            case "$$body" in
+              *"Connection refused"*|*"error: HTTP/1.1 502"*|*"error: HTTP/1.1 503"*)
+                [ "$$(date +%s)" -lt "$$end" ] || break
+                sleep 4
+                ;;
+              *) break ;;
+            esac
+          done
+          if [ "$$rc" != 0 ]; then
+            echo "Invoice Ninja does not answer /health through nginx: $$body" >&2
+            exit 1
+          fi
+          case "$$body" in
+            *"API is healthy"*) echo "Invoice Ninja answers /health through nginx" ;;
+            *)
+              echo "/health answers, but not with the Invoice Ninja health reply" >&2
+              exit 1
+              ;;
+          esac
 
 services:
   app:
