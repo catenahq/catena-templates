@@ -12,6 +12,58 @@ x-catena:
   images:
     db:
       rule: {kind: partial_line}
+  # verify asks the backend for its root through the /api route of the bundled nginx, then the front end.
+  # The processes behind nginx start after it does, so each ask is repeated every 4 seconds while the port
+  # refuses or nginx answers 502/503, until 150 seconds after the hook started; the last answer is then judged.
+  hooks:
+    service: postiz
+    timeout_seconds: 180
+    verify:
+      - - node
+        - -e
+        - |
+          const end = Date.now() + 150000;
+          const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+          const once = (path) => new Promise((resolve, reject) => {
+            require('http').get({ host: '127.0.0.1', port: 5000, path, timeout: 15000 }, (res) => {
+              let body = '';
+              res.on('data', (d) => { body += d; });
+              res.on('end', () => resolve({ status: res.statusCode, body }));
+            }).on('timeout', function () {
+              this.destroy(new Error('no answer in 15s'));
+            }).on('error', reject);
+          });
+          const get = async (path) => {
+            for (;;) {
+              let res;
+              try {
+                res = await once(path);
+              } catch (e) {
+                if (e.code !== 'ECONNREFUSED' || Date.now() >= end) throw e;
+                await sleep(4000);
+                continue;
+              }
+              if ((res.status === 502 || res.status === 503) && Date.now() < end) {
+                await sleep(4000);
+                continue;
+              }
+              return res;
+            }
+          };
+          (async () => {
+            const api = await get('/api/');
+            if (api.status !== 200 || !api.body.includes('App is running')) {
+              throw new Error('the backend answered ' + api.status + ' on /api/');
+            }
+            const front = await get('/');
+            if (front.status >= 400) {
+              throw new Error('the front end answered ' + front.status);
+            }
+            console.log('Postiz backend and front end answer on 5000');
+          })().catch((e) => {
+            console.error('Postiz does not answer on 5000: ' + e.message);
+            process.exit(1);
+          });
 
 services:
   postiz:
