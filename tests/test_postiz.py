@@ -40,17 +40,26 @@ def test_the_hook_runs_in_a_service_of_the_stack():
     assert hooks["service"] == "postiz"
     assert hooks["service"] in _compose()["services"]
     assert set(hooks) - {"service", "user", "timeout_seconds"} == {"verify"}
-    assert hooks["timeout_seconds"] <= 60
     assert quiesce_lint.lint_hooks(_entry()) == []
 
 
+def test_the_wait_ends_inside_the_hook_timeout():
+    assert "Date.now() + 150000" in _verify()[-1]
+    assert 150 + 15 < _entry().block["hooks"]["timeout_seconds"] <= 300
+
+
 class _Stub(http.server.BaseHTTPRequestHandler):
-    routes: dict[str, tuple[int, bytes]] = {}
+    """A route holds one answer, or a list of answers given in turn (the last one repeats)."""
+    routes: dict[str, tuple[int, bytes] | list[tuple[int, bytes]]] = {}
     seen: list[dict[str, str]] = []
 
     def do_GET(self):
         type(self).seen.append(dict(self.headers))
-        status, body = type(self).routes.get(self.path, (404, b""))
+        answer = type(self).routes.get(self.path, (404, b""))
+        if isinstance(answer, list):
+            status, body = answer.pop(0) if len(answer) > 1 else answer[0]
+        else:
+            status, body = answer
         self.send_response(status)
         self.end_headers()
         self.wfile.write(body)
@@ -77,7 +86,11 @@ def _run(routes: dict[str, tuple[int, bytes]], *, answer: bool = True, swap=(), 
     finally:
         server.server_close()
 
-SWAP = [("port: 5000", "port: {port}")]
+SWAP = [
+    ("port: 5000", "port: {port}"),
+    ("Date.now() + 150000", "Date.now() + 2000"),
+    ("sleep(4000)", "sleep(100)"),
+]
 ROUTES = {"/api/": (200, b"App is running!"), "/": (307, b"")}
 
 
@@ -93,10 +106,31 @@ def test_verify_passes_for_a_backend_and_a_front_end_that_answer():
 
 
 @needs_interpreter
-def test_verify_fails_for_another_backend_a_broken_front_end_and_no_answer():
-    run, _ = _run({**ROUTES, "/api/": (200, b"<html>nginx</html>")}, swap=SWAP)
+def test_verify_asks_again_while_nginx_has_no_process_behind_it():
+    routes = {"/api/": [(502, b""), (503, b""), (200, b"App is running!")], "/": [(502, b""), (307, b"")]}
+    run, seen = _run(routes, swap=SWAP)
+    assert run.returncode == 0, run.stderr
+    assert len(seen) == 5
+    assert run.stdout.count("\n") == 1 and run.stderr == ""
+
+
+@needs_interpreter
+def test_verify_fails_at_once_for_another_backend_and_an_error_status():
+    run, seen = _run({**ROUTES, "/api/": (200, b"<html>nginx</html>")}, swap=SWAP)
     assert run.returncode == 1 and "backend answered 200" in run.stderr
-    run, _ = _run({**ROUTES, "/": (502, b"")}, swap=SWAP)
+    assert len(seen) == 1
+    run, seen = _run({**ROUTES, "/": (500, b"")}, swap=SWAP)
+    assert run.returncode == 1 and "front end answered 500" in run.stderr
+    assert len(seen) == 2
+
+
+@needs_interpreter
+def test_verify_fails_naming_the_last_answer_once_the_wait_is_over():
+    run, seen = _run({**ROUTES, "/api/": (502, b"")}, swap=SWAP)
+    assert run.returncode == 1 and "backend answered 502" in run.stderr
+    assert len(seen) > 2
+    run, seen = _run({**ROUTES, "/": (502, b"")}, swap=SWAP)
     assert run.returncode == 1 and "front end answered 502" in run.stderr
     run, _ = _run({}, answer=False, swap=SWAP)
     assert run.returncode == 1 and "does not answer on 5000" in run.stderr
+    assert run.stderr.count("\n") == 1
