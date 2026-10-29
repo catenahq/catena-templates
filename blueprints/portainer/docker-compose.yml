@@ -4,6 +4,27 @@ x-catena:
   env:
     DOMAIN_HOST:
       setting: {default: "portainer.{{ cloudflare_zone }}"}
+  # The Portainer image holds only the binary: no shell, curl or wget. verify
+  # runs in a small busybox helper on the stack network and asks Portainer's
+  # main page for its name.
+  hooks:
+    service: probe
+    timeout_seconds: 60
+    verify:
+      - - sh
+        - -c
+        - |
+          body=$$(wget -q -T 20 -O - http://portainer:9000/) || {
+            echo "Portainer does not answer on port 9000" >&2
+            exit 1
+          }
+          case "$$body" in
+            *Portainer*) echo "Portainer answers its main page" ;;
+            *)
+              echo "port 9000 answers, but not with the Portainer page" >&2
+              exit 1
+              ;;
+          esac
 
 services:
   portainer:
@@ -28,6 +49,26 @@ services:
     networks:
       catena-network: {}
       default: {}
+
+  # Runs the verify hook: the Portainer image has no client of its own.
+  probe:
+    image: busybox:1.38.0@sha256:fd7dc98638c8e305f4dc34e979f1c0fdfdcaeb0fbf8fcff77ae834b6da3d7e6e
+    command: ["sleep", "2147483647"]
+    deploy:
+      restart_policy:
+        condition: any
+      placement:
+        constraints:
+          - node.labels.catena.role==data
+      resources:
+        limits:
+          memory: 16M
+        reservations:
+          memory: 16M
+    cap_drop:
+      - ALL
+    networks:
+      - default
 
 volumes:
   portainer-data:

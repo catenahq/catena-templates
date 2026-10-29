@@ -416,11 +416,16 @@ def test_the_container_managers_hold_the_socket_for_administrators_only():
     for slug, image in (("portainer", "portainer/portainer-ce:"), ("arcane", "ghcr.io/getarcaneapp/manager:v")):
         compose = yaml.safe_load(_entry(slug).compose_path.read_text(encoding="utf-8"))
         assert compose["x-catena"]["privileges"] == ["docker_socket"]
-        (service,) = compose["services"].values()
+        service = compose["services"][slug]
         assert service["image"].startswith(image) and "latest" not in service["image"]
         assert "/var/run/docker.sock:/var/run/docker.sock" in service["volumes"]
         assert "vps.auth.mode=admin-only" in service["labels"]
         assert not [label for label in service["labels"] if label.startswith("vps.auth.oidc")]
+        for name, other in compose["services"].items():
+            if name != slug:
+                assert not [v for v in other.get("volumes", []) if "docker.sock" in str(v)], name
+                assert not [label for label in other.get("labels", [])
+                            if label.startswith(("vps.route", "vps.auth"))], name
         source = json.loads((sources / f"{slug}.json").read_text(encoding="utf-8"))["x-catena"]
         assert "outside Catena" in source["en"]["extra_notes"]
         assert "hors de Catena" in source["fr"]["extra_notes"]
