@@ -31,7 +31,10 @@ FRAPPE_SERVICES = ("backend", "frontend", "websocket", "queue-default", "queue-s
                    "queue-long", "scheduler")
 
 # The apps that sign in through Keycloak, and the hooks each declares.
-SIGNIN_APPS = ("erpnext",)
+SIGNIN_APPS = SLUGS
+CUSTOMER_APPS = ("erpnext",)
+GROUPS = {"erpnext": "staff", "erpnext-helpdesk": "staff,client"}
+SIGN_UPS = {"erpnext": "Deny", "erpnext-helpdesk": "Allow"}
 HOOKS = {"erpnext": {"verify", "users"}, "erpnext-helpdesk": {"verify"}}
 OIDC_KEYS = {"OIDC_CLIENT_ID", "OIDC_CLIENT_SECRET", "OIDC_ISSUER_URL"}
 RETURN_ADDRESS = ("vps.auth.oidc.redirect_uris=https://${ERPNEXT_HOSTNAME}"
@@ -39,6 +42,7 @@ RETURN_ADDRESS = ("vps.auth.oidc.redirect_uris=https://${ERPNEXT_HOSTNAME}"
 
 each_app = pytest.mark.parametrize("slug", SLUGS)
 each_signin_app = pytest.mark.parametrize("slug", SIGNIN_APPS)
+each_customer_app = pytest.mark.parametrize("slug", CUSTOMER_APPS)
 
 
 def _entry(slug: str) -> model.Entry:
@@ -239,21 +243,17 @@ def test_the_helpdesk_app_runs_catenas_build_under_its_tag_rule():
 def _without_the_differences(slug: str) -> dict:
     """The compose with what the two apps differ in set aside: the Frappe
     images and their tag rules, FRAPPE_APPS and the install-app line, the
-    address defaults, and the sign-in: the access level, the users hook, the
-    verify body, the sign-in labels and the scheduler's start."""
+    address defaults, and what the sign-in differs in: the access level, the
+    users hook, the groups the main address admits and the sign-ups the entry
+    is made with."""
     compose = copy.deepcopy(_compose(slug))
     block = compose["x-catena"]
     block.pop("images", None)
     block.pop("access", None)
     block["hooks"].pop("users", None)
-    block["hooks"].pop("verify")
     frontend = compose["services"]["frontend"]
-    frontend["labels"] = [label for label in frontend["labels"]
-                          if not label.startswith(("vps.auth.oidc", "vps.auth.groups"))]
-    scheduler = compose["services"]["scheduler"]
-    scheduler.pop("command", None)
-    for key in OIDC_KEYS | {"SIGNIN_SIGN_UPS", "FRAPPE_SIGNIN_PY"}:
-        scheduler["environment"].pop(key, None)
+    frontend["labels"] = [label for label in frontend["labels"] if not label.startswith("vps.auth.groups")]
+    compose["services"]["scheduler"]["environment"].pop("SIGNIN_SIGN_UPS")
     block["env"].pop("FRAPPE_APPS", None)
     for key in ("DOMAIN_HOST", "ERPNEXT_HOSTNAME"):
         block["env"][key] = "address"
@@ -273,19 +273,34 @@ def test_the_two_composes_differ_only_where_the_apps_differ():
 # Keycloak sign-in: the labels, the scheduler's start and the users hook.
 
 @each_signin_app
-def test_the_main_address_asks_for_the_sign_in_entry_and_admits_staff(slug):
+def test_the_main_address_asks_for_the_sign_in_entry_and_names_who_it_admits(slug):
     labels = _compose(slug)["services"]["frontend"]["labels"]
-    for label in ("vps.auth.oidc=true", "vps.auth.groups=staff", RETURN_ADDRESS):
+    for label in ("vps.auth.oidc=true", "vps.auth.groups=" + GROUPS[slug], RETURN_ADDRESS):
         assert label in labels
     assert quiesce_lint.lint_signin(_entry(slug)) == []
 
 
-@each_signin_app
-def test_the_block_offers_the_customer_level_and_needs_the_release_that_reads_it(slug):
+@each_customer_app
+def test_the_block_offers_the_customer_level_and_runs_no_group_hook(slug):
     assert _entry(slug).block["access"] == {
         "customer": {"label": {"en": "Customer portal", "fr": "Portail client"}}}
-    assert _entry(slug).catena["requires_catena"] == "0.11.10"
     assert "users_group" not in _entry(slug).block["hooks"]
+
+
+@each_signin_app
+def test_the_entry_needs_the_release_that_reads_the_sign_in_labels(slug):
+    assert _entry(slug).catena["requires_catena"] == "0.11.10"
+    assert _entry(slug).catena["sso_mode"] == "pre-wired"
+
+
+def test_the_helpdesk_offers_no_access_level_and_has_no_users_hook():
+    assert "access" not in _entry("erpnext-helpdesk").block
+    assert "users" not in _entry("erpnext-helpdesk").block["hooks"]
+
+
+@each_signin_app
+def test_the_sign_ups_the_entry_is_made_with_follow_the_app(slug):
+    assert _scheduler(slug)["environment"]["SIGNIN_SIGN_UPS"] == SIGN_UPS[slug]
 
 
 @each_signin_app
@@ -521,7 +536,7 @@ class _Site:
                               timeout=30, env=self._env(**env))
 
 
-@each_signin_app
+@each_customer_app
 def test_the_users_hook_body_parses(slug):
     [argv] = _entry(slug).block["hooks"]["users"]
     subprocess.run(["bash", "-n", "-c", argv[2].replace("$$", "$")], check=True)
@@ -603,7 +618,7 @@ def _user(*roles: str, enabled: int = 1) -> dict:
     return {"name": ANA, "enabled": enabled, "roles": list(roles)}
 
 
-@each_signin_app
+@each_customer_app
 def test_a_new_member_gets_a_website_user_with_the_customer_role_and_it_is_recorded(slug, tmp_path):
     site = _Site(tmp_path)
     out = site.users(slug, [_member("Ana@Client.Example", "customer"), _member("staff@a.example")])
@@ -616,14 +631,14 @@ def test_a_new_member_gets_a_website_user_with_the_customer_role_and_it_is_recor
     assert site.record() == {"ana@client.example": "made"}
 
 
-@each_signin_app
+@each_customer_app
 def test_a_disabled_member_gets_nothing(slug, tmp_path):
     site = _Site(tmp_path)
     assert site.users(slug, [_member("ana@client.example", "customer", enabled=False)]).returncode == 0
     assert site.docs("User") == {} and site.record() == {}
 
 
-@each_signin_app
+@each_customer_app
 def test_an_existing_user_gets_the_role_added_and_nothing_else(slug, tmp_path):
     site = _Site(tmp_path, docs={"User": {"ana@client.example": _user("Sales User")}})
     out = site.users(slug, [_member("ana@client.example", "customer")])
@@ -633,7 +648,7 @@ def test_an_existing_user_gets_the_role_added_and_nothing_else(slug, tmp_path):
     assert site.record() == {"ana@client.example": "added"}
 
 
-@each_signin_app
+@each_customer_app
 def test_a_member_gone_loses_the_role_and_the_account_the_hook_made_is_disabled(slug, tmp_path):
     site = _Site(tmp_path, docs={"User": {"ana@client.example": _user("Customer")}},
                  defaults={"catena_access_customer": json.dumps({"ana@client.example": "made"})})
@@ -645,7 +660,7 @@ def test_a_member_gone_loses_the_role_and_the_account_the_hook_made_is_disabled(
     assert site.record() == {"ana@client.example": "closed"}
 
 
-@each_signin_app
+@each_customer_app
 def test_an_account_the_hook_made_that_holds_another_role_stays_enabled(slug, tmp_path):
     site = _Site(tmp_path, docs={"User": {"ana@client.example": _user("Customer", "Sales User")}},
                  defaults={"catena_access_customer": json.dumps({"ana@client.example": "made"})})
@@ -654,7 +669,7 @@ def test_an_account_the_hook_made_that_holds_another_role_stays_enabled(slug, tm
     assert site.record() == {}
 
 
-@each_signin_app
+@each_customer_app
 def test_a_role_given_by_hand_is_kept_when_the_member_goes(slug, tmp_path):
     site = _Site(tmp_path, docs={"User": {"ana@client.example": _user("Customer")}})
     assert site.users(slug, [_member("ana@client.example", "customer")]).returncode == 0
@@ -664,7 +679,7 @@ def test_a_role_given_by_hand_is_kept_when_the_member_goes(slug, tmp_path):
     assert site.record() == {}
 
 
-@each_signin_app
+@each_customer_app
 def test_a_member_given_the_level_again_has_the_closed_account_enabled(slug, tmp_path):
     site = _Site(tmp_path, docs={"User": {"ana@client.example": _user(enabled=0)}},
                  defaults={"catena_access_customer": json.dumps({"ana@client.example": "closed"})})
@@ -673,14 +688,14 @@ def test_a_member_given_the_level_again_has_the_closed_account_enabled(slug, tmp
     assert site.record() == {"ana@client.example": "made"}
 
 
-@each_signin_app
+@each_customer_app
 def test_a_member_without_the_level_is_not_given_the_role(slug, tmp_path):
     site = _Site(tmp_path)
     assert site.users(slug, [_member("ana@client.example", "other")]).returncode == 0
     assert site.docs("User") == {}
 
 
-@each_signin_app
+@each_customer_app
 def test_a_site_that_does_not_answer_ends_the_hook_with_exit_one(slug, tmp_path):
     site = _Site(tmp_path)
     out = site.users(slug, [_member("ana@client.example", "customer")], STUB_DOWN="1")

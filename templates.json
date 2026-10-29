@@ -1151,7 +1151,7 @@
         "Business",
         "Helpdesk"
       ],
-      "description": "Open-source ERP (accounting/inventory/HR/CRM/manufacturing) with a helpdesk. Replaces SAP / Odoo / NetSuite.",
+      "description": "Requires Catena 0.11.10 or later. Open-source ERP (accounting/inventory/HR/CRM/manufacturing) with a helpdesk. Replaces SAP / Odoo / NetSuite.",
       "env": [
         {
           "default": "desk.",
@@ -1184,7 +1184,7 @@
       "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/erpnext-helpdesk/logo.svg",
       "maintainer": "https://github.com/catenahq/catena-templates",
       "name": "catena-erpnext-helpdesk",
-      "note": "<p>Full open-source ERP suite -- accounting, inventory, HR/payroll, CRM, manufacturing, projects, a built-in website/e-commerce module, and a helpdesk linked to its customers.</p><p>Replaces SAP Business One, Odoo, Oracle NetSuite.</p><p><a href=\"https://github.com/catenahq/catena-templates/blob/main/blueprints/erpnext-helpdesk/README.md\">https://github.com/catenahq/catena-templates/blob/main/blueprints/erpnext-helpdesk/README.md</a></p>",
+      "note": "<p>Requires Catena 0.11.10 or later.</p><p>Full open-source ERP suite -- accounting, inventory, HR/payroll, CRM, manufacturing, projects, a built-in website/e-commerce module, and a helpdesk linked to its customers.</p><p>Replaces SAP Business One, Odoo, Oracle NetSuite.</p><p><a href=\"https://github.com/catenahq/catena-templates/blob/main/blueprints/erpnext-helpdesk/README.md\">https://github.com/catenahq/catena-templates/blob/main/blueprints/erpnext-helpdesk/README.md</a></p>",
       "platform": "linux",
       "repository": {
         "stackfile": "blueprints/erpnext-helpdesk/docker-compose.yml",

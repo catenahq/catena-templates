@@ -52,9 +52,11 @@ x-catena:
             process.exit(1);
           })();
     timeout_seconds: 3600
-  # The scheduler's process is the container's first process, so an exec into it
-  # proves it runs. From there the check asks the app server for the site's ping
-  # and the queue's Redis for the registered workers: one per queue service.
+  # Once its start has finished, the scheduler's process is the container's first
+  # process, so an exec into it proves it runs; while the start waits for the
+  # backend the first process is bash. From there the check asks the app server
+  # for the site's ping and the queue's Redis for the registered workers: one per
+  # queue service.
   hooks:
     service: scheduler
     timeout_seconds: 120
@@ -64,6 +66,7 @@ x-catena:
         - |
           set -eu
           case "$$(tr '\0' ' ' < /proc/1/cmdline)" in
+            bash\ *) echo "the scheduler has not started: its start waits for the backend" >&2; exit 1 ;;
             *schedule*) ;;
             *) echo "the scheduler is not the container's first process" >&2; exit 1 ;;
           esac
@@ -194,6 +197,9 @@ services:
       - "vps.auth.mode=public"
       - "vps.health.path=/api/method/ping"
       - "vps.health.expect=pong"
+      - "vps.auth.oidc=true"
+      - "vps.auth.groups=staff,client"
+      - "vps.auth.oidc.redirect_uris=https://${ERPNEXT_HOSTNAME}/api/method/frappe.integrations.oauth2_logins.custom/keycloak"
       - "vps.auto-update=minor"
     cap_drop:
       - NET_RAW
@@ -273,6 +279,11 @@ services:
     networks:
       - default
 
+  # Once the sign-in values are in the environment, the start waits until the
+  # backend serves the site, then puts the Keycloak entry of Social Login Keys
+  # in step with them (FRAPPE_SIGNIN_PY): it creates the entry when absent and
+  # corrects the client, the secret and Keycloak's addresses when they differ.
+  # The client secret leaves the environment before the scheduler runs.
   scheduler:
     image: ghcr.io/catenahq/erpnext-helpdesk:v16.52.1-1
     deploy:
@@ -281,8 +292,80 @@ services:
       placement:
         constraints:
           - node.labels.catena.role==data
-    command: ["bench", "schedule"]
-    environment: *frappe-env
+    command:
+      - bash
+      - -c
+      - |
+        set -e
+        if [ -n "$${OIDC_CLIENT_ID:-}" ]; then
+          echo "catena sign-in: waiting for the backend to serve the site"
+          until (: > /dev/tcp/backend/8000) 2>/dev/null; do sleep 5; done
+          (cd sites && ../env/bin/python -c "$$FRAPPE_SIGNIN_PY")
+        fi
+        unset OIDC_CLIENT_SECRET
+        exec bench schedule
+    environment:
+      <<: *frappe-env
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-}
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-}
+      OIDC_ISSUER_URL: ${OIDC_ISSUER_URL:-}
+      SIGNIN_SIGN_UPS: "Allow"
+      FRAPPE_SIGNIN_PY: |
+        import json
+        import os
+
+        import frappe
+
+        client_id = os.environ.get("OIDC_CLIENT_ID", "")
+        secret = os.environ.get("OIDC_CLIENT_SECRET", "")
+        issuer = os.environ.get("OIDC_ISSUER_URL", "").rstrip("/")
+        sign_ups = os.environ.get("SIGNIN_SIGN_UPS", "Deny")
+        site = os.environ["SITE_NAME"]
+
+
+        def say(message):
+            print("catena sign-in: " + message, flush=True)
+
+
+        if not (client_id and secret and issuer):
+            say("no sign-in values yet; Keycloak sign-in stays off")
+            raise SystemExit(0)
+        endpoint = issuer + "/protocol/openid-connect/"
+        owned = {
+            "client_id": client_id, "base_url": issuer, "custom_base_url": 0,
+            "authorize_url": endpoint + "auth", "access_token_url": endpoint + "token",
+            "api_endpoint": endpoint + "userinfo",
+            "redirect_url": "https://" + site + "/api/method/frappe.integrations.oauth2_logins.custom/keycloak",
+        }
+        frappe.init(site)
+        frappe.connect()
+        try:
+            if frappe.db.exists("Social Login Key", "keycloak"):
+                doc = frappe.get_doc("Social Login Key", "keycloak")
+                changed = sorted(key for key, value in owned.items() if doc.get(key) != value)
+                if doc.get_password("client_secret", raise_exception=False) != secret:
+                    changed.append("client_secret")
+                if changed:
+                    doc.update(owned)
+                    doc.client_secret = secret
+                    doc.save()
+                    say("Keycloak sign-in entry put back in step: " + ", ".join(changed))
+            else:
+                doc = frappe.new_doc("Social Login Key")
+                doc.update({"provider_name": "Keycloak", "social_login_provider": "Custom",
+                            "enable_social_login": 1, "sign_ups": sign_ups, "user_id_property": "sub",
+                            "show_in_resource_metadata": 0,
+                            "auth_url_data": json.dumps({"response_type": "code",
+                                                         "scope": "openid email profile"}),
+                            **owned})
+                doc.client_secret = secret
+                doc.insert()
+                # Set with the entry only: the site is not the company website.
+                frappe.db.set_single_value("Contact Us Settings", "is_disabled", 1)
+                say("Keycloak sign-in on; the public contact form off")
+            frappe.db.commit()
+        finally:
+            frappe.destroy()
     volumes:
       - sites:/home/frappe/frappe-bench/sites
       - logs:/home/frappe/frappe-bench/logs

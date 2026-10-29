@@ -8,9 +8,11 @@
 
 Full open-source ERP suite -- accounting, inventory, HR/payroll, CRM, manufacturing, projects, a built-in website/e-commerce module, and a helpdesk linked to its customers.
 
+**Requires Catena 0.11.10 or later.**
+
 - **Upstream project:** <https://erpnext.com/>
 - **Replaces:** **SAP Business One**, **Odoo**, **Oracle NetSuite**
-- **Sign-in (SSO):** Enabled from the application's own admin screens: the `OIDC_*` values from the Environment tab are pasted in once.
+- **Sign-in (SSO):** Pre-wired. Within a few minutes of the first deploy, the server gives the application its own sign-in entry in Keycloak and the application restarts once with it; the login page then offers Keycloak, with no step to take.
 - **Address:** `desk.yourdomain.com`, served from `frontend:8080`
 
 The address is attached when the template is deployed. A different one is
@@ -20,16 +22,13 @@ arranged beforehand, on request.
 
 1. Click **Deploy**. First boot takes 5-10 min -- the site is created, MariaDB initialized, and the apps listed in `FRAPPE_APPS` installed. The `backend` container logs in Portainer track the progress.
 2. Visit the ERPNext domain. Sign in as `Administrator` / `ERPNEXT_ADMIN_PASSWORD` from the Environment tab.
-3. Complete the setup wizard: company name, fiscal year, base currency, chart of accounts template.
-4. Open the helpdesk at `/helpdesk` on the same domain, then its **Settings**:
+3. Complete the setup wizard: company name, fiscal year, base currency, chart of accounts template. For its first user, enter the email address you sign in to Catena with: that account becomes ERPNext's System Manager. Complete the wizard before you sign in with Keycloak.
+4. Within a few minutes of the first deploy, the server creates ERPNext's own sign-in entry in Keycloak and writes its values (`OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_ISSUER_URL`) into the Environment tab. Once the site is up, its login page offers **Login with Keycloak**.
+5. Everyone with a Catena account can sign in here with **Login with Keycloak**: the first sign-in makes them a helpdesk customer, who opens and follows their own tickets. Signed-in accounts can also read a few shared ERPNext lists and send ERPNext's issue and task forms (see the Sign-in notes). Make your agents in the helpdesk's **Agents** settings. Customers without a Catena account keep the helpdesk's own sign-in. To let only the accounts you add sign in, set **Sign ups** to **Deny** on the **Keycloak** entry under **Social Login Keys**.
+6. Open the helpdesk at `/helpdesk` on the same domain, then its **Settings**:
    - **Integrations** -> **ERPNext**: turn the integration on. Each ERPNext customer created from then on gets a linked helpdesk customer, and the two stay in sync.
    - **Email Settings** -> **Email Accounts**: the support mailbox tickets arrive from.
    - **App Settings** -> **Agents**: the support team.
-5. *(Optional)* Enable Keycloak SSO: **Integrations** -> **Social Login Keys** -> **New** -> **Provider: OpenID Connect**. Fill:
-   - **Client ID:** `OIDC_CLIENT_ID` from Environment
-   - **Client Secret:** `OIDC_CLIENT_SECRET`
-   - **Base URL:** `OIDC_ISSUER_URL`
-   - Save. The login page shows **Login with OpenID Connect**.
 
 **Resource note.** ERPNext is heavy -- 10+ containers, ~3 GB RAM + 2 CPUs recommended minimum. A dedicated VPS tier is the right home when Nextcloud + chat + other apps run alongside.
 
@@ -38,6 +37,10 @@ arranged beforehand, on request.
 **Updates.** A new version of the image is built whenever one of its apps publishes one: ERPNext within version 16, Frappe, or the helpdesk. The nightly update applies it once it has aged a week and passed the vulnerability check. While it runs, the site shows a maintenance page for a few minutes: the database is saved, the new version starts, `bench migrate` brings the database up to it, and the site reopens. If the migration or the health check after it fails, the previous version and the saved database are put back. The move to the next major version is never automatic.
 
 **Checks.** Every hour the server asks the site to answer its ping, confirms the scheduler runs and that the three queue workers are registered. A failing check is reported on the maintenance feed.
+
+### Sign-in
+
+ERPNext keeps its sign-in settings in its own database, as the **Keycloak** entry under **Social Login Keys**. Each time the `scheduler` service starts, the server compares that entry with the sign-in values in the Environment tab and corrects the client ID, the secret and Keycloak's addresses when they differ; a missing entry is created again, with sign-ups allowed and the scopes `openid email profile`. Everything else on the entry stays as you set it: untick **Enable Social Login** to turn Keycloak sign-in off, or set **Sign ups** to **Deny** so that only the accounts you add can sign in. With sign-ups allowed, the first sign-in of every Catena account makes it a helpdesk customer: it opens and follows its own tickets and reads the knowledge base. Such an account holds no other role, yet ERPNext lets any signed-in account read a few shared lists (countries, languages, genders, salutations), change any agent's call-greeting settings, and send ERPNext's issue and task forms outside the helpdesk's ticket flow. `Administrator` cannot sign in with Keycloak; its password keeps working as a break-glass. Signing out of ERPNext ends the ERPNext session only.
 
 ### Environment variables
 
@@ -59,9 +62,11 @@ seeded, so none of them has to be generated by hand.
 
 Suite ERP open-source complète -- comptabilité, inventaire, RH/paie, CRM, production, projets, un module site web / e-commerce intégré, et un helpdesk relié à ses clients.
 
+**Requiert Catena 0.11.10 ou une version ultérieure.**
+
 - **Projet original :** <https://erpnext.com/>
 - **Remplace :** **SAP Business One**, **Odoo**, **Oracle NetSuite**
-- **Connexion (SSO) :** À activer depuis les écrans d'administration de l'application : les valeurs `OIDC_*` de l'onglet Environment y sont collées une fois.
+- **Connexion (SSO) :** Pré-câblé. Dans les minutes qui suivent le premier déploiement, le serveur donne à l'application sa propre entrée de connexion dans Keycloak et l'application redémarre une fois avec elle ; la page de connexion propose alors Keycloak, sans aucune étape à effectuer.
 - **Adresse :** `desk.yourdomain.com`, servie par `frontend:8080`
 
 L'adresse est attachée au déploiement du modèle. Une autre se convient au
@@ -71,16 +76,13 @@ préalable, sur demande.
 
 1. Cliquez **Deploy**. Le premier démarrage dure 5-10 min -- le site est créé, MariaDB initialisé, et les apps listées dans `FRAPPE_APPS` installées. Les logs du conteneur `backend` dans Portainer permettent de suivre la progression.
 2. Visitez le domaine ERPNext. Connexion avec `Administrator` / `ERPNEXT_ADMIN_PASSWORD` de l'onglet Environment.
-3. Complétez l'assistant : nom de société, exercice fiscal, devise, plan comptable.
-4. Ouvrez le helpdesk à l'adresse `/helpdesk` du même domaine, puis ses **Settings** :
+3. Complétez l'assistant : nom de société, exercice fiscal, devise, plan comptable. Pour son premier utilisateur, saisissez l'adresse courriel avec laquelle vous vous connectez à Catena : ce compte devient le System Manager d'ERPNext. Terminez l'assistant avant de vous connecter avec Keycloak.
+4. Quelques minutes après le premier déploiement, le serveur crée l'entrée de connexion d'ERPNext dans Keycloak et écrit ses valeurs (`OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_ISSUER_URL`) dans l'onglet Environment. Une fois le site en ligne, sa page de connexion propose **Login with Keycloak**.
+5. Toute personne ayant un compte Catena peut se connecter ici avec **Login with Keycloak** : la première connexion en fait un client du helpdesk, qui ouvre et suit ses propres tickets. Les comptes connectés peuvent aussi lire quelques listes partagées d'ERPNext et envoyer les formulaires d'incident et de tâche d'ERPNext (voir les notes de connexion). Créez vos agents dans les réglages **Agents** du helpdesk. Les clients sans compte Catena gardent la connexion propre au helpdesk. Pour que seuls les comptes que vous ajoutez puissent se connecter, réglez **Sign ups** sur **Deny** dans l'entrée **Keycloak** de **Social Login Keys**.
+6. Ouvrez le helpdesk à l'adresse `/helpdesk` du même domaine, puis ses **Settings** :
    - **Integrations** -> **ERPNext** : activez l'intégration. Chaque client ERPNext créé ensuite reçoit un client helpdesk lié, et les deux restent synchronisés.
    - **Email Settings** -> **Email Accounts** : la boîte de support d'où arrivent les tickets.
    - **App Settings** -> **Agents** : l'équipe de support.
-5. *(Optionnel)* Activez Keycloak SSO : **Integrations** -> **Social Login Keys** -> **New** -> **Provider: OpenID Connect**. Remplissez :
-   - **Client ID :** `OIDC_CLIENT_ID` depuis Environment
-   - **Client Secret :** `OIDC_CLIENT_SECRET`
-   - **Base URL :** `OIDC_ISSUER_URL`
-   - Validez. La page de connexion affiche **Login with OpenID Connect**.
 
 **Ressources.** ERPNext est lourd -- 10+ conteneurs, minimum ~3 GB RAM + 2 CPUs recommandés. Un VPS dédié s'impose lorsque Nextcloud + chat + d'autres apps tournent en parallèle.
 
@@ -89,6 +91,10 @@ préalable, sur demande.
 **Mises à jour.** Une nouvelle version de l'image est construite dès qu'une de ses apps en publie une : ERPNext dans la version 16, Frappe ou le helpdesk. La mise à jour nocturne l'applique une fois qu'elle a une semaine d'ancienneté et a réussi le contrôle de vulnérabilités. Pendant ce temps, le site affiche une page de maintenance quelques minutes : la base de données est sauvegardée, la nouvelle version démarre, `bench migrate` met la base à niveau, puis le site rouvre. Si la migration ou le contrôle de santé qui suit échoue, la version précédente et la base sauvegardée sont remises en place. Le passage à la version majeure suivante n'est jamais automatique.
 
 **Contrôles.** Chaque heure, le serveur demande au site de répondre à son ping, vérifie que le planificateur tourne et que les trois travailleurs de file sont enregistrés. Un contrôle en échec est signalé dans le fil de maintenance.
+
+### Connexion
+
+ERPNext garde ses réglages de connexion dans sa propre base de données, sous l'entrée **Keycloak** de **Social Login Keys**. À chaque démarrage du service `scheduler`, le serveur compare cette entrée aux valeurs de connexion de l'onglet Environment et corrige l'identifiant client, le secret et les adresses de Keycloak lorsqu'ils diffèrent ; une entrée manquante est recréée, avec les inscriptions permises et les portées `openid email profile`. Le reste de l'entrée demeure tel que vous l'avez réglé : décochez **Enable Social Login** pour désactiver la connexion Keycloak, ou réglez **Sign ups** sur **Deny** pour que seuls les comptes que vous ajoutez puissent se connecter. Avec les inscriptions permises, la première connexion de chaque compte Catena en fait un client du helpdesk : il ouvre et suit ses propres tickets et lit la base de connaissances. Un tel compte n'a aucun autre rôle, mais ERPNext laisse tout compte connecté lire quelques listes partagées (pays, langues, genres, formules de politesse), modifier les réglages de message d'accueil des appels de n'importe quel agent et envoyer les formulaires d'incident et de tâche d'ERPNext en dehors du parcours des tickets du helpdesk. `Administrator` ne peut pas se connecter avec Keycloak ; son mot de passe reste valable en dernier recours. Se déconnecter d'ERPNext ne termine que la session ERPNext.
 
 ### Variables d'environnement
 
