@@ -3,12 +3,15 @@ releases, stands behind each one.
 
 An image passes when its source repository is at least a year old and has
 three releases. The repository is the one the image's
-`org.opencontainers.image.source` label names, read from GitHub. An image that
+`org.opencontainers.image.source` label names, read from GitHub. An image of
+GHCR without the label is judged by the GitHub repository its path names
+(`ghcr.io/<owner>/<name>`): a GHCR namespace is the GitHub account that
+publishes the image. An image that
 lives on Docker Hub is judged by its Docker Hub repository instead when it has
 no such label, or when its GitHub repository is under a year old or has too few
 releases: registered at least a year ago, with three pushed tags. A GitHub
 repository that does not exist, a page that cannot be read, and an image of
-another registry (GHCR and the others expose no dates) fail, naming the image.
+another registry without the label (they expose no dates) fail, naming the image.
 An image whose repository is listed in the environment variable
 `PROVENANCE_OWN_IMAGES` (comma-separated, no tag) is the repository's own
 build and passes unchecked.
@@ -157,15 +160,18 @@ def check_image(ref: str, labels: dict[str, str] | None, fetch: Fetch,
     """None when the image's provenance holds, else the failure naming it."""
     now = now or datetime.now(timezone.utc)
     source = (labels or {}).get(SOURCE_LABEL, "")
+    registry, path = split_ref(ref)
     try:
         repo = github_repo(source)
+        if not repo and registry == "ghcr.io" and "/" in path:
+            owner, name = path.split("/")[:2]
+            repo = (owner, name)
         if repo:
             try:
                 why = _github(*repo, fetch, now)
             except SourceNotEstablished as exc:
                 why = _hub_instead(ref, str(exc), fetch, now)
         else:
-            registry, path = split_ref(ref)
             if registry != "docker.io":
                 return (f"{ref}: names no GitHub source repository and {registry} "
                         f"exposes no dates; set {SOURCE_LABEL} on the image or use "

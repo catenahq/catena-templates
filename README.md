@@ -329,12 +329,14 @@ Then one job per app the change touches (`blueprints/<id>/**` or
   A change that leaves the compose file as it is scans no image.
 - Provenance (`lib/provenance.py`): each image's `org.opencontainers.image.source`
   repository on GitHub is at least a year old and has three releases (the
-  GitHub API, with the run's `GITHUB_TOKEN`). An image on Docker Hub passes on
+  GitHub API, with the run's `GITHUB_TOKEN`). An image of GHCR without the
+  label is judged by the repository its path names (`ghcr.io/<owner>/<name>`
+  is `github.com/<owner>/<name>`). An image on Docker Hub passes on
   its Docker Hub repository when it has no GitHub source, or when that
   repository is under a year old or has too few releases: registered at least
   a year ago, three pushed tags. A GitHub repository that does not exist
-  fails, and any other image fails naming itself, because GHCR and the other
-  registries expose no dates. An image listed in `PROVENANCE_OWN_IMAGES`
+  fails, and any other image without the label fails naming itself, because
+  the other registries expose no dates. An image listed in `PROVENANCE_OWN_IMAGES`
   (comma-separated repositories, no tag) is the repository's own build and
   passes. For the catalog the workflow lists `ghcr.io/<owner>/<folder>` for
   each folder of `images/`, plus the caller's `own-images`.

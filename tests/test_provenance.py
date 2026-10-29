@@ -101,10 +101,19 @@ def test_docker_hub_needs_three_pushed_tags():
     assert "1 pushed tag(s), needs 3" in failure
 
 
-def test_ghcr_without_a_label_fails_naming_the_image():
-    failure = provenance.check_image("ghcr.io/example/app:3", {}, _fetch(GITHUB_OK), NOW)
-    assert failure.startswith("ghcr.io/example/app:3: ")
-    assert "ghcr.io exposes no dates" in failure
+def test_ghcr_without_a_label_is_judged_by_the_repository_its_path_names():
+    assert provenance.check_image("ghcr.io/example/app:3", {}, _fetch(GITHUB_OK), NOW) is None
+    pages = {**GITHUB_OK, **FEW_RELEASES}
+    failure = provenance.check_image("ghcr.io/example/app/worker:3", None, _fetch(pages), NOW)
+    assert failure == "ghcr.io/example/app/worker:3: example/app has 1 release(s), needs 3"
+    assert provenance.check_image("ghcr.io/example/gone:3", {}, _fetch(GITHUB_OK), NOW) == (
+        "ghcr.io/example/gone:3: GitHub has no repository example/gone")
+
+
+def test_another_registry_without_a_label_fails_naming_the_image():
+    failure = provenance.check_image("quay.io/example/app:3", {}, _fetch(GITHUB_OK), NOW)
+    assert failure.startswith("quay.io/example/app:3: ")
+    assert "quay.io exposes no dates" in failure
 
 
 def test_a_label_wins_over_docker_hub():
@@ -231,12 +240,13 @@ def test_compose_images_reads_defaults_and_flags_expressions():
 def test_provenance_errors_checks_every_image_of_an_app(tmp_path, monkeypatch):
     (tmp_path / "blueprints" / "demo").mkdir(parents=True)
     (tmp_path / "blueprints" / "demo" / "docker-compose.yml").write_text(
-        "services:\n  a:\n    image: redis:7.4\n  b:\n    image: ghcr.io/example/app:3\n")
+        "services:\n  a:\n    image: redis:7.4\n  b:\n    image: ghcr.io/example/app:3\n"
+        "  c:\n    image: quay.io/example/app:3\n")
     monkeypatch.setattr(app_checks, "ROOT", tmp_path)
     errors = app_checks.provenance_errors(
         "demo", labels_of=lambda ref: {}, fetch=_fetch({**HUB_OK, **GITHUB_OK}))
     assert len(errors) == 1
-    assert errors[0].startswith("demo: ghcr.io/example/app:3: ")
+    assert errors[0].startswith("demo: quay.io/example/app:3: ")
 
 
 def test_changed_paths_reduce_to_app_ids():
