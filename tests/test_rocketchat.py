@@ -3,8 +3,13 @@ settings Rocket.Chat reads from its environment, with no configure hook and no
 post-deploy call."""
 from __future__ import annotations
 
+import http.server
+import shutil
+import subprocess
+import threading
 from pathlib import Path
 
+import pytest
 import yaml
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -43,6 +48,91 @@ def test_the_only_hook_is_the_verify_check_that_asks_the_servers():
     assert argv[:2] == ["node", "-e"]
     assert "/api/info" in argv[2]
     assert '"jitsi-web", 80' in argv[2]
+    assert "Date.now() + 150000" in argv[2]
+    assert 150 + 15 < hooks["timeout_seconds"] <= 300
+
+
+class _Stub(http.server.BaseHTTPRequestHandler):
+    """A route holds one answer, or a list of answers given in turn (the last one repeats)."""
+    routes: dict = {}
+    seen: list = []
+
+    def do_GET(self):
+        type(self).seen.append(self.path)
+        answer = type(self).routes.get(self.path, (404, b""))
+        if isinstance(answer, list):
+            status, body = answer.pop(0) if len(answer) > 1 else answer[0]
+        else:
+            status, body = answer
+        self.send_response(status)
+        self.end_headers()
+        self.wfile.write(body)
+
+    def log_message(self, *args):
+        pass
+
+
+INFO = b'{"version":"8.8.1","success":true}'
+SWAP = [
+    ('ask("127.0.0.1", 3000,', 'ask("127.0.0.1", {port},'),
+    ('ask("jitsi-web", 80,', 'ask("127.0.0.1", {port},'),
+    ("Date.now() + 150000", "Date.now() + 2000"),
+    ("sleep(4000)", "sleep(100)"),
+]
+
+
+def _run(routes: dict, *, answer: bool = True):
+    """The verify script with both servers pointed at one stub (or at a closed port)."""
+    _Stub.routes, _Stub.seen = routes, []
+    server = http.server.HTTPServer(("127.0.0.1", 0), _Stub)
+    port = server.server_port if answer else 1
+    if answer:
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        argv = _compose()["x-catena"]["hooks"]["verify"][0]
+        script = argv[2].replace("$$", "$")
+        for old, new in SWAP:
+            assert old in script, old
+            script = script.replace(old, new.format(port=port))
+        return subprocess.run([*argv[:2], script], capture_output=True, text=True, timeout=60), list(_Stub.seen)
+    finally:
+        server.server_close()
+
+
+needs_node = pytest.mark.skipif(shutil.which("node") is None, reason="node is not installed")
+
+
+@needs_node
+def test_verify_passes_when_both_servers_answer():
+    run, _ = _run({"/api/info": (200, INFO), "/": (200, b"<html></html>")})
+    assert run.returncode == 0, run.stderr
+    assert "Rocket.Chat 8.8.1 answers" in run.stdout
+
+
+@needs_node
+def test_verify_asks_again_while_a_server_is_starting():
+    run, seen = _run({"/api/info": [(502, b""), (503, b""), (200, INFO)], "/": [(503, b""), (200, b"")]})
+    assert run.returncode == 0, run.stderr
+    assert len(seen) == 5
+    assert run.stdout.count("\n") == 1 and run.stderr == ""
+
+
+@needs_node
+def test_verify_fails_at_once_for_a_definite_wrong_answer():
+    run, seen = _run({"/api/info": (200, b"{}"), "/": (404, b"")})
+    assert run.returncode == 1
+    assert "/api/info answered HTTP 200 with no version" in run.stderr and "Jitsi web server answered HTTP 404" in run.stderr
+    assert len(seen) == 2
+    assert run.stderr.count("\n") == 1
+
+
+@needs_node
+def test_verify_fails_naming_the_last_answer_once_the_wait_is_over():
+    run, seen = _run({"/api/info": (503, b""), "/": (200, b"")})
+    assert run.returncode == 1 and "/api/info answered HTTP 503" in run.stderr
+    assert len(seen) > 2
+    run, _ = _run({}, answer=False)
+    assert run.returncode == 1 and "ECONNREFUSED" in run.stderr and "Jitsi web server" in run.stderr
 
 
 # The folders each Jitsi image declares as a VOLUME at docker-jitsi-meet tag
