@@ -53,7 +53,11 @@ x-catena:
       - {type: TXT, name: "_smtp._tls.{{ mail_domain }}", value: "v=TLSRPTv1; rua=mailto:{{ admin_email | default('hostmaster@' ~ cloudflare_zone) }}"}
   # The hooks run in dms. configure runs after every deploy and after a renewed
   # certificate: it reloads the mail daemons when the certificate file differs
-  # from the one they last loaded. verify runs hourly and before an update.
+  # from the one they last loaded. verify runs hourly and before an update: it
+  # reads Postfix's banner and its EHLO answer on port 25 through bash's
+  # /dev/tcp, and Dovecot's greeting on port 993 through openssl s_client, and
+  # asks rspamd for a verdict on the EICAR test file while a virus scanner is
+  # provided.
   # users keeps one mailbox for each member of staff and client whose email
   # address is on MAIL_DOMAIN; it removes only the mailboxes it created, those
   # outside MAIL_DOMAIN included, and never postmaster.
@@ -74,15 +78,37 @@ x-catena:
           doveadm reload >/dev/null 2>&1 || true
           echo "$$now" > "$$mark"
     verify:
-      - - sh
+      - - bash
         - -c
         - |
           set -u
           fail=""
-          listen=$$(ss -lntH 2>/dev/null || true)
-          for port in 25 993; do
-            printf '%s' "$$listen" | grep -q ":$${port} " || fail="$$fail port-$${port}-not-listening"
-          done
+          smtp() {
+            exec 3<>/dev/tcp/127.0.0.1/25 || return 1
+            IFS= read -r -t 10 line <&3 || return 1
+            case "$$line" in 220*) ;; *) return 2 ;; esac
+            printf 'EHLO catena-verify\r\n' >&3
+            while IFS= read -r -t 10 line <&3; do
+              case "$$line" in
+                "250 "*) printf 'QUIT\r\n' >&3; return 0 ;;
+                250-*) ;;
+                *) return 3 ;;
+              esac
+            done
+            return 3
+          }
+          ( smtp ) 2>/dev/null
+          case $$? in
+            0) ;;
+            1) fail="$$fail smtp-25-does-not-answer" ;;
+            2) fail="$$fail smtp-25-sends-no-banner" ;;
+            *) fail="$$fail smtp-25-refuses-ehlo" ;;
+          esac
+          greeting=$$(printf 'a1 LOGOUT\r\n' | timeout 20 openssl s_client -quiet -connect 127.0.0.1:993 2>/dev/null | head -n 1)
+          case "$$greeting" in
+            "* OK"*) ;;
+            *) fail="$$fail imap-993-sends-no-greeting" ;;
+          esac
           if [ -n "$${ANTIVIRUS_HOST:-}" ]; then
             verdict=$$(printf '%s%s\n' 'X5O!P%@AP[4\PZX54(P^)7CC)7}' '$$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$$H+H*' | rspamc 2>/dev/null || true)
             printf '%s' "$$verdict" | grep -q CLAM_VIRUS || fail="$$fail eicar-not-detected"
@@ -91,7 +117,9 @@ x-catena:
             echo "the mail server check failed:$$fail" >&2
             exit 1
           fi
-          echo "ports 25 and 993 listen and rspamd detects the EICAR test file through the virus scanner"
+          msg="SMTP on 25 answers its banner and EHLO and IMAP on 993 its greeting"
+          [ -z "$${ANTIVIRUS_HOST:-}" ] || msg="$$msg, and rspamd detects the EICAR test file through the virus scanner"
+          echo "$$msg"
     users:
       - - python3
         - -c

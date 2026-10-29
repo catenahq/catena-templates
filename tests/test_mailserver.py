@@ -5,11 +5,16 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
+import socket
+import ssl
 import stat
 import subprocess
 import sys
+import threading
 from pathlib import Path
 
+import pytest
 import yaml
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -53,8 +58,9 @@ def test_the_hooks_run_in_dms_and_pass_the_lint():
 
 
 def test_every_hook_body_parses():
-    for name in ("configure", "verify"):
-        subprocess.run(["sh", "-n", "-c", _body(_hook(name))], check=True)
+    subprocess.run(["sh", "-n", "-c", _body(_hook("configure"))], check=True)
+    assert _hook("verify")[:2] == ["bash", "-c"]
+    subprocess.run(["bash", "-n", "-c", _body(_hook("verify"))], check=True)
     argv = _hook("users")
     assert argv[:2] == ["python3", "-c"]
     compile(_body(argv), "users", "exec")
@@ -216,22 +222,112 @@ def test_configure_reloads_the_mail_daemons_only_when_the_certificate_changed(tm
     assert len(log.read_text().splitlines()) == 4
 
 
-def test_verify_passes_with_the_ports_open_and_the_test_file_detected_and_fails_otherwise(tmp_path):
+needs_openssl = pytest.mark.skipif(shutil.which("openssl") is None, reason="openssl is not installed")
+
+
+def _serve(handler, context: ssl.SSLContext | None = None) -> int:
+    """A server on a free loopback port that hands each connection to `handler`."""
+    listener = socket.socket()
+    listener.bind(("127.0.0.1", 0))
+    listener.listen(5)
+
+    def loop() -> None:
+        while True:
+            try:
+                conn, _ = listener.accept()
+            except OSError:
+                return
+            try:
+                if context:
+                    conn = context.wrap_socket(conn, server_side=True)
+                conn.settimeout(5)
+                handler(conn)
+            except (OSError, ssl.SSLError):
+                pass
+            finally:
+                conn.close()
+
+    threading.Thread(target=loop, daemon=True).start()
+    return listener.getsockname()[1]
+
+
+def _smtp(banner: bytes = b"220 mail.example.test ESMTP\r\n", ehlo: bytes = b"250-mail.example.test\r\n250 SIZE 1\r\n"):
+    def handler(conn: socket.socket) -> None:
+        conn.sendall(banner)
+        if conn.recv(100).startswith(b"EHLO"):
+            conn.sendall(ehlo)
+            conn.recv(100)
+    return handler
+
+
+def _imap(greeting: bytes = b"* OK [CAPABILITY IMAP4rev1] Dovecot ready.\r\n"):
+    def handler(conn: socket.socket) -> None:
+        conn.sendall(greeting)
+        conn.recv(100)
+    return handler
+
+
+def _tls_context(tmp_path: Path) -> ssl.SSLContext:
+    cert, key = tmp_path / "cert.pem", tmp_path / "key.pem"
+    subprocess.run(["openssl", "req", "-x509", "-newkey", "ec", "-pkeyopt", "ec_paramgen_curve:prime256v1", "-nodes",
+                    "-keyout", str(key), "-out", str(cert), "-days", "2", "-subj", "/CN=mail.example.test"],
+                   check=True, capture_output=True)
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    context.load_cert_chain(cert, key)
+    return context
+
+
+def _verify(tmp_path: Path, smtp_port: int, imap_port: int, path: str | None = None, **env: str) -> subprocess.CompletedProcess:
+    """The verify hook with its two ports pointed at stand-ins for Postfix and Dovecot."""
     body = _body(_hook("verify"))
-    ss = 'printf "LISTEN 0 100 0.0.0.0:25 0.0.0.0:*\\nLISTEN 0 100 0.0.0.0:993 0.0.0.0:*\\n"\n'
-    rspamc = 'cat >/dev/null\necho "Symbol: CLAM_VIRUS (1.00)"\n'
-    ok = _run_sh(tmp_path, body, SCANNER, ss=ss, rspamc=rspamc)
+    for old, new in (("/dev/tcp/127.0.0.1/25", f"/dev/tcp/127.0.0.1/{smtp_port}"),
+                     ("127.0.0.1:993", f"127.0.0.1:{imap_port}")):
+        assert old in body, old
+        body = body.replace(old, new)
+    return subprocess.run(["bash", "-c", body], capture_output=True, text=True, check=False,
+                          env={"PATH": path or os.environ["PATH"], **env})
+
+
+@needs_openssl
+def test_verify_passes_when_postfix_answers_its_banner_and_ehlo_and_dovecot_its_greeting(tmp_path):
+    run = _verify(tmp_path, _serve(_smtp()), _serve(_imap(), _tls_context(tmp_path)))
+    assert run.returncode == 0, run.stderr
+    assert run.stdout == "SMTP on 25 answers its banner and EHLO and IMAP on 993 its greeting\n"
+
+
+@needs_openssl
+def test_verify_names_each_server_that_does_not_answer(tmp_path):
+    context = _tls_context(tmp_path)
+    good_smtp, good_imap = _serve(_smtp()), _serve(_imap(), context)
+    closed = socket.socket()
+    closed.bind(("127.0.0.1", 0))
+    closed_port = closed.getsockname()[1]
+    closed.close()
+    cases = [
+        ((closed_port, good_imap), "smtp-25-does-not-answer"),
+        ((_serve(_smtp(banner=b"421 go away\r\n")), good_imap), "smtp-25-sends-no-banner"),
+        ((_serve(_smtp(ehlo=b"500 what\r\n")), good_imap), "smtp-25-refuses-ehlo"),
+        ((good_smtp, closed_port), "imap-993-sends-no-greeting"),
+        ((good_smtp, _serve(_imap(b"* BYE no\r\n"), context)), "imap-993-sends-no-greeting"),
+    ]
+    for (smtp_port, imap_port), needle in cases:
+        run = _verify(tmp_path, smtp_port, imap_port)
+        assert run.returncode == 1 and needle in run.stderr, (needle, run.stderr)
+
+
+@needs_openssl
+def test_verify_asks_rspamd_for_the_test_file_only_while_a_scanner_is_provided(tmp_path):
+    smtp_port, imap_port = _serve(_smtp()), _serve(_imap(), _tls_context(tmp_path))
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    path = f"{bin_dir}:{os.environ['PATH']}"
+    _command(bin_dir / "rspamc", 'cat >/dev/null\necho "Symbol: CLAM_VIRUS (1.00)"\n')
+    ok = _verify(tmp_path, smtp_port, imap_port, path, **SCANNER)
     assert ok.returncode == 0 and "detects the EICAR" in ok.stdout
-    no_port = _run_sh(tmp_path, body, SCANNER, ss='printf "LISTEN 0 100 0.0.0.0:25 0.0.0.0:*\\n"\n', rspamc=rspamc)
-    assert no_port.returncode == 1 and "port-993-not-listening" in no_port.stderr
-    no_virus = _run_sh(tmp_path, body, SCANNER, ss=ss, rspamc="cat >/dev/null\necho clean\n")
+    _command(bin_dir / "rspamc", "cat >/dev/null\necho clean\n")
+    no_virus = _verify(tmp_path, smtp_port, imap_port, path, **SCANNER)
     assert no_virus.returncode == 1 and "eicar-not-detected" in no_virus.stderr
-
-
-def test_verify_asks_for_the_test_file_only_when_a_scanner_is_provided(tmp_path):
-    body = _body(_hook("verify"))
-    ss = 'printf "LISTEN 0 100 0.0.0.0:25 0.0.0.0:*\\nLISTEN 0 100 0.0.0.0:993 0.0.0.0:*\\n"\n'
-    assert _run_sh(tmp_path, body, ss=ss, rspamc="cat >/dev/null\necho clean\n").returncode == 0
+    assert _verify(tmp_path, smtp_port, imap_port, path).returncode == 0
 
 
 class _Mailboxes:
