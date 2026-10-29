@@ -252,14 +252,17 @@ input, not a catalog to deploy from.
 10. `make` -- renders, lints, and runs the tests. Commit the regenerated
     `blueprints/<id>/README.md`, `templates.json`, `catalog.json` and
     `index.html` with the source change.
-11. Open a PR from a branch that changes this one app and nothing else. CI
-    runs `build-and-verify.yml`, `app-ci.yml` (see "Checks on every pull
+11. Open a PR from a branch that changes this one app and nothing else, or, as
+    a repository admin, push the one commit to `main`. CI runs
+    `build-and-verify.yml`, `app-ci.yml` (see "Checks on every pull
     request"), `check:unicode` and `check:prose`; the bench then runs the legs
     below.
 
-One app per branch, pull request and commit: the `scope` check fails a pull
-request that touches two, and the bench judges a branch only when it changes one
-app or none.
+A change of an app is one pull request or one commit of `main`, touching that
+app alone: the `scope` check fails a pull request or a commit that touches two,
+and the bench judges a branch only when it changes one app or none. Several
+changes of different apps go to `main` as one commit each, never as a branch
+per app.
 
 ### What each app-tests leg proves
 
