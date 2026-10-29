@@ -40,17 +40,27 @@ def test_the_hook_runs_in_a_service_of_the_stack():
     assert hooks["service"] == "server"
     assert hooks["service"] in _compose()["services"]
     assert set(hooks) - {"service", "user", "timeout_seconds"} == {"verify"}
-    assert hooks["timeout_seconds"] <= 60
     assert quiesce_lint.lint_hooks(_entry()) == []
 
 
+def test_the_wait_ends_inside_the_hook_timeout():
+    script = _verify()[-1]
+    assert "+ 150 ))" in script
+    assert 150 + 10 < _entry().block["hooks"]["timeout_seconds"] <= 300
+
+
 class _Stub(http.server.BaseHTTPRequestHandler):
-    routes: dict[str, tuple[int, bytes]] = {}
+    """A route holds one answer, or a list of answers given in turn (the last one repeats)."""
+    routes: dict[str, tuple[int, bytes] | list[tuple[int, bytes]]] = {}
     seen: list[dict[str, str]] = []
 
     def do_GET(self):
         type(self).seen.append(dict(self.headers))
-        status, body = type(self).routes.get(self.path, (404, b""))
+        answer = type(self).routes.get(self.path, (404, b""))
+        if isinstance(answer, list):
+            status, body = answer.pop(0) if len(answer) > 1 else answer[0]
+        else:
+            status, body = answer
         self.send_response(status)
         self.end_headers()
         self.wfile.write(body)
@@ -77,7 +87,12 @@ def _run(routes: dict[str, tuple[int, bytes]], *, answer: bool = True, swap=(), 
     finally:
         server.server_close()
 
-SWAP = [("http://127.0.0.1:3000/healthz", "http://127.0.0.1:{port}/healthz")]
+SWAP = [
+    ("http://127.0.0.1:3000/healthz", "http://127.0.0.1:{port}/healthz"),
+    ("+ 150 ))", "+ 2 ))"),
+    ("sleep 4", "sleep 0.1"),
+]
+OK = b'{"status":"ok","info":{},"error":{},"details":{}}'
 
 
 def test_the_script_parses_in_sh():
@@ -91,17 +106,37 @@ def test_the_hook_asks_the_port_the_route_label_names():
 @needs_interpreter
 @pytest.mark.skipif(shutil.which("curl") is None, reason="curl is not installed")
 def test_verify_passes_for_a_server_that_reports_ok():
-    run, _ = _run({"/healthz": (200, b'{"status":"ok","info":{},"error":{},"details":{}}')}, swap=SWAP)
+    run, _ = _run({"/healthz": (200, OK)}, swap=SWAP)
     assert run.returncode == 0, run.stderr
     assert "answers /healthz" in run.stdout
 
 
 @needs_interpreter
 @pytest.mark.skipif(shutil.which("curl") is None, reason="curl is not installed")
-def test_verify_fails_for_another_report_an_error_status_and_no_answer():
-    run, _ = _run({"/healthz": (200, b'{"status":"error"}')}, swap=SWAP)
+def test_verify_asks_again_while_the_proxy_says_the_server_is_starting():
+    run, seen = _run({"/healthz": [(502, b""), (503, b""), (200, OK)]}, swap=SWAP)
+    assert run.returncode == 0, run.stderr
+    assert len(seen) == 3
+    assert run.stdout.count("\n") == 1 and run.stderr == ""
+
+
+@needs_interpreter
+@pytest.mark.skipif(shutil.which("curl") is None, reason="curl is not installed")
+def test_verify_fails_at_once_for_a_definite_wrong_answer():
+    run, seen = _run({"/healthz": (200, b'{"status":"error"}')}, swap=SWAP)
     assert run.returncode == 1 and "not ok" in run.stderr
-    run, _ = _run({"/healthz": (503, b"")}, swap=SWAP)
-    assert run.returncode == 1 and "does not answer" in run.stderr
+    assert len(seen) == 1
+    run, seen = _run({"/healthz": (500, b"")}, swap=SWAP)
+    assert run.returncode == 1 and "status 500" in run.stderr
+    assert len(seen) == 1
+
+
+@needs_interpreter
+@pytest.mark.skipif(shutil.which("curl") is None, reason="curl is not installed")
+def test_verify_fails_naming_the_last_answer_once_the_wait_is_over():
+    run, seen = _run({"/healthz": (503, b"")}, swap=SWAP)
+    assert run.returncode == 1 and "does not answer" in run.stderr and "status 503" in run.stderr
+    assert len(seen) > 1
     run, _ = _run({}, answer=False, swap=SWAP)
-    assert run.returncode == 1 and "does not answer" in run.stderr
+    assert run.returncode == 1 and "does not answer" in run.stderr and "curl 7" in run.stderr
+    assert run.stderr.count("\n") == 1
