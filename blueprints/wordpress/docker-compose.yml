@@ -143,6 +143,32 @@ x-catena:
           wp eval-file "$$SEED" >/dev/null || { echo "catena: the cache and mail settings could not be written" >&2; status=1; }
           rm -f "$$SEED"
           exit "$$status"
+    # verify asks nginx for the front page, which nginx hands to PHP, and looks for what WordPress sets: its
+    # API link header, its redirect header (a site without its install wizard redirects to it) or its
+    # content path.
+    verify:
+      - - php
+        - -r
+        - |
+          $$context = stream_context_create(['http' => [
+            'timeout' => 20, 'ignore_errors' => true, 'follow_location' => 0,
+            'header' => "X-Forwarded-Proto: https\r\n",
+          ]]);
+          $$body = @file_get_contents('http://nginx/', false, $$context);
+          if ($$body === false || !isset($$http_response_header[0]) || !preg_match('/ (\d{3})/', $$http_response_header[0], $$m)) {
+            fwrite(STDERR, 'WordPress does not answer through nginx' . "\n");
+            exit(1);
+          }
+          $$code = (int) $$m[1];
+          $$headers = strtolower(implode("\n", $$http_response_header));
+          $$wordpress = strpos($$headers, 'api.w.org') !== false
+            || strpos($$headers, 'x-redirect-by: wordpress') !== false
+            || strpos($$body, 'wp-content') !== false;
+          if (!in_array($$code, [200, 301, 302], true) || !$$wordpress) {
+            fwrite(STDERR, 'nginx answers ' . $$code . ', but not with a WordPress page' . "\n");
+            exit(1);
+          }
+          echo "WordPress answers through nginx and PHP\n";
 services:
   wp:
     image: wordpress:7.1.3-fpm-alpine
