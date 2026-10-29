@@ -12,6 +12,37 @@ x-catena:
   images:
     db:
       rule: {kind: partial_line}
+  # verify asks the backend for its root through the /api route of the bundled nginx, then the front end.
+  hooks:
+    service: postiz
+    timeout_seconds: 60
+    verify:
+      - - node
+        - -e
+        - |
+          const get = (path) => new Promise((resolve, reject) => {
+            require('http').get({ host: '127.0.0.1', port: 5000, path, timeout: 15000 }, (res) => {
+              let body = '';
+              res.on('data', (d) => { body += d; });
+              res.on('end', () => resolve({ status: res.statusCode, body }));
+            }).on('timeout', function () {
+              this.destroy(new Error('no answer in 15s'));
+            }).on('error', reject);
+          });
+          (async () => {
+            const api = await get('/api/');
+            if (api.status !== 200 || !api.body.includes('App is running')) {
+              throw new Error('the backend answered ' + api.status + ' on /api/');
+            }
+            const front = await get('/');
+            if (front.status >= 400) {
+              throw new Error('the front end answered ' + front.status);
+            }
+            console.log('Postiz backend and front end answer on 5000');
+          })().catch((e) => {
+            console.error('Postiz does not answer on 5000: ' + e.message);
+            process.exit(1);
+          });
 
 services:
   postiz:
