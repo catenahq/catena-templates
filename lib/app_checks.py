@@ -1,4 +1,4 @@
-"""The pull-request checks that read one app: entry points of
+"""The app-ci checks that read one app: entry points of
 .github/workflows/app-ci.yml.
 
   changed               repo-relative paths on stdin -> the app ids they touch

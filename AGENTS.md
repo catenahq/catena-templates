@@ -12,7 +12,7 @@ for layout, consumer model, and BASE URL setup.
 - Everything else is generated: the per-app `README.md` and placeholder
   `logo.svg`, plus `templates.json`, `catalog.json` and `index.html`.
   Never hand-edit a generated file -- the change is overwritten on the
-  next render, and CI rejects the PR.
+  next render, and CI rejects the change.
 - What the server needs to back up, update and restore an app (backup
   mode, update and restore commands, object-store check, the env
   expressions Catena keeps set) is the root `x-catena:` block of the
@@ -63,11 +63,12 @@ for layout, consumer model, and BASE URL setup.
 - The workflows `app-ci.yml`, `build-and-verify.yml`, `app-dispatch.yml` and
   `app-tag.yml` also serve other repositories through `workflow_call`; their
   steps run unchanged for this repository (`catalog` true), and a change to
-  them keeps both paths working. The build tools read another tree through
+  them keeps both paths working; `app-main.yml` serves this repository alone.
+  The build tools read another tree through
   `TEMPLATES_ROOT`, and the schemas always come from this checkout.
-- A merge to `main` reaches every new deploy at once, so `main` stays
+- A change on `main` reaches every new deploy at once, so `main` stays
   deployable. A deployed app keeps the compose, and so the block, it was
-  deployed with: a merge changes no running app.
+  deployed with: a new commit changes no running app.
 - An entry that an older Catena release deploys in a shape it cannot
   serve names the oldest release it works on in
   `x-catena.requires_catena`, the one place that release is written: the

@@ -24,7 +24,7 @@ rendered: the per-app README, the Portainer App Templates v3
   up, update and restore an app is the `x-catena` block at the root of the
   app's compose, its env included. Portainer stores the compose byte for byte, so a deployed
   app keeps the block it was deployed with and the server does not read
-  this catalog to manage it. A merge to `main` reaches every new deploy.
+  this catalog to manage it. A commit on `main` reaches every new deploy.
 - **One directory per template.** `blueprints/<id>/` is the unit
   Portainer clones and deploys, so it is also where that template's
   compose, README and logo live. Nothing about a template is duplicated
@@ -48,6 +48,7 @@ rendered: the per-app README, the Portainer App Templates v3
 | An entry imported from a third-party registry names its source, that source's licence and notice, and the published catalog marks it untested | `workflow:build-and-verify.yml` |
 | Every catalog image reference is CVE-scanned | `workflow:security.yml`, `scanctl:trivy` |
 | Source is scanned on every change (secrets, vulnerable deps, static analysis, rendered config) | `workflow:security.yml`, `scanctl:gitleaks`, `scanctl:osv-scanner`, `scanctl:semgrep`, `scanctl:trivy` |
+| A push to `main` sends only the commits that passed the app checks to the bench, and an app is tagged only when they passed at its last change | `workflow:app-main.yml`, `workflow:app-tag.yml` |
 | Templates deploy and run end-to-end on real servers | `bench:ce_install_suite` |
 
 Gate pointer grammar: `workflow:<file>` = a CI workflow in this

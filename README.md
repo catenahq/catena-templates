@@ -47,8 +47,8 @@ lib/                     # the build library
                          # sign-in labels
   postgres_pins.py       # each Postgres pin is one the update engine can order
   changes.py             # changed paths -> the app ids they touch
-  provenance.py          # an image's project: age, releases (pull-request check)
-  app_checks.py          # the per-app pull-request checks' commands
+  provenance.py          # an image's project: age, releases (app-ci check)
+  app_checks.py          # the per-app app-ci checks' commands
   versions.py            # app version tags and the one-app scope check
   adopt.py               # a fork's one-app pull request -> branch adopt/<pr>
   importers/             # the registry importer: pipeline.py, dedup.py,
@@ -80,7 +80,7 @@ schemas are always read from this checkout. The render writes into that tree and
 Three things are human-edited: `sources/<id>.json`, the compose in
 `blueprints/<id>/` with its `x-catena` block, and an optional logo beside
 it. Everything else listed as generated is a committed build artifact; CI
-re-renders on every PR and fails if the committed copies drift.
+re-renders on every push and pull request and fails if the committed copies drift.
 
 ## Two consumer paths
 
@@ -307,7 +307,7 @@ A merge to `main` is live for every new deploy as soon as the consumers
 next fetch the catalog; there are no releases to cut. An app already
 deployed keeps the block it was deployed with.
 
-## Checks on every pull request
+## Checks on every pull request and every push to main
 
 `.github/workflows/app-ci.yml` runs on GitHub-hosted runners (the `runner`
 input of its `workflow_call` sets another label) for every pull
@@ -336,10 +336,27 @@ Then one job per app the change touches (`blueprints/<id>/**` or
 - ClamAV over each image's exported files (`docker create`, `docker export`),
   with the databases the pinned `clamav/clamav` feature tag ships.
 
+A push to `main` (a repository admin's direct push or a merge) runs
+`.github/workflows/app-main.yml`, which calls `app-ci.yml` once per commit of
+the push with `sha` (the commit) and `base` (its parent), so each commit is
+judged on what it introduces, as a pull request is. It posts the commit status
+`app-ci` on each commit (success, or failure naming the jobs that failed) and
+calls `app-dispatch.yml` with the commits that passed: a push sends only
+those to the bench (the nightly run takes the head of `main`). A merge commit
+passes `scope` there, because the commits of its second side are checked on
+their own; a pull request's merge commit is judged as usual. A squash merge is
+a push like any other: app-ci runs on the squash
+commit, then the bench verdict carries from the pull request's head. A commit
+whose message holds `[skip ci]` starts no run, gets no `app-ci` status and so
+tags nothing.
+
 `app-ci.yml`, `build-and-verify.yml`, `app-dispatch.yml` and `app-tag.yml` are
 also reusable workflows (`workflow_call`) for another repository with this
-layout. Their inputs are `catalog` (default true), `tools-ref` (default `main`)
-and `own-images` (default empty); `app-dispatch.yml` and `app-tag.yml` take the
+layout; `app-main.yml` serves this repository alone. Their inputs are `catalog`
+(default true), `tools-ref` (default `main`) and `own-images` (default empty);
+`app-ci.yml` also takes `sha` and `base` and `app-dispatch.yml` takes `commits`
+(the commits of a push to send, default every commit of the push), all
+defaulting to empty. `app-dispatch.yml` and `app-tag.yml` take the
 secrets `RENOVATE_APP_CLIENT_ID` and `RENOVATE_APP_PRIVATE_KEY`. With `catalog`
 false a called workflow checks out catena-templates at `tools-ref` into
 `.tools` and sets `TEMPLATES_ROOT` to the caller's tree. It runs the swarm lint
@@ -359,7 +376,8 @@ through `env:` only and refuses an id that is not a lowercase slug.
 After the cheap checks, the lifecycle of each app runs on the Catena bench (a
 private runner this repository cannot reach):
 
-- `app-dispatch.yml` runs on a push to any branch, `adopt/*` included. It sends
+- `app-dispatch.yml` runs on a push to any branch but `main`, `adopt/*`
+  included; `app-main.yml` calls it for `main`. It sends
   the private ops repository the event `app-test` with the commit, the commit
   the change is judged from, the apps the change touches, the branch and the
   name of the repository the event comes from (`catena-templates` here; another
@@ -379,8 +397,9 @@ private runner this repository cannot reach):
   tagged with the address of the run that tested the change.
 - ops runs install, checks, backup, restore, rollback, updates and the outbound
   check, then posts the commit status `app-tests` on the commit (success,
-  failure, or error when the bench gave no verdict). A commit its branch has
-  moved past by the time a runner takes it is skipped. For a commit of `main`,
+  failure, or error when the bench gave no verdict). A commit of a branch other
+  than `main` that its branch has moved past by the time a runner takes it is
+  skipped. For a commit of `main`,
   ops sends back the event `app-passed` with the apps that passed, and
   `app-tag.yml` tags them (see "Versions").
 - `adopt-fork.yml` serves pull requests from forks, which the bench never sees
@@ -393,8 +412,8 @@ private runner this repository cannot reach):
   branch. `adopt/<pr>` is dispatched like any branch, and its `app-tests` status
   is what a maintainer reads before merging the pull request.
 
-Both new workflows use the CI GitHub App's secrets (`RENOVATE_APP_CLIENT_ID`,
-`RENOVATE_APP_PRIVATE_KEY`). The path end to end, the secrets and how to pause it
+`app-dispatch.yml`, `adopt-fork.yml` and `app-tag.yml` use the CI GitHub App's
+secrets (`RENOVATE_APP_CLIENT_ID`, `RENOVATE_APP_PRIVATE_KEY`). The path end to end, the secrets and how to pause it
 are in ops `internal_docs/tools/app-ci.md`.
 
 ## Versions
@@ -414,7 +433,11 @@ No file holds a version string: versions are git tags. A tested app is tagged
   (`blueprints/<id>/`, `sources/<id>.json`) differ from its newest tag, or that
   has none, gets a new tag on the commit, but only while `main` still holds the
   commit's files of the app: a pass of a commit whose app `main` has since
-  changed tags nothing. An app whose newest tag was made by
+  changed tags nothing. It also tags only when the commit that last changed the
+  app on `main` (`build/versions.py last-change`) has an `app-ci` status of
+  success posted by `github-actions[bot]` for a run of this repository;
+  otherwise the app is held with a warning until a later commit of it passes.
+  An app whose newest tag was made by
   hand and holds the same files has that tag annotated where it stands. The
   tags are annotated `app-tests passed at <commit>: <run>` and written through
   the API with the CI GitHub App's token (secrets `RENOVATE_APP_CLIENT_ID` and
@@ -425,15 +448,19 @@ No file holds a version string: versions are git tags. A tested app is tagged
   that tag holds the files `main` holds, `changed` when the files differ from
   its newest tag, `untested` when it has no tag or its newest was made by hand.
   The nightly bench run takes the apps that are not `tested` first.
-- **Scope.** The `scope` check fails a pull request that changes more than one
-  app (distinct ids across `blueprints/<id>/**` and `sources/<id>.json`), so
-  one merge is one tag; the `one-app` pre-commit hook does the same for a
-  commit. `app-checks`, `scope` and `app-tests` are required on `main`.
+- **Scope.** The `scope` check fails a pull request or a commit of `main` that
+  changes more than one app (distinct ids across `blueprints/<id>/**` and
+  `sources/<id>.json`), so one change is one tag; the `one-app` pre-commit hook
+  does the same for a commit. `app-checks`, `scope` and `app-tests` are required
+  for a pull request to `main`; an admin's direct push gets the same checks per
+  commit from `app-main.yml`.
 
 `uv run build/versions.py tested` lists each app's state and newest tag
 (`--needs-run`: the ids of the apps not `tested`); `uv run build/versions.py
 plan <app>` prints what a pass does to the app's tags;
 `uv run build/versions.py scope` checks changed paths on stdin;
+`uv run build/versions.py last-change <app> [--ref <rev>]` prints the newest
+commit on the first-parent line that changed the app's files;
 `uv run build/versions.py same <app> --ref <sha> --base <sha> --from <sha>`
 exits 0 when the `--from` commit holds the change `--ref` holds, judged from
 `--base`: the app's files are the same at both commits, and the same at the
