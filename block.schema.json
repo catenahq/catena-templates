@@ -191,6 +191,10 @@
             "description": "A value a person may change. default is its first value; the deploy form shows label when the setting has one and a name made from the key otherwise.",
             "properties": {
               "default": { "type": "string" },
+              "first_start_only": {
+                "type": "boolean",
+                "description": "True when the app takes the value only before its first start: the panel offers it until the app has started, then shows it locked and refuses a change."
+              },
               "label": {
                 "type": "object",
                 "additionalProperties": false,
