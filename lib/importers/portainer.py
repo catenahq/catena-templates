@@ -16,10 +16,10 @@ entry a numeric id. The fields read are those of Portainer's Template type
              first option
 
 A stack entry copies its repository's compose file, at the commit that
-repository's default branch is at when the wave runs, so that repository's
-licence applies. A container entry's compose file is written from the
-registry's own fields, so the registry's repository licenses it. Type 4 (an
-edge stack) and Windows entries are left out.
+repository's default branch is at when the wave runs, so origin records that
+repository's licence. A container entry's compose file is written from the
+registry's own fields, so origin records the registry's. Type 4 (an edge
+stack) and Windows entries are left out.
 """
 from __future__ import annotations
 

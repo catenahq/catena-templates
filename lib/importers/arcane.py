@@ -9,7 +9,7 @@ A registry document is {"name", "description", "author", "url", "version",
 
 The compose file and the env file are copied from the repository, at the
 commit its default branch is at when the wave runs (recorded in the entry's
-origin), so the repository's licence applies. The repository is named by
+origin), so origin records the repository's licence. The repository is named by
 `documentation_url`; the files' paths are those of `compose_url` and `env_url`
 on the registry site, which mirrors the repository's layout.
 """

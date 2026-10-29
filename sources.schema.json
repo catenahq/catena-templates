@@ -94,18 +94,14 @@
               "minLength": 1
             },
             "licence": {
-              "enum": [
-                "MIT",
-                "Apache-2.0",
-                "BSD-2-Clause",
-                "BSD-3-Clause"
-              ],
-              "description": "SPDX identifier. Only these permissive licences are imported; the importer reads this list."
+              "type": "string",
+              "minLength": 1,
+              "description": "SPDX identifier of the source's licence as its forge names it, NOASSERTION when it names none. A record, not a condition."
             },
             "attribution": {
               "type": "string",
               "minLength": 1,
-              "description": "The copyright lines of the source's licence file, or that file's address when it carries none."
+              "description": "The copyright lines of the source's licence file, or the file's or the repository's address when there are none."
             },
             "commit": {
               "type": "string",
@@ -120,7 +116,7 @@
             "project": {
               "type": "string",
               "format": "uri",
-              "description": "The upstream project's repository, whose licence was checked too."
+              "description": "The upstream project's repository, whose licence is the app's and was checked."
             },
             "aliases": {
               "type": "array",

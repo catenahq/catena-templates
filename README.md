@@ -212,11 +212,6 @@ Then one job per app the change touches (`blueprints/<id>/**` or
 `sources/<id>.json`), each running:
 
 - `docker stack config` on the app's compose file.
-- The licence rule: a new imported entry (`x-catena.status: imported`) names a
-  licence from the importer's list (`x-catena.origin.licence`, the
-  `sources.schema.json` enum), the licence of the registry it was copied from; a
-  hand-written app may name none, and any licence an entry names must be on the
-  list.
 - scanctl on the app's images: any vulnerability at high or above that has a
   fixed version fails, introduced by the change or not.
 - Provenance (`lib/provenance.py`): each image's `org.opencontainers.image.source`
@@ -248,7 +243,7 @@ and `scope`.
 App ids come from changed file names, so the workflow hands them to scripts
 through `env:` only and refuses an id that is not a lowercase slug.
 `uv run build/app_check.py` runs the per-app checks locally (`images ID`,
-`licence ID [--new]`, `provenance ID` after pulling the images).
+`provenance ID` after pulling the images).
 
 ## The bench lifecycle
 
@@ -368,36 +363,32 @@ uv run build/import_registry.py --wave 5 --also arcane=<registry.json address> <
   list `check:unicode` reads (`contracts/banned-words.json`, in the
   sibling checkout) is skipped, and the import stops when that list
   cannot be read.
-- **Licence.** Read from GitHub's licence API for the repository the
-  compose file is copied from (the registry's own repository for a
-  single-container entry), or, for a per-app directory, the app's own
-  repository its `meta.json` links; that registry's own licence must be
-  permitted too, and its notice joins the attribution. The app's own
-  repository is read on its forge: GitHub (a `/tree/<ref>/<path>` link
-  reads as its repository), GitLab through its project API, or Gitea
-  through its repository API. Forgejo, Codeberg's forge, shares Gitea's
-  API, and its answer names no licence, so an app there reads as licence
-  unknown. Any host other than github.com, gitlab.com and codeberg.org
-  is asked through Gitea's API, then GitLab's. A link
-  to an owner's page on one of those three reads as the owner's
-  repository named as the entry's id, which the entry asks a person to
-  confirm; with no such repository the licence is unknown. Only MIT,
-  Apache-2.0 and BSD-2/3-Clause sources are imported; any other licence,
-  or one the forge cannot name, skips the entry and the report lists it.
-  `GITHUB_TOKEN` lifts GitHub's rate limit. When the registry or a listing
-  names the app's upstream repository (a per-app `meta.json` link, or an
-  awesome-selfhosted project of the entry's name, whose list is read for the
-  repository only), that repository is the upstream project and its address
-  is recorded as `origin.project`. Otherwise the importer looks for it from
-  the main image: the image's `org.opencontainers.image.source` label, read
-  from its registry without pulling it, then the source linked on its Docker
-  Hub repository (`lib/importers/upstream.py`). An entry whose upstream
-  repository is found nowhere is skipped as licence unknown. An upstream
-  project other than the repository the compose file is copied from may
-  carry those licences or GPL, LGPL or AGPL: its licence covers the app the
-  image runs, and the catalog copies none of its files. An app whose only
-  compose file sits in a GPL or AGPL repository is written by hand instead
-  ("How to add a template").
+- **Licence.** Two licences are read, each on its repository's forge:
+  GitHub (a `/tree/<ref>/<path>` link reads as its repository), GitLab
+  through its project API, or Gitea through its repository API. Forgejo,
+  Codeberg's forge, shares Gitea's API, and its answer names no licence.
+  Any host other than github.com, gitlab.com and codeberg.org is asked
+  through Gitea's API, then GitLab's. A link to an owner's page on one of
+  those three reads as the owner's repository named as the entry's id,
+  which the entry asks a person to confirm. `GITHUB_TOKEN` lifts GitHub's
+  rate limit.
+  - The source's: the repository the compose file is copied from (the
+    registry's own for a single-container entry; for a per-app directory,
+    the app's own, with the registry's notice beside it). It is recorded
+    in `origin.licence` and `origin.attribution` (`NOASSERTION` and the
+    repository's address when the forge names none) and refuses nothing.
+  - The app's own: its upstream project's, which must be one of
+    `APP_LICENCES` (`lib/importers/pipeline.py`: MIT, Apache-2.0,
+    BSD-2/3-Clause, GPL, LGPL, AGPL); any other licence, one the forge
+    cannot name, or an upstream found nowhere skips the entry and the
+    report lists it. When the registry or a listing names the upstream
+    repository (a per-app `meta.json` link, or an awesome-selfhosted
+    project of the entry's name, whose list is read for the repository
+    only), its address is recorded as `origin.project`. Otherwise the
+    importer looks for it from the main image: the image's
+    `org.opencontainers.image.source` label, read from its registry
+    without pulling it, then the source linked on its Docker Hub
+    repository (`lib/importers/upstream.py`).
 - **Compose.** A stack entry's file is fetched from its repository; a
   single-container entry gets a one-service file from its image, ports,
   volumes, env and labels. The address the registry routes (the first
