@@ -300,6 +300,42 @@ def test_templates_root_points_the_tags_at_another_tree(repo, tmp_path):
     assert done.stdout.strip() == "mark web/1.2.0-1"
 
 
+def test_last_change_is_the_newest_commit_that_touched_the_app(repo, capsys):
+    git, commit = repo
+    first = _head()
+    _outside_file(git, "notes.txt")
+    assert versions.last_change("web", "HEAD") == first
+    commit("web:1.3.0")
+    second = _head()
+    _outside_file(git, "more.txt")
+    assert versions.last_change("web") == second
+    assert versions.last_change("web", first) == first
+    assert versions.main(["last-change", "web", "--ref", "HEAD"]) == 0
+    assert capsys.readouterr().out == second + "\n"
+
+
+def test_last_change_follows_first_parents_so_a_merge_is_the_change(repo):
+    git, commit = repo
+    git("branch", "-M", "main")
+    git("checkout", "-q", "-b", "br")
+    commit("web:1.3.0")
+    git("checkout", "-q", "main")
+    _outside_file(git, "notes.txt")
+    git("merge", "--no-ff", "-qm", "merge br", "br")
+    assert versions.last_change("web") == _head()
+
+
+def test_last_change_prints_nothing_for_an_app_no_commit_touched(repo, capsys):
+    assert versions.last_change("other") == ""
+    assert versions.main(["last-change", "other"]) == 0
+    assert capsys.readouterr().out == ""
+
+
+def test_last_change_refuses_an_id_that_is_not_a_plain_slug(repo, capsys):
+    assert versions.main(["last-change", "../web"]) == 1
+    assert "not a plain app id" in capsys.readouterr().err
+
+
 def test_tested_lists_the_apps_that_need_a_run(repo, capsys):
     assert versions.main(["tested"]) == 0
     assert capsys.readouterr().out == "web\tuntested\t-\n"

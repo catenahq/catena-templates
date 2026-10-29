@@ -1,0 +1,142 @@
+name: app-main
+
+# Gates every commit of a push to main, for repository admins' direct pushes
+# and for merges alike. `list` names the commits of the push on the first-parent
+# line, oldest first, each with its parent. `checks` calls app-ci once per
+# commit, which judges the commit from its parent. `verdict` posts the commit
+# status `app-ci` on each commit: success when the commit's `scope` and
+# `app-checks` jobs passed, else failure naming the jobs that did not. `dispatch`
+# calls app-dispatch with the commits that passed, so the bench runs only those,
+# and app-tag tags an app only when its last change on main holds an `app-ci`
+# success.
+#
+# This workflow serves catena-templates alone; other repositories call app-ci,
+# app-dispatch and app-tag directly. The commits of a push are all processed:
+# no concurrency group cancels a run.
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  list:
+    runs-on: ubuntu-latest
+    outputs:
+      commits: ${{ steps.commits.outputs.commits }}
+      shas: ${{ steps.commits.outputs.shas }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: The commits of the push
+        id: commits
+        env:
+          SHA: ${{ github.sha }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          # After a force push the old head is no branch's tip: fetch it by its id.
+          if [ -n "${BEFORE//0/}" ] && ! git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+            git fetch -q --no-tags origin "$BEFORE" 2>/dev/null || true
+          fi
+          # A new branch, or a before the checkout still lacks: the head alone.
+          if [ -z "${BEFORE//0/}" ] || ! git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+            list="$SHA"
+          else
+            list="$(git rev-list --reverse --first-parent "$BEFORE..$SHA")"
+          fi
+          count="$(wc -w <<< "$list")"
+          if [ "$count" -gt 256 ]; then
+            echo "::error::the push holds $count commits; a matrix runs at most 256"
+            exit 1
+          fi
+          json="["
+          sep=""
+          for commit in $list; do
+            parent="$(git rev-parse "$commit^")"
+            json="$json$sep{\"sha\":\"$commit\",\"parent\":\"$parent\"}"
+            sep=","
+          done
+          echo "commits=$json]" >> "$GITHUB_OUTPUT"
+          echo "shas=${list//$'\n'/ }" >> "$GITHUB_OUTPUT"
+
+  checks:
+    name: app-ci ${{ matrix.commit.sha }}
+    needs: list
+    if: needs.list.outputs.commits != '[]'
+    strategy:
+      fail-fast: false
+      matrix:
+        commit: ${{ fromJSON(needs.list.outputs.commits) }}
+    uses: ./.github/workflows/app-ci.yml
+    with:
+      sha: ${{ matrix.commit.sha }}
+      base: ${{ matrix.commit.parent }}
+    permissions:
+      contents: read
+
+  verdict:
+    needs: [list, checks]
+    if: always() && needs.list.result == 'success' && needs.list.outputs.commits != '[]'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      statuses: write
+    outputs:
+      passed: ${{ steps.post.outputs.passed }}
+    steps:
+      - name: Post app-ci on each commit
+        id: post
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHAS: ${{ needs.list.outputs.shas }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          # One line per job of this run (a re-run shows its latest jobs): name, conclusion.
+          gh api --paginate "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/jobs" \
+            --jq '.jobs[] | [.name, .conclusion] | @tsv' > "$RUNNER_TEMP/jobs.tsv"
+          # The conclusion of the job "app-ci <commit> / <job>", or missing.
+          conclusion() {
+            local name result found=missing
+            while IFS=$'\t' read -r name result; do
+              if [[ "$name" == *"$1"* && "$name" == *" / $2" ]]; then found="${result:-missing}"; fi
+            done < "$RUNNER_TEMP/jobs.tsv"
+            echo "$found"
+          }
+          passed=""
+          for commit in $SHAS; do
+            failing=""
+            for job in scope app-checks; do
+              if [ "$(conclusion "$commit" "$job")" != success ]; then failing="$failing${failing:+, }$job"; fi
+            done
+            if [ -z "$failing" ]; then
+              state=success
+              description="app-ci passed"
+              passed="$passed${passed:+ }$commit"
+            else
+              state=failure
+              description="app-ci failed: $failing"
+            fi
+            echo "$commit: $description"
+            gh api -X POST "repos/$GITHUB_REPOSITORY/statuses/$commit" \
+              -f "state=$state" -f context=app-ci \
+              -f "description=${description:0:140}" -f "target_url=$RUN_URL" > /dev/null
+          done
+          echo "passed=$passed" >> "$GITHUB_OUTPUT"
+
+  dispatch:
+    needs: verdict
+    if: ${{ !cancelled() && needs.verdict.result == 'success' && needs.verdict.outputs.passed != '' }}
+    uses: ./.github/workflows/app-dispatch.yml
+    with:
+      commits: ${{ needs.verdict.outputs.passed }}
+    secrets:
+      RENOVATE_APP_CLIENT_ID: ${{ secrets.RENOVATE_APP_CLIENT_ID }}
+      RENOVATE_APP_PRIVATE_KEY: ${{ secrets.RENOVATE_APP_PRIVATE_KEY }}
+    permissions:
+      contents: read

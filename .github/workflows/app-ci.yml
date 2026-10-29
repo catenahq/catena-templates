@@ -1,8 +1,9 @@
 name: app-ci
 
-# The cheap checks every app pull request passes before the bench lifecycle
-# runs, on the runner label the caller passes (GitHub-hosted by default), for
-# forks too (no secrets, a read-only token). `repo` checks the catalog as a whole; `app` checks each app the
+# The cheap checks every app pull request and every commit of main passes
+# before the bench lifecycle runs, on the runner label the caller passes
+# (GitHub-hosted by default), for forks too (no secrets, a read-only token).
+# `repo` checks the catalog as a whole; `app` checks each app the
 # change touches: its stack file, its images' CVEs, provenance and
 # files. App ids come from changed file names, so they reach scripts through
 # env: only, and the plan job refuses any id outside the plain slug form.
@@ -11,6 +12,11 @@ name: app-ci
 # through contracts' new-failures-only action, which fails only when the base
 # commit passes them; `scope` reads the change against its base; the per-app
 # jobs check each changed app absolutely, the image scan included.
+#
+# app-main calls this workflow once per commit of a push to main, with `sha`
+# (the commit checked) and `base` (the commit it is judged from, its parent).
+# A merge commit of main passes `scope` there, its sides being checked on their
+# own; a pull request's merge commit is judged as usual.
 #
 # Another repository with the same layout calls this workflow with
 # `catalog: false`. Its tools then come from a checkout of catena-templates at
@@ -39,15 +45,23 @@ on:
         description: runs-on label of every job
         type: string
         default: ubuntu-latest
+      sha:
+        description: the commit checked; empty - the event's
+        type: string
+        default: ''
+      base:
+        description: the commit it is judged from; empty - the pull request's base
+        type: string
+        default: ''
 
 permissions:
   contents: read
 
 # A newer push to the branch, or a newer commit of the pull request, cancels the
-# run it supersedes. The prefix keeps the group apart from that of a calling
-# workflow in another repository.
+# run it supersedes; a call for one commit is a group of its own. The prefix
+# keeps the group apart from that of a calling workflow in another repository.
 concurrency:
-  group: catena-templates-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  group: catena-templates-${{ github.workflow }}-${{ github.event_name }}-${{ inputs.sha || github.ref }}
   cancel-in-progress: true
 
 env:
@@ -61,6 +75,7 @@ jobs:
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
+          ref: ${{ inputs.sha }}
           persist-credentials: false
       - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
       - name: Check out the tools
@@ -79,6 +94,7 @@ jobs:
         with:
           working-directory: ${{ github.workspace }}
           repo-path: ${{ github.workspace }}
+          base: ${{ inputs.base }}
           run: |
             make
             docker run --rm -v "$PWD:/work:ro" \
@@ -91,6 +107,7 @@ jobs:
         with:
           working-directory: ${{ github.workspace }}
           repo-path: ${{ github.workspace }}
+          base: ${{ inputs.base }}
           run: |
             uv run "$TOOLS/build/lint_swarm.py"
             docker run --rm -v "$PWD:/work:ro" \
@@ -98,13 +115,14 @@ jobs:
               ghcr.io/catenahq/catena-admin:latest --nodes 2 /work/blueprints
 
   scope:
-    # One pull request changes one app, so one merge is one tag.
+    # A pull request or a commit of main changes one app, so one change is one tag.
     name: scope
     runs-on: ${{ inputs.runner || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
           fetch-depth: 0
+          ref: ${{ inputs.sha }}
           persist-credentials: false
       - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
       - name: Check out the tools
@@ -117,8 +135,17 @@ jobs:
           persist-credentials: false
       - name: The change touches at most one app
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-        run: git diff --name-only "$BASE_SHA" HEAD | uv run "$TOOLS/build/versions.py" scope
+          BASE_SHA: ${{ inputs.base || github.event.pull_request.base.sha }}
+          CHECKED_SHA: ${{ inputs.sha }}
+        run: |
+          set -euo pipefail
+          # A merge commit of main brings in the commits of its second side, each
+          # checked on its own: the first-parent diff would hold all of them.
+          if [ -n "$CHECKED_SHA" ] && [ "$(git rev-list --parents -n 1 HEAD | wc -w)" -gt 2 ]; then
+            echo "$CHECKED_SHA is a merge: its sides are checked on their own"
+            exit 0
+          fi
+          git diff --name-only "$BASE_SHA" HEAD | uv run "$TOOLS/build/versions.py" scope
 
   plan:
     name: changed apps
@@ -129,6 +156,7 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
           fetch-depth: 0
+          ref: ${{ inputs.sha }}
           persist-credentials: false
       - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
       - name: Check out the tools
@@ -142,7 +170,7 @@ jobs:
       - name: Apps the change touches, and still has
         id: changed
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          BASE_SHA: ${{ inputs.base || github.event.pull_request.base.sha }}
         run: |
           set -euo pipefail
           git diff --name-only "$BASE_SHA" HEAD > "$RUNNER_TEMP/paths.txt"
@@ -173,6 +201,7 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
           fetch-depth: 0
+          ref: ${{ inputs.sha }}
           persist-credentials: false
       - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
       - name: Check out the tools

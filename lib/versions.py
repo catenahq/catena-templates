@@ -32,9 +32,12 @@ hand. All of it is read from the checkout's git.
   tested-run APP [--ref REF]
                         the address of the passing run that made APP's newest tag, when
                         APP is `tested` at REF (default HEAD)
+  last-change APP [--ref REF]
+                        the newest commit on REF's first-parent line (default HEAD) that
+                        changed APP's files; nothing when none did
 
 `scope` is the check that keeps a commit or a pull request to one app, so
-one merge is one tag.
+one change is one tag.
 """
 from __future__ import annotations
 
@@ -179,6 +182,13 @@ def app_paths(app: str) -> tuple[str, str]:
     return f"blueprints/{app}", f"sources/{app}.json"
 
 
+def last_change(app: str, ref: str = "HEAD") -> str:
+    """The newest commit on `ref`'s first-parent line that changed the app's files, or ''."""
+    return subprocess.run(
+        ["git", "-C", str(ROOT), "log", "-1", "--first-parent", "--format=%H", ref, "--", *app_paths(app)],
+        capture_output=True, text=True, check=True).stdout.strip()
+
+
 def same_files(app: str, a: str, b: str) -> bool:
     """Whether commits `a` and `b` hold the same files of the app."""
     return all(_object(f"{a}:{path}") == _object(f"{b}:{path}") for path in app_paths(app))
@@ -261,6 +271,9 @@ def main(argv: list[str]) -> int:
     run_cmd = sub.add_parser("tested-run")
     run_cmd.add_argument("app")
     run_cmd.add_argument("--ref", default="HEAD")
+    last_cmd = sub.add_parser("last-change")
+    last_cmd.add_argument("app")
+    last_cmd.add_argument("--ref", default="HEAD")
     args = parser.parse_args(argv)
 
     if args.command == "scope":
@@ -284,6 +297,11 @@ def main(argv: list[str]) -> int:
         shas = (args.ref, args.base, args.cand)
         return 0 if all(_SHA.fullmatch(sha) for sha in shas) and same_change(
             args.app, args.ref, args.base, args.cand) else 1
+    if args.command == "last-change":
+        commit = last_change(args.app, args.ref)
+        if commit:
+            print(commit)
+        return 0
     if args.command == "tested-run":
         run = tested_run(args.app, args.ref)
         if run:

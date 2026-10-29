@@ -5,8 +5,8 @@
 #   pre-commit install --hook-type pre-commit --hook-type pre-push
 #
 # Behavior: before every commit, gitleaks scans the staged diff and
-# blocks a leaked secret (same version as .github/workflows/gitleaks.yml,
-# so the local verdict matches the CI gate); `one-app` blocks a commit
+# blocks a leaked secret (CI runs gitleaks through scanctl in security.yml);
+# `one-app` blocks a commit
 # that changes more than one app; `render` re-renders the generated files
 # and blocks the commit when that changes any of them (stage the render).
 #

@@ -13,6 +13,12 @@ name: app-tag
 #               or the newest tag is on a later commit, or the default branch
 #               holds other files of the app than the commit (`skip -` when
 #               the app has no tag)
+# In the catalog itself (`catalog` true) a `create` or `mark` line stands only when
+# the commit that last changed the app's files on the first-parent line up to the
+# passed commit (`build/versions.py last-change`) holds an `app-ci` commit status
+# of success, posted by github-actions[bot] with the address of a run of this
+# repository (app-main posts it). Any other app is dropped with a warning: no tag
+# without the app checks at the app's last change.
 # The annotation opens with `app-tests passed` and names the commit and the run.
 # The tags are written through the API with the catenahq-renovate GitHub App's
 # token (secrets RENOVATE_APP_CLIENT_ID and RENOVATE_APP_PRIVATE_KEY), the one
@@ -117,6 +123,38 @@ jobs:
           # Writing a ref (git/refs) also takes the workflows permission when the tagged
           # history holds workflow changes (GitHub lists those endpoints under Workflows too).
           permission-workflows: write
+          permission-statuses: read
+      - name: Hold back an app whose last change on main has not passed app-ci
+        if: format('{0}', inputs.catalog) != 'false'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          shopt -s inherit_errexit
+          run_url="^https://github\\.com/$REPO/actions/runs/[0-9]+\$"
+          : > "$RUNNER_TEMP/kept.txt"
+          while read -r app action tag <&3; do
+            if [ "$action" = skip ]; then
+              echo "$app $action $tag" >> "$RUNNER_TEMP/kept.txt"
+              continue
+            fi
+            last="$(env -u GH_TOKEN uv run "$TOOLS/build/versions.py" last-change "$app" --ref "$SHA")"
+            state=""
+            creator=""
+            url=""
+            if [ -n "$last" ]; then
+              IFS=$'\t' read -r state creator url <<< "$(gh api "repos/$REPO/commits/$last/statuses" --jq \
+                '[.[] | select(.context == "app-ci")] | .[0] | select(. != null)
+                 | [.state, .creator.login, .target_url] | @tsv' || true)" || true
+            fi
+            if [ "$state" = success ] && [ "$creator" = "github-actions[bot]" ] && [[ "$url" =~ $run_url ]]; then
+              echo "$app $action $tag" >> "$RUNNER_TEMP/kept.txt"
+            else
+              echo "::warning::$app: ${last:-no commit} has no app-ci success, so $tag is not written"
+            fi
+          done 3< "$RUNNER_TEMP/plan.txt"
+          mv "$RUNNER_TEMP/kept.txt" "$RUNNER_TEMP/plan.txt"
       - name: Write the tags
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}

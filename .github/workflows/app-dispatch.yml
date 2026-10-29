@@ -4,11 +4,13 @@ name: app-dispatch
 # event `app-test` to the private catenahq/ops repository, whose app-tests
 # workflow runs the lifecycle on the bench and posts the commit status
 # `app-tests` back on this commit. Every branch is dispatched, adopt/<pr>
-# branches and the renovate branches included. On the default branch each
-# commit of the push is sent on its own, judged from its parent, so a run holds
-# the one app its commit changes. Any other branch is sent as a whole, judged
-# from where it left the default branch, and only when it changes one app or
-# none: a branch that changes more fails here and is not sent. Setting the repository variable
+# branches and the renovate branches included. This repository's own push
+# trigger covers every branch but main; app-main calls this workflow for main
+# with the commits whose app-ci passed. On the default branch each commit of the
+# push is sent on its own, judged from its parent, so a run holds the one app its
+# commit changes. Any other branch is sent as a whole, judged from where it left
+# the default branch, and only when it changes one app or none: a branch that
+# changes more fails here and is not sent. Setting the repository variable
 # APP_CI_PAUSED to `true` stops the dispatch; no status is then posted and the
 # required `app-tests` check stays pending.
 #
@@ -41,7 +43,7 @@ name: app-dispatch
 
 on:
   push:
-    branches: ['**']
+    branches-ignore: [main]
   workflow_call:
     inputs:
       catalog:
@@ -60,6 +62,10 @@ on:
         description: runs-on label of every job
         type: string
         default: ubuntu-latest
+      commits:
+        description: the commits of a push to the default branch to send, space-separated, in commit order; empty - every commit of the push
+        type: string
+        default: ''
     secrets:
       RENOVATE_APP_CLIENT_ID:
         required: true
@@ -100,6 +106,7 @@ jobs:
           BEFORE: ${{ github.event.before }}
           BRANCH: ${{ github.ref_name }}
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          COMMITS: ${{ inputs.commits }}
         run: |
           set -euo pipefail
           shopt -s inherit_errexit
@@ -114,10 +121,18 @@ jobs:
           }
           # One line per dispatch: the commit, the commit it is judged from, its apps.
           : > "$RUNNER_TEMP/dispatches.txt"
-          if [ "$BRANCH" = "$DEFAULT_BRANCH" ] && [ -n "${BEFORE//0/}" ] \
-            && git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+          if [ "$BRANCH" = "$DEFAULT_BRANCH" ] && { [ -n "$COMMITS" ] \
+            || { [ -n "${BEFORE//0/}" ] && git cat-file -e "$BEFORE^{commit}" 2>/dev/null; }; }; then
             # Each commit of the push on its own, judged from its parent: a commit changes one app.
-            for commit in $(git rev-list --reverse --first-parent "$BEFORE..$SHA"); do
+            if [ -n "$COMMITS" ]; then
+              ids_re='^[0-9a-f]{40}( [0-9a-f]{40})*$'
+              [[ "$COMMITS" =~ $ids_re ]] \
+                || { echo "::error::commits are not space-separated full commit ids"; exit 1; }
+              list="$COMMITS"
+            else
+              list="$(git rev-list --reverse --first-parent "$BEFORE..$SHA")"
+            fi
+            for commit in $list; do
               parent="$(git rev-parse "$commit^")"
               ids="$(apps "$parent" "$commit")"
               echo "$commit $parent $ids" >> "$RUNNER_TEMP/dispatches.txt"
