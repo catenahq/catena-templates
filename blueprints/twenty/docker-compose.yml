@@ -12,6 +12,25 @@ x-catena:
   images:
     db:
       rule: {kind: partial_line}
+  # verify asks the running server for /healthz, the request the image's own healthcheck makes.
+  hooks:
+    service: server
+    timeout_seconds: 60
+    verify:
+      - - sh
+        - -c
+        - |
+          body=$$(curl -fsS --max-time 20 http://127.0.0.1:3000/healthz) || {
+            echo "Twenty does not answer /healthz on port 3000" >&2
+            exit 1
+          }
+          case "$$body" in
+            *'"status":"ok"'*) echo "Twenty answers /healthz" ;;
+            *)
+              echo "/healthz answers, but not ok: $$body" >&2
+              exit 1
+              ;;
+          esac
 
 services:
   server:
