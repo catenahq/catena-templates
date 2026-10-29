@@ -9,7 +9,8 @@ x-catena:
       generated: {length: 32, alphabet: alnum}
     DB_ROOT_PASSWORD:
       generated: {length: 32, alphabet: alnum}
-  # verify asks Apache for the booking page and looks for the product name.
+  # verify asks Apache for the root page. Before its installation wizard has run, the application answers
+  # with a redirect to /installation; after it, with the booking page, whose title names the product.
   hooks:
     service: easyappointments
     timeout_seconds: 60
@@ -17,14 +18,26 @@ x-catena:
       - - sh
         - -c
         - |
-          body=$$(curl -fsS --max-time 20 http://localhost/) || {
+          out=$$(curl -s --max-time 20 -w '\n%{http_code} %{redirect_url}' http://localhost/) || {
             echo "Easy!Appointments does not answer on port 80" >&2
             exit 1
           }
-          case "$$body" in
-            *Easy!Appointments*) echo "Easy!Appointments answers on port 80" ;;
+          meta=$$(printf '%s\n' "$$out" | tail -n 1)
+          code=$${meta%% *}
+          where=$${meta#* }
+          case "$$code:$$where" in
+            200:*)
+              case "$$out" in
+                *Easy!Appointments*) echo "Easy!Appointments answers on port 80" ;;
+                *)
+                  echo "port 80 answers, but not with the Easy!Appointments page" >&2
+                  exit 1
+                  ;;
+              esac
+              ;;
+            30[1278]:*/installation) echo "Easy!Appointments answers on port 80 and waits for its installation" ;;
             *)
-              echo "port 80 answers, but not with the Easy!Appointments page" >&2
+              echo "port 80 answers status $$code, but not with the Easy!Appointments page" >&2
               exit 1
               ;;
           esac

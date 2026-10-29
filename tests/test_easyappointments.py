@@ -50,8 +50,10 @@ class _Stub(http.server.BaseHTTPRequestHandler):
 
     def do_GET(self):
         type(self).seen.append(dict(self.headers))
-        status, body = type(self).routes.get(self.path, (404, b""))
+        status, body, *location = type(self).routes.get(self.path, (404, b""))
         self.send_response(status)
+        if location:
+            self.send_header("Location", location[0])
         self.end_headers()
         self.wfile.write(body)
 
@@ -95,16 +97,29 @@ def test_verify_passes_for_the_booking_page():
 
 @needs_interpreter
 @pytest.mark.skipif(shutil.which("curl") is None, reason="curl is not installed")
-def test_verify_fails_for_another_page_on_port_80():
+def test_verify_passes_for_an_application_that_waits_for_its_installation():
+    # Booking::index redirects to the installation page while the users table is missing.
+    for target in ("https://book.example.com/installation", "https://book.example.com/index.php/installation"):
+        run, _ = _run({"/": (302, b"", target)}, swap=SWAP)
+        assert run.returncode == 0, run.stderr
+        assert "waits for its installation" in run.stdout
+
+
+@needs_interpreter
+@pytest.mark.skipif(shutil.which("curl") is None, reason="curl is not installed")
+def test_verify_fails_for_another_page_or_redirect_on_port_80():
     run, _ = _run({"/": (200, b"<title>Welcome to nginx</title>")}, swap=SWAP)
     assert run.returncode == 1
     assert "not with the Easy!Appointments page" in run.stderr
+    run, _ = _run({"/": (302, b"", "https://book.example.com/login")}, swap=SWAP)
+    assert run.returncode == 1 and "status 302" in run.stderr
+    assert run.stderr.count("\n") == 1
 
 
 @needs_interpreter
 @pytest.mark.skipif(shutil.which("curl") is None, reason="curl is not installed")
 def test_verify_fails_on_a_server_error_and_on_no_answer():
     run, _ = _run({"/": (500, PAGE)}, swap=SWAP)
-    assert run.returncode == 1 and "does not answer" in run.stderr
+    assert run.returncode == 1 and "status 500" in run.stderr
     run, _ = _run({}, answer=False, swap=SWAP)
     assert run.returncode == 1 and "does not answer" in run.stderr
