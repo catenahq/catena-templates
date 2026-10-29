@@ -22,6 +22,26 @@ x-catena:
       rule: {kind: partial_line}
     elasticsearch:
       rule: {kind: semver, registry: docker.io, repo: library/elasticsearch, tag_pattern: '\d+\.\d+\.\d+'}
+  # verify asks the nginx of the stack for the sign-in state, a public call that nginx hands to the Rails
+  # server and that reads the database.
+  hooks:
+    service: zammad-nginx
+    timeout_seconds: 60
+    verify:
+      - - sh
+        - -c
+        - |
+          body=$$(curl -fsS --max-time 20 http://127.0.0.1:8080/api/v1/signshow) || {
+            echo "Zammad does not answer /api/v1/signshow on port 8080" >&2
+            exit 1
+          }
+          case "$$body" in
+            *'"config"'*) echo "Zammad answers /api/v1/signshow through nginx" ;;
+            *)
+              echo "port 8080 answers, but not with the Zammad sign-in state" >&2
+              exit 1
+              ;;
+          esac
 
 x-zammad-env: &zammad-env
   POSTGRESQL_HOST: db
