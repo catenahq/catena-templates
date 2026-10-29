@@ -2,9 +2,11 @@
 from __future__ import annotations
 
 import http.server
+import os
 import shutil
 import subprocess
 import sys
+import tempfile
 import threading
 from pathlib import Path
 
@@ -40,17 +42,39 @@ def test_the_hook_runs_in_a_service_of_the_stack():
     assert hooks["service"] == "nginx"
     assert hooks["service"] in _compose()["services"]
     assert set(hooks) - {"service", "user", "timeout_seconds"} == {"verify"}
-    assert hooks["timeout_seconds"] <= 60
     assert quiesce_lint.lint_hooks(_entry()) == []
 
 
+def test_the_wait_ends_inside_the_hook_timeout():
+    assert "+ 150 ))" in _verify()[-1]
+    assert 150 + 10 < _entry().block["hooks"]["timeout_seconds"] <= 300
+
+
+# The nginx image's wget is busybox's: this shim answers like it, in the words of its error lines.
+BUSYBOX_WGET = f"""#!{sys.executable}
+import sys, urllib.error, urllib.request
+try:
+    with urllib.request.urlopen(sys.argv[-1], timeout=10) as response:
+        sys.stdout.write(response.read().decode())
+except urllib.error.HTTPError as e:
+    sys.exit("wget: server returned error: HTTP/1.1 %d %s" % (e.code, e.reason))
+except urllib.error.URLError as e:
+    sys.exit("wget: can't connect to remote host (127.0.0.1): " + ("Connection refused" if isinstance(e.reason, ConnectionRefusedError) else str(e.reason)))
+"""
+
+
 class _Stub(http.server.BaseHTTPRequestHandler):
-    routes: dict[str, tuple[int, bytes]] = {}
+    """A route holds one answer, or a list of answers given in turn (the last one repeats)."""
+    routes: dict[str, tuple[int, bytes] | list[tuple[int, bytes]]] = {}
     seen: list[dict[str, str]] = []
 
     def do_GET(self):
         type(self).seen.append(dict(self.headers))
-        status, body = type(self).routes.get(self.path, (404, b""))
+        answer = type(self).routes.get(self.path, (404, b""))
+        if isinstance(answer, list):
+            status, body = answer.pop(0) if len(answer) > 1 else answer[0]
+        else:
+            status, body = answer
         self.send_response(status)
         self.end_headers()
         self.wfile.write(body)
@@ -72,12 +96,21 @@ def _run(routes: dict[str, tuple[int, bytes]], *, answer: bool = True, swap=(), 
         for old, new in swap:
             assert old in script, old
             script = script.replace(old, new.format(port=port))
-        return subprocess.run([*argv[:-1], script], capture_output=True, text=True, timeout=60,
-                              env=env), list(_Stub.seen)
+        with tempfile.TemporaryDirectory() as shim:
+            wget = Path(shim) / "wget"
+            wget.write_text(BUSYBOX_WGET)
+            wget.chmod(0o755)
+            env = {**os.environ, "PATH": shim + os.pathsep + os.environ["PATH"]}
+            return subprocess.run([*argv[:-1], script], capture_output=True, text=True, timeout=60,
+                                  env=env), list(_Stub.seen)
     finally:
         server.server_close()
 
-SWAP = [("http://127.0.0.1/health", "http://127.0.0.1:{port}/health")]
+SWAP = [
+    ("http://127.0.0.1/health", "http://127.0.0.1:{port}/health"),
+    ("+ 150 ))", "+ 2 ))"),
+    ("sleep 4", "sleep 0.1"),
+]
 HEALTHY = b'{"status":"ok","message":"API is healthy"}'
 
 
@@ -94,7 +127,6 @@ def test_the_hook_asks_a_path_nginx_hands_to_php():
 
 
 @needs_interpreter
-@pytest.mark.skipif(shutil.which("wget") is None, reason="wget is not installed")
 def test_verify_passes_for_the_application_health_reply():
     run, _ = _run({"/health": (200, HEALTHY)}, swap=SWAP)
     assert run.returncode == 0, run.stderr
@@ -102,9 +134,28 @@ def test_verify_passes_for_the_application_health_reply():
 
 
 @needs_interpreter
-@pytest.mark.skipif(shutil.which("wget") is None, reason="wget is not installed")
-def test_verify_fails_for_another_reply_and_for_a_gateway_error():
-    run, _ = _run({"/health": (200, b"ok")}, swap=SWAP)
+def test_verify_asks_again_while_nginx_has_no_application_behind_it():
+    run, seen = _run({"/health": [(502, b""), (503, b""), (200, HEALTHY)]}, swap=SWAP)
+    assert run.returncode == 0, run.stderr
+    assert len(seen) == 3
+    assert run.stdout.count("\n") == 1 and run.stderr == ""
+
+
+@needs_interpreter
+def test_verify_fails_at_once_for_another_reply_and_an_error_status():
+    run, seen = _run({"/health": (200, b"ok")}, swap=SWAP)
     assert run.returncode == 1 and "not with the Invoice Ninja health reply" in run.stderr
-    run, _ = _run({"/health": (502, b"")}, swap=SWAP)
-    assert run.returncode == 1 and "does not answer" in run.stderr
+    assert len(seen) == 1
+    run, seen = _run({"/health": (500, b"")}, swap=SWAP)
+    assert run.returncode == 1 and "does not answer" in run.stderr and "HTTP/1.1 500" in run.stderr
+    assert len(seen) == 1
+
+
+@needs_interpreter
+def test_verify_fails_naming_the_last_answer_once_the_wait_is_over():
+    run, seen = _run({"/health": (502, b"")}, swap=SWAP)
+    assert run.returncode == 1 and "does not answer" in run.stderr and "HTTP/1.1 502" in run.stderr
+    assert len(seen) > 1
+    run, _ = _run({}, answer=False, swap=SWAP)
+    assert run.returncode == 1 and "Connection refused" in run.stderr
+    assert run.stderr.count("\n") == 1
