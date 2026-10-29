@@ -21,10 +21,12 @@ x-catena:
     minio:
       rule: {kind: pattern, tag_pattern: 'RELEASE\.(\d{4})-(\d{2})-(\d{2})T(\d{2})-(\d{2})-(\d{2})Z', flat: true}
   # verify asks the API for the instance record, which reads the database, and, with the bundled object
-  # store wired, asks that store whether it is alive.
+  # store wired, asks that store whether it is alive. The API starts listening some time after its container,
+  # so each ask is repeated every 4 seconds while the port refuses or the answer is 502/503, until 150
+  # seconds after the hook started; the last answer is then judged.
   hooks:
     service: api
-    timeout_seconds: 60
+    timeout_seconds: 180
     verify:
       - - python3
         - -c
@@ -32,14 +34,23 @@ x-catena:
           import json
           import os
           import sys
+          import time
           import urllib.request
 
+          end = time.monotonic() + 150
+
+          def starting(e):
+              return isinstance(getattr(e, "reason", None), ConnectionRefusedError) or getattr(e, "code", 0) in (502, 503)
+
           def get(url):
-              try:
-                  with urllib.request.urlopen(url, timeout=15) as response:
-                      return response.status, response.read().decode()
-              except Exception as e:
-                  sys.exit("Plane does not answer " + url + ": " + str(e))
+              while True:
+                  try:
+                      with urllib.request.urlopen(url, timeout=15) as response:
+                          return response.status, response.read().decode()
+                  except Exception as e:
+                      if not starting(e) or time.monotonic() >= end:
+                          sys.exit("Plane does not answer " + url + ": " + str(e))
+                  time.sleep(4)
 
           status, body = get("http://127.0.0.1:8000/api/instances/")
           try:
