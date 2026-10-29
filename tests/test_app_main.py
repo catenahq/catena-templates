@@ -268,6 +268,14 @@ def test_app_dispatch_leaves_main_to_app_main_and_takes_the_commits():
     assert _step("app-dispatch.yml", "dispatch", "The apps the push")["env"]["COMMITS"] == "${{ inputs.commits }}"
 
 
+def test_app_dispatch_sends_a_branch_s_pushes_one_at_a_time_and_each_send_of_main_on_its_own():
+    conc = _doc("app-dispatch.yml")["jobs"]["dispatch"]["concurrency"]
+    assert conc["cancel-in-progress"] is True
+    assert " ".join(conc["group"].split()) == (
+        "app-dispatch:${{ github.repository }}:${{ github.ref_name == github.event.repository.default_branch "
+        "&& format(':{0}', github.run_id) || github.ref_name }}")
+
+
 # the image scan
 
 def _scan(scratch, base):

@@ -386,10 +386,14 @@ private runner this repository cannot reach):
   the private ops repository the event `app-test` with the commit, the commit
   the change is judged from, the apps the change touches, the branch and the
   name of the repository the event comes from (`catena-templates` here; another
-  repository calls this workflow too). On `main`, each commit of the push is sent on its own, judged from its parent. A
+  repository calls this workflow too). On `main`, each commit of the push is sent on its own, judged from its parent,
+  except a commit that changes no app or whose app `main` has changed again since. A
   branch other than `main` is judged as a whole, from where it left `main`, and
-  is sent only when it changes one app or none. The repository variable
+  is sent only when it changes one app or none; a newer push cancels the send of
+  an older one still running, so ops gets the branch's commits in order. The repository variable
   `APP_CI_PAUSED=true` stops it.
+- ops keeps one run per branch, and on `main` one per app: a newer commit's run
+  cancels the older one, queued or running.
 - A commit of one app whose change already has an `app-tests` verdict carries
   it: the event holds `carry` (the address of the ops run) and `carry_state`,
   and ops posts that verdict on the commit without a run. The dispatch looks

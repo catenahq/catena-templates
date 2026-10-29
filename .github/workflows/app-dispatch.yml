@@ -8,9 +8,13 @@ name: app-dispatch
 # trigger covers every branch but main; app-main calls this workflow for main
 # with the commits whose app-ci passed. On the default branch each commit of the
 # push is sent on its own, judged from its parent, so a run holds the one app its
-# commit changes. Any other branch is sent as a whole, judged from where it left
+# commit changes; a commit that changes no app, or whose apps the default branch
+# has changed again since, is not sent, since no tag would follow its verdict.
+# Any other branch is sent as a whole, judged from where it left
 # the default branch, and only when it changes one app or none: a branch that
-# changes more fails here and is not sent. Setting the repository variable
+# changes more fails here and is not sent. The sends of one such branch run one
+# at a time and a newer push cancels an older send still running, so ops gets a
+# branch's commits in the order they were pushed. Setting the repository variable
 # APP_CI_PAUSED to `true` stops the dispatch; no status is then posted and the
 # required `app-tests` check stays pending.
 #
@@ -85,6 +89,12 @@ jobs:
       !github.event.deleted &&
       vars.APP_CI_PAUSED != 'true'
     runs-on: ${{ inputs.runner || 'ubuntu-latest' }}
+    # A ref holds no ':'. A send of the default branch has a group of its own run.
+    concurrency:
+      group: >-
+        app-dispatch:${{ github.repository }}:${{ github.ref_name == github.event.repository.default_branch
+        && format(':{0}', github.run_id) || github.ref_name }}
+      cancel-in-progress: true
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
@@ -135,6 +145,16 @@ jobs:
             for commit in $list; do
               parent="$(git rev-parse "$commit^")"
               ids="$(apps "$parent" "$commit")"
+              # Sent while the default branch's last change of one of its apps is this commit.
+              current=""
+              for id in ${ids//,/ }; do
+                last="$(uv run "$TOOLS/build/versions.py" last-change "$id" --ref "origin/$DEFAULT_BRANCH")"
+                if [ "$last" = "$commit" ]; then current=yes; fi
+              done
+              if [ -z "$current" ]; then
+                echo "$commit: not sent, ${ids:+$ids changed again on $DEFAULT_BRANCH}${ids:-it changes no app}"
+                continue
+              fi
               echo "$commit $parent $ids" >> "$RUNNER_TEMP/dispatches.txt"
             done
           else
