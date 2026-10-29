@@ -321,8 +321,12 @@ Then one job per app the change touches (`blueprints/<id>/**` or
 `sources/<id>.json`), each running:
 
 - `docker stack config` on the app's compose file.
-- scanctl on the app's images: any vulnerability at high or above that has a
-  fixed version fails, introduced by the change or not.
+- scanctl on the app's images, judged from the change's base (the pull
+  request's base, or the commit's parent on `main`): a vulnerability at high or
+  above that has a fixed version, or a secret in an image, fails when the change
+  adds it, as in the security scan of a pull request; the ones already there do
+  not fail the step and are counted among the job summary's advisory findings.
+  A change that leaves the compose file as it is scans no image.
 - Provenance (`lib/provenance.py`): each image's `org.opencontainers.image.source`
   repository on GitHub is at least a year old and has three releases (the
   GitHub API, with the run's `GITHUB_TOKEN`). An image on Docker Hub passes on

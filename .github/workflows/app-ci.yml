@@ -10,8 +10,9 @@ name: app-ci
 #
 # A pull request is judged on what it introduces. `repo` runs its checks
 # through contracts' new-failures-only action, which fails only when the base
-# commit passes them; `scope` reads the change against its base; the per-app
-# jobs check each changed app absolutely, the image scan included.
+# commit passes them; `scope` reads the change against its base; the image scan
+# judges the change against its base too; the other per-app checks judge the app
+# as it is.
 #
 # app-main calls this workflow once per commit of a push to main, with `sha`
 # (the commit checked) and `base` (the commit it is judged from, its parent).
@@ -242,10 +243,13 @@ jobs:
         with:
           go-version: stable
       - name: scanctl on the app's images
-        # Only trivy runs, over the one compose file's images. GITHUB_ACTIONS
-        # is unset for the run so scanctl grades no change: every image
-        # vulnerability at or above high that has a fix fails, whether or not
-        # this pull request introduced it. security.yml grades the change.
+        # Only trivy runs, over the one compose file's images. The change is
+        # judged from its base (-baseline-ref): a vulnerability at or above high
+        # with a fix, or a secret in an image, fails only when the change adds it,
+        # as in security.yml's pull request scan; the ones already there do not
+        # fail the step and are counted among the summary's advisory findings.
+        env:
+          BASE_SHA: ${{ inputs.base || github.event.pull_request.base.sha }}
         run: |
           set -euo pipefail
           go install github.com/catenahq/scanctl/cmd/scanctl@latest
@@ -266,8 +270,9 @@ jobs:
             - file: blueprints/$APP/docker-compose.yml
               pattern: '(?m)^\s*image:\s*["'']?([^"''\s#]+)'
           EOF
-          env -u GITHUB_ACTIONS "$(go env GOPATH)/bin/scanctl" run \
+          "$(go env GOPATH)/bin/scanctl" run \
             -config "$RUNNER_TEMP/scanctl-app.yml" \
+            -baseline-ref "$BASE_SHA" \
             -out "$RUNNER_TEMP/scanctl.sarif" \
             -summary "$RUNNER_TEMP/scanctl-summary.md" .
       - name: Scan summary

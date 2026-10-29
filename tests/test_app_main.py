@@ -252,7 +252,7 @@ def test_app_ci_groups_runs_by_the_checked_commit_and_checks_it_out():
     for job in ("repo", "scope", "plan", "app"):
         checkout = doc["jobs"][job]["steps"][0]
         assert checkout["with"]["ref"] == "${{ inputs.sha }}", job
-    for job, step in (("scope", "The change"), ("plan", "Apps the change")):
+    for job, step in (("scope", "The change"), ("plan", "Apps the change"), ("app", "scanctl on the app")):
         assert _step("app-ci.yml", job, step)["env"]["BASE_SHA"] == (
             "${{ inputs.base || github.event.pull_request.base.sha }}")
     for job in ("repo",):
@@ -266,6 +266,34 @@ def test_app_dispatch_leaves_main_to_app_main_and_takes_the_commits():
     assert doc[True]["push"] == {"branches-ignore": ["main"]}
     assert doc[True]["workflow_call"]["inputs"]["commits"]["default"] == ""
     assert _step("app-dispatch.yml", "dispatch", "The apps the push")["env"]["COMMITS"] == "${{ inputs.commits }}"
+
+
+# the image scan
+
+def _scan(scratch, base):
+    run, _, _, runner = scratch
+    gopath = runner.parent / "go"
+    (gopath / "bin").mkdir(parents=True, exist_ok=True)
+    scanctl = gopath / "bin" / "scanctl"
+    scanctl.write_text('#!/bin/bash\nprintf "%s\\n" "$*" > "$RUNNER_TEMP/args.txt"\n'
+                       'printf "%s" "${GITHUB_ACTIONS-unset}" > "$RUNNER_TEMP/actions.txt"\n')
+    scanctl.chmod(0o755)
+    go = runner.parent / "bin" / "go"
+    go.write_text('#!/bin/bash\n[ "$1 $2" = "env GOPATH" ] && echo "' + str(gopath) + '"\nexit 0\n')
+    go.chmod(0o755)
+    step = _step("app-ci.yml", "app", "scanctl on the app")
+    done, _ = run(step["run"], APP="web", BASE_SHA=base, GITHUB_ACTIONS="true")
+    assert done.returncode == 0, done.stderr
+    return ((runner / "args.txt").read_text(), (runner / "actions.txt").read_text(),
+            (runner / "scanctl-app.yml").read_text())
+
+
+def test_the_image_scan_is_judged_from_the_changes_base_over_the_apps_compose(scratch):
+    args, actions, config = _scan(scratch, "b" * 40)
+    assert f"-baseline-ref {'b' * 40}" in args
+    assert "-config" in args and "-summary" in args
+    assert "file: blueprints/web/docker-compose.yml" in config
+    assert actions == "true"
 
 
 # own images in the provenance step
