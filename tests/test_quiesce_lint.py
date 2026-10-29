@@ -615,6 +615,24 @@ def test_a_hooks_script_that_parses_passes(monkeypatch, tmp_path, capsys):
     assert L.lint_all() == 0, capsys.readouterr().out
 
 
+@pytest.mark.parametrize("argv", [
+    ["/usr/bin/coolwsd", "--probe", "--use-env-vars"],
+    ["/app/arcane", "health", "--timeout", "10s"],
+    ["/windshift", "healthcheck"],
+])
+def test_the_health_command_of_a_shell_less_image_is_allowed(monkeypatch, tmp_path, capsys, argv):
+    _synthetic_sources(monkeypatch, tmp_path, {}, block={"hooks": {"service": "app", "verify": [argv]}})
+    assert L.lint_all() == 0, capsys.readouterr().out
+
+
+def test_a_path_command_outside_the_allowlist_is_refused(monkeypatch, tmp_path, capsys):
+    _synthetic_sources(monkeypatch, tmp_path, {}, block={"hooks": {
+        "service": "app", "verify": [["/usr/bin/curl", "https://evil.example.com"]]}})
+    assert L.lint_all() == 1
+    assert ("synthetic-bad.hooks.verify[0]: starts with non-allowlisted command '/usr/bin/curl'"
+            ) in capsys.readouterr().out
+
+
 def _managed(expr: str, **block) -> dict:
     return {"env": {"DOMAIN_HOST": {"setting": {"default": "x.example.com"}},
                     "TURN_SECRET": {"managed": {"expr": expr}}}, **block}

@@ -101,9 +101,12 @@ ALLOWED_READY_COMMANDS = ALLOWED_MIGRATE_COMMANDS | {"bash"}
 # The placeholders an object-store switch command can carry.
 SWITCH_PLACEHOLDERS = frozenset({"{old_bucket}", "{new_bucket}"})
 
-# The commands a hooks body may start with: the lifecycle commands and the
-# interpreters of an inline script.
-ALLOWED_HOOK_COMMANDS = ALLOWED_MIGRATE_COMMANDS | {"sh", "bash", "python", "python3"}
+# The commands a hooks body may start with: the lifecycle commands, the
+# interpreters of an inline script, and the health command of a shell-less
+# image (Collabora Online, Arcane, Windshift): each is the app's own binary and
+# asks only its own running server.
+ALLOWED_HOOK_COMMANDS = ALLOWED_MIGRATE_COMMANDS | {
+    "sh", "bash", "python", "python3", "/usr/bin/coolwsd", "/app/arcane", "/windshift"}
 
 # The argv lists a hooks block can carry.
 HOOK_LISTS = ("configure", "verify", "users", "scan", "reconcile")
