@@ -13,19 +13,26 @@ x-catena:
     db:
       rule: {kind: partial_line}
   # verify asks the running Rails server for /api, which reports the version and answers for Redis
-  # and Postgres. X-Forwarded-Proto keeps FORCE_SSL from redirecting the loopback request.
+  # and Postgres. X-Forwarded-Proto keeps FORCE_SSL from redirecting the loopback request. The server
+  # listens only once the database is prepared, so the ask is repeated every 4 seconds while the port
+  # refuses, until 150 seconds after the hook started; the last answer is then judged.
   hooks:
     service: rails
-    timeout_seconds: 60
+    timeout_seconds: 180
     verify:
       - - sh
         - -c
         - |
           ruby -rnet/http -rjson -e '
+            stop = Process.clock_gettime(Process::CLOCK_MONOTONIC) + 150
             begin
               res = Net::HTTP.start("127.0.0.1", 3000, open_timeout: 10, read_timeout: 20) do |http|
                 http.request(Net::HTTP::Get.new("/api", "X-Forwarded-Proto" => "https"))
               end
+            rescue Errno::ECONNREFUSED => e
+              abort "Chatwoot does not answer on 3000: #{e.message}" if Process.clock_gettime(Process::CLOCK_MONOTONIC) >= stop
+              sleep 4
+              retry
             rescue SystemCallError, Timeout::Error, SocketError => e
               abort "Chatwoot does not answer on 3000: #{e.message}"
             end
@@ -49,7 +56,14 @@ services:
         constraints:
           - node.labels.catena.role==data
     entrypoint: docker/entrypoints/rails.sh
-    command: ["bundle", "exec", "rails", "s", "-p", "3000", "-b", "0.0.0.0"]
+    # db:chatwoot_prepare loads the schema into an empty database, else runs the pending migrations.
+    command:
+      - sh
+      - -c
+      - |
+        set -e
+        bundle exec rails db:chatwoot_prepare
+        exec bundle exec rails s -p 3000 -b 0.0.0.0
     environment:
       RAILS_ENV: production
       NODE_ENV: production

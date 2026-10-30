@@ -40,8 +40,14 @@ def test_the_hook_runs_in_a_service_of_the_stack():
     assert hooks["service"] == "rails"
     assert hooks["service"] in _compose()["services"]
     assert set(hooks) - {"service", "user", "timeout_seconds"} == {"verify"}
-    assert hooks["timeout_seconds"] <= 60
+    assert hooks["timeout_seconds"] <= 180
     assert quiesce_lint.lint_hooks(_entry()) == []
+
+
+def test_the_server_starts_once_the_database_is_prepared():
+    script = _compose()["services"]["rails"]["command"][-1]
+    assert script.index("rails db:chatwoot_prepare") < script.index("exec bundle exec rails s")
+    assert script.startswith("set -e")
 
 
 class _Stub(http.server.BaseHTTPRequestHandler):
@@ -87,7 +93,7 @@ def test_the_script_parses_in_sh():
 
 def test_the_hook_asks_the_port_the_server_listens_on_and_sends_the_proto_header():
     rails = _compose()["services"]["rails"]
-    assert "3000" in rails["command"]
+    assert "-p 3000" in rails["command"][-1]
     assert "vps.route.port=3000" in rails["labels"]
     assert "X-Forwarded-Proto" in _verify()[-1]
     assert rails["environment"]["FORCE_SSL"] == "true"
@@ -105,10 +111,39 @@ def test_verify_passes_when_rails_reports_redis_and_postgres_ok():
 
 
 @needs_ruby
+def test_verify_asks_again_while_the_port_refuses():
+    _Stub.routes, _Stub.seen = {"/api": (200, OK)}, []
+    server = http.server.HTTPServer(("127.0.0.1", 0), _Stub, bind_and_activate=False)
+    server.server_bind()
+
+    started = threading.Event()
+
+    def listen_late():
+        server.server_activate()
+        started.set()
+        server.serve_forever()
+
+    timer = threading.Timer(2.0, listen_late)
+    timer.daemon = True
+    timer.start()
+    try:
+        argv = _verify()
+        script = argv[-1].replace("$$", "$").replace('"127.0.0.1", 3000', f'"127.0.0.1", {server.server_port}')
+        run = subprocess.run([*argv[:-1], script], capture_output=True, text=True, timeout=60)
+    finally:
+        timer.cancel()
+        if started.is_set():
+            server.shutdown()
+        server.server_close()
+    assert run.returncode == 0, run.stderr
+    assert "Chatwoot 4.17.1 answers" in run.stdout
+
+
+@needs_ruby
 def test_verify_fails_for_a_failing_backend_a_redirect_or_no_answer():
     run, _ = _run({"/api": (200, OK.replace(b'"data_services":"ok"', b'"data_services":"failing"'))}, swap=SWAP)
     assert run.returncode == 1 and "Postgres failing" in run.stderr
     run, _ = _run({"/api": (301, b"")}, swap=SWAP)
     assert run.returncode == 1 and "answered 301" in run.stderr
-    run, _ = _run({}, answer=False, swap=SWAP)
+    run, _ = _run({}, answer=False, swap=[*SWAP, ("+ 150", "+ 1")])
     assert run.returncode == 1 and "does not answer on 3000" in run.stderr
