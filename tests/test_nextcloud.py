@@ -591,7 +591,7 @@ def _mail(nc) -> dict:
 def test_the_block_offers_the_user_level_and_needs_the_release_that_reads_it():
     entry = _entry()
     assert entry.block["access"] == {"user": {"label": {"en": "Nextcloud", "fr": "Nextcloud"}}}
-    assert entry.requires_catena == "0.11.10"
+    assert entry.requires_catena == "0.11.11"
     assert quiesce_lint.lint_block(entry) == []
 
 
@@ -1095,3 +1095,11 @@ def test_the_talk_backend_mints_a_secret_when_there_is_no_relay(tmp_path):
         secrets.add(run.stdout.splitlines()[0])
     assert len(secrets) == 2
     assert all(len(s) > len("secret=") + 32 for s in secrets)
+
+
+def test_the_bucket_settings_are_first_start_only_and_the_keys_are_not():
+    env = _entry().block["env"]
+    for key in ("S3_BUCKET", "S3_HOST", "S3_PORT", "S3_SSL", "S3_REGION"):
+        assert env[key]["setting"]["first_start_only"] is True, key
+    for key in ("S3_ACCESS_KEY", "S3_SECRET_KEY"):
+        assert "first_start_only" not in env[key]["setting"], key

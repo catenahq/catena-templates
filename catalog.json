@@ -109,22 +109,26 @@
         },
         "S3_BUCKET": {
           "setting": {
-            "default": ""
+            "default": "",
+            "first_start_only": true
           }
         },
         "S3_HOST": {
           "setting": {
-            "default": "s3.bhs.io.cloud.ovh.net"
+            "default": "s3.bhs.io.cloud.ovh.net",
+            "first_start_only": true
           }
         },
         "S3_PORT": {
           "setting": {
-            "default": "443"
+            "default": "443",
+            "first_start_only": true
           }
         },
         "S3_REGION": {
           "setting": {
-            "default": "bhs"
+            "default": "bhs",
+            "first_start_only": true
           }
         },
         "S3_SECRET_KEY": {
@@ -134,7 +138,8 @@
         },
         "S3_SSL": {
           "setting": {
-            "default": "true"
+            "default": "true",
+            "first_start_only": true
           }
         },
         "SIGNALING_HOSTNAME": {
@@ -354,7 +359,7 @@
         "timeout_seconds": 60,
         "user": "www-data"
       },
-      "requires_catena": "0.11.10",
+      "requires_catena": "0.11.11",
       "sizing": {
         "disk_baseline_mb": 320,
         "idle_cpu_pct": 2,
