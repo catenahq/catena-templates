@@ -109,26 +109,22 @@
         },
         "S3_BUCKET": {
           "setting": {
-            "default": "",
-            "first_start_only": true
+            "default": ""
           }
         },
         "S3_HOST": {
           "setting": {
-            "default": "s3.bhs.io.cloud.ovh.net",
-            "first_start_only": true
+            "default": "s3.bhs.io.cloud.ovh.net"
           }
         },
         "S3_PORT": {
           "setting": {
-            "default": "443",
-            "first_start_only": true
+            "default": "443"
           }
         },
         "S3_REGION": {
           "setting": {
-            "default": "bhs",
-            "first_start_only": true
+            "default": "bhs"
           }
         },
         "S3_SECRET_KEY": {
@@ -138,8 +134,7 @@
         },
         "S3_SSL": {
           "setting": {
-            "default": "true",
-            "first_start_only": true
+            "default": "true"
           }
         },
         "SIGNALING_HOSTNAME": {
