@@ -951,7 +951,7 @@
       },
       "hostname_baked": true,
       "id": "element",
-      "requires_catena": "0.11.0",
+      "requires_catena": "0.11.3",
       "sizing": {
         "disk_baseline_mb": null,
         "idle_cpu_pct": null,

@@ -11,7 +11,7 @@
   "x-catena": {
     "app_name": "catena-element",
     "upstream_url": "https://element.io/",
-    "requires_catena": "0.11.0",
+    "requires_catena": "0.11.3",
     "sso_mode": "pre-wired",
     "domain": {
       "host": "element.{{ cloudflare_zone }}",
