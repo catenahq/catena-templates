@@ -19,7 +19,9 @@ name: app-ci
 # app-main calls this workflow once per commit of a push to main, with `sha`
 # (the commit checked) and `base` (the commit it is judged from, its parent).
 # A merge commit of main passes `scope` there, its sides being checked on their
-# own; a pull request's merge commit is judged as usual.
+# own; a pull request's merge commit is judged as usual. With `apps` set, app-main
+# has judged that each app's last change is one app's: `scope` passes and `plan`
+# lists those apps (the ones main still has) instead of the ones the diff touches.
 #
 # Another repository with the same layout calls this workflow with
 # `catalog: false`. Its tools then come from a checkout of catena-templates at
@@ -58,6 +60,10 @@ on:
         description: the commit it is judged from; empty - the pull request's base
         type: string
         default: ''
+      apps:
+        description: comma-separated app ids to check instead of the apps the change touches; empty - the apps the change touches
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -66,7 +72,7 @@ permissions:
 # run it supersedes; a call for one commit is a group of its own. The prefix
 # keeps the group apart from that of a calling workflow in another repository.
 concurrency:
-  group: catena-templates-${{ github.workflow }}-${{ github.event_name }}-${{ inputs.sha || github.ref }}
+  group: catena-templates-${{ github.workflow }}-${{ github.event_name }}-${{ inputs.sha || github.ref }}${{ inputs.apps && format('-{0}', inputs.apps) || '' }}
   cancel-in-progress: true
 
 env:
@@ -148,8 +154,13 @@ jobs:
         env:
           BASE_SHA: ${{ inputs.base }}
           CHECKED_SHA: ${{ inputs.sha }}
+          APPS: ${{ inputs.apps }}
         run: |
           set -euo pipefail
+          if [ -n "$APPS" ]; then
+            echo "app-main checked that the last change of each of $APPS is one app's"
+            exit 0
+          fi
           # A merge commit of main brings in the commits of its second side, each
           # checked on its own: the first-parent diff would hold all of them.
           if [ -n "$CHECKED_SHA" ] && [ "$(git rev-list --parents -n 1 HEAD | wc -w)" -gt 2 ]; then
@@ -182,10 +193,17 @@ jobs:
         id: changed
         env:
           BASE_SHA: ${{ inputs.base }}
+          APPS: ${{ inputs.apps }}
         run: |
           set -euo pipefail
-          git diff --name-only "${BASE_SHA:-$(git rev-parse HEAD^1)}" HEAD > "$RUNNER_TEMP/paths.txt"
-          uv run "$TOOLS/build/app_check.py" changed < "$RUNNER_TEMP/paths.txt" > "$RUNNER_TEMP/ids.txt"
+          if [ -n "$APPS" ]; then
+            slugs_re='^[a-z0-9][a-z0-9-]*(,[a-z0-9][a-z0-9-]*)*$'
+            [[ "$APPS" =~ $slugs_re ]] || { echo "::error::apps are comma-separated plain app ids"; exit 1; }
+            echo "${APPS//,/ }" > "$RUNNER_TEMP/ids.txt"
+          else
+            git diff --name-only "${BASE_SHA:-$(git rev-parse HEAD^1)}" HEAD > "$RUNNER_TEMP/paths.txt"
+            uv run "$TOOLS/build/app_check.py" changed < "$RUNNER_TEMP/paths.txt" > "$RUNNER_TEMP/ids.txt"
+          fi
           apps=()
           for id in $(cat "$RUNNER_TEMP/ids.txt"); do
             # An app the change deletes has nothing left to check.

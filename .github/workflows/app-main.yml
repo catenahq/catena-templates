@@ -10,6 +10,12 @@ name: app-main
 # and app-tag tags an app only when its last change on main holds an `app-ci`
 # success.
 #
+# An admin starts this workflow by hand with `apps` (comma-separated app ids):
+# `list` then names the last change of each app on main, `checks` judges each
+# with the checks of the head of main (the app's files at the head are those of
+# its last change) from the last change's parent, and `verdict` and `dispatch`
+# post and send as for a push.
+#
 # This workflow serves catena-templates alone; other repositories call app-ci,
 # app-dispatch and app-tag directly. The commits of a push are all processed:
 # no concurrency group cancels a run.
@@ -17,6 +23,12 @@ name: app-main
 on:
   push:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      apps:
+        description: comma-separated app ids whose last change on main is judged again
+        type: string
+        required: true
 
 permissions:
   contents: read
@@ -24,6 +36,8 @@ permissions:
 jobs:
   list:
     runs-on: ubuntu-latest
+    env:
+      TOOLS: .
     outputs:
       commits: ${{ steps.commits.outputs.commits }}
       shas: ${{ steps.commits.outputs.shas }}
@@ -32,35 +46,75 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      - name: The commits of the push
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+      - name: The commits of the push, or the last changes of the named apps
         id: commits
         env:
           SHA: ${{ github.sha }}
           BEFORE: ${{ github.event.before }}
+          EVENT: ${{ github.event_name }}
+          APPS: ${{ inputs.apps }}
+          REF: ${{ github.ref }}
         run: |
           set -euo pipefail
-          # After a force push the old head is no branch's tip: fetch it by its id.
-          if [ -n "${BEFORE//0/}" ] && ! git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
-            git fetch -q --no-tags origin "$BEFORE" 2>/dev/null || true
-          fi
-          # A new branch, or a before the checkout still lacks: the head alone.
-          if [ -z "${BEFORE//0/}" ] || ! git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
-            list="$SHA"
+          json="["
+          sep=""
+          if [ "$EVENT" = workflow_dispatch ]; then
+            # Each named app's last change is judged again, with the checks of the head.
+            if [ "$REF" != refs/heads/main ]; then
+              echo "::error::the last changes are judged again on main only, not on $REF"
+              exit 1
+            fi
+            slugs_re='^[a-z0-9][a-z0-9-]*(,[a-z0-9][a-z0-9-]*)*$'
+            if ! [[ "$APPS" =~ $slugs_re ]]; then
+              echo "::error::apps are comma-separated plain app ids"
+              exit 1
+            fi
+            head="$(git rev-parse HEAD)"
+            list=""
+            seen=","
+            for app in ${APPS//,/ }; do
+              case "$seen" in *",$app,"*) continue ;; esac
+              seen="$seen$app,"
+              if [ ! -f "blueprints/$app/docker-compose.yml" ]; then
+                echo "::error::$app is not an app of main"
+                exit 1
+              fi
+              last="$(uv run "$TOOLS/build/versions.py" last-change "$app" --ref HEAD)"
+              if [ -z "$last" ] || ! parent="$(git rev-parse -q --verify "$last^")"; then
+                echo "::error::$app has no last change with a parent to judge it from"
+                exit 1
+              fi
+              if ! git diff --name-only "$parent" "$last" | uv run "$TOOLS/build/versions.py" scope; then
+                echo "::error::the last change of $app ($last) touches more than one app and is not judged again"
+                exit 1
+              fi
+              json="$json$sep{\"sha\":\"$last\",\"parent\":\"$parent\",\"check\":\"$head\",\"apps\":\"$app\"}"
+              sep=","
+              list="$list${list:+ }$last"
+            done
           else
-            list="$(git rev-list --reverse --first-parent "$BEFORE..$SHA")"
+            # After a force push the old head is no branch's tip: fetch it by its id.
+            if [ -n "${BEFORE//0/}" ] && ! git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+              git fetch -q --no-tags origin "$BEFORE" 2>/dev/null || true
+            fi
+            # A new branch, or a before the checkout still lacks: the head alone.
+            if [ -z "${BEFORE//0/}" ] || ! git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+              list="$SHA"
+            else
+              list="$(git rev-list --reverse --first-parent "$BEFORE..$SHA")"
+            fi
+            for commit in $list; do
+              parent="$(git rev-parse "$commit^")"
+              json="$json$sep{\"sha\":\"$commit\",\"parent\":\"$parent\",\"check\":\"$commit\",\"apps\":\"\"}"
+              sep=","
+            done
           fi
           count="$(wc -w <<< "$list")"
           if [ "$count" -gt 256 ]; then
             echo "::error::the push holds $count commits; a matrix runs at most 256"
             exit 1
           fi
-          json="["
-          sep=""
-          for commit in $list; do
-            parent="$(git rev-parse "$commit^")"
-            json="$json$sep{\"sha\":\"$commit\",\"parent\":\"$parent\"}"
-            sep=","
-          done
           echo "commits=$json]" >> "$GITHUB_OUTPUT"
           echo "shas=${list//$'\n'/ }" >> "$GITHUB_OUTPUT"
 
@@ -74,8 +128,9 @@ jobs:
         commit: ${{ fromJSON(needs.list.outputs.commits) }}
     uses: ./.github/workflows/app-ci.yml
     with:
-      sha: ${{ matrix.commit.sha }}
+      sha: ${{ matrix.commit.check }}
       base: ${{ matrix.commit.parent }}
+      apps: ${{ matrix.commit.apps }}
     permissions:
       contents: read
 

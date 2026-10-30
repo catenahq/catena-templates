@@ -83,7 +83,12 @@ def scratch(tmp_path):
 
 def _list(scratch, before, sha):
     run, *_ = scratch
-    return run(_step("app-main.yml", "list", "The commits")["run"], BEFORE=before, SHA=sha)
+    return run(_step("app-main.yml", "list", "The commits")["run"], BEFORE=before, SHA=sha,
+               EVENT="push", APPS="", REF="refs/heads/main")
+
+
+def _entry(sha, parent, check=None, apps=""):
+    return f'{{"sha":"{sha}","parent":"{parent}","check":"{check or sha}","apps":"{apps}"}}'
 
 
 def test_list_names_the_first_parent_commits_oldest_first_with_their_parents(scratch):
@@ -99,8 +104,7 @@ def test_list_names_the_first_parent_commits_oldest_first_with_their_parents(scr
     done, out = _list(scratch, root, head)
     assert done.returncode == 0, done.stderr
     assert out["shas"].split() == [one, two, head]
-    assert out["commits"] == (f'[{{"sha":"{one}","parent":"{root}"}},{{"sha":"{two}","parent":"{one}"}},'
-                              f'{{"sha":"{head}","parent":"{two}"}}]')
+    assert out["commits"] == f"[{_entry(one, root)},{_entry(two, one)},{_entry(head, two)}]"
 
 
 @pytest.mark.parametrize("before", ["0" * 40, "f" * 40])
@@ -111,7 +115,7 @@ def test_list_takes_the_head_alone_when_the_before_is_zero_or_unknown(scratch, b
     done, out = _list(scratch, before, head)
     assert done.returncode == 0, done.stderr
     assert out["shas"] == head
-    assert out["commits"] == f'[{{"sha":"{head}","parent":"{parent}"}}]'
+    assert out["commits"] == f"[{_entry(head, parent)}]"
 
 
 def test_list_is_empty_when_the_push_adds_no_commit(scratch):
@@ -141,7 +145,7 @@ def test_list_fetches_a_before_a_force_push_left_unreachable(scratch, tmp_path):
     done, out = _list(scratch, old, two)
     assert done.returncode == 0, done.stderr
     assert out["shas"].split() == [one, two]
-    assert out["commits"].startswith(f'[{{"sha":"{one}","parent":"{root}"}}')
+    assert out["commits"].startswith(f"[{_entry(one, root)}")
 
 
 def test_list_fails_above_256_commits(scratch):
@@ -153,6 +157,93 @@ def test_list_fails_above_256_commits(scratch):
     assert done.returncode == 1
     assert "at most 256" in done.stdout
     assert "commits" not in out
+
+
+# list, by hand with named apps
+
+def _again(scratch, apps, ref="refs/heads/main"):
+    run, git, *_ = scratch
+    return run(_step("app-main.yml", "list", "The commits")["run"], BEFORE="", SHA=git("rev-parse", "HEAD"),
+               EVENT="workflow_dispatch", APPS=apps, REF=ref)
+
+
+def _app_files(app):
+    return (f"blueprints/{app}/docker-compose.yml", f"sources/{app}.json")
+
+
+def _two_apps(scratch):
+    """root, web, api, notes. Returns (root, web, api, head)."""
+    _, _, commit, _ = scratch
+    root = commit("README.md")
+    web = commit(*_app_files("web"))
+    api = commit(*_app_files("api"))
+    return root, web, api, commit("notes.txt")
+
+
+@needs_uv
+def test_named_apps_are_judged_again_from_their_last_change_with_the_head_as_the_checked_commit(scratch):
+    root, web, api, head = _two_apps(scratch)
+    done, out = _again(scratch, "api,web")
+    assert done.returncode == 0, done.stderr
+    assert out["shas"].split() == [api, web]
+    assert out["commits"] == f"[{_entry(api, web, head, 'api')},{_entry(web, root, head, 'web')}]"
+
+
+@needs_uv
+def test_a_duplicate_app_is_judged_once(scratch):
+    _, web, _, head = _two_apps(scratch)
+    done, out = _again(scratch, "web,web")
+    assert done.returncode == 0, done.stderr
+    assert out["shas"] == web
+    assert out["commits"].count('"apps"') == 1
+
+
+@needs_uv
+def test_an_app_main_does_not_hold_is_refused(scratch):
+    _two_apps(scratch)
+    done, out = _again(scratch, "web,ghost")
+    assert done.returncode == 1
+    assert "ghost is not an app of main" in done.stdout
+    assert "commits" not in out
+
+
+@needs_uv
+@pytest.mark.parametrize("apps", ["Web", "web,,api", "web,", ",web", "web;ls", "-web", "web api", ""])
+def test_apps_that_are_not_plain_slugs_are_refused(scratch, apps):
+    _two_apps(scratch)
+    done, out = _again(scratch, apps)
+    assert done.returncode == 1
+    assert "plain app ids" in done.stdout
+    assert "commits" not in out
+
+
+@needs_uv
+def test_a_ref_other_than_main_is_refused(scratch):
+    _two_apps(scratch)
+    done, out = _again(scratch, "web", ref="refs/heads/side")
+    assert done.returncode == 1
+    assert "main only" in done.stdout
+    assert "commits" not in out
+
+
+@needs_uv
+def test_an_app_whose_last_change_touches_two_apps_is_refused(scratch):
+    _, _, commit, _ = scratch
+    commit("README.md")
+    commit(*_app_files("web"), *_app_files("api"))
+    done, out = _again(scratch, "web")
+    assert done.returncode == 1
+    assert "more than one app" in done.stdout
+    assert "commits" not in out
+
+
+@needs_uv
+def test_an_app_whose_last_change_is_the_first_commit_is_refused(scratch):
+    _, _, commit, _ = scratch
+    commit(*_app_files("web"))
+    done, out = _again(scratch, "web")
+    assert done.returncode == 1
+    assert "no last change with a parent" in done.stdout
 
 
 # verdict
@@ -248,7 +339,8 @@ def test_checks_is_a_matrix_of_local_calls_that_do_not_cancel_each_other():
     checks = _app_main()["jobs"]["checks"]
     assert checks["strategy"]["fail-fast"] is False
     assert checks["uses"] == "./.github/workflows/app-ci.yml"
-    assert checks["with"] == {"sha": "${{ matrix.commit.sha }}", "base": "${{ matrix.commit.parent }}"}
+    assert checks["with"] == {"sha": "${{ matrix.commit.check }}", "base": "${{ matrix.commit.parent }}",
+                              "apps": "${{ matrix.commit.apps }}"}
     assert checks["permissions"] == {"contents": "read"}
     assert checks["name"] == "app-ci ${{ matrix.commit.sha }}"
 
@@ -264,7 +356,9 @@ def test_dispatch_passes_the_passed_commits_and_explicit_secrets():
 
 def test_app_main_runs_on_a_push_to_main_with_least_permissions_and_no_concurrency_group():
     doc = _app_main()
-    assert doc[True] == {"push": {"branches": ["main"]}}
+    assert doc[True] == {"push": {"branches": ["main"]}, "workflow_dispatch": {"inputs": {"apps": {
+        "description": "comma-separated app ids whose last change on main is judged again",
+        "type": "string", "required": True}}}}
     assert doc["permissions"] == {"contents": "read"}
     assert "concurrency" not in doc
     assert doc["jobs"]["verdict"]["permissions"] == {"actions": "read", "statuses": "write"}
@@ -399,7 +493,7 @@ def _merge_scene(scratch):
 
 def _scope(scratch, base, checked):
     run, *_ = scratch
-    return run(_step("app-ci.yml", "scope", "The change")["run"], BASE_SHA=base, CHECKED_SHA=checked)[0]
+    return run(_step("app-ci.yml", "scope", "The change")["run"], BASE_SHA=base, CHECKED_SHA=checked, APPS="")[0]
 
 
 @needs_uv
@@ -440,6 +534,62 @@ def test_a_single_parent_commit_of_two_apps_still_fails_scope_on_the_push_path(s
     base = git("rev-parse", "HEAD")
     head = commit("blueprints/x/docker-compose.yml", "blueprints/z/docker-compose.yml")
     assert _scope(scratch, base, head).returncode == 1
+
+
+# app-ci with named apps
+
+def test_app_ci_groups_a_re_judge_by_its_apps_too():
+    group = _doc("app-ci.yml")["concurrency"]["group"]
+    assert "inputs.sha || github.ref" in group and "inputs.apps" in group
+    assert _doc("app-ci.yml")[True]["workflow_call"]["inputs"]["apps"]["default"] == ""
+
+
+def _plan(scratch, apps):
+    run, _, _, runner = scratch
+    if shutil.which("jq") is None:
+        # The step's only jq use: non-empty lines to a compact JSON list.
+        jq = runner.parent / "bin" / "jq"
+        jq.write_text('#!/usr/bin/env python3\nimport json, sys\n'
+                      'print(json.dumps([l for l in sys.stdin.read().split("\\n") if l], separators=(",", ":")))\n')
+        jq.chmod(0o755)
+    return run(_step("app-ci.yml", "plan", "Apps the change")["run"], APPS=apps, BASE_SHA="")
+
+
+@needs_uv
+def test_the_plan_lists_the_named_apps_main_still_has(scratch):
+    _, _, commit, _ = scratch
+    commit("README.md", *_app_files("web"))
+    done, out = _plan(scratch, "web,ghost")
+    assert done.returncode == 0, done.stderr
+    assert out["apps"] == '["web"]'
+
+
+@needs_uv
+def test_the_plan_refuses_apps_that_are_not_plain_slugs(scratch):
+    _, _, commit, _ = scratch
+    commit("README.md")
+    done, out = _plan(scratch, "web,$(ls)")
+    assert done.returncode == 1
+    assert "apps" not in out
+
+
+@needs_uv
+def test_the_plan_reads_the_diff_when_no_apps_are_named(scratch):
+    _, _, commit, _ = scratch
+    commit("README.md")
+    commit(*_app_files("web"))
+    done, out = _plan(scratch, "")
+    assert done.returncode == 0, done.stderr
+    assert out["apps"] == '["web"]'
+
+
+def test_scope_passes_with_named_apps_whatever_the_diff_holds(scratch):
+    run, _, commit, _ = scratch
+    commit("README.md")
+    commit(*_app_files("web"), *_app_files("api"))
+    done, _ = run(_step("app-ci.yml", "scope", "The change")["run"], APPS="web", BASE_SHA="", CHECKED_SHA="")
+    assert done.returncode == 0, done.stderr
+    assert "checked that the last change" in done.stdout
 
 
 # the gate on a tag

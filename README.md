@@ -373,6 +373,15 @@ commit, then the bench verdict carries from the pull request's head. A commit
 whose message holds `[skip ci]` starts no run, gets no `app-ci` status and so
 tags nothing.
 
+An admin can run `app-main.yml` by hand with the apps
+(`gh workflow run app-main.yml -f apps=<a>,<b>`, on `main`). It judges each
+app's last change again with the checks of the head of `main`, from the
+change's parent: the app's files at the head are those of its last change, and
+the image scan still judges the change against its base. A pass posts the
+`app-ci` success on that last change and sends it to the bench, as a push does.
+A named app that `main` lacks, or whose last change touches more than one app,
+is refused.
+
 `app-ci.yml`, `build-and-verify.yml`, `app-dispatch.yml` and `app-tag.yml` are
 also reusable workflows (`workflow_call`) for another repository with this
 layout; `app-main.yml` serves this repository alone. Their inputs are `catalog`
@@ -463,7 +472,9 @@ No file holds a version string: versions are git tags. A tested app is tagged
   changed tags nothing. It also tags only when the commit that last changed the
   app on `main` (`build/versions.py last-change`) has an `app-ci` status of
   success posted by `github-actions[bot]` for a run of this repository;
-  otherwise the app is held with a warning until a later commit of it passes.
+  otherwise the app is held with a warning until a later commit of it passes or
+  an admin runs `app-main.yml` by hand with the app, which judges that commit
+  again (see above).
   An app whose newest tag was made by
   hand and holds the same files has that tag annotated where it stands. The
   tags are annotated `app-tests passed at <commit>: <run>` and written through
