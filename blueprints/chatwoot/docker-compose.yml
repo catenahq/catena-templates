@@ -11,7 +11,7 @@ x-catena:
       generated: {length: 32, alphabet: alnum}
   images:
     db:
-      rule: {kind: partial_line}
+      rule: {kind: pattern, tag_pattern: '(\d+)\.(\d+)\.(\d+)-pg18-trixie'}
   # verify asks the running Rails server for /api, which reports the version and answers for Redis
   # and Postgres. X-Forwarded-Proto keeps FORCE_SSL from redirecting the loopback request. The server
   # listens only once the database is prepared, so the ask is repeated every 4 seconds while the port
@@ -119,8 +119,9 @@ services:
     networks:
       - default
 
+  # Chatwoot's schema enables the vector extension, which the pgvector build of Postgres carries.
   db:
-    image: postgres:18.6-alpine
+    image: pgvector/pgvector:0.8.7-pg18-trixie
     deploy:
       restart_policy:
         condition: any
