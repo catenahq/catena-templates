@@ -11,7 +11,7 @@
   "x-catena": {
     "app_name": "catena-rocketchat",
     "upstream_url": "https://www.rocket.chat/",
-    "requires_catena": "0.11.0",
+    "requires_catena": "0.11.3",
     "sso_mode": "pre-wired",
     "domain": {
       "host": "chat.{{ cloudflare_zone }}",

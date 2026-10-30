@@ -741,7 +741,7 @@
         "service": "mongodb",
         "timeout_seconds": 60
       },
-      "requires_catena": "0.11.0",
+      "requires_catena": "0.11.3",
       "sizing": {
         "disk_baseline_mb": 180,
         "idle_cpu_pct": 3,
