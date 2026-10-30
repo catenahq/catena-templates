@@ -290,20 +290,51 @@ jobs:
         run: cat "$RUNNER_TEMP/scanctl-summary.md" >> "$GITHUB_STEP_SUMMARY" || true
       - name: ClamAV over each image's files
         # .clamav-allow.sfp joins the image's databases: the files it lists by
-        # exact content pass.
+        # exact content pass. The regular files of an image are dealt round robin
+        # to one clamscan per processor, each loading its own databases, so at
+        # most one per 2 GB of available memory. A device node (dev/null in some
+        # images) holds nothing to scan and needs root to be made: tar may fail
+        # on those alone.
         run: |
           set -euo pipefail
           allow="$(realpath "$TOOLS/.clamav-allow.sfp")"
+          lists="$RUNNER_TEMP/clamav-lists"
+          mem_kb="$(free -k | awk '/^Mem:/ {print $7}')"
+          scanners="$(nproc)"
+          if [ "$(( mem_kb / 2097152 ))" -lt "$scanners" ]; then scanners="$(( mem_kb / 2097152 ))"; fi
+          if [ "$scanners" -lt 1 ]; then scanners=1; fi
           while read -r image; do
             echo "== $image"
             work="$(mktemp -d)"
             cid="$(docker create "$image")"
-            docker export "$cid" | tar -x --no-same-owner -C "$work"
+            set +e
+            docker export "$cid" | tar -x --no-same-owner -C "$work" 2> "$RUNNER_TEMP/tar.err"
+            status=("${PIPESTATUS[@]}")
+            set -e
+            cat "$RUNNER_TEMP/tar.err" >&2
+            [ "${status[0]}" = 0 ]
+            if [ "${status[1]}" != 0 ]; then
+              grep -q ': Cannot mknod: Operation not permitted$' "$RUNNER_TEMP/tar.err"
+              if grep -v -e ': Cannot mknod: Operation not permitted$' \
+                  -e '^tar: Exiting with failure status due to previous errors$' "$RUNNER_TEMP/tar.err"; then
+                exit 1
+              fi
+            fi
             docker rm "$cid" > /dev/null
             chmod -R u+rwX,a+rX "$work"
-            docker run --rm --user 0 -v "$work:/scan:ro" \
-              -v "$allow:/var/lib/clamav/catena-allow.sfp:ro" --entrypoint clamscan \
-              "$CLAMAV_IMAGE" --recursive --infected --no-summary /scan
+            rm -rf "$lists"
+            mkdir "$lists"
+            (cd "$work" && find . -type f -printf '/scan/%P\n') | split -e -n "r/$scanners" - "$lists/part."
+            pids=()
+            for list in "$lists"/part.*; do
+              docker run --rm --user 0 -v "$work:/scan:ro" -v "$lists:/lists:ro" \
+                -v "$allow:/var/lib/clamav/catena-allow.sfp:ro" --entrypoint clamscan \
+                "$CLAMAV_IMAGE" --infected --no-summary "--file-list=/lists/${list##*/}" < /dev/null &
+              pids+=("$!")
+            done
+            failed=0
+            for pid in "${pids[@]}"; do wait "$pid" || failed=1; done
+            [ "$failed" = 0 ]
             rm -rf "$work"
           done < "$RUNNER_TEMP/images.txt"
 

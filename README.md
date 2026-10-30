@@ -345,8 +345,10 @@ Then one job per app the change touches (`blueprints/<id>/**` or
   (comma-separated repositories, no tag) is the repository's own build and
   passes. For the catalog the workflow lists `ghcr.io/<owner>/<folder>` for
   each folder of `images/`, plus the caller's `own-images`.
-- ClamAV over each image's exported files (`docker create`, `docker export`),
-  with the databases the pinned `clamav/clamav` feature tag ships. A file
+- ClamAV over each image's exported regular files (`docker create`,
+  `docker export`), dealt to one clamscan per processor (at most one per 2 GB
+  of available memory), with the databases the pinned `clamav/clamav` feature
+  tag ships. A file
   listed in `.clamav-allow.sfp` (its SHA-256 and size, with the image, path and
   reason above it) passes; any other content of that path is scanned.
 
