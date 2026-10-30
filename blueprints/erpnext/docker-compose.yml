@@ -202,7 +202,7 @@ services:
   # swarm starts the task again. The two setup secrets leave the environment
   # before the app server starts.
   backend:
-    image: frappe/erpnext:v16.51.0
+    image: frappe/erpnext:v16.53.0
     deploy:
       restart_policy:
         condition: any
@@ -248,7 +248,7 @@ services:
       - default
 
   frontend:
-    image: frappe/erpnext:v16.51.0
+    image: frappe/erpnext:v16.53.0
     deploy:
       restart_policy:
         condition: any
@@ -285,7 +285,7 @@ services:
       default: {}
 
   websocket:
-    image: frappe/erpnext:v16.51.0
+    image: frappe/erpnext:v16.53.0
     deploy:
       restart_policy:
         condition: any
@@ -303,7 +303,7 @@ services:
       - default
 
   queue-default:
-    image: frappe/erpnext:v16.51.0
+    image: frappe/erpnext:v16.53.0
     deploy:
       restart_policy:
         condition: any
@@ -321,7 +321,7 @@ services:
       - default
 
   queue-short:
-    image: frappe/erpnext:v16.51.0
+    image: frappe/erpnext:v16.53.0
     deploy:
       restart_policy:
         condition: any
@@ -339,7 +339,7 @@ services:
       - default
 
   queue-long:
-    image: frappe/erpnext:v16.51.0
+    image: frappe/erpnext:v16.53.0
     deploy:
       restart_policy:
         condition: any
@@ -362,7 +362,7 @@ services:
   # corrects the client, the secret and Keycloak's addresses when they differ.
   # The client secret leaves the environment before the scheduler runs.
   scheduler:
-    image: frappe/erpnext:v16.51.0
+    image: frappe/erpnext:v16.53.0
     deploy:
       restart_policy:
         condition: any
