@@ -282,9 +282,10 @@ The bench runs these legs in this order in a test VM (see
    the verify hook answers ok.
 7. The update legs -- `update_newest` from the newest tag to the commit,
    `update_oldest` from the oldest tag of the last 12 months through the
-   versions the block declares as stops, or `update_previous` for an app with no
-   tag, from the image's previous upstream release. Each ends with the asserts
-   and the verify hook.
+   versions the block declares as stops, and `update_previous` from the image's
+   previous upstream release, for an app with no tag or whose newest tag runs the
+   commit's image, so the app's own upgrade between two releases runs. Each ends
+   with the asserts and the verify hook.
 8. `data_upgrade:<service>` -- for each service the block declares under
    `data`, its volume and the seeded data survive the update from the oldest
    version.
