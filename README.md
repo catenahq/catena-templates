@@ -332,8 +332,9 @@ Then one job per app the change touches (`blueprints/<id>/**` or
   not fail the step and are counted among the job summary's advisory findings.
   A change that leaves the compose file as it is scans no image.
 - Provenance (`lib/provenance.py`): each image's `org.opencontainers.image.source`
-  repository on GitHub is at least a year old and has three releases (the
-  GitHub API, with the run's `GITHUB_TOKEN`). An image of GHCR without the
+  repository on GitHub is at least a year old and has three releases, or
+  three tags when it publishes no release (the GitHub API, with the run's
+  `GITHUB_TOKEN`). An image of GHCR without the
   label is judged by the repository its path names (`ghcr.io/<owner>/<name>`
   is `github.com/<owner>/<name>`). An image on Docker Hub passes on
   its Docker Hub repository when it has no GitHub source, or when that

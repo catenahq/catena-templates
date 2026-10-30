@@ -56,6 +56,21 @@ def test_a_draft_release_does_not_count():
     assert "1 release(s), needs 3" in failure
 
 
+def test_a_source_without_a_release_counts_its_tags():
+    pages = {f"{GH}/repos/example/app": "github_repo.json",
+             f"{GH}/repos/example/app/tags?per_page=100": "github_tags.json"}
+    assert provenance.check_image("ghcr.io/example/app:3", LABELS, _fetch(pages), NOW) is None
+    pages[f"{GH}/repos/example/app/tags?per_page=100"] = "github_tags_few.json"
+    failure = provenance.check_image("ghcr.io/example/app:3", LABELS, _fetch(pages), NOW)
+    assert failure == "ghcr.io/example/app:3: example/app has no release and 1 tag(s), needs 3"
+
+
+def test_a_source_with_a_release_does_not_count_its_tags():
+    pages = {**GITHUB_OK, **FEW_RELEASES, f"{GH}/repos/example/app/tags?per_page=100": "github_tags.json"}
+    failure = provenance.check_image("ghcr.io/example/app:3", LABELS, _fetch(pages), NOW)
+    assert failure == "ghcr.io/example/app:3: example/app has 1 release(s), needs 3"
+
+
 def test_a_source_under_a_year_old_fails_naming_the_image():
     pages = {**GITHUB_OK, f"{GH}/repos/example/app": "github_young.json"}
     failure = provenance.check_image("ghcr.io/example/app:3", LABELS, _fetch(pages), NOW)

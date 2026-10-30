@@ -2,8 +2,9 @@
 releases, stands behind each one.
 
 An image passes when its source repository is at least a year old and has
-three releases. The repository is the one the image's
-`org.opencontainers.image.source` label names, read from GitHub. An image of
+three releases, or three tags when it publishes no release. The repository is
+the one the image's `org.opencontainers.image.source` label names, read from
+GitHub. An image of
 GHCR without the label is judged by the GitHub repository its path names
 (`ghcr.io/<owner>/<name>`): a GHCR namespace is the GitHub account that
 publishes the image. An image that
@@ -116,6 +117,12 @@ def _github(owner: str, repo: str, fetch: Fetch, now: datetime) -> str | None:
         raise SourceNotEstablished(f"{owner}/{repo} is under a year old")
     releases = fetch(f"{GITHUB_API}/repos/{owner}/{repo}/releases?per_page=100") or []
     published = [r for r in releases if not r.get("draft")]
+    if not published:
+        tags = fetch(f"{GITHUB_API}/repos/{owner}/{repo}/tags?per_page=100") or []
+        if len(tags) < MIN_RELEASES:
+            raise SourceNotEstablished(
+                f"{owner}/{repo} has no release and {len(tags)} tag(s), needs {MIN_RELEASES}")
+        return None
     if len(published) < MIN_RELEASES:
         raise SourceNotEstablished(
             f"{owner}/{repo} has {len(published)} release(s), needs {MIN_RELEASES}")

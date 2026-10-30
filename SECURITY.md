@@ -16,7 +16,7 @@ Every pull request, from a fork too, and every commit pushed to `main` runs
 it, a commit of `main` through `.github/workflows/app-main.yml`): the app checker, the swarm loader, scanctl on the
 app's images (a fixable high or critical vulnerability
 or an image secret that the change adds fails), image provenance (a source repository at least a year old with three
-releases, else for a Docker Hub image its Docker Hub repository registered at
+releases, or three tags when it publishes no release, else for a Docker Hub image its Docker Hub repository registered at
 least a year ago with three pushed tags; an image the repository builds itself
 is listed as its own) and ClamAV over each image's files. The workflow holds
 `contents: read` only and passes pull-request text to scripts through
