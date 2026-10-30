@@ -353,7 +353,7 @@ Then one job per app the change touches (`blueprints/<id>/**` or
   passes. For the catalog the workflow lists `ghcr.io/<owner>/<folder>` for
   each folder of `images/`, plus the caller's `own-images`.
 - ClamAV over each image's exported regular files (`docker create`,
-  `docker export`), dealt to one clamscan per processor (at most one per 2 GB
+  `docker export`), one name per inode, dealt to one clamscan per processor (at most one per 2 GB
   of available memory), with the databases the pinned `clamav/clamav` feature
   tag ships. A file
   listed in `.clamav-allow.sfp` (its SHA-256 and size, with the image, path and

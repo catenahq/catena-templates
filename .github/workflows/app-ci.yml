@@ -339,11 +339,12 @@ jobs:
         run: cat "$RUNNER_TEMP/scanctl-summary.md" >> "$GITHUB_STEP_SUMMARY" || true
       - name: ClamAV over each image's files
         # .clamav-allow.sfp joins the image's databases: the files it lists by
-        # exact content pass. The regular files of an image are dealt round robin
-        # to one clamscan per processor, each loading its own databases, so at
-        # most one per 2 GB of available memory. A device node (dev/null in some
-        # images) holds nothing to scan and needs root to be made: tar may fail
-        # on those alone.
+        # exact content pass. The regular files of an image, one name per inode
+        # (hardlinked names hold the same content), are dealt round robin to one
+        # clamscan per processor, each loading its own databases, so at most one
+        # per 2 GB of available memory; each prints its summary. A device node
+        # (dev/null in some images) holds nothing to scan and needs root to be
+        # made: tar may fail on those alone.
         run: |
           set -euo pipefail
           allow="$(realpath "$TOOLS/.clamav-allow.sfp")"
@@ -373,12 +374,16 @@ jobs:
             chmod -R u+rwX,a+rX "$work"
             rm -rf "$lists"
             mkdir "$lists"
-            (cd "$work" && find . -type f -printf '/scan/%P\n') | split -e -n "r/$scanners" - "$lists/part."
+            (cd "$work" && find . -type f -printf '%i /scan/%P\n') > "$RUNNER_TEMP/clamav-names"
+            sort -u -k1,1 "$RUNNER_TEMP/clamav-names" | cut -d' ' -f2- > "$RUNNER_TEMP/clamav-files"
+            echo "$(wc -l < "$RUNNER_TEMP/clamav-names") names, $(wc -l < "$RUNNER_TEMP/clamav-files") files," \
+              "$(du -sh --apparent-size "$work" | cut -f1), $scanners scanners"
+            split -e -n "r/$scanners" "$RUNNER_TEMP/clamav-files" "$lists/part."
             pids=()
             for list in "$lists"/part.*; do
               docker run --rm --user 0 -v "$work:/scan:ro" -v "$lists:/lists:ro" \
                 -v "$allow:/var/lib/clamav/catena-allow.sfp:ro" --entrypoint clamscan \
-                "$CLAMAV_IMAGE" --infected --no-summary "--file-list=/lists/${list##*/}" < /dev/null &
+                "$CLAMAV_IMAGE" --infected "--file-list=/lists/${list##*/}" < /dev/null &
               pids+=("$!")
             done
             failed=0
