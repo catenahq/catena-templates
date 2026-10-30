@@ -53,10 +53,16 @@ def scratch(tmp_path):
     gh.write_text('#!/bin/bash\n'
                   'case "$*" in\n'
                   '  *-X\\ POST*) printf "%s\\n" "$*" >> "$RUNNER_TEMP/posted.txt" ;;\n'
-                  '  */jobs*) printf "%b" "$JOBS" ;;\n'
+                  '  */jobs*)\n'
+                  '    reads=$(( $(cat "$RUNNER_TEMP/jobs-reads" 2>/dev/null || echo 0) + 1 ))\n'
+                  '    echo "$reads" > "$RUNNER_TEMP/jobs-reads"\n'
+                  '    if [ "$reads" -gt 1 ] && [ -n "${JOBS_LATER+x}" ]; then printf "%b" "$JOBS_LATER"; else printf "%b" "$JOBS"; fi ;;\n'
                   '  */statuses*) printf "%b\\n" "$STATUS" ;;\n'
                   'esac\n')
     gh.chmod(0o755)
+    sleep = bin_dir / "sleep"
+    sleep.write_text("#!/bin/bash\nexit 0\n")
+    sleep.chmod(0o755)
 
     def run(script, **extra):
         out = runner / "output.txt"
@@ -158,9 +164,10 @@ def _jobs(*rows):
     return "".join(f"{name}\\t{conclusion}\\n" for name, conclusion in rows)
 
 
-def _verdict(scratch, jobs, shas=(SHA_A, SHA_B, SHA_C)):
+def _verdict(scratch, jobs, shas=(SHA_A, SHA_B, SHA_C), **extra):
     run, _, _, runner = scratch
-    done, out = run(_step("app-main.yml", "verdict", "Post app-ci")["run"], JOBS=jobs, SHAS=" ".join(shas))
+    done, out = run(_step("app-main.yml", "verdict", "Post app-ci")["run"], JOBS=jobs, SHAS=" ".join(shas),
+                    **extra)
     posted = (runner / "posted.txt").read_text().splitlines() if (runner / "posted.txt").exists() else []
     return done, out, posted
 
@@ -194,11 +201,41 @@ def test_verdict_fails_a_commit_whose_job_was_cancelled_skipped_or_has_no_conclu
     assert len(posted) == 1 and "state=failure" in posted[0]
 
 
+def _reads(scratch):
+    return int((scratch[3] / "jobs-reads").read_text())
+
+
+@pytest.mark.parametrize("scope,checks", [("success", ""), ("", "success")])
+def test_verdict_reads_the_jobs_ten_times_while_a_conclusion_is_missing(scratch, scope, checks):
+    jobs = _jobs((f"app-ci {SHA_A} / scope", scope), (f"app-ci {SHA_A} / app-checks", checks))
+    _verdict(scratch, jobs, shas=(SHA_A,))
+    assert _reads(scratch) == 10
+
+
+def test_verdict_reads_the_jobs_once_when_every_conclusion_is_there(scratch):
+    jobs = _jobs((f"app-ci {SHA_A} / scope", "success"), (f"app-ci {SHA_A} / app-checks", "failure"))
+    _verdict(scratch, jobs, shas=(SHA_A,))
+    assert _reads(scratch) == 1
+
+
+def test_verdict_passes_a_commit_whose_conclusion_shows_on_a_later_read(scratch):
+    first = _jobs((f"app-ci {SHA_A} / scope", "success"), (f"app-ci {SHA_A} / app-checks", "success"),
+                  (f"app-ci {SHA_B} / scope", "success"), (f"app-ci {SHA_B} / app-checks", ""))
+    later = _jobs((f"app-ci {SHA_A} / scope", "success"), (f"app-ci {SHA_A} / app-checks", "success"),
+                  (f"app-ci {SHA_B} / scope", "success"), (f"app-ci {SHA_B} / app-checks", "success"))
+    done, out, posted = _verdict(scratch, first, shas=(SHA_A, SHA_B), JOBS_LATER=later)
+    assert done.returncode == 0, done.stderr
+    assert out["passed"] == f"{SHA_A} {SHA_B}"
+    assert len(posted) == 2 and all("state=success" in p for p in posted)
+    assert _reads(scratch) == 2
+
+
 def test_verdict_fails_a_commit_with_a_missing_job_and_names_it(scratch):
     jobs = _jobs((f"app-ci {SHA_A} / app-checks", "success"))
     done, out, posted = _verdict(scratch, jobs, shas=(SHA_A,))
     assert out["passed"] == ""
     assert "description=app-ci failed: scope" in posted[0]
+    assert _reads(scratch) == 10
 
 
 # shape
