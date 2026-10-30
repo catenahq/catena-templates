@@ -289,8 +289,11 @@ jobs:
         if: always()
         run: cat "$RUNNER_TEMP/scanctl-summary.md" >> "$GITHUB_STEP_SUMMARY" || true
       - name: ClamAV over each image's files
+        # .clamav-allow.sfp joins the image's databases: the files it lists by
+        # exact content pass.
         run: |
           set -euo pipefail
+          allow="$(realpath "$TOOLS/.clamav-allow.sfp")"
           while read -r image; do
             echo "== $image"
             work="$(mktemp -d)"
@@ -298,7 +301,8 @@ jobs:
             docker export "$cid" | tar -x --no-same-owner -C "$work"
             docker rm "$cid" > /dev/null
             chmod -R u+rwX,a+rX "$work"
-            docker run --rm --user 0 -v "$work:/scan:ro" --entrypoint clamscan \
+            docker run --rm --user 0 -v "$work:/scan:ro" \
+              -v "$allow:/var/lib/clamav/catena-allow.sfp:ro" --entrypoint clamscan \
               "$CLAMAV_IMAGE" --recursive --infected --no-summary /scan
             rm -rf "$work"
           done < "$RUNNER_TEMP/images.txt"

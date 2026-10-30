@@ -1,0 +1,10 @@
+# Files app-ci's ClamAV pass allows (.github/workflows/app-ci.yml mounts this
+# file into the scanner's database folder). One file per line, as
+# `sigtool --sha256 <file>` prints it: SHA-256, size in bytes, file name. Only
+# that exact content passes; a changed file is scanned again. Each entry names
+# the image and path that ship it and why it is not malware. ClamAV reads a line
+# starting with # as a comment and refuses an empty line.
+#
+# jitsi/web:stable-11031 /usr/share/jitsi-meet/libs/lib-jitsi-meet.min.map: the
+# source map of Jitsi's own client library, flagged Html.Exploit.CVE_2016_7217-1.
+16a18fe93862481dcc1bdbc1415f75e683917cc51465c55de8867c2a8c01c927:3992128:lib-jitsi-meet.min.map

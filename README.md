@@ -346,7 +346,9 @@ Then one job per app the change touches (`blueprints/<id>/**` or
   passes. For the catalog the workflow lists `ghcr.io/<owner>/<folder>` for
   each folder of `images/`, plus the caller's `own-images`.
 - ClamAV over each image's exported files (`docker create`, `docker export`),
-  with the databases the pinned `clamav/clamav` feature tag ships.
+  with the databases the pinned `clamav/clamav` feature tag ships. A file
+  listed in `.clamav-allow.sfp` (its SHA-256 and size, with the image, path and
+  reason above it) passes; any other content of that path is scanned.
 
 A push to `main` (a repository admin's direct push or a merge) runs
 `.github/workflows/app-main.yml`, which calls `app-ci.yml` once per commit of
