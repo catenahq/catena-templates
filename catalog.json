@@ -2963,7 +2963,7 @@
         "service": "roundcube",
         "timeout_seconds": 10
       },
-      "requires_catena": "0.11.0",
+      "requires_catena": "0.11.3",
       "sizing": {
         "disk_baseline_mb": 600,
         "idle_cpu_pct": 3,
