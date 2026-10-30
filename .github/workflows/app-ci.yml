@@ -4,8 +4,8 @@ name: app-ci
 # before the bench lifecycle runs, on the runner label the caller passes
 # (GitHub-hosted by default), for forks too (no secrets, a read-only token).
 # `repo` checks the catalog as a whole; `app` checks each app the
-# change touches: its stack file, its images' CVEs, provenance and
-# files. App ids come from changed file names, so they reach scripts through
+# change touches: its stack file, the released app checker, its images' CVEs,
+# provenance and files. App ids come from changed file names, so they reach scripts through
 # env: only, and the plan job refuses any id outside the plain slug form.
 #
 # A pull request is judged on what it introduces. `repo` runs its checks
@@ -225,6 +225,37 @@ jobs:
           persist-credentials: false
       - name: Swarm loader reads the stack file
         run: docker stack config --skip-interpolation -c "blueprints/$APP/docker-compose.yml" > /dev/null
+      - name: The released app checker reads the app
+        # The panel release the entry names in requires_catena (the newest
+        # release when it names none) reads the app's block as a server running
+        # that release does. The app's own file is judged as it is, so an
+        # error inherited from its parent fails too.
+        run: |
+          set -euo pipefail
+          image="$(uv run "$TOOLS/build/app_check.py" checker "$APP")"
+          if ! docker pull "$image" > "$RUNNER_TEMP/checker-pull.txt" 2>&1; then
+            cat "$RUNNER_TEMP/checker-pull.txt"
+            echo "::error::The pull of $image failed. When the release is not published, a block field waits for the release that reads it."
+            exit 1
+          fi
+          flags=(--nodes 2)
+          if [ -z "$TEMPLATES_ROOT" ]; then flags=(--catalog --nodes 2); fi
+          report="$RUNNER_TEMP/applint.json"
+          status=0
+          docker run --rm -v "$PWD:/work:ro" \
+            --entrypoint /usr/local/share/catena-ee/bin/catena-applint \
+            "$image" "${flags[@]}" --json /work/blueprints > "$report" || status=$?
+          if [ "$status" -gt 1 ]; then
+            echo "::error::catena-applint of $image ended with status $status"
+            exit 1
+          fi
+          file="/work/blueprints/$APP/docker-compose.yml"
+          jq -e --arg f "$file" 'any(.[]; .file == $f)' "$report" > /dev/null
+          jq -r --arg f "$file" \
+            '.[] | select(.file == $f) | .findings[] | select(.severity == "error") | "\($f): error \(.rule): \(.message)"' \
+            "$report" > "$RUNNER_TEMP/applint-errors.txt"
+          cat "$RUNNER_TEMP/applint-errors.txt"
+          [ ! -s "$RUNNER_TEMP/applint-errors.txt" ]
       - name: Pull the app's images
         run: |
           set -euo pipefail

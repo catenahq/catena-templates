@@ -226,7 +226,9 @@ input, not a catalog to deploy from.
 7. If the entry works only on a Catena release newer than some servers
    run, `x-catena.requires_catena` names the oldest one it works on
    (`0.11.0`). The render opens the entry's Portainer description and its
-   README with that release.
+   README with that release. A block field a published release does not read
+   needs `requires_catena` at the release that reads it; app-ci refuses the entry
+   until that release is published.
 8. Declare the verify hook, `x-catena.hooks.verify`, which asks the running
    app whether it works: it makes the app's own server answer on the path users
    reach, checks each feature the app claims and its server provides, writes
@@ -325,6 +327,10 @@ Then one job per app the change touches (`blueprints/<id>/**` or
 `sources/<id>.json`), each running:
 
 - `docker stack config` on the app's compose file.
+- `catena-applint` from the catena-admin image of the release the entry's
+  `x-catena.requires_catena` names (the newest release when it names none) over
+  the blueprints: an `error` finding in the app's own compose file fails the
+  job, inherited ones included, and an unpublished release fails it too.
 - scanctl on the app's images, judged from the change's base (the first
   parent of the pull request's merge commit, which is `main` as the pull request
   merges into it now, or the commit's parent on `main`): a vulnerability at high or

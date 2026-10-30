@@ -220,6 +220,37 @@ def test_the_app_check_script_runs_in_its_own_uv_environment():
     assert done.stdout.strip() == "foo"
 
 
+def _source(tmp_path, monkeypatch, body: str):
+    (tmp_path / "sources").mkdir()
+    (tmp_path / "sources" / "demo.json").write_text(body)
+    monkeypatch.setattr(app_checks, "SOURCES", tmp_path / "sources")
+
+
+def test_checker_names_the_release_the_entry_requires(tmp_path, monkeypatch):
+    _source(tmp_path, monkeypatch, '{"x-catena": {"requires_catena": "0.11.10"}}')
+    assert app_checks.checker_image("demo") == "ghcr.io/catenahq/catena-admin:v0.11.10"
+
+
+def test_checker_without_a_required_release_is_the_newest(tmp_path, monkeypatch):
+    _source(tmp_path, monkeypatch, '{"x-catena": {"app_name": "catena-demo"}}')
+    assert app_checks.checker_image("demo") == "ghcr.io/catenahq/catena-admin:latest"
+
+
+def test_the_checker_command_prints_the_image(tmp_path, monkeypatch, capsys):
+    _source(tmp_path, monkeypatch, '{"x-catena": {"requires_catena": "0.12.0"}}')
+    assert app_checks.main(["checker", "demo"]) == 0
+    assert capsys.readouterr().out.strip() == "ghcr.io/catenahq/catena-admin:v0.12.0"
+
+
+def test_the_checker_command_runs_in_the_script_s_own_uv_environment():
+    done = subprocess.run(
+        ["uv", "run", "--quiet", str(ROOT / "build" / "app_check.py"), "checker", "nextcloud-s3-oidc"],
+        cwd=ROOT.parent, capture_output=True, text=True, check=False,
+        env={k: v for k, v in os.environ.items() if k != "PYTHONPATH"})
+    assert done.returncode == 0, done.stderr
+    assert done.stdout.strip().startswith("ghcr.io/catenahq/catena-admin:")
+
+
 def test_an_unreadable_page_fails_the_image_instead_of_crashing():
     def broken(url: str):
         raise provenance.ProvenanceError(f"{url} answered HTTP 503")

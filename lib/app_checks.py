@@ -5,6 +5,8 @@
   images ID             the image references the app's compose pins
   provenance ID        each pulled image's project is old enough, with releases;
                         an image listed in PROVENANCE_OWN_IMAGES is the repository's own build
+  checker ID            the catena-admin image whose app checker reads the app: the release
+                        its source names in x-catena.requires_catena, else the newest
 
 Provenance reads the image's `org.opencontainers.image.source` label from
 `docker image inspect`, so the app's images are pulled first.
@@ -17,7 +19,15 @@ import subprocess
 import sys
 
 from . import changes, provenance
-from .model import ROOT
+from .model import ROOT, SOURCES
+
+CHECKER_IMAGE = "ghcr.io/catenahq/catena-admin"
+
+
+def checker_image(app: str) -> str:
+    source = json.loads((SOURCES / f"{app}.json").read_text(encoding="utf-8"))
+    release = (source.get("x-catena") or {}).get("requires_catena")
+    return f"{CHECKER_IMAGE}:v{release}" if release else f"{CHECKER_IMAGE}:latest"
 
 
 def _compose(app: str) -> str:
@@ -52,7 +62,7 @@ def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(prog="app_check")
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("changed")
-    for name in ("images", "provenance"):
+    for name in ("images", "provenance", "checker"):
         sub.add_parser(name).add_argument("app")
     args = parser.parse_args(argv)
 
@@ -71,6 +81,9 @@ def main(argv: list[str]) -> int:
         for raw in unresolved:
             print(f"{args.app}: image {raw!r} is not a plain reference", file=sys.stderr)
         return 1 if unresolved else 0
+    if args.command == "checker":
+        print(checker_image(args.app))
+        return 0
 
     errors = provenance_errors(args.app)
     for error in errors:

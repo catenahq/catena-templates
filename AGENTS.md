@@ -74,6 +74,10 @@ for layout, consumer model, and BASE URL setup.
   `x-catena.requires_catena`, the one place that release is written: the
   render puts it in the Portainer description and the README, so the
   prose never repeats it.
+- A block field a published catena-admin release does not read reaches `main`
+  only once the release that reads it is published, with
+  `x-catena.requires_catena` raised to it; app-ci's released app checker
+  refuses it before.
 - Every image pin is a version the update engine can order (catena-admin
   `payload/engines/stackupdate`): no floating tags. A tag scheme the generic
   rules do not read (a partial `18.6-alpine`, a build number, a date stamp) is
