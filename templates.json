@@ -1211,7 +1211,7 @@
           "name": "DOMAIN_HOST"
         }
       ],
-      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/actualbudget/logo.svg",
+      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/actualbudget/logo.png",
       "maintainer": "https://github.com/catenahq/catena-templates",
       "name": "catena-actualbudget",
       "note": "<p>Self-hosted personal finance. Envelope budgeting, bank account syncing via SimpleFIN or GoCardless, encrypted end-to-end.</p><p>Replaces YNAB, Mint, EveryDollar.</p><p><a href=\"https://github.com/catenahq/catena-templates/blob/main/blueprints/actualbudget/README.md\">https://github.com/catenahq/catena-templates/blob/main/blueprints/actualbudget/README.md</a></p>",

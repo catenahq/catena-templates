@@ -12,6 +12,7 @@ Self-hosted personal finance. Envelope budgeting, bank account syncing via Simpl
 - **Replaces:** **YNAB**, **Mint**, **EveryDollar**
 - **Sign-in (SSO):** Not available. This application's community edition has no OIDC support, so each account keeps a per-application login.
 - **Address:** `budget.yourdomain.com`, served from `actual:5006`
+- **Logo:** <https://cdn.jsdelivr.net/gh/selfhst/icons@02dd039d62a8e7132f4828e69162fca30bd43bb5/png/actual-budget.png>. Icon: selfh.st icons, CC BY 4.0
 
 The address is attached when the template is deployed. A different one is
 arranged beforehand, on request.
@@ -45,6 +46,7 @@ Finances personnelles auto-hébergées. Budgétisation par enveloppes, synchro b
 - **Remplace :** **YNAB**, **Mint**, **EveryDollar**
 - **Connexion (SSO) :** Non disponible. L'édition communautaire de cette application n'a pas de support OIDC : chaque compte garde un identifiant propre à l'application.
 - **Adresse :** `budget.yourdomain.com`, servie par `actual:5006`
+- **Logo :** <https://cdn.jsdelivr.net/gh/selfhst/icons@02dd039d62a8e7132f4828e69162fca30bd43bb5/png/actual-budget.png>. Icon: selfh.st icons, CC BY 4.0
 
 L'adresse est attachée au déploiement du modèle. Une autre se convient au
 préalable, sur demande.

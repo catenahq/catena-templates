@@ -10,6 +10,10 @@
   "x-catena": {
     "app_name": "catena-actualbudget",
     "upstream_url": "https://actualbudget.org/",
+    "logo": {
+      "source": "https://cdn.jsdelivr.net/gh/selfhst/icons@02dd039d62a8e7132f4828e69162fca30bd43bb5/png/actual-budget.png",
+      "notice": "Icon: selfh.st icons, CC BY 4.0"
+    },
     "sso_mode": "none",
     "domain": {
       "host": "budget.{{ cloudflare_zone }}",

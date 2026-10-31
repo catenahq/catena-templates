@@ -73,6 +73,9 @@ services:
     volumes:
       - actual-data:/data
     labels:
+      - "vps.homepage.name=Actual Budget"
+      - "vps.homepage.description=Personal budgeting with envelopes and bank account syncing."
+      - "vps.homepage.description-fr=Budget personnel par enveloppes, avec synchronisation des comptes bancaires."
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=5006"
       - "vps.auth.mode=public"
