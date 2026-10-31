@@ -591,7 +591,7 @@ def _mail(nc) -> dict:
 def test_the_block_offers_the_user_level_and_needs_the_release_that_reads_it():
     entry = _entry()
     assert entry.block["access"] == {"user": {"label": {"en": "Nextcloud", "fr": "Nextcloud"}}}
-    assert entry.requires_catena == "0.11.11"
+    assert entry.requires_catena == "0.11.12"
     assert quiesce_lint.lint_block(entry) == []
 
 

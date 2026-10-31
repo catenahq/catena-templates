@@ -1,5 +1,6 @@
 x-catena:
   schema: 2
+  requires_catena: 0.11.12
   env:
     DOMAIN_HOST:
       managed: {expr: "nextcloud.{{ cloudflare_zone }}"}
@@ -116,6 +117,11 @@ x-catena:
       user: "www-data"
       commands:
         - ["php", "occ", "status", "--exit-code"]
+  images:
+    db:
+      rule: {kind: partial_line}
+    talk-hpb:
+      rule: {kind: pattern, tag_pattern: '(\d{8})_(\d{6})', flat: true, registry: ghcr.io, repo: nextcloud-releases/aio-talk}
   # configure runs after every deploy (add, settings, start, update, rollback,
   # restore) and wires Nextcloud to the rest of the server: the object store
   # file (put back only for an instance whose database holds the bucket's object
@@ -679,11 +685,6 @@ x-catena:
             say "not in the object store: $$(head -n 5 "$$work/missing" | sed 's/^/urn:oid:/' | tr '\n' ' ')"
           fi
           echo "missing=$$missing bucket=$$bucket database=$$database"
-  images:
-    db:
-      rule: {kind: partial_line}
-    talk-hpb:
-      rule: {kind: pattern, tag_pattern: '(\d{8})_(\d{6})', flat: true, registry: ghcr.io, repo: nextcloud-releases/aio-talk}
 
 services:
   app:
@@ -728,9 +729,9 @@ services:
         cat > /docker-entrypoint-hooks.d/before-starting/zz-catena.sh <<'HOOK'
         #!/bin/sh
         # Catena-managed config overlay. Re-rendered on every container
-        # start from the env vars below. Lets the operator change
-        # client-policy knobs (log level, version retention) via the
-        # Portainer stack env without dropping into occ.
+        # start from the env vars below. Lets the client-policy knobs
+        # (log level, version retention) change through the app's env
+        # without dropping into occ.
         set -e
         : "$${NEXTCLOUD_LOGLEVEL:=3}"
         : "$${NEXTCLOUD_VERSIONS_RETENTION:=auto, 7}"
@@ -946,8 +947,8 @@ services:
 
       # Catena-managed config knobs. The zz-catena.sh hook reads these
       # at container start and writes /var/www/html/config/zz-catena
-      # .config.php. Change the value here (Portainer stack env)
-      # + redeploy and the next container start picks it up.
+      # .config.php. Change the value in the app's env and redeploy
+      # (docker stack deploy) and the next container start picks it up.
       #
       # NEXTCLOUD_LOGLEVEL: 0=debug, 1=info, 2=warn, 3=error, 4=fatal.
       # Default 3 (error): nextcloud.log lives on the VM disk, and at
@@ -1045,9 +1046,6 @@ services:
       # -- still backed up but with an opaque sha256 name.
       - nc-data:/var/www/html/data
     labels:
-      - "vps.homepage.name=Nextcloud"
-      - "vps.homepage.description=File storage and sharing, with calendar, contacts and online documents."
-      - "vps.homepage.description-fr=Stockage et partage de fichiers, avec calendrier, contacts et documents en ligne."
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=80"
       - "vps.route.main=true"

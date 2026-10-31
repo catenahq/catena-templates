@@ -27,6 +27,7 @@
           "OneDrive for Business"
         ],
         "setup_steps": "1. Open the **Environment** tab and fill `S3_BUCKET`, `S3_REGION`, `S3_HOST`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` with the bucket's coordinates. (Everything else is pre-filled -- `NEXTCLOUD_HOSTNAME`, admin/DB credentials.)\n2. Click **Deploy**. Wait ~2 minutes for the first boot. Within a few minutes of the first deploy, the server creates Nextcloud's own sign-in entry in Keycloak, writes its values (`OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_ISSUER_URL`) into the Environment tab and registers Keycloak inside Nextcloud. No step is left to take.\n3. Sign in at the Nextcloud domain with **Log in with keycloak** (which uses the managed identity), or fall back to `NEXTCLOUD_ADMIN_USER` / `NEXTCLOUD_ADMIN_PASSWORD` from the Environment tab.\n4. Calls work without the relay; adding the Call relay app gives calls from restrictive networks and Talk's high-performance backend for larger calls.\n",
+        "summary": "File storage and sharing, with calendar, contacts and online documents.",
         "what_it_is": "Self-hosted file sharing and collaboration -- the file hub that other templates plug into. Calls work without the relay; adding the Call relay app gives calls from restrictive networks and Talk's high-performance backend for larger calls."
       },
       "env": {
@@ -282,6 +283,7 @@
           "OneDrive Entreprise"
         ],
         "setup_steps": "1. Ouvrez l'onglet **Environment** et remplissez `S3_BUCKET`, `S3_REGION`, `S3_HOST`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` avec les coordonn\u00e9es du seau S3. (Le reste est pr\u00e9-rempli -- `NEXTCLOUD_HOSTNAME`, identifiants admin/DB.)\n2. Cliquez **Deploy**. Patientez ~2 min pour le premier d\u00e9marrage. Dans les minutes qui suivent le premier d\u00e9ploiement, le serveur cr\u00e9e l'entr\u00e9e de connexion propre \u00e0 Nextcloud dans Keycloak, inscrit ses valeurs (`OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_ISSUER_URL`) dans l'onglet Environment et enregistre Keycloak dans Nextcloud. Aucune \u00e9tape n'est \u00e0 effectuer.\n3. Connexion sur le domaine Nextcloud avec **Se connecter avec keycloak** (utilise l'identit\u00e9 g\u00e9r\u00e9e), ou repli sur `NEXTCLOUD_ADMIN_USER` / `NEXTCLOUD_ADMIN_PASSWORD` de l'onglet Environment.\n4. Les appels fonctionnent sans le relais ; ajouter l'application Relais d'appels permet les appels depuis des r\u00e9seaux restrictifs et donne \u00e0 Talk son serveur haute performance pour les appels plus nombreux.\n",
+        "summary": "Stockage et partage de fichiers, avec calendrier, contacts et documents en ligne.",
         "what_it_is": "Partage de fichiers et collaboration auto-h\u00e9berg\u00e9s -- le hub auquel d'autres templates se connectent. Les appels fonctionnent sans le relais ; ajouter l'application Relais d'appels permet les appels depuis des r\u00e9seaux restrictifs et donne \u00e0 Talk son serveur haute performance pour les appels plus nombreux."
       },
       "hostname_baked": false,
@@ -359,7 +361,7 @@
         "timeout_seconds": 60,
         "user": "www-data"
       },
-      "requires_catena": "0.11.11",
+      "requires_catena": "0.11.12",
       "sizing": {
         "disk_baseline_mb": 320,
         "idle_cpu_pct": 2,

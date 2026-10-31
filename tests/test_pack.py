@@ -22,7 +22,6 @@ OUT_OF_FORM = {
     "clamav": "images is out of order",
     "collabora": "images is out of order",
     "erpnext-helpdesk": "images is out of order",
-    "nextcloud-s3-oidc": "images is out of order",
     "rocketchat-oidc": "images is out of order",
     "element": "followed by exactly one empty line",
     "wordpress": "followed by exactly one empty line",
