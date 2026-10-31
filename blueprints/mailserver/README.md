@@ -14,6 +14,7 @@ Self-hosted email -- inbox storage on the VPS (Postfix + Dovecot + Rspamd) with 
 - **Replaces:** **Google Workspace (Gmail)**, **Microsoft 365 (Exchange Online)**
 - **Sign-in (SSO):** Wired by the server itself. After the deploy, the server registers Keycloak inside the application with no step to take, and keeps it registered.
 - **Address:** `webmail.yourdomain.com`, served from `roundcube:80`
+- **Logo:** <https://raw.githubusercontent.com/docker-mailserver/docker-mailserver/c0fc3fbe6a4562a12fd303a52a23cda918b88763/docs/content/assets/logo/dmo-logo.min.svg>.
 
 The address is attached when the template is deployed. A different one is
 arranged beforehand, on request.
@@ -74,6 +75,7 @@ Courriel auto-hébergé -- stockage des boîtes sur le VPS (Postfix + Dovecot + 
 - **Remplace :** **Google Workspace (Gmail)**, **Microsoft 365 (Exchange Online)**
 - **Connexion (SSO) :** Câblé par le serveur lui-même. Après le déploiement, le serveur enregistre Keycloak dans l'application, sans aucune étape à effectuer, et le maintient enregistré.
 - **Adresse :** `webmail.yourdomain.com`, servie par `roundcube:80`
+- **Logo :** <https://raw.githubusercontent.com/docker-mailserver/docker-mailserver/c0fc3fbe6a4562a12fd303a52a23cda918b88763/docs/content/assets/logo/dmo-logo.min.svg>.
 
 L'adresse est attachée au déploiement du modèle. Une autre se convient au
 préalable, sur demande.

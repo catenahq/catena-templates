@@ -612,6 +612,9 @@ services:
       retries: 5
       start_period: 30s
     labels:
+      - "vps.homepage.name=Mail server + webmail"
+      - "vps.homepage.description=Email for this server's domain, with a webmail page to read and send messages."
+      - "vps.homepage.description-fr=Courriel pour le domaine de ce serveur, avec une page de webmail pour lire et envoyer des messages."
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=80"
       - "vps.route.main=true"

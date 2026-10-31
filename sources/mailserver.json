@@ -11,6 +11,9 @@
   "x-catena": {
     "app_name": "catena-mailserver",
     "upstream_url": "https://docker-mailserver.github.io/",
+    "logo": {
+      "source": "https://raw.githubusercontent.com/docker-mailserver/docker-mailserver/c0fc3fbe6a4562a12fd303a52a23cda918b88763/docs/content/assets/logo/dmo-logo.min.svg"
+    },
     "requires_catena": "0.11.3",
     "sso_mode": "auto",
     "domain": {

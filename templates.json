@@ -1601,7 +1601,7 @@
           "name": "ANTIVIRUS_PORT"
         }
       ],
-      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/mailserver/logo.svg",
+      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/mailserver/logo.png",
       "maintainer": "https://github.com/catenahq/catena-templates",
       "name": "catena-mailserver",
       "note": "<p>Requires Catena 0.11.3 or later.</p><p>Self-hosted email -- inbox storage on the VPS (Postfix + Dovecot + Rspamd) with Roundcube webmail and Keycloak single sign-on. Outbound requires an SMTP relay through a reputable provider (set up before deploy) so messages are not flagged as spam.</p><p>Replaces Google Workspace (Gmail), Microsoft 365 (Exchange Online).</p><p><a href=\"https://github.com/catenahq/catena-templates/blob/main/blueprints/mailserver/README.md\">https://github.com/catenahq/catena-templates/blob/main/blueprints/mailserver/README.md</a></p>",
