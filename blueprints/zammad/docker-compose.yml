@@ -168,6 +168,9 @@ services:
       NGINX_SERVER_NAME: ${ZAMMAD_HOSTNAME}
       NGINX_CLIENT_MAX_BODY_SIZE: 50M
     labels:
+      - "vps.homepage.name=Zammad"
+      - "vps.homepage.description=A support desk that turns emails and chats into tickets."
+      - "vps.homepage.description-fr=Un service d'assistance qui transforme les courriels et les clavardages en billets."
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=8080"
       - "vps.auth.mode=public"

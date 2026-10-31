@@ -11,6 +11,9 @@
   "x-catena": {
     "app_name": "catena-zammad",
     "upstream_url": "https://zammad.com/",
+    "logo": {
+      "source": "https://raw.githubusercontent.com/zammad/zammad/1a95acae3918d04adc82e50e17da4cf2b03f16f6/logo.svg"
+    },
     "sso_mode": "pre-wired",
     "domain": {
       "host": "help.{{ cloudflare_zone }}",

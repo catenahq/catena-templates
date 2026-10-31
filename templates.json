@@ -918,7 +918,7 @@
           "name": "DB_PASSWORD"
         }
       ],
-      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/zammad/logo.svg",
+      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/zammad/logo.png",
       "maintainer": "https://github.com/catenahq/catena-templates",
       "name": "catena-zammad",
       "note": "<p>Ticket-first help desk. Email, Telegram, social channels, SLAs, knowledge base. Keycloak sign-in pre-wired.</p><p>Replaces Zendesk, Freshdesk, Jira Service Desk.</p><p><a href=\"https://github.com/catenahq/catena-templates/blob/main/blueprints/zammad/README.md\">https://github.com/catenahq/catena-templates/blob/main/blueprints/zammad/README.md</a></p>",
