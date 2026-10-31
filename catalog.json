@@ -2534,6 +2534,7 @@
           "Brevo (Sendinblue)"
         ],
         "setup_steps": "1. Click **Deploy**. Wait ~2 min for the first boot (database migrations run on first start).\n2. Visit the Mautic domain and complete the first-run wizard:\n   - **Database**: pre-filled (host `db`, name `mautic`, user `mautic`, password from the `DB_PASSWORD` env var).\n   - **Admin user**: create the initial admin account.\n   - **Email settings**: paste the managed-relay SMTP credentials (host, port `587`, username, password, from-address). It can also be set later under **Settings** -> **Configuration** -> **Email Settings**.\n3. Verify the cron + worker containers are running in Portainer (Mautic needs `mautic_cron` for scheduled campaigns + `mautic_worker` for the email queue).\n4. Build a first segment: **Segments** -> **New** -> filter by contact attribute.\n5. Build a first email campaign: **Campaigns** -> **New** -> drag the **Send email** action onto a segment trigger.\n",
+        "summary": "Email campaigns, contact lists, forms and landing pages for marketing.",
         "what_it_is": "Open-source marketing automation. Contact segments, email campaigns, drip sequences, landing pages, forms, lead scoring. Replaces Mailchimp / ActiveCampaign / HubSpot Marketing."
       },
       "env": {
@@ -2607,10 +2608,12 @@
           "Brevo (Sendinblue)"
         ],
         "setup_steps": "1. Cliquez **Deploy**. Patientez ~2 min pour le premier d\u00e9marrage (les migrations de base s'ex\u00e9cutent au premier lancement).\n2. Visitez le domaine Mautic et compl\u00e9tez l'assistant initial :\n   - **Base de donn\u00e9es** : pr\u00e9-remplie (h\u00f4te `db`, nom `mautic`, utilisateur `mautic`, mot de passe depuis la variable `DB_PASSWORD`).\n   - **Utilisateur admin** : cr\u00e9ez le compte admin initial.\n   - **Param\u00e8tres courriel** : collez les identifiants SMTP du relais g\u00e9r\u00e9 (h\u00f4te, port `587`, nom d'utilisateur, mot de passe, adresse exp\u00e9diteur). Cette \u00e9tape peut aussi \u00eatre faite plus tard sous **Settings** -> **Configuration** -> **Email Settings**.\n3. V\u00e9rifiez que les conteneurs cron + worker tournent dans Portainer (Mautic a besoin de `mautic_cron` pour les campagnes planifi\u00e9es + `mautic_worker` pour la file d'envoi).\n4. Cr\u00e9ez un premier segment : **Segments** -> **New** -> filtrez par attribut de contact.\n5. Cr\u00e9ez une premi\u00e8re campagne : **Campaigns** -> **New** -> glissez l'action **Send email** sur un d\u00e9clencheur de segment.\n",
+        "summary": "Campagnes de courriel, listes de contacts, formulaires et pages d'atterrissage pour le marketing.",
         "what_it_is": "Automatisation marketing open-source. Segments de contacts, campagnes courriel, s\u00e9quences drip, pages de destination, formulaires, scoring de prospects. Remplace Mailchimp / ActiveCampaign / HubSpot Marketing."
       },
       "hostname_baked": true,
       "id": "mautic",
+      "requires_catena": "0.11.12",
       "sizing": {
         "disk_baseline_mb": 420,
         "idle_cpu_pct": 3,
