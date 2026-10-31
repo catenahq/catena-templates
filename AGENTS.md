@@ -86,8 +86,8 @@ the repository, and the checks.
 - An app whose folder holds `services.yml` is held as neat files: edit
   `services.yml`, `settings.yml`, `access.yml`, `lifecycle.yml` and `hooks/`, never
   its `docker-compose.yml`, which the render packs from them (`lib/pack.py`; README.md,
-  "An app held as neat files"). A file in `hooks/` that `lifecycle.yml` does not
-  name stops the render. A snippet version (`snippets/<name>/<n>.<ext>`) that two or
+  "An app held as neat files"). A hook file writes each `$` once: the render
+  doubles it. A file in `hooks/` that `lifecycle.yml` does not name stops the render. A snippet version (`snippets/<name>/<n>.<ext>`) that two or
   more apps include is never edited: add a version and move each app to it in its own
   commit.
 - A file's or field's class (runtime, verification or presentation) comes from
@@ -158,7 +158,9 @@ transforms each app's metadata file (`app.json` or source) and compose into:
 hand-edited input, and a host fetches it from this public repo at a tag.
 Jinja stays in place; the env it reads is settled on the host, and routing is
 reconciled post-deploy by dashboard-sync. The render never writes into
-that file, and it deletes a blueprint directory only when no source file
+that file, except for an app held as neat files: the render packs that
+app's `docker-compose.yml` from its neat files (`lib/pack.py`), committed
+beside them. The render deletes a blueprint directory only when no source file
 claims it any more.
 - `templates.json` -- a Portainer-shaped index (format v3) with one entry per
   app held as a source: type 2,

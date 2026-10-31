@@ -134,7 +134,34 @@ runs no bench. `uv run build/pack.py unpack <id>` turns an app's compose (an imp
 another repository's app) into neat files, refusing one out of normal form (the
 block first, its keys in `ORDER`, one empty line after it) and writing nothing
 unless packing the files gives the compose back byte for byte. A script body that
-begins with a snippet's text becomes an include of it, the longest snippet first.
+begins with a snippet's text becomes an include of it, the longest snippet first. It
+prints each file it wrote and refuses an app already held as neat files.
+
+### Run an app on bare Docker
+
+`uv run build/pack.py unpack --plain <id> --out DIR [--ask]` exports any app, held as
+neat files or not, for a machine without Catena (`lib/plain.py`). DIR must not exist
+and must lie outside every git repository. It holds a `docker-compose.yml` for
+`docker compose up`, a `.env` (mode 0600), one script per hook the block declares
+(`configure.sh`, `verify.sh`, `users.sh`, `scan.sh`, `reconcile.sh`) and `migrate.sh`
+for a lifecycle `migrate`, each running `docker exec` in the hook's service, and the
+hook bodies under `hooks/`.
+
+- The compose drops the `x-catena` block and the other `x-` keys, `catena-network` and
+  `deploy.placement`, and publishes the app's web port, and every other published port,
+  on 127.0.0.1 only.
+- `.env` lists the block's env keys in order: a generated secret is minted at export, a
+  setting takes its default, and a value Catena fills in (it holds `{{`) is left empty
+  under a comment naming it. `--ask` asks for each empty value on a terminal and needs
+  one. The command prints no value.
+- An app whose block asks for the `host_network` privilege or a certificate is refused
+  (`coturn`, `mailserver`): it needs what Catena does for it.
+- Backups, updates, sign-in, routing and monitoring stay Catena's.
+
+`uv run build/pack.py plain-check <id>` exports into a temporary folder, runs `docker
+compose up -d`, waits up to 10 minutes for any HTTP answer on the published port, prints
+the last 100 log lines when none comes, and always runs `docker compose down -v`. It
+exits 0 when the app answered, and refuses an app with no web address.
 
 ## Who reads this repository
 
@@ -197,7 +224,12 @@ there).
    with no web address), `bench.pack`, `sizing.peak_ram_mb`, `en`, `fr`).
 2. `blueprints/<id>/docker-compose.yml` -- found by the directory name,
    so there is no path to keep in step with it. Jinja stays in place: the
-   render never writes into this file. Its root `x-catena` block, written by
+   render never writes into this file, unless the app is held as neat files
+   ("An app held as neat files"): then write `services.yml`, `settings.yml`,
+   `access.yml`, `lifecycle.yml` and `hooks/` instead, or write the compose
+   and run `uv run build/pack.py unpack <id>`, and the render packs the
+   compose. The rest of this step describes the block, whichever file holds it.
+   Its root `x-catena` block, written by
    hand, starts with `schema: 2` and lists the app's `env`: each key is one of
    a `setting` (`default`, and a `label` in `en` and `fr`), a `generated`
    secret (`length`, `alphabet` of `alnum` or `hex`) or a `managed`
@@ -295,7 +327,8 @@ there).
    app. Real example: `blueprints/erpnext`.
 10. `make` -- renders, lints, and runs the tests. Commit the regenerated
     `blueprints/<id>/README.md`, `templates.json`, `catalog.json` and
-    `index.html` with the source change.
+    `index.html` with the source change, and, for an app held as neat files, its
+    packed `blueprints/<id>/docker-compose.yml`.
 11. Open a PR from a branch that changes this one app and nothing else, or, as
     a repository admin, push the one commit to `main`. CI runs
     `build-and-verify.yml`, `app-ci.yml` (see "Checks on every pull
@@ -373,6 +406,10 @@ classes of a change.
 | verification | skipped when the app's last runtime change passed app-ci | the lifecycle | none |
 | presentation | skipped when the app's last runtime change passed app-ci | the verdict is carried, no lifecycle | a new revision recording the carried run |
 
+The neat files of an app (`services.yml`, `settings.yml`, `access.yml`, `lifecycle.yml`,
+`hooks/`) add no class of their own: the packed `docker-compose.yml` is judged byte for
+byte.
+
 A change in several classes takes the strongest entry of each column: runtime
 with presentation runs everything and gets a new revision; verification with
 presentation runs the lifecycle and gets a new revision.
@@ -385,7 +422,9 @@ request, forks included (no secret, a read-only token). The bench lifecycle
 runs later and elsewhere. One job covers the catalog:
 
 - `make` (render, lint, tests) and `catena-applint --catalog --nodes 2` over
-  `blueprints/`, run from the public catena-admin image.
+  `blueprints/`, run from the public catena-admin image. The render in `make` packs
+  each app held as neat files, and the job fails when the committed
+  `docker-compose.yml` differs from that render.
 
 Then one job per app the change touches (`blueprints/<id>/**` or
 `sources/<id>.json`), each running:

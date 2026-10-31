@@ -16,7 +16,10 @@ rendered: the per-app README, the Portainer App Templates v3
 
 - **Hand-edited vs rendered.** The hand-edited files are
   `sources/<id>.json`, `blueprints/<id>/docker-compose.yml` and an
-  optional `blueprints/<id>/logo.png`. Everything else is a build
+  optional `blueprints/<id>/logo.png`. An app held as neat files
+  (`services.yml` in its folder) hand-edits `services.yml`, `settings.yml`,
+  `access.yml`, `lifecycle.yml` and `hooks/` in place of the compose, and its
+  `docker-compose.yml` is rendered from them. Everything else is a build
   output, committed and drift-gated: the per-app `README.md` and
   placeholder logo, plus `templates.json`, `catalog.json` and
   `index.html`. Editing one of those directly fails CI.
@@ -51,6 +54,7 @@ rendered: the per-app README, the Portainer App Templates v3
 | Source is scanned on every change (secrets, vulnerable deps, static analysis, rendered config) | `workflow:security.yml`, `scanctl:gitleaks`, `scanctl:osv-scanner`, `scanctl:semgrep`, `scanctl:trivy` |
 | A push to `main` sends only the commits that passed the app checks to the bench, and an app is tagged only when they passed at its last change | `workflow:app-main.yml`, `workflow:app-tag.yml` |
 | A change of an app's presentation alone keeps its last app-tests verdict and is tagged without a bench run; a change of what runs or of its tests runs the bench | `workflow:app-dispatch.yml`, `workflow:app-tag.yml` |
+| The compose a host deploys for an app held as neat files is the one the render packs from them, and a change whose compose differs from that render fails | `workflow:app-ci.yml` |
 | Templates deploy and run end-to-end on real servers | `bench:ce_install_suite` |
 
 Gate pointer grammar: `workflow:<file>` = a CI workflow in this
