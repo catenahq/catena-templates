@@ -1,5 +1,6 @@
 x-catena:
   schema: 2
+  requires_catena: 0.11.12
   env:
     DOMAIN_HOST:
       setting: {default: "time.{{ cloudflare_zone }}"}
@@ -62,9 +63,6 @@ services:
     volumes:
       - kimai-data:/opt/kimai/var
     labels:
-      - "vps.homepage.name=Kimai"
-      - "vps.homepage.description=Time tracking by customer, project and team, with invoices made from the tracked time."
-      - "vps.homepage.description-fr=Suivi du temps par client, projet et équipe, avec des factures produites à partir du temps saisi."
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=8001"
       - "vps.auth.mode=public"

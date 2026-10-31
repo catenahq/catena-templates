@@ -2649,6 +2649,7 @@
           "TimeCamp"
         ],
         "setup_steps": "1. Click **Deploy**. Wait ~1 min for the first boot (database migrations run on first start).\n2. Visit the Kimai domain. Sign in as `KIMAI_ADMIN_EMAIL` / `KIMAI_ADMIN_PASSWORD` from the Environment tab.\n3. *(Optional)* Enable Keycloak SAML SSO: **System** -> **Settings** -> **SAML** -> enable + paste:\n   - **Identity Provider Entity ID:** `<OIDC_ISSUER_URL>/protocol/saml/descriptor` (a SAML client can be minted in Keycloak on request)\n   - **Single Sign-On URL:** `<OIDC_ISSUER_URL>/protocol/saml`\n   - **X.509 Certificate:** from the Keycloak realm metadata\n   - **Username Attribute:** `username` (or `email`)\n   - Save. Local admin login keeps working as break-glass.\n4. Configure the default invoice template under **Invoices** -> **Templates** -> pick one (DOCX / HTML / PDF). Set the company logo, address, and tax rates under **System** -> **Configuration**.\n",
+        "summary": "Time tracking by customer, project and team, with invoices made from the tracked time.",
         "what_it_is": "Open-source time tracker. Customers, projects, activities, timesheets, multi-user teams, invoice generation from tracked time. SAML federates with Keycloak via the post-deploy admin UI."
       },
       "env": {
@@ -2724,10 +2725,12 @@
           "TimeCamp"
         ],
         "setup_steps": "1. Cliquez **Deploy**. Patientez ~1 min pour le premier d\u00e9marrage (les migrations de base s'ex\u00e9cutent au premier lancement).\n2. Visitez le domaine Kimai. Connexion avec `KIMAI_ADMIN_EMAIL` / `KIMAI_ADMIN_PASSWORD` de l'onglet Environment.\n3. *(Optionnel)* Activez Keycloak SAML SSO : **System** -> **Settings** -> **SAML** -> activez et collez :\n   - **Identity Provider Entity ID :** `<OIDC_ISSUER_URL>/protocol/saml/descriptor` (un client SAML peut \u00eatre g\u00e9n\u00e9r\u00e9 dans Keycloak sur demande)\n   - **URL de connexion unique :** `<OIDC_ISSUER_URL>/protocol/saml`\n   - **Certificat X.509 :** tir\u00e9 des m\u00e9tadonn\u00e9es du realm Keycloak\n   - **Attribut nom d'utilisateur :** `username` (ou `email`)\n   - Validez. La connexion admin locale continue de fonctionner comme issue de secours.\n4. Configurez le mod\u00e8le de facture par d\u00e9faut sous **Invoices** -> **Templates** -> choisissez-en un (DOCX / HTML / PDF). R\u00e9glez le logo, l'adresse et les taux de taxe sous **System** -> **Configuration**.\n",
+        "summary": "Suivi du temps par client, projet et \u00e9quipe, avec des factures produites \u00e0 partir du temps saisi.",
         "what_it_is": "Suivi du temps open-source. Clients, projets, activit\u00e9s, feuilles de temps, \u00e9quipes multi-utilisateur, facturation \u00e0 partir du temps suivi. SAML f\u00e9d\u00e8re avec Keycloak via l'UI admin post-d\u00e9ploiement."
       },
       "hostname_baked": true,
       "id": "kimai",
+      "requires_catena": "0.11.12",
       "sizing": {
         "disk_baseline_mb": 180,
         "idle_cpu_pct": 1,
