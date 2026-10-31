@@ -1,5 +1,6 @@
 x-catena:
   schema: 2
+  requires_catena: 0.11.12
   version_from: clamav
   env:
     CLAMD_HOST:
@@ -15,6 +16,11 @@ x-catena:
       setting: {default: "no"}
   provides:
     antivirus: {host: CLAMD_HOST, port: CLAMD_PORT}
+  images:
+    clamav:
+      # The image that carries the signature database tags X.Y.Z; X.Y.Z_base,
+      # X.Y.Z-N and the debian variants are other tracks.
+      rule: {kind: pattern, tag_pattern: '(\d+)\.(\d+)\.(\d+)'}
   hooks:
     service: clamav
     verify:
@@ -36,11 +42,6 @@ x-catena:
           exit "$$rc"
   # freshclam's signature mirror.
   egress: [database.clamav.net]
-  images:
-    clamav:
-      # The image that carries the signature database tags X.Y.Z; X.Y.Z_base,
-      # X.Y.Z-N and the debian variants are other tracks.
-      rule: {kind: pattern, tag_pattern: '(\d+)\.(\d+)\.(\d+)'}
 
 services:
   clamav:

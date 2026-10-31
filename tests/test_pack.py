@@ -19,7 +19,6 @@ APPS = sorted(p.parent.name for p in CATALOG.glob("*/docker-compose.yml"))
 # The apps whose compose is out of normal form, each with the reason unpack gives. A
 # commit that puts an app in normal form deletes its line.
 OUT_OF_FORM = {
-    "clamav": "images is out of order",
 }
 
 SERVICES = "services:\n  web:\n    image: web:1.0\n"

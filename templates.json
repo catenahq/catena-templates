@@ -2,48 +2,6 @@
   "templates": [
     {
       "categories": [
-        "Security",
-        "Infrastructure"
-      ],
-      "description": "Shared antivirus scanner (clamd). Other applications on this server find it on their own.",
-      "env": [
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
-          "label": "Clamd host",
-          "name": "CLAMD_HOST"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
-          "label": "Clamd port",
-          "name": "CLAMD_PORT"
-        },
-        {
-          "default": "104857600",
-          "label": "Clamd stream max length",
-          "name": "CLAMD_STREAM_MAX_LENGTH"
-        },
-        {
-          "default": "no",
-          "label": "Clamd concurrent reload",
-          "name": "CLAMD_CONCURRENT_RELOAD"
-        }
-      ],
-      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/clamav/logo.png",
-      "maintainer": "https://github.com/catenahq/catena-templates",
-      "name": "catena-clamav",
-      "note": "<p>One antivirus scanner for the whole server. The mail server scans every message through it and Nextcloud scans every uploaded file; the compliance evidence store scans its files through it too.</p><p>Replaces A scanner per application.</p><p><a href=\"https://github.com/catenahq/catena-templates/blob/main/blueprints/clamav/README.md\">https://github.com/catenahq/catena-templates/blob/main/blueprints/clamav/README.md</a></p>",
-      "platform": "linux",
-      "repository": {
-        "stackfile": "blueprints/clamav/docker-compose.yml",
-        "url": "https://github.com/catenahq/catena-templates"
-      },
-      "title": "ClamAV antivirus",
-      "type": 2
-    },
-    {
-      "categories": [
         "Infrastructure",
         "Communication"
       ],
