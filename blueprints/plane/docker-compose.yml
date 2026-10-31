@@ -24,11 +24,11 @@ x-catena:
       rule: {kind: pattern, tag_pattern: 'RELEASE\.(\d{4})-(\d{2})-(\d{2})T(\d{2})-(\d{2})-(\d{2})Z', flat: true}
   # verify asks the API for the instance record, which reads the database, and, with the bundled object
   # store wired, asks that store whether it is alive. The API starts listening some time after its container,
-  # so each ask is repeated every 4 seconds while the port refuses or the answer is 502/503, until 150
-  # seconds after the hook started; the last answer is then judged.
+  # so each ask is repeated every 4 seconds while the port refuses or the answer is 502/503, until 330
+  # seconds after the hook started (a first start migrates the database first); the last answer is then judged.
   hooks:
     service: api
-    timeout_seconds: 180
+    timeout_seconds: 360
     verify:
       - - python3
         - -c
@@ -39,7 +39,7 @@ x-catena:
           import time
           import urllib.request
 
-          end = time.monotonic() + 150
+          end = time.monotonic() + 330
 
           def starting(e):
               return isinstance(getattr(e, "reason", None), ConnectionRefusedError) or getattr(e, "code", 0) in (502, 503)
@@ -56,10 +56,10 @@ x-catena:
 
           status, body = get("http://127.0.0.1:8000/api/instances/")
           try:
-              known = "is_activated" in json.loads(body)
+              answer = json.loads(body)
           except ValueError:
-              known = False
-          if status != 200 or not known:
+              answer = None
+          if status != 200 or not isinstance(answer, dict) or "instance" not in answer:
               sys.exit("Plane /api/instances/ answered " + str(status) + " without its instance record")
           line = "Plane API answers"
           store = os.environ.get("AWS_S3_ENDPOINT_URL", "")

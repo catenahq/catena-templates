@@ -67,8 +67,8 @@ def test_the_celery_services_share_a_broker_with_a_generated_password():
 
 
 def test_the_wait_ends_inside_the_hook_timeout():
-    assert "time.monotonic() + 150" in _verify()[-1]
-    assert 150 + 15 < _entry().block["hooks"]["timeout_seconds"] <= 300
+    assert "time.monotonic() + 330" in _verify()[-1]
+    assert 330 + 15 < _entry().block["hooks"]["timeout_seconds"] <= 600
 
 
 class _Stub(http.server.BaseHTTPRequestHandler):
@@ -111,11 +111,13 @@ def _run(routes: dict[str, tuple[int, bytes]], *, answer: bool = True, swap=(), 
 
 SWAP = [
     ("http://127.0.0.1:8000", "http://127.0.0.1:{port}"),
-    ("time.monotonic() + 150", "time.monotonic() + 2"),
+    ("time.monotonic() + 330", "time.monotonic() + 2"),
     ("time.sleep(4)", "time.sleep(0.1)"),
 ]
 STORE = [('os.environ.get("AWS_S3_ENDPOINT_URL", "")', '"http://127.0.0.1:{port}"')]
-INSTANCE = b'{"instance":{},"config":{},"is_activated":true}'
+# Plane's answer once its instance is registered; before that it answers NO_RECORD.
+INSTANCE = b'{"config":{"is_activated":true},"instance":{}}'
+NO_RECORD = b'{"is_activated":false,"is_setup_done":false}'
 ROUTES = {"/api/instances/": (200, INSTANCE), "/minio/health/live": (200, b"")}
 
 
@@ -163,9 +165,10 @@ def test_verify_fails_at_once_for_a_definite_wrong_answer():
     run, seen = _run({"/api/instances/": (500, b"")}, swap=SWAP, env=env)
     assert run.returncode == 1 and "HTTP Error 500" in run.stderr
     assert len(seen) == 1
-    run, seen = _run({"/api/instances/": (200, b'{"x":1}')}, swap=SWAP, env=env)
-    assert run.returncode == 1 and "without its instance record" in run.stderr
-    assert len(seen) == 1
+    for body in (b'{"x":1}', NO_RECORD, b'["instance"]'):
+        run, seen = _run({"/api/instances/": (200, body)}, swap=SWAP, env=env)
+        assert run.returncode == 1 and "without its instance record" in run.stderr, body
+        assert len(seen) == 1
 
 
 @needs_interpreter
