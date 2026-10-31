@@ -1,5 +1,6 @@
 x-catena:
   schema: 2
+  requires_catena: 0.11.12
   env:
     DOMAIN_HOST:
       managed: {expr: "office.{{ cloudflare_zone }}"}
@@ -9,6 +10,9 @@ x-catena:
       managed: {expr: "https://office.{{ cloudflare_zone }}"}
   provides:
     office: {editor: OFFICE_EDITOR, url: OFFICE_URL}
+  images:
+    collabora:
+      rule: {kind: pattern, tag_pattern: '(\d+)\.(\d+)\.(\d+)\.(\d+)\.(\d+)'}
   # The image has no shell and no HTTP client. verify runs coolwsd's own probe
   # (the image's health check), which reads the server's configuration for its
   # port and scheme and asks the running server for /livez over the loopback.
@@ -17,9 +21,6 @@ x-catena:
     timeout_seconds: 60
     verify:
       - ["/usr/bin/coolwsd", "--probe", "--use-env-vars"]
-  images:
-    collabora:
-      rule: {kind: pattern, tag_pattern: '(\d+)\.(\d+)\.(\d+)\.(\d+)\.(\d+)'}
 
 services:
   collabora:
@@ -38,9 +39,6 @@ services:
       # its discovery XML even though it itself is listening on http.
       extra_params: --o:ssl.enable=false --o:ssl.termination=true
     labels:
-      - "vps.homepage.name=Collabora Online (CODE)"
-      - "vps.homepage.description=Edit documents, spreadsheets and presentations online with other people, from inside Nextcloud."
-      - "vps.homepage.description-fr=Édition de documents, de chiffriers et de présentations en ligne à plusieurs, dans Nextcloud."
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=9980"
       # The WOPI allow-list above is what authenticates a caller, so the

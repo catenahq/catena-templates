@@ -5,44 +5,6 @@
         "Productivity",
         "Documents"
       ],
-      "description": "LibreOffice-based collaborative editor. Embedded in Nextcloud. Lighter alternative to OnlyOffice; better ODF fidelity.",
-      "env": [
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
-          "label": "Domain",
-          "name": "DOMAIN_HOST"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
-          "label": "Office editor",
-          "name": "OFFICE_EDITOR"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
-          "label": "Office URL",
-          "name": "OFFICE_URL"
-        }
-      ],
-      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/collabora/logo.png",
-      "maintainer": "https://github.com/catenahq/catena-templates",
-      "name": "catena-collabora",
-      "note": "<p>Collaborative ODT/DOCX/XLSX/PPTX editing -- bolts into Nextcloud for real-time co-editing. LibreOffice-based; lighter than OnlyOffice; better fidelity for ODF formats.</p><p>Replaces Microsoft Office Online, Google Docs (as embedded editor).</p><p><a href=\"https://github.com/catenahq/catena-templates/blob/main/blueprints/collabora/README.md\">https://github.com/catenahq/catena-templates/blob/main/blueprints/collabora/README.md</a></p>",
-      "platform": "linux",
-      "repository": {
-        "stackfile": "blueprints/collabora/docker-compose.yml",
-        "url": "https://github.com/catenahq/catena-templates"
-      },
-      "title": "Collabora Online (CODE)",
-      "type": 2
-    },
-    {
-      "categories": [
-        "Productivity",
-        "Documents"
-      ],
       "description": "Collaborative DOCX/XLSX/PPTX editor. Embedded in Nextcloud. Replaces Office 365 / Google Docs as the embedded editor.",
       "env": [
         {
