@@ -2366,6 +2366,7 @@
           "Later"
         ],
         "setup_steps": "1. Click **Deploy**. Wait ~1 min.\n2. Visit the Postiz domain and create the admin account.\n3. Add each social network's app credentials: **Settings** -> pick the network -> paste the developer-app client ID + secret from the network's developer portal. One-time per network.\n",
+        "summary": "Plan and publish posts to social networks from one place.",
         "what_it_is": "Schedule and publish social media posts across Twitter/X, LinkedIn, Facebook, Instagram, YouTube, TikTok, and more."
       },
       "env": {
@@ -2408,10 +2409,12 @@
           "Later"
         ],
         "setup_steps": "1. Cliquez **Deploy**. Patientez ~1 min.\n2. Visitez le domaine Postiz et cr\u00e9ez le compte admin.\n3. Ajoutez les identifiants d'application de chaque r\u00e9seau : **Settings** -> choisissez le r\u00e9seau -> collez le client ID + secret de l'app d\u00e9veloppeur depuis le portail du r\u00e9seau. Une fois par r\u00e9seau.\n",
+        "summary": "Planification et publication de messages sur les r\u00e9seaux sociaux \u00e0 partir d'un seul endroit.",
         "what_it_is": "Planifier et publier des posts sociaux sur Twitter/X, LinkedIn, Facebook, Instagram, YouTube, TikTok, et d'autres."
       },
       "hostname_baked": true,
       "id": "postiz",
+      "requires_catena": "0.11.12",
       "sizing": {
         "disk_baseline_mb": 200,
         "idle_cpu_pct": 2,

@@ -1,5 +1,6 @@
 x-catena:
   schema: 2
+  requires_catena: 0.11.12
   env:
     DOMAIN_HOST:
       setting: {default: "social.{{ cloudflare_zone }}"}
@@ -126,9 +127,6 @@ services:
       - postiz-uploads:/uploads
       - postiz-config:/config
     labels:
-      - "vps.homepage.name=Postiz"
-      - "vps.homepage.description=Plan and publish posts to social networks from one place."
-      - "vps.homepage.description-fr=Planification et publication de messages sur les réseaux sociaux à partir d'un seul endroit."
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=5000"
       - "vps.auth.mode=public"

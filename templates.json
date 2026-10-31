@@ -2,48 +2,6 @@
   "templates": [
     {
       "categories": [
-        "Marketing",
-        "Social"
-      ],
-      "description": "Social media scheduling (Twitter/X, LinkedIn, FB, IG, YouTube, TikTok). Replaces Buffer / Hootsuite.",
-      "env": [
-        {
-          "default": "social.",
-          "label": "Domain",
-          "name": "DOMAIN_HOST"
-        },
-        {
-          "default": "social.",
-          "label": "Postiz hostname",
-          "name": "POSTIZ_HOSTNAME"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
-          "label": "JWT secret",
-          "name": "JWT_SECRET"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
-          "label": "Database password",
-          "name": "DB_PASSWORD"
-        }
-      ],
-      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/postiz/logo.png",
-      "maintainer": "https://github.com/catenahq/catena-templates",
-      "name": "catena-postiz",
-      "note": "<p>Schedule and publish social media posts across Twitter/X, LinkedIn, Facebook, Instagram, YouTube, TikTok, and more.</p><p>Replaces Buffer, Hootsuite, Later.</p><p><a href=\"https://github.com/catenahq/catena-templates/blob/main/blueprints/postiz/README.md\">https://github.com/catenahq/catena-templates/blob/main/blueprints/postiz/README.md</a></p>",
-      "platform": "linux",
-      "repository": {
-        "stackfile": "blueprints/postiz/docker-compose.yml",
-        "url": "https://github.com/catenahq/catena-templates"
-      },
-      "title": "Postiz",
-      "type": 2
-    },
-    {
-      "categories": [
         "Scheduling"
       ],
       "description": "Open-source customer booking app. One or many providers, public booking page, ICS sync. Replaces Calendly / Acuity.",
