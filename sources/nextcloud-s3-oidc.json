@@ -11,6 +11,9 @@
   "x-catena": {
     "app_name": "catena-nextcloud",
     "upstream_url": "https://nextcloud.com",
+    "logo": {
+      "source": "https://raw.githubusercontent.com/xneo1/portainer_templates/bdd2703fc2662aa73c87d2b432b751c5c23b7e8b/Images/nextcloud-icon.png"
+    },
     "requires_catena": "0.11.11",
     "sso_mode": "auto",
     "domain": {

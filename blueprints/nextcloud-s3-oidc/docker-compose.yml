@@ -1045,6 +1045,9 @@ services:
       # -- still backed up but with an opaque sha256 name.
       - nc-data:/var/www/html/data
     labels:
+      - "vps.homepage.name=Nextcloud"
+      - "vps.homepage.description=File storage and sharing, with calendar, contacts and online documents."
+      - "vps.homepage.description-fr=Stockage et partage de fichiers, avec calendrier, contacts et documents en ligne."
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=80"
       - "vps.route.main=true"

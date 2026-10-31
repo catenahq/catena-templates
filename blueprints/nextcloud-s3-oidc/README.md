@@ -14,6 +14,7 @@ Self-hosted file sharing and collaboration -- the file hub that other templates 
 - **Replaces:** **Google Drive**, **Dropbox**, **OneDrive for Business**
 - **Sign-in (SSO):** Wired by the server itself. After the deploy, the server registers Keycloak inside the application with no step to take, and keeps it registered.
 - **Address:** `nextcloud.yourdomain.com`, served from `app:80`
+- **Logo:** <https://raw.githubusercontent.com/xneo1/portainer_templates/bdd2703fc2662aa73c87d2b432b751c5c23b7e8b/Images/nextcloud-icon.png>.
 
 The address is attached when the template is deployed. A different one is
 arranged beforehand, on request.
@@ -153,6 +154,7 @@ Partage de fichiers et collaboration auto-hébergés -- le hub auquel d'autres t
 - **Remplace :** **Google Drive**, **Dropbox**, **OneDrive Entreprise**
 - **Connexion (SSO) :** Câblé par le serveur lui-même. Après le déploiement, le serveur enregistre Keycloak dans l'application, sans aucune étape à effectuer, et le maintient enregistré.
 - **Adresse :** `nextcloud.yourdomain.com`, servie par `app:80`
+- **Logo :** <https://raw.githubusercontent.com/xneo1/portainer_templates/bdd2703fc2662aa73c87d2b432b751c5c23b7e8b/Images/nextcloud-icon.png>.
 
 L'adresse est attachée au déploiement du modèle. Une autre se convient au
 préalable, sur demande.
