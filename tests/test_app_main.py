@@ -397,7 +397,19 @@ def test_app_ci_groups_runs_by_the_checked_commit_and_checks_it_out():
     assert base["env"]["BASE_SHA"] == "${{ inputs.base }}" and '${BASE_SHA:-$(git rev-parse HEAD^1)}' in base["run"]
     assert doc["jobs"]["repo"]["steps"][0]["with"]["fetch-depth"] == 2
     nfo = [s for s in doc["jobs"]["repo"]["steps"] if "new-failures-only" in s.get("uses", "")]
-    assert len(nfo) == 2 and all(s["with"]["base"] == "${{ steps.base.outputs.sha }}" for s in nfo)
+    assert len(nfo) == 4 and all(s["with"]["base"] == "${{ steps.base.outputs.sha }}" for s in nfo)
+    # Render drift is its own step per path, after the checks, judged by the files it names, with
+    # files the render adds shown in the diff.
+    drift = [s for s in nfo if "match their inputs" in s["name"]]
+    assert [s["if"] for s in drift] == ["env.TEMPLATES_ROOT == ''", "env.TEMPLATES_ROOT != ''"]
+    steps = doc["jobs"]["repo"]["steps"]
+    assert all(steps.index(s) > steps.index(c) for s in drift for c in nfo if s not in drift)
+    for s in drift:
+        assert s["with"]["failure-lines"] == r"^diff --git a/blueprints/\S+"
+        run = [line.strip() for line in s["with"]["run"].splitlines()]
+        assert "render" in run[0]
+        assert run[1:] == ["git add -N blueprints", "git diff --exit-code blueprints"]
+    assert all("git diff" not in s["with"]["run"] for s in nfo if s not in drift)
 
 
 def test_app_dispatch_leaves_main_to_app_main_and_takes_the_commits():

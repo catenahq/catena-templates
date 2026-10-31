@@ -444,7 +444,7 @@ def test_the_derived_names_are_the_files_pack_reads():
 def test_a_neat_file_adds_no_class_when_changed_added_or_removed(repo, name):
     git, _ = repo
     path = f"blueprints/web/{name}"
-    start = _put(git, {path: "one"})
+    start = _put(git, {path: "one", "blueprints/web/services.yml": "services: {}\n"})
     changed = _put(git, {path: "two"})
     removed = _put(git, remove=[path])
     assert _classes(start, changed) == frozenset()

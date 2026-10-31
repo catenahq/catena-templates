@@ -36,6 +36,7 @@ import yaml
 from .model import BLUEPRINTS
 
 COMPOSE = "docker-compose.yml"
+BLOCK_KEY = "x-catena"
 SERVICES = "services.yml"
 HOOKS_DIR = "hooks"
 
@@ -75,15 +76,36 @@ def _lines(text: str, where: str) -> list[str]:
     return text[:-1].split("\n")
 
 
+def _top_keys(text: str, where: str) -> list[tuple[str, int]]:
+    """(key, index of its line) for each top-level key of the YAML mapping `text`; the
+    list is empty for any other kind of document."""
+    try:
+        root = yaml.compose(text)
+    except yaml.YAMLError as exc:
+        raise PackError(f"{where}: not YAML: {exc}") from exc
+    if not isinstance(root, yaml.MappingNode):
+        return []
+    return [(str(key.value), key.start_mark.line) for key, _ in root.value]
+
+
 def _chunks(lines: list[str], where: str) -> list[tuple[str, int, int, list[str]]]:
     """(key, index of its line, index of its text's first line, its text) for each
     top-level key of `lines`."""
     keys = [i for i, line in enumerate(lines) if _KEY.match(line)]
+    if keys:
+        for i, line in enumerate(lines[:keys[0]]):
+            if line and not line.startswith("#"):
+                raise PackError(f"{where}:{i + 1}: text before the first key")
+    parsed = _top_keys("\n".join(lines) + "\n", where)
+    for found, at in parsed:
+        if at not in keys:
+            raise PackError(f"{where}:{at + 1}: the key {found} is not written plainly as `{found}:` "
+                            f"at the start of its line")
+    for at in keys:
+        if at not in {line for _, line in parsed}:
+            raise PackError(f"{where}:{at + 1}: this line is not a top-level key of the file")
     if not keys:
         raise PackError(f"{where}: holds no key")
-    for i, line in enumerate(lines[:keys[0]]):
-        if line and not line.startswith("#"):
-            raise PackError(f"{where}:{i + 1}: text before the first key")
     starts = []
     for n, k in enumerate(keys):
         start, floor = k, keys[n - 1] + 1 if n else 0
@@ -103,8 +125,11 @@ def _hook_lines(name: str, text: str, where: str) -> list[str]:
     for i, line in enumerate(lines):
         if line and not line.strip():
             raise PackError(f"{where}:{i + 1}: a line of spaces only")
-    if lines[0].startswith(" "):
-        raise PackError(f"{where}:1: the first line starts with a space")
+    first = next((i for i, line in enumerate(lines) if line), None)
+    if first is None:
+        raise PackError(f"{where}: holds no text")
+    if lines[first].startswith(" "):
+        raise PackError(f"{where}:{first + 1}: the first line starts with a space")
     return lines
 
 
@@ -190,6 +215,10 @@ def pack_texts(neat: dict[str, str], hooks: dict[str, str], prefix: str = "") ->
     services = _lines(neat[SERVICES], prefix + SERVICES)
     if not services[0]:
         raise PackError(f"{prefix}{SERVICES}:1: starts with an empty line")
+    for found, at in _top_keys(neat[SERVICES], prefix + SERVICES):
+        if found == BLOCK_KEY or any(found in keys for keys in SECTIONS.values()):
+            raise PackError(f"{prefix}{SERVICES}:{at + 1}: {found} is a key of the block; "
+                            f"it belongs in a section file, not here")
     home = {key: name for name, keys in SECTIONS.items() for key in keys}
     chunks, used = {}, []
     for name, keys in SECTIONS.items():
@@ -245,11 +274,17 @@ def _read_neat(folder: Path) -> tuple[dict[str, str], dict[str, str]]:
 
 
 def pack_all(root: Path | None = None) -> list[Path]:
-    """Pack every folder holding `services.yml`; the compose files written."""
+    """Pack every folder holding `services.yml`; the compose files written. A section file
+    or a `hooks/` folder in a folder without `services.yml` is refused."""
     base = (root / "blueprints") if root else BLUEPRINTS
     written = []
-    for services in sorted(base.glob(f"*/{SERVICES}")):
-        folder = services.parent
+    for folder in sorted(p for p in base.glob("*") if p.is_dir()):
+        if not (folder / SERVICES).is_file():
+            for name in (*SECTIONS, HOOKS_DIR):
+                if (folder / name).exists() or (folder / name).is_symlink():
+                    raise PackError(f"blueprints/{folder.name}/{name}: the folder has no {SERVICES}, "
+                                    f"so nothing reads this")
+            continue
         neat, hooks = _read_neat(folder)
         text = pack_texts(neat, hooks, f"blueprints/{folder.name}/")
         target = folder / COMPOSE
@@ -333,7 +368,8 @@ def _extract_hooks(chunk: list[str], first: int, where: str) -> tuple[list[str],
             if _ODD_DOLLARS.search(line):
                 raise PackError(f"{at}: an odd run of $ in the script of {hook}; each $ is written $$")
             body.append(line.replace("$$", "$"))
-        if not body or body[0].startswith(" "):
+        opening = next((line for line in body if line), None)
+        if opening is None or opening.startswith(" "):
             raise PackError(f"{where}:{first + header + 1}: the script of {hook} is empty or starts with a space")
         files[name] = "\n".join(body) + "\n"
         out[header:end] = [f"{' ' * indent}- {{file: {name}}}"]

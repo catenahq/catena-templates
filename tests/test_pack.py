@@ -181,9 +181,21 @@ def test_a_folder_with_no_services_file_is_left_alone(tmp_path):
     folder = tmp_path / "blueprints" / "web"
     folder.mkdir(parents=True)
     (folder / pack.COMPOSE).write_text("hand edited\n")
-    (folder / "settings.yml").write_text(SETTINGS)
     assert pack.pack_all(tmp_path) == []
     assert (folder / pack.COMPOSE).read_text() == "hand edited\n"
+
+
+@pytest.mark.parametrize("name", ["settings.yml", "access.yml", "lifecycle.yml", "hooks"])
+def test_a_section_file_or_hooks_folder_without_a_services_file_is_refused(tmp_path, name):
+    folder = tmp_path / "blueprints" / "web"
+    folder.mkdir(parents=True)
+    (folder / pack.COMPOSE).write_text("hand edited\n")
+    if name == "hooks":
+        (folder / name).mkdir()
+    else:
+        (folder / name).write_text(SETTINGS)
+    with pytest.raises(pack.PackError, match=rf"blueprints/web/{name}: the folder has no services.yml"):
+        pack.pack_all(tmp_path)
 
 
 def test_pack_all_writes_the_compose_once(tmp_path):
@@ -222,6 +234,17 @@ def test_pack_all_writes_the_compose_once(tmp_path):
     (None, {"hooks/verify.sh": "echo ok\n\n"}, "exactly one newline"),
     (None, {"hooks/verify.sh": "a\n  \nb\n"}, "a line of spaces only"),
     (None, {"hooks/verify.sh": " a\n"}, "first line starts with a space"),
+    (None, {"hooks/verify.sh": "\n a\n"}, r"verify.sh:2: the first line starts with a space"),
+    (None, {"hooks/verify.sh": "\n"}, "holds no text"),
+    ({"settings.yml": '"env":\n  A: 1\n'}, None, r"settings.yml:1: the key env is not written plainly"),
+    ({"settings.yml": "env:\n  A: 1\n'secrets': {}\n"}, None,
+     r"settings.yml:3: the key secrets is not written plainly"),
+    ({"settings.yml": "env:\n  A: 1\nsecrets: {}\n? [x]\n: y\n"}, None, "settings.yml:4: the key"),
+    ({"settings.yml": "env: 'a\nsecrets: {}\n'\n"}, None, r"settings.yml:2: this line is not a top-level key"),
+    ({pack.SERVICES: "x-catena: {}\n" + SERVICES}, None, r"services.yml:1: x-catena is a key of the block"),
+    ({pack.SERVICES: SERVICES + "env: {}\n"}, None, r"services.yml:4: env is a key of the block"),
+    ({pack.SERVICES: SERVICES + "hooks: {}\n"}, None, r"services.yml:4: hooks is a key of the block"),
+    ({pack.SERVICES: "services: [\n"}, None, "services.yml: not YAML"),
     ({"lifecycle.yml": "hooks:\n  service: web\n  verify:\n    - {file: hooks/verify.sh}\n"}, None,
      "not the last item"),
 ])
@@ -275,6 +298,7 @@ def test_comments_above_services_stay_in_the_services_file(tmp_path):
     (PACKED.replace("\n\nservices:", "\n\n\nservices:"), "followed by exactly one empty line"),
     (PACKED.replace("echo ok", "echo $HOME"), "an odd run of"),
     (PACKED.replace("echo ok\n", "echo ok\n            \n          echo two\n"), "a line of spaces only"),
+    (PACKED.replace("          echo ok\n", "\n           echo ok\n"), "empty or starts with a space"),
     (PACKED.replace("echo ok", "echo ok\r"), "carriage return"),
     (PACKED.rstrip("\n"), "does not end with a newline"),
 ])

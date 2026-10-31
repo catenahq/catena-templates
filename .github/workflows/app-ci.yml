@@ -128,7 +128,6 @@ jobs:
           base: ${{ steps.base.outputs.sha }}
           run: |
             make
-            git diff --exit-code blueprints
             docker run --rm -v "$PWD:/work:ro" \
               --entrypoint /usr/local/share/catena-ee/bin/catena-applint \
               ghcr.io/catenahq/catena-admin:latest --catalog --nodes 2 /work/blueprints
@@ -141,12 +140,36 @@ jobs:
           repo-path: ${{ github.workspace }}
           base: ${{ steps.base.outputs.sha }}
           run: |
-            uv run "$TOOLS/build/render.py"
-            git diff --exit-code blueprints
             uv run "$TOOLS/build/lint_swarm.py"
             docker run --rm -v "$PWD:/work:ro" \
               --entrypoint /usr/local/share/catena-ee/bin/catena-applint \
               ghcr.io/catenahq/catena-admin:latest --nodes 2 /work/blueprints
+      - name: The packed and rendered files match their inputs (catalog)
+        # A file the render writes or deletes under blueprints/ shows in the diff,
+        # untracked ones too (git add -N); a base that already drifts passes.
+        if: env.TEMPLATES_ROOT == ''
+        uses: catenahq/contracts/.github/actions/new-failures-only@main
+        with:
+          working-directory: ${{ github.workspace }}
+          repo-path: ${{ github.workspace }}
+          base: ${{ steps.base.outputs.sha }}
+          failure-lines: '^diff --git a/blueprints/\S+'
+          run: |
+            make render
+            git add -N blueprints
+            git diff --exit-code blueprints
+      - name: The packed and rendered files match their inputs (folder)
+        if: env.TEMPLATES_ROOT != ''
+        uses: catenahq/contracts/.github/actions/new-failures-only@main
+        with:
+          working-directory: ${{ github.workspace }}
+          repo-path: ${{ github.workspace }}
+          base: ${{ steps.base.outputs.sha }}
+          failure-lines: '^diff --git a/blueprints/\S+'
+          run: |
+            uv run "$TOOLS/build/render.py"
+            git add -N blueprints
+            git diff --exit-code blueprints
 
   scope:
     # A pull request or a commit of main changes one app, so one change is one tag.
