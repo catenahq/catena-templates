@@ -19,16 +19,17 @@ x-catena:
   # verify asks the backend for its root through the /api route of the bundled nginx, then the front end, then
   # the health of the orchestrator, which asks Temporal for its default namespace. The processes behind nginx
   # and Temporal start after the hook's container does, so each ask is repeated every 4 seconds while the port
-  # refuses, nginx answers 502/503 or the orchestrator times out or answers 500, until 130 seconds after the
-  # hook started; the last answer is then judged. Three asks of 15 seconds at most follow the deadline.
+  # refuses, nginx answers 502/503 or the orchestrator times out or answers 500, until 300 seconds after the
+  # hook started (after an update the start first pushes the new database schema); the last answer is then judged.
+  # Three asks of 15 seconds at most follow the deadline.
   hooks:
     service: postiz
-    timeout_seconds: 180
+    timeout_seconds: 360
     verify:
       - - node
         - -e
         - |
-          const end = Date.now() + 130000;
+          const end = Date.now() + 300000;
           const NGINX = 5000;
           const ORCHESTRATOR = 3002;
           const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));

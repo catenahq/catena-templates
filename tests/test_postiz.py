@@ -44,8 +44,8 @@ def test_the_hook_runs_in_a_service_of_the_stack():
 
 
 def test_the_wait_ends_inside_the_hook_timeout():
-    assert "Date.now() + 130000" in _verify()[-1]
-    assert 130 + 3 * 15 < _entry().block["hooks"]["timeout_seconds"] <= 300
+    assert "Date.now() + 300000" in _verify()[-1]
+    assert 300 + 3 * 15 < _entry().block["hooks"]["timeout_seconds"] <= 600
 
 
 class _Stub(http.server.BaseHTTPRequestHandler):
@@ -89,7 +89,7 @@ def _run(routes: dict[str, tuple[int, bytes]], *, answer: bool = True, swap=(), 
 SWAP = [
     ("NGINX = 5000", "NGINX = {port}"),
     ("ORCHESTRATOR = 3002", "ORCHESTRATOR = {port}"),
-    ("Date.now() + 130000", "Date.now() + 2000"),
+    ("Date.now() + 300000", "Date.now() + 2000"),
     ("sleep(4000)", "sleep(100)"),
 ]
 ROUTES = {"/api/": (200, b"App is running!"), "/": (307, b""), "/health/status": (200, b'{"status":"ok"}')}
