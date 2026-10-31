@@ -21,7 +21,6 @@ APPS = sorted(p.parent.name for p in CATALOG.glob("*/docker-compose.yml"))
 OUT_OF_FORM = {
     "clamav": "images is out of order",
     "erpnext-helpdesk": "images is out of order",
-    "rocketchat-oidc": "images is out of order",
     "element": "followed by exactly one empty line",
     "wordpress": "followed by exactly one empty line",
 }

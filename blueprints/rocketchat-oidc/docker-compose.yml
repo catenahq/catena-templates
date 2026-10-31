@@ -1,5 +1,6 @@
 x-catena:
   schema: 2
+  requires_catena: 0.11.12
   env:
     DOMAIN_HOST:
       setting: {default: "chat.{{ cloudflare_zone }}"}
@@ -28,6 +29,15 @@ x-catena:
     post:
       - ["mongosh", "--quiet", "--eval", "while (db.adminCommand({currentOp:1}).fsyncLock) { db.fsyncUnlock() }"]
     timeout_seconds: 60
+  images:
+    prosody:
+      rule: {kind: pattern, tag_pattern: 'stable-(\d+)(?:-(\d+))?', migrate_from: 'unstable-(\d{4})-(\d{2})-(\d{2})'}
+    jicofo:
+      rule: {kind: pattern, tag_pattern: 'stable-(\d+)(?:-(\d+))?', migrate_from: 'unstable-(\d{4})-(\d{2})-(\d{2})'}
+    jvb:
+      rule: {kind: pattern, tag_pattern: 'stable-(\d+)(?:-(\d+))?', migrate_from: 'unstable-(\d{4})-(\d{2})-(\d{2})'}
+    jitsi-web:
+      rule: {kind: pattern, tag_pattern: 'stable-(\d+)(?:-(\d+))?', migrate_from: 'unstable-(\d{4})-(\d{2})-(\d{2})'}
   # verify asks the running server in the rocketchat service, with the node of
   # its image, for /api/info (the answer names the version) and the bundled
   # Jitsi web server for its front page, the host the Jitsi_Domain setting
@@ -78,15 +88,6 @@ x-catena:
             }
             console.log("Rocket.Chat " + version + " answers and the Jitsi web server answers");
           })();
-  images:
-    prosody:
-      rule: {kind: pattern, tag_pattern: 'stable-(\d+)(?:-(\d+))?', migrate_from: 'unstable-(\d{4})-(\d{2})-(\d{2})'}
-    jicofo:
-      rule: {kind: pattern, tag_pattern: 'stable-(\d+)(?:-(\d+))?', migrate_from: 'unstable-(\d{4})-(\d{2})-(\d{2})'}
-    jvb:
-      rule: {kind: pattern, tag_pattern: 'stable-(\d+)(?:-(\d+))?', migrate_from: 'unstable-(\d{4})-(\d{2})-(\d{2})'}
-    jitsi-web:
-      rule: {kind: pattern, tag_pattern: 'stable-(\d+)(?:-(\d+))?', migrate_from: 'unstable-(\d{4})-(\d{2})-(\d{2})'}
 
 services:
   mongodb:
@@ -205,9 +206,6 @@ services:
       Jitsi_URL_Room_Hash: "false"
       Jitsi_Enable_Channels: "true"
     labels:
-      - "vps.homepage.name=Rocket.Chat"
-      - "vps.homepage.description=Team chat with channels, direct messages and file sharing."
-      - "vps.homepage.description-fr=Messagerie d'équipe avec canaux, messages directs et partage de fichiers."
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=3000"
       - "vps.route.main=true"

@@ -650,6 +650,7 @@
           "Discord (for work)"
         ],
         "setup_steps": "1. Click **Deploy**. Nothing to fill in the Environment tab except a different hostname, where one is wanted.\n2. Wait for the sign-in values. Within a few minutes of the first deploy, the server creates Rocket.Chat's own sign-in entry in Keycloak, writes its values (`OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_ISSUER_URL`) into the Environment tab, and Rocket.Chat restarts once with them. The login page then shows **Sign in with Keycloak**.\n3. Sign in with Keycloak. The workspace administrator is the account made on the first start with the server's admin email (`ADMIN_EMAIL`): that person's Keycloak sign-in opens it. Everyone else gets an account on their first sign-in.\n4. *(Optional, ~30 s)* Attach Nextcloud files in chats: Administration -> Apps -> Marketplace -> search `Nextcloud` -> install -> set the Nextcloud domain in the app settings. Users can then type `/nextcloud` in any chat to browse and attach files.\n",
+        "summary": "Team chat with channels, direct messages and file sharing.",
         "what_it_is": "Team chat -- channels, direct messages, file sharing, mobile apps, and video calls. Keycloak SSO pre-wired."
       },
       "env": {
@@ -733,6 +734,7 @@
           "Discord (en usage pro)"
         ],
         "setup_steps": "1. Cliquez **Deploy**. Rien \u00e0 remplir dans l'onglet Environment, sauf un autre nom de domaine le cas \u00e9ch\u00e9ant.\n2. Attendez les valeurs de connexion. Dans les minutes qui suivent le premier d\u00e9ploiement, le serveur cr\u00e9e l'entr\u00e9e de connexion propre \u00e0 Rocket.Chat dans Keycloak, inscrit ses valeurs (`OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_ISSUER_URL`) dans l'onglet Environment, et Rocket.Chat red\u00e9marre une fois avec elles. La page de connexion affiche alors **Sign in with Keycloak**.\n3. Connectez-vous avec Keycloak. L'administrateur de l'espace de travail est le compte cr\u00e9\u00e9 au premier d\u00e9marrage avec l'adresse courriel d'administration du serveur (`ADMIN_EMAIL`) : la connexion Keycloak de cette personne l'ouvre. Les autres personnes re\u00e7oivent un compte \u00e0 leur premi\u00e8re connexion.\n4. *(Optionnel, ~30 s)* Joindre des fichiers Nextcloud : Administration -> Apps -> Marketplace -> cherchez `Nextcloud` -> installez -> indiquez le domaine Nextcloud. Les utilisateurs tapent ensuite `/nextcloud` dans un chat pour parcourir et joindre des fichiers.\n",
+        "summary": "Messagerie d'\u00e9quipe avec canaux, messages directs et partage de fichiers.",
         "what_it_is": "Messagerie d'\u00e9quipe -- canaux, messages directs, partage de fichiers, apps mobiles, appels vid\u00e9o. Keycloak SSO pr\u00e9-c\u00e2bl\u00e9."
       },
       "hostname_baked": true,
@@ -757,7 +759,7 @@
         "service": "mongodb",
         "timeout_seconds": 60
       },
-      "requires_catena": "0.11.3",
+      "requires_catena": "0.11.12",
       "sizing": {
         "disk_baseline_mb": 180,
         "idle_cpu_pct": 3,
