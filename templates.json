@@ -2,58 +2,6 @@
   "templates": [
     {
       "categories": [
-        "Automation"
-      ],
-      "description": "Workflow automation (400+ integrations). Replaces Zapier / Make.",
-      "env": [
-        {
-          "default": "automate.",
-          "label": "Domain",
-          "name": "DOMAIN_HOST"
-        },
-        {
-          "default": "automate.",
-          "label": "N8n hostname",
-          "name": "N8N_HOSTNAME"
-        },
-        {
-          "default": "UTC",
-          "label": "N8n timezone",
-          "name": "N8N_TIMEZONE"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
-          "label": "N8n encryption key",
-          "name": "N8N_ENCRYPTION_KEY"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
-          "label": "N8n JWT secret",
-          "name": "N8N_JWT_SECRET"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
-          "label": "Database password",
-          "name": "DB_PASSWORD"
-        }
-      ],
-      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/n8n/logo.png",
-      "maintainer": "https://github.com/catenahq/catena-templates",
-      "name": "catena-n8n",
-      "note": "<p>Workflow automation -- visually chain hundreds of integrations (APIs, apps, databases) into no-code/low-code workflows.</p><p>Replaces Zapier, Make (Integromat), Tray.io.</p><p><a href=\"https://github.com/catenahq/catena-templates/blob/main/blueprints/n8n/README.md\">https://github.com/catenahq/catena-templates/blob/main/blueprints/n8n/README.md</a></p>",
-      "platform": "linux",
-      "repository": {
-        "stackfile": "blueprints/n8n/docker-compose.yml",
-        "url": "https://github.com/catenahq/catena-templates"
-      },
-      "title": "n8n",
-      "type": 2
-    },
-    {
-      "categories": [
         "ERP",
         "Business"
       ],
