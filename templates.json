@@ -1253,7 +1253,7 @@
           "name": "DB_PASSWORD"
         }
       ],
-      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/postiz/logo.svg",
+      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/postiz/logo.png",
       "maintainer": "https://github.com/catenahq/catena-templates",
       "name": "catena-postiz",
       "note": "<p>Schedule and publish social media posts across Twitter/X, LinkedIn, Facebook, Instagram, YouTube, TikTok, and more.</p><p>Replaces Buffer, Hootsuite, Later.</p><p><a href=\"https://github.com/catenahq/catena-templates/blob/main/blueprints/postiz/README.md\">https://github.com/catenahq/catena-templates/blob/main/blueprints/postiz/README.md</a></p>",

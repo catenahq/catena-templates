@@ -12,6 +12,7 @@ Schedule and publish social media posts across Twitter/X, LinkedIn, Facebook, In
 - **Replaces:** **Buffer**, **Hootsuite**, **Later**
 - **Sign-in (SSO):** Not available. This application's community edition has no OIDC support, so each account keeps a per-application login.
 - **Address:** `social.yourdomain.com`, served from `postiz:5000`
+- **Logo:** <https://raw.githubusercontent.com/gitroomhq/postiz-app/35a482901583ed4219ff43afffde184e8ee373a6/apps/frontend/public/logo.svg>.
 
 The address is attached when the template is deployed. A different one is
 arranged beforehand, on request.
@@ -47,6 +48,7 @@ Planifier et publier des posts sociaux sur Twitter/X, LinkedIn, Facebook, Instag
 - **Remplace :** **Buffer**, **Hootsuite**, **Later**
 - **Connexion (SSO) :** Non disponible. L'édition communautaire de cette application n'a pas de support OIDC : chaque compte garde un identifiant propre à l'application.
 - **Adresse :** `social.yourdomain.com`, servie par `postiz:5000`
+- **Logo :** <https://raw.githubusercontent.com/gitroomhq/postiz-app/35a482901583ed4219ff43afffde184e8ee373a6/apps/frontend/public/logo.svg>.
 
 L'adresse est attachée au déploiement du modèle. Une autre se convient au
 préalable, sur demande.

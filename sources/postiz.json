@@ -11,6 +11,9 @@
   "x-catena": {
     "app_name": "catena-postiz",
     "upstream_url": "https://postiz.com/",
+    "logo": {
+      "source": "https://raw.githubusercontent.com/gitroomhq/postiz-app/35a482901583ed4219ff43afffde184e8ee373a6/apps/frontend/public/logo.svg"
+    },
     "sso_mode": "none",
     "domain": {
       "host": "social.{{ cloudflare_zone }}",
