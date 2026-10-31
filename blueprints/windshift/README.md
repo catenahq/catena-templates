@@ -12,6 +12,7 @@ Work management with test runs, time tracking, and branded customer portals.
 - **Replaces:** **Jira**, **Jira Service Management**, **Tempo**, **Xray**
 - **Sign-in (SSO):** Enabled from the application's own admin screens: the `OIDC_*` values from the Environment tab are pasted in once.
 - **Address:** `work.yourdomain.com`, served from `windshift:8080`
+- **Logo:** <https://raw.githubusercontent.com/windshiftapp/windshift/b8e4e66630f39c2989d5fce515f950580160e054/frontend/public/apple-touch-icon.png>.
 
 The address is attached when the template is deployed. A different one is
 arranged beforehand, on request.
@@ -50,6 +51,7 @@ Gestion du travail avec suites de tests, feuilles de temps et portails clients p
 - **Remplace :** **Jira**, **Jira Service Management**, **Tempo**, **Xray**
 - **Connexion (SSO) :** À activer depuis les écrans d'administration de l'application : les valeurs `OIDC_*` de l'onglet Environment y sont collées une fois.
 - **Adresse :** `work.yourdomain.com`, servie par `windshift:8080`
+- **Logo :** <https://raw.githubusercontent.com/windshiftapp/windshift/b8e4e66630f39c2989d5fce515f950580160e054/frontend/public/apple-touch-icon.png>.
 
 L'adresse est attachée au déploiement du modèle. Une autre se convient au
 préalable, sur demande.

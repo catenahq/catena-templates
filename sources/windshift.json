@@ -11,6 +11,9 @@
   "x-catena": {
     "app_name": "catena-windshift",
     "upstream_url": "https://windshift.sh/",
+    "logo": {
+      "source": "https://raw.githubusercontent.com/windshiftapp/windshift/b8e4e66630f39c2989d5fce515f950580160e054/frontend/public/apple-touch-icon.png"
+    },
     "sso_mode": "post-deploy-ui",
     "domain": {
       "host": "work.{{ cloudflare_zone }}",

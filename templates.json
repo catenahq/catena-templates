@@ -882,7 +882,7 @@
           "name": "DB_PASSWORD"
         }
       ],
-      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/windshift/logo.svg",
+      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/windshift/logo.png",
       "maintainer": "https://github.com/catenahq/catena-templates",
       "name": "catena-windshift",
       "note": "<p>Work management with test runs, time tracking, and branded customer portals.</p><p>Replaces Jira, Jira Service Management, Tempo, Xray.</p><p><a href=\"https://github.com/catenahq/catena-templates/blob/main/blueprints/windshift/README.md\">https://github.com/catenahq/catena-templates/blob/main/blueprints/windshift/README.md</a></p>",

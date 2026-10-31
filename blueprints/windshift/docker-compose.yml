@@ -97,6 +97,9 @@ services:
       retries: 5
       start_period: 30s
     labels:
+      - "vps.homepage.name=Windshift"
+      - "vps.homepage.description=Work tracking with test runs, time tracking and customer portals."
+      - "vps.homepage.description-fr=Suivi du travail avec campagnes de tests, saisie du temps et portails pour les clients."
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=8080"
       - "vps.auth.mode=public"
