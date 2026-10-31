@@ -12,6 +12,7 @@ Production-ready public CMS / website platform with FastCGI cache, Redis object 
 - **Replaces:** **Wix**, **Squarespace**, **self-hosted Drupal**
 - **Sign-in (SSO):** Enabled from the application's own admin screens: the `OIDC_*` values from the Environment tab are pasted in once.
 - **Address:** `www.yourdomain.com`, served from `nginx:80`
+- **Logo:** <https://raw.githubusercontent.com/WordPress/wordpress-develop/900283f441d9c64bb14cc7762503c7662942b0f8/src/wp-admin/images/wordpress-logo.svg>.
 
 The address is attached when the template is deployed. A different one is
 arranged beforehand, on request.
@@ -66,6 +67,7 @@ Plateforme CMS / site web public prête pour la production, avec cache FastCGI, 
 - **Remplace :** **Wix**, **Squarespace**, **Drupal auto-hébergé**
 - **Connexion (SSO) :** À activer depuis les écrans d'administration de l'application : les valeurs `OIDC_*` de l'onglet Environment y sont collées une fois.
 - **Adresse :** `www.yourdomain.com`, servie par `nginx:80`
+- **Logo :** <https://raw.githubusercontent.com/WordPress/wordpress-develop/900283f441d9c64bb14cc7762503c7662942b0f8/src/wp-admin/images/wordpress-logo.svg>.
 
 L'adresse est attachée au déploiement du modèle. Une autre se convient au
 préalable, sur demande.

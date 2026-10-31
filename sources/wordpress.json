@@ -11,6 +11,9 @@
   "x-catena": {
     "app_name": "catena-wordpress",
     "upstream_url": "https://wordpress.org/",
+    "logo": {
+      "source": "https://raw.githubusercontent.com/WordPress/wordpress-develop/900283f441d9c64bb14cc7762503c7662942b0f8/src/wp-admin/images/wordpress-logo.svg"
+    },
     "sso_mode": "post-deploy-ui",
     "domain": {
       "host": "www.{{ cloudflare_zone }}",

@@ -1039,7 +1039,7 @@
           "name": "SMTP_RELAY_SENDER"
         }
       ],
-      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/wordpress/logo.svg",
+      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/wordpress/logo.png",
       "maintainer": "https://github.com/catenahq/catena-templates",
       "name": "catena-wordpress",
       "note": "<p>Production-ready public CMS / website platform with FastCGI cache, Redis object cache, and a curated free-tier plugin set pre-installed. The site serves anonymously; admin sign-in runs on /wp-admin and can be wired to Keycloak via a plugin.</p><p>Replaces Wix, Squarespace, self-hosted Drupal.</p><p><a href=\"https://github.com/catenahq/catena-templates/blob/main/blueprints/wordpress/README.md\">https://github.com/catenahq/catena-templates/blob/main/blueprints/wordpress/README.md</a></p>",
