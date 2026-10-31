@@ -2,8 +2,8 @@
 
 A template is two hand-edited files: its metadata and its compose at
 `blueprints/<id>/docker-compose.yml`. The metadata is the card file
-`blueprints/<id>/app.json` (schema `app.schema.json`) or, for an app not moved
-yet, `sources/<id>.json` (schema `sources.schema.json`); an app holds one of
+`blueprints/<id>/app.json` (schema `app.schema.json`) or
+`sources/<id>.json` (schema `sources.schema.json`); an app holds one of
 them, never both. `catalog-meta.json` (or `sources/_meta.json`) holds the values
 that are catalog-wide rather than per-template. Everything else in the repo is
 rendered from these.
@@ -23,8 +23,8 @@ Validation runs in two layers:
   2. Cross-file invariants below -- id/filename agreement, compose file
      present with a block that declares an env, duplicate slugs, a logo.png
      the control panel keeps beside the source that names it, the main
-     service's name label equal to the source's display name (a moved app's
-     compose carries no vps.homepage.* label).
+     service's name label equal to the source's display name (the compose of an
+     app held as app.json carries no vps.homepage.* label).
      A schema cannot see across files, and these are exactly the failures
      that reach a host as a broken app when nothing checks them.
 """
@@ -72,6 +72,7 @@ LOGO_NAME = "logo.png"
 LOGO_MIN_PX = 128
 LOGO_MAX_PX = 512
 LOGO_MAX_BYTES = 65536
+CARD_MAX_BYTES = 65536  # catena-admin payload/engines/applogo MaxCardBytes
 _PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 _PNG_RGBA = (8, 6)  # bit depth, colour type
 NAME_LABEL = "vps.homepage.name"
@@ -388,7 +389,7 @@ def compose_doc(path: Path) -> dict[str, Any]:
 
 
 def _homepage_errors(entry: Entry, label: str) -> list[str]:
-    """A moved app's compose carries no vps.homepage.* label: its card file holds that data."""
+    """The compose of an app held as app.json carries no vps.homepage.* label: its card file holds that data."""
     services = compose_doc(entry.compose_path).get("services")
     errors = []
     for name, service in (services.items() if isinstance(services, dict) else ()):
@@ -448,6 +449,10 @@ def load_sources() -> list[Entry]:
     for path in [*sources, *cards]:
         is_card = path.name == CARD_NAME
         label = f"{BLUEPRINTS.name}/{path.parent.name}/{CARD_NAME}" if is_card else f"sources/{path.name}"
+        if is_card and path.stat().st_size > CARD_MAX_BYTES:
+            errors.append(f"{label} is {path.stat().st_size} bytes; the control panel "
+                          f"reads at most {CARD_MAX_BYTES}")
+            continue
         try:
             doc = json.loads(path.read_text())
         except json.JSONDecodeError as exc:

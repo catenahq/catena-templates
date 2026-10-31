@@ -243,7 +243,7 @@ def _compose(tmp_path, monkeypatch, body: str):
 
 
 def test_checker_names_the_release_the_block_requires(tmp_path, monkeypatch):
-    """A moved app has no source: the compose block names the release."""
+    """An app held as app.json has no source: the compose block names the release."""
     monkeypatch.setattr(app_checks, "SOURCES", tmp_path / "sources")
     _compose(tmp_path, monkeypatch, "x-catena:\n  schema: 2\n  requires_catena: 0.11.12\nservices: {}\n")
     assert app_checks.checker_image("demo") == "ghcr.io/catenahq/catena-admin:v0.11.12"

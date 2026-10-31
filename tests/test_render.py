@@ -1,5 +1,5 @@
-"""Unit tests for lib/render.py: the transforms that decide what a
-client's Portainer shows, and what catenahq/ops reads back.
+"""Unit tests for lib/render.py: the transforms that decide what templates.json
+holds, and what catenahq/ops reads back from catalog.json.
 """
 from __future__ import annotations
 
@@ -18,9 +18,9 @@ from lib import model, readme, render  # noqa: E402
 
 
 def test_password_lookup_collapses_to_the_sentinel():
-    """Portainer has no per-deploy secret generator. A rendered default
-    that still carried the Ansible lookup would be shipped verbatim into
-    a client's environment tab."""
+    """The Portainer format has no per-deploy secret generator. A rendered
+    default that still carried the Ansible lookup would publish it verbatim
+    in templates.json."""
     out = render.strip_jinja_for_portainer(
         "{{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
     )
@@ -60,22 +60,20 @@ def test_managed_keys_render_as_sentinel_with_a_description():
     assert env["DB_PASSWORD"]["default"] == render.SENTINEL_MANAGED
     assert "description" not in env["DOMAIN_HOST"]
     assert env["OIDC_CLIENT_SECRET"]["default"] == render.SENTINEL_MANAGED
-    # The description says where the real value comes from. It must not promise
-    # that something resolves this file in place: nothing does, and a reader
-    # who deployed it expecting one would get the placeholder as their secret.
+    # The description says where the real value comes from. It makes no promise
+    # that something resolves this file in place.
     assert "Placeholder" in env["OIDC_CLIENT_SECRET"]["description"]
     assert "converge" not in env["OIDC_CLIENT_SECRET"]["description"]
 
 
 def test_rendered_templates_json_matches_the_published_schema():
-    """The committed artifact is what a client's Portainer fetches over
-    plain HTTP. Validate the file on disk, not a freshly built one."""
+    """Validate the committed templates.json on disk, not a freshly built one."""
     doc = json.loads((ROOT / "templates.json").read_text())
     assert model.validate_output(doc) == []
     assert doc["version"] == "3"
 
 
-def test_every_template_is_a_git_repo_stack_pointing_at_its_blueprint():
+def test_every_templates_json_entry_points_at_its_blueprint():
     doc = json.loads((ROOT / "templates.json").read_text())
     for tmpl in doc["templates"]:
         assert tmpl["type"] == 2
@@ -85,13 +83,10 @@ def test_every_template_is_a_git_repo_stack_pointing_at_its_blueprint():
 
 
 def test_no_ansible_templating_reaches_portainer():
-    """templates.json is deployed by a human clicking Deploy, with no
-    Ansible in the loop. An unresolved lookup or vault ref there becomes
-    the app's literal secret value. This caught a real leak: entries
-    piping a lookup through `| lower` did not match the collapse regex.
+    """templates.json holds no unresolved lookup or vault ref, including a
+    lookup piped through `| lower`.
 
-    catalog.json is the opposite case and deliberately keeps the Jinja:
-    the host's render is what resolves it."""
+    catalog.json keeps the Jinja: the host resolves it."""
     portainer = (ROOT / "templates.json").read_text()
     assert "lookup('password'" not in portainer
     assert "{{" not in portainer
@@ -101,9 +96,9 @@ def test_no_ansible_templating_reaches_portainer():
 
 
 def test_catalog_json_carries_what_portainer_cannot():
-    """The second artifact exists precisely for the fields the Portainer
-    format has no slot for. If they stop being emitted, ops loses SSO
-    wiring, bench membership, and sizing in one go. An imported entry
+    """catalog.json carries the fields the Portainer format has no slot for.
+    If they stop being emitted, ops loses SSO wiring, bench membership,
+    and sizing in one go. An imported entry
     carries its origin where a curated one carries its bench pack and its
     measured peak."""
     doc = json.loads((ROOT / "catalog.json").read_text())
@@ -131,7 +126,7 @@ def test_catalog_json_and_templates_json_cover_the_same_ids():
 def test_the_blocks_managed_env_reaches_the_catalog_as_env_lines_and_keys():
     """The managed key's line keeps its place in env_defaults and carries the
     block's expression, and env_managed_keys lists the keys in the block's
-    order; the host's render and the Portainer sentinel both read them."""
+    order; the host's settling of the env and the templates.json sentinel both read them."""
     catalog = {
         e["id"]: e for e in json.loads((ROOT / "catalog.json").read_text())["templates"]
     }
@@ -200,7 +195,7 @@ def test_lifecycle_reaches_the_catalog_unchanged():
 
 
 def test_every_blueprint_carries_its_compose_and_its_readme():
-    """The blueprint directory is the unit Portainer clones. Whoever
+    """The blueprint directory is the unit a host fetches. Whoever
     opens it gets the stack file and the description of what it deploys
     in the same place."""
     for entry in model.load_sources():
@@ -249,8 +244,8 @@ def _requiring(entry: model.Entry, version: str | None) -> model.Entry:
 
 def test_an_entry_needing_a_newer_catena_says_so_in_its_description_and_readme():
     """A server on an older release deploys such an entry in a shape its
-    panel cannot serve. The client reads the description in Portainer's
-    gallery and the README in the blueprint, so both name the release."""
+    panel cannot serve. The templates.json description and the README in the
+    blueprint both name the release."""
     entry = model.load_sources()[0]
     needs = _requiring(entry, "0.11.0")
     description = render.render_portainer_template(needs, "logo.svg")["description"]
@@ -346,8 +341,8 @@ def test_rendering_twice_gives_identical_artifacts():
 
 
 def test_a_blueprint_with_no_source_file_is_dropped(tmp_path, monkeypatch):
-    """A template deleted from sources/ leaves a directory Portainer
-    would still clone and deploy."""
+    """A template whose metadata file is deleted leaves a directory a host
+    could still fetch and deploy."""
     blueprints = tmp_path / "blueprints"
     for slug in ("kept", "orphan"):
         (blueprints / slug).mkdir(parents=True)
@@ -366,6 +361,8 @@ CONSUMED_KEYS = {
     "compose_file", "env_defaults", "env", "bench_pack", "bench_fixture", "hostname_baked",
     "categories", "sizing", "en", "fr",
 }
+# The keys of each language's prose that ops reads from every catalog.json entry.
+CONSUMED_PROSE_KEYS = {"display_name", "what_it_is", "replaces", "compose_description", "setup_steps"}
 
 
 def _tree(root: Path, as_card: bool) -> None:
@@ -389,8 +386,6 @@ def _tree(root: Path, as_card: bool) -> None:
             json.dumps({"x-catena": block, "services": services}))
         (root / "catalog-meta.json").write_text(json.dumps(meta))
         card = {"schema": 1, **cat, "categories": ["Testing"]}
-        for lang in ("en", "fr"):
-            del card[lang]["compose_description"]
         (app_dir / "app.json").write_text(json.dumps(card))
         return
     (app_dir / "docker-compose.yml").write_text(
@@ -421,14 +416,12 @@ def test_an_app_held_as_a_card_renders_what_its_source_renders(tmp_path):
         assert done.returncode == 0, done.stderr
 
     def catalog(root: Path) -> dict:
-        entry = json.loads((root / "catalog.json").read_text())["templates"][0]
-        for lang in ("en", "fr"):
-            entry[lang].pop("compose_description", None)
-            entry[lang].pop("summary", None)
-        return entry
+        return json.loads((root / "catalog.json").read_text())["templates"][0]
 
     assert catalog(carded) == catalog(sourced)
     published = catalog(carded)
+    for lang in ("en", "fr"):
+        assert CONSUMED_PROSE_KEYS <= set(published[lang])
     assert published["domain_host"] == "x.example.com"
     assert (published["domain_service"], published["domain_port"]) == ("app", 8080)
     assert published["requires_catena"] == "0.11.5"
@@ -444,6 +437,35 @@ def test_an_app_held_as_a_card_renders_what_its_source_renders(tmp_path):
     assert [t["name"] for t in json.loads((sourced / "templates.json").read_text())["templates"]] == [
         "catena-example"]
     assert json.loads((carded / "templates.json").read_text())["templates"] == []
+
+
+def _validated(root: Path) -> subprocess.CompletedProcess:
+    env = {**os.environ, "TEMPLATES_ROOT": str(root), "PYTHONPATH": str(ROOT)}
+    return subprocess.run([sys.executable, str(ROOT / "build" / "validate.py")], cwd=root, env=env,
+                          capture_output=True, text=True, check=False)
+
+
+def test_validate_passes_a_tree_holding_only_cards(tmp_path):
+    """No app is held as a source, so templates.json lists none and has nothing to check."""
+    _tree(tmp_path, as_card=True)
+    assert _rendered(tmp_path).returncode == 0
+    assert json.loads((tmp_path / "templates.json").read_text())["templates"] == []
+    done = _validated(tmp_path)
+    assert done.returncode == 0, done.stderr
+    assert "validate OK: 1 source(s)" in done.stdout
+
+
+def test_validate_checks_templates_json_against_schema_json(tmp_path):
+    _tree(tmp_path, as_card=False)
+    assert _rendered(tmp_path).returncode == 0
+    assert _validated(tmp_path).returncode == 0
+    path = tmp_path / "templates.json"
+    doc = json.loads(path.read_text())
+    del doc["templates"][0]["title"]
+    path.write_text(json.dumps(doc))
+    done = _validated(tmp_path)
+    assert done.returncode == 1
+    assert "templates.json violates Schema.json" in done.stderr
 
 
 def test_rendering_a_card_tree_twice_gives_identical_artifacts(tmp_path):

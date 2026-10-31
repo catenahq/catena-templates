@@ -3,7 +3,7 @@
 Only data moves: the fork's files are read as blobs through the API and written
 as blobs of this repository, so no fork code is checked out or run. The change
 must stay inside one app (`blueprints/<id>/**`, `app.json` and the logo among them,
-and `sources/<id>.json` for an app not moved yet); the catalog's generated root
+and `sources/<id>.json` for an app held as a source); the catalog's generated root
 files are left to the render on the adopt branch, and its hand-edited root files
 (`catalog-meta.json`, `catalog-aliases.json`) belong to no app and are refused.
 """

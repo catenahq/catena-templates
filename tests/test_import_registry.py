@@ -912,7 +912,8 @@ def test_the_card_layout_writes_an_app_json_and_no_source(catalog):
     assert not {"id", "type", "title", "name", "platform", "x-catena", "domain"} & set(card)
     assert card["en"]["display_name"] == "Web Stack"
     assert card["en"]["summary"] == "A web app -- with its database"
-    assert "compose_description" not in card["en"]
+    assert card["en"]["compose_description"].startswith("A web app -- with its database")
+    assert card["fr"]["compose_description"].strip()
     assert card["fr"]["summary"].startswith("Description du registre, non traduite : ")
     entry = next(e for e in model.load_sources() if e.slug == "web-stack")
     assert entry.card

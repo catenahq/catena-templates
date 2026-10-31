@@ -85,7 +85,7 @@ IMPORTED_NOTICE = (
     "pas encore été testé sur un serveur Catena.",
 )
 # The oldest Catena release an entry works on (x-catena.requires_catena),
-# (EN, FR). The EN sentence also opens the entry's Portainer description.
+# (EN, FR). The EN sentence also opens the entry's templates.json description.
 REQUIRES_CATENA = (
     "Requires Catena {version} or later.",
     "Requiert Catena {version} ou une version ultérieure.",

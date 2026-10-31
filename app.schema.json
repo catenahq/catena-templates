@@ -299,6 +299,7 @@
         "display_name",
         "what_it_is",
         "replaces",
+        "compose_description",
         "setup_steps"
       ],
       "properties": {
@@ -325,7 +326,7 @@
         "compose_description": {
           "type": "string",
           "minLength": 1,
-          "description": "The long description catalog.json publishes."
+          "description": "The long description catalog.json publishes; ops reads it in each language of every entry."
         },
         "setup_steps": {
           "type": "string"

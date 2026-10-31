@@ -773,9 +773,9 @@ class Report:
 
 
 def card_of(source: dict[str, Any]) -> dict[str, Any]:
-    """The entry as an app.json: the source without its Portainer fields, its web
-    address (the compose holds it) and its long descriptions, each language
-    gaining the card's one-line `summary` (the first line of the description)."""
+    """The entry as an app.json: the source without its Portainer fields and its web
+    address (the compose holds it), each language gaining the card's one-line
+    `summary` (the first line of the long description it keeps)."""
     cat = source["x-catena"]
     card: dict[str, Any] = {"schema": 1}
     for key in ("app_name", "upstream_url"):
@@ -786,9 +786,8 @@ def card_of(source: dict[str, Any]) -> dict[str, Any]:
             card[key] = cat[key]
     for lang in ("en", "fr"):
         prose = dict(cat[lang])
-        description = prose.pop("compose_description")
         card[lang] = {"display_name": prose.pop("display_name"),
-                      "summary": description.strip().splitlines()[0], **prose}
+                      "summary": prose["compose_description"].strip().splitlines()[0], **prose}
     return card
 
 
@@ -799,7 +798,7 @@ def entry_paths(slug: str) -> list[str]:
 
 
 def write_entry(slug: str, source: dict[str, Any], compose: str) -> None:
-    """The entry's two hand-edited files: its compose and its card file (or, while
+    """The entry's two hand-edited files: its compose and its card file (or, when
     the catalog has no catalog-meta.json, its source)."""
     app_dir = model.BLUEPRINTS / slug
     app_dir.mkdir(parents=True)
@@ -1115,8 +1114,8 @@ def main(argv: list[str], adapters: dict[str, Callable[[Any, str], list[Candidat
          render_fn: Callable[[], int] | None = None, today: date | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="import_registry.py",
-        description="Import a template registry into blueprints/ (and sources/ before the "
-                    "catalog moves to app.json) as entries "
+        description="Import a template registry into blueprints/ (and sources/ for a "
+                    "catalog that holds its apps as sources) as entries "
                     "marked imported and untested.")
     parser.add_argument("registry", help="address of the registry document (https:// or file://)")
     parser.add_argument("--format", choices=sorted(adapters), default=next(iter(adapters)),

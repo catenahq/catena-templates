@@ -1,11 +1,12 @@
 """Build library for the Catena template catalog.
 
-`sources/<id>.json` is canonical. Everything else in the repo root
-(`templates.json`, `catalog.json`, `index.html`, `blueprints/`) is
-generated from it by `lib.render` and gated for drift in CI.
+An app's metadata file (`blueprints/<id>/app.json` or `sources/<id>.json`) and
+its compose are canonical. The generated files (`templates.json`, `catalog.json`,
+`index.html`, each blueprint's README and placeholder logo) come from them by
+`lib.render` and are gated for drift in CI.
 
 Modules:
-  model         -- load + validate sources/, expose the entry model
+  model         -- load + validate the metadata files and composes, expose the entry model
   render        -- write blueprints/ + templates.json + catalog.json + index.html
   readme        -- one template's README from its prose
   quiesce_lint  -- security lint over the backup quiesce hooks

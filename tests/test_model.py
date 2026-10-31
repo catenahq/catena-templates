@@ -613,6 +613,24 @@ def test_a_card_file_loads_with_its_web_address_derived_from_the_compose(sources
     assert entry.catena["app_name"] == "example"
 
 
+def test_a_card_over_the_size_the_panel_reads_is_reported(sources):
+    doc = _card_doc()
+    doc["en"]["extra_notes"] = "x" * model.CARD_MAX_BYTES
+    _write_card(doc=doc)
+    _routed(ROUTE)
+    with pytest.raises(model.SourceError, match=rf"app\.json is \d+ bytes.*at most {model.CARD_MAX_BYTES}"):
+        model.load_sources()
+
+
+def test_a_card_missing_its_long_description_is_reported(sources):
+    doc = _card_doc()
+    del doc["fr"]["compose_description"]
+    _write_card(doc=doc)
+    _routed(ROUTE)
+    with pytest.raises(model.SourceError, match="compose_description"):
+        model.load_sources()
+
+
 def test_a_card_loads_with_no_sources_directory(tmp_path, monkeypatch):
     monkeypatch.setattr(model, "SOURCES", tmp_path / "sources")
     monkeypatch.setattr(model, "BLUEPRINTS", tmp_path / "blueprints")
@@ -757,8 +775,8 @@ def test_a_main_service_without_a_port_number_is_reported(sources, port):
 
 
 def test_the_web_address_derived_from_every_real_compose_is_the_one_its_source_holds():
-    """Table B of the runtime-scope plan: `domain` repeats the compose, so a moved
-    app loses the field and nothing changes for its readers."""
+    """`domain` repeats the compose, so an app held as app.json loses the field and
+    nothing changes for its readers."""
     for entry in model.load_sources():
         derived, errors = model.derive_domain(model.compose_doc(entry.compose_path))
         assert errors == []
