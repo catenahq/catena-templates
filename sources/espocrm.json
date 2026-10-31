@@ -11,6 +11,9 @@
   "x-catena": {
     "app_name": "catena-espocrm",
     "upstream_url": "https://www.espocrm.com/",
+    "logo": {
+      "source": "https://raw.githubusercontent.com/espocrm/espocrm/54bfaf847a6ac4632f5c2d461af94d85c6b48ac5/client/img/favicon-196.png"
+    },
     "sso_mode": "pre-wired",
     "domain": {
       "host": "crm.{{ cloudflare_zone }}",

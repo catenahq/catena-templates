@@ -737,7 +737,7 @@
           "name": "DB_ROOT_PASSWORD"
         }
       ],
-      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/espocrm/logo.svg",
+      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/espocrm/logo.png",
       "maintainer": "https://github.com/catenahq/catena-templates",
       "name": "catena-espocrm",
       "note": "<p>Default CRM in the suite. Contacts, accounts, opportunities, leads, calendar, email integration, mass mail, workflow automation. Keycloak sign-in pre-wired.</p><p>Replaces Salesforce, HubSpot, Zoho CRM, Pipedrive.</p><p><a href=\"https://github.com/catenahq/catena-templates/blob/main/blueprints/espocrm/README.md\">https://github.com/catenahq/catena-templates/blob/main/blueprints/espocrm/README.md</a></p>",

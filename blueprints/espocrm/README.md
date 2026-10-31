@@ -12,6 +12,7 @@ Default CRM in the suite. Contacts, accounts, opportunities, leads, calendar, em
 - **Replaces:** **Salesforce**, **HubSpot**, **Zoho CRM**, **Pipedrive**
 - **Sign-in (SSO):** Pre-wired. Within a few minutes of the first deploy, the server gives the application its own sign-in entry in Keycloak and the application restarts once with it; the login page then offers Keycloak, with no step to take.
 - **Address:** `crm.yourdomain.com`, served from `espocrm:80`
+- **Logo:** <https://raw.githubusercontent.com/espocrm/espocrm/54bfaf847a6ac4632f5c2d461af94d85c6b48ac5/client/img/favicon-196.png>.
 
 The address is attached when the template is deployed. A different one is
 arranged beforehand, on request.
@@ -56,6 +57,7 @@ CRM par défaut de la suite. Contacts, comptes, opportunités, prospects, calend
 - **Remplace :** **Salesforce**, **HubSpot**, **Zoho CRM**, **Pipedrive**
 - **Connexion (SSO) :** Pré-câblé. Dans les minutes qui suivent le premier déploiement, le serveur donne à l'application sa propre entrée de connexion dans Keycloak et l'application redémarre une fois avec elle ; la page de connexion propose alors Keycloak, sans aucune étape à effectuer.
 - **Adresse :** `crm.yourdomain.com`, servie par `espocrm:80`
+- **Logo :** <https://raw.githubusercontent.com/espocrm/espocrm/54bfaf847a6ac4632f5c2d461af94d85c6b48ac5/client/img/favicon-196.png>.
 
 L'adresse est attachée au déploiement du modèle. Une autre se convient au
 préalable, sur demande.
