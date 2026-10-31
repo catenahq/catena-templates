@@ -11,6 +11,10 @@
   "x-catena": {
     "app_name": "catena-onlyoffice",
     "upstream_url": "https://www.onlyoffice.com/",
+    "logo": {
+      "source": "https://raw.githubusercontent.com/linuxserver/docker-templates/4e4de5382212f1e9127d3893ade511c0d5ce6b36/linuxserver.io/img/onlyoffice-logo.png",
+      "notice": "ONLYOFFICE is a trademark of Ascensio System SIA."
+    },
     "sso_mode": "n/a",
     "domain": {
       "host": "office.{{ cloudflare_zone }}",

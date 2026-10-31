@@ -63,6 +63,9 @@ services:
       # The image's VOLUME for fonts an administrator adds.
       - ds-fonts:/usr/share/fonts/truetype/custom
     labels:
+      - "vps.homepage.name=OnlyOffice"
+      - "vps.homepage.description=Edit documents, spreadsheets and presentations in Microsoft Office formats with other people, from inside Nextcloud."
+      - "vps.homepage.description-fr=Édition de documents, de chiffriers et de présentations aux formats Microsoft Office à plusieurs, dans Nextcloud."
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=80"
       - "vps.auth.mode=public"
