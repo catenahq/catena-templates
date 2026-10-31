@@ -1007,6 +1007,7 @@
           "Adobe Sign"
         ],
         "setup_steps": "1. Click **Deploy**. Wait ~1 min for the first boot.\n2. Visit the DocuSeal domain and complete the first-run wizard (creates the initial admin account). DocuSeal keeps its own login: each account is created inside DocuSeal.\n3. *(Optional)* Configure SMTP for signature-request emails: fill `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM_ADDRESS` in the Environment tab and redeploy. Without SMTP, recipients only see pending requests in their DocuSeal dashboard.\n",
+        "summary": "Send documents to be signed online and keep a record of each signature.",
         "what_it_is": "Default document-signing app in the suite. Upload a PDF, place signature fields, send for signature. Audit trail + signed-PDF generation built-in."
       },
       "env": {
@@ -1086,10 +1087,12 @@
           "Adobe Sign"
         ],
         "setup_steps": "1. Cliquez **Deploy**. Patientez ~1 min pour le premier d\u00e9marrage.\n2. Visitez le domaine DocuSeal et compl\u00e9tez l'assistant initial (cr\u00e9ation du compte admin). DocuSeal garde sa propre connexion : chaque compte se cr\u00e9e dans DocuSeal.\n3. *(Optionnel)* Configurez SMTP pour les e-mails de demande de signature : remplissez `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM_ADDRESS` dans l'onglet Environment puis red\u00e9ployez. Sans SMTP, les destinataires ne voient que les demandes en attente dans leur tableau de bord.\n",
+        "summary": "Envoi de documents \u00e0 signer en ligne, avec la trace de chaque signature.",
         "what_it_is": "Application de signature \u00e9lectronique par d\u00e9faut de la suite. T\u00e9l\u00e9versez un PDF, placez les champs de signature, envoyez pour signature. Piste d'audit + g\u00e9n\u00e9ration de PDF sign\u00e9 int\u00e9gr\u00e9es."
       },
       "hostname_baked": true,
       "id": "docuseal",
+      "requires_catena": "0.11.12",
       "sizing": {
         "disk_baseline_mb": 140,
         "idle_cpu_pct": 1,
