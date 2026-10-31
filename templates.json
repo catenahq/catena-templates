@@ -2,54 +2,6 @@
   "templates": [
     {
       "categories": [
-        "Wiki",
-        "Documentation"
-      ],
-      "description": "Team wiki + knowledge base. Keycloak SSO pre-wired. Replaces Notion / Confluence.",
-      "env": [
-        {
-          "default": "wiki.",
-          "label": "Domain",
-          "name": "DOMAIN_HOST"
-        },
-        {
-          "default": "wiki.",
-          "label": "Outline hostname",
-          "name": "OUTLINE_HOSTNAME"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
-          "label": "Outline secret key",
-          "name": "OUTLINE_SECRET_KEY"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
-          "label": "Outline utils secret",
-          "name": "OUTLINE_UTILS_SECRET"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
-          "label": "Database password",
-          "name": "DB_PASSWORD"
-        }
-      ],
-      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/outline/logo.png",
-      "maintainer": "https://github.com/catenahq/catena-templates",
-      "name": "catena-outline",
-      "note": "<p>Team wiki / knowledge base. Notion-style pages, collections, nested docs. Keycloak SSO pre-wired.</p><p>Replaces Notion, Confluence, Google Sites.</p><p><a href=\"https://github.com/catenahq/catena-templates/blob/main/blueprints/outline/README.md\">https://github.com/catenahq/catena-templates/blob/main/blueprints/outline/README.md</a></p>",
-      "platform": "linux",
-      "repository": {
-        "stackfile": "blueprints/outline/docker-compose.yml",
-        "url": "https://github.com/catenahq/catena-templates"
-      },
-      "title": "Outline",
-      "type": 2
-    },
-    {
-      "categories": [
         "CRM",
         "Business"
       ],
