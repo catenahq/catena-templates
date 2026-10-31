@@ -168,6 +168,26 @@
           "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
           "description": "The oldest Catena release the entry deploys and updates correctly on, for an entry that needs a newer one than some servers run. Its Portainer description and its README name it."
         },
+        "logo": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "source"
+          ],
+          "description": "Where blueprints/<id>/logo.png comes from. Present exactly when the logo is placed.",
+          "properties": {
+            "source": {
+              "type": "string",
+              "format": "uri",
+              "description": "The address the picture was taken from, pinned to a commit where it is a repository."
+            },
+            "notice": {
+              "type": "string",
+              "minLength": 1,
+              "description": "The line the logo owner's terms ask for, printed in the README as written."
+            }
+          }
+        },
         "sso_mode": {
           "enum": [
             "pre-wired",

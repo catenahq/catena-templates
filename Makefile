@@ -27,7 +27,7 @@ lint:
 
 ## test: unit tests over the build library and the image builders
 test:
-	uv run --with pytest --with jsonschema --with pyyaml pytest tests/ images/erpnext-helpdesk -q
+	uv run --with pytest --with jsonschema --with pyyaml --with pillow --with resvg-py pytest tests/ images/erpnext-helpdesk -q
 
 ## verify: what CI runs -- render must be idempotent against the commit
 verify: render

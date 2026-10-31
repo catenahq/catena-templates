@@ -18,7 +18,9 @@ Validation runs in two layers:
      for the compose block) -- shape, enums, required keys. Catches the
      mechanical mistakes at the field level.
   2. Cross-file invariants below -- id/filename agreement, compose file
-     present with a block that declares an env, duplicate slugs.
+     present with a block that declares an env, duplicate slugs, a logo.png
+     the control panel keeps beside the source that names it, the main
+     service's name label equal to the source's display name.
      A schema cannot see across files, and these are exactly the failures
      that reach a client's Portainer as a broken template when nothing
      checks them.
@@ -27,6 +29,7 @@ from __future__ import annotations
 
 import json
 import os
+import struct
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -52,6 +55,17 @@ META_NAME = "_meta.json"
 SOURCE_SCHEMA = TOOLS_ROOT / "sources.schema.json"
 BLOCK_SCHEMA = TOOLS_ROOT / "block.schema.json"
 OUTPUT_SCHEMA = TOOLS_ROOT / "Schema.json"
+
+# The limits of a hand-placed logo are those of its reader, catena-admin
+# payload/engines/applogo: it keeps a PNG of at most LOGO_MAX_BYTES and
+# LOGO_MAX_PX a side, redrawn as 8-bit RGBA.
+LOGO_NAME = "logo.png"
+LOGO_MIN_PX = 128
+LOGO_MAX_PX = 512
+LOGO_MAX_BYTES = 65536
+_PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
+_PNG_RGBA = (8, 6)  # bit depth, colour type
+NAME_LABEL = "vps.homepage.name"
 
 
 class SourceError(Exception):
@@ -86,6 +100,10 @@ class Entry:
     @property
     def compose_path(self) -> Path:
         return self.app_dir / COMPOSE_NAME
+
+    @property
+    def logo_path(self) -> Path:
+        return self.app_dir / LOGO_NAME
 
     @property
     def compose_file(self) -> str:
@@ -220,6 +238,72 @@ def _read_block(path: Path, schema: dict[str, Any], label: str) -> tuple[dict[st
     return (block if not errors else {}), errors
 
 
+def png_header(data: bytes) -> tuple[int, int, int, int] | None:
+    """Width, height, bit depth and colour type of a PNG, read from its IHDR
+    chunk; None when `data` does not begin like a PNG. Stdlib only: the
+    render runs where no package can be installed."""
+    if len(data) < 29 or not data.startswith(_PNG_SIGNATURE) or data[12:16] != b"IHDR":
+        return None
+    width, height, depth, colour = struct.unpack(">IIBB", data[16:26])
+    return width, height, depth, colour
+
+
+def _logo_errors(entry: Entry, label: str) -> list[str]:
+    """A logo.png the control panel keeps and a source that names where it
+    comes from; one without the other is an error."""
+    has_file = entry.logo_path.exists()
+    has_field = "logo" in entry.catena
+    if has_field and not has_file:
+        return [f"{label}: x-catena.logo is set but {entry.slug}/{LOGO_NAME} does not exist"]
+    if has_file and not has_field:
+        return [f"{label}: {entry.slug}/{LOGO_NAME} has no x-catena.logo naming its source"]
+    if not has_file:
+        return []
+    data = entry.logo_path.read_bytes()
+    where = f"{label}: {entry.slug}/{LOGO_NAME}"
+    header = png_header(data)
+    if header is None:
+        return [f"{where} is not a PNG"]
+    width, height, depth, colour = header
+    errors = []
+    if (depth, colour) != _PNG_RGBA:
+        errors.append(f"{where} is not 8-bit RGBA (bit depth {depth}, colour type {colour})")
+    if width != height:
+        errors.append(f"{where} is {width}x{height}, not square")
+    if min(width, height) < LOGO_MIN_PX or max(width, height) > LOGO_MAX_PX:
+        errors.append(f"{where} is {width}x{height}; each side must be {LOGO_MIN_PX} to {LOGO_MAX_PX} px")
+    if len(data) > LOGO_MAX_BYTES:
+        errors.append(f"{where} is {len(data)} bytes; the control panel keeps at most {LOGO_MAX_BYTES}")
+    return errors
+
+
+def _service_labels(service: Any) -> dict[str, str]:
+    """A service's labels as a map, from the list form (`key=value`) or the
+    map form, as the control panel's app checker reads them."""
+    raw = service.get("labels") if isinstance(service, dict) else None
+    if isinstance(raw, dict):
+        return {str(k): str(v) for k, v in raw.items()}
+    pairs = (str(item).partition("=") for item in raw) if isinstance(raw, list) else ()
+    return {key: value for key, _, value in pairs}
+
+
+def _name_label_errors(entry: Entry, label: str) -> list[str]:
+    """The main address's service carries the name the source gives, or no
+    name label at all."""
+    domain = entry.catena.get("domain")
+    if not domain:
+        return []
+    doc = yaml.safe_load(entry.compose_path.read_text(encoding="utf-8"))
+    services = doc.get("services") if isinstance(doc, dict) else None
+    service = services.get(domain["service"]) if isinstance(services, dict) else None
+    name = _service_labels(service).get(NAME_LABEL)
+    expected = entry.prose("en")["display_name"]
+    if name is not None and name != expected:
+        return [f"{label}: {domain['service']} labels {NAME_LABEL}={name!r}, "
+                f"but x-catena.en.display_name is {expected!r}"]
+    return []
+
+
 def load_sources() -> list[Entry]:
     """Return every template in catalog order, or raise SourceError with
     the full problem list.
@@ -282,7 +366,10 @@ def load_sources() -> list[Entry]:
                 entry.compose_path, block_schema, entry.compose_file)
             errors.extend(block_errors)
             entry = Entry(doc, block)
+            if not block_errors:
+                errors.extend(_name_label_errors(entry, label))
 
+        errors.extend(_logo_errors(entry, label))
         if entry.compose_path.exists() and not entry.env:
             errors.append(
                 f"{label}: {entry.compose_file} declares no x-catena env -- every "

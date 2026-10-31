@@ -41,6 +41,7 @@ lib/                     # the build library
   model.py               # load + validate the hand-edited inputs
   render.py              # inputs -> every generated artifact
   readme.py              # one template's prose -> its README
+  logo.py                # a project's logo -> a square PNG (build/logo.py)
   swarm_lint.py          # the swarm-stack-file compatibility gate
   quiesce_lint.py        # security lint over what a host acts on
                          # unattended: quiesce + lifecycle commands,
@@ -177,8 +178,13 @@ input, not a catalog to deploy from.
    (`access: {user: {label: {en: "Nextcloud", fr: "Nextcloud"}}}`): the panel
    shows each label, and Catena admits the level's members at the application's
    sign-in.
-3. `blueprints/<id>/logo.png` -- optional, square, 512x512, at most 100 KB.
-   Without it the render emits a deterministic `logo.svg` placeholder.
+3. `blueprints/<id>/logo.png` -- optional: the project's own logo, unmodified,
+   made with `uv run build/logo.py <source> blueprints/<id>/logo.png` (256x256,
+   8-bit RGBA, at most 64 KiB: the control panel keeps no larger logo).
+   `x-catena.logo` in the source names where it comes from (`source`) and the
+   line its owner's terms ask for (`notice`); a logo whose owner's terms forbid
+   this use is not placed. Without a logo the render emits a deterministic
+   `logo.svg` placeholder.
 4. `x-catena.sizing.peak_ram_mb` is required: the bench scheduler
    multiplies it by 1.15 to gate parallel slot acquisition. The other
    numbers stay null until a measured run.

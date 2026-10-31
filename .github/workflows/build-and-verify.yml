@@ -193,7 +193,7 @@ jobs:
           repo-path: ${{ github.workspace }}
           run: |
             rc=0
-            uv run --with pytest --with jsonschema --with pyyaml pytest tests/ -q || rc=1
+            uv run --with pytest --with jsonschema --with pyyaml --with pillow --with resvg-py pytest tests/ -q || rc=1
             uv run "$TOOLS/build/lint_quiesce.py" || rc=1
             uv run "$TOOLS/build/lint_postgres_pins.py" || rc=1
             exit $rc

@@ -13,6 +13,10 @@ for layout, consumer model, and BASE URL setup.
   `logo.svg`, plus `templates.json`, `catalog.json` and `index.html`.
   Never hand-edit a generated file -- the change is overwritten on the
   next render, and CI rejects the change.
+- A hand-placed `logo.png` is the project's own logo, unmodified, made by
+  `build/logo.py`, and its source names it in `x-catena.logo`; a logo whose
+  owner's terms forbid this use stays out. The main address's service carries
+  `vps.homepage.name` equal to `x-catena.en.display_name`, or no name label.
 - What the server needs to back up, update and restore an app (backup
   mode, update and restore commands, object-store check, the env
   expressions Catena keeps set) is the root `x-catena:` block of the

@@ -5,8 +5,10 @@ from __future__ import annotations
 
 import json
 import os
+import struct
 import subprocess
 import sys
+import zlib
 from pathlib import Path
 
 import pytest
@@ -477,3 +479,99 @@ def test_the_render_writes_into_the_tree_templates_root_names(tmp_path):
     assert (tmp_path / "blueprints" / "example" / "README.md").is_file()
     templates = json.loads((tmp_path / "templates.json").read_text())["templates"]
     assert [t["name"] for t in templates] == ["example"]
+
+
+def _png(width: int = 256, height: int | None = None, depth: int = 8, colour: int = 6,
+         padding: int = 0) -> bytes:
+    """A PNG header with the given fields and `padding` bytes after it: all the
+    loader reads."""
+    height = width if height is None else height
+    ihdr = struct.pack(">IIBBBBB", width, height, depth, colour, 0, 0, 0)
+    crc = zlib.crc32(b"IHDR" + ihdr)
+    return (b"\x89PNG\r\n\x1a\n" + struct.pack(">I", 13) + b"IHDR" + ihdr
+            + struct.pack(">I", crc) + b"\0" * padding)
+
+
+def _logo(png: bytes, source: dict | None = None) -> None:
+    (model.BLUEPRINTS / "example" / model.LOGO_NAME).write_bytes(png)
+    doc = _valid_doc()
+    if source is not None:
+        doc["x-catena"]["logo"] = source
+    _write(model.SOURCES, doc)
+
+
+def test_a_logo_with_its_source_loads(sources):
+    _logo(_png(), {"source": "https://example.com/logo.svg", "notice": "Example is a mark."})
+    assert model.load_sources()[0].catena["logo"]["notice"] == "Example is a mark."
+    _logo(_png(128), {"source": "https://example.com/logo.svg"})
+    assert model.load_sources()[0].catena["logo"] == {"source": "https://example.com/logo.svg"}
+
+
+@pytest.mark.parametrize("png,needle", [
+    (b"not a png at all, but long enough to hold a header", "is not a PNG"),
+    (_png(depth=8, colour=2), "not 8-bit RGBA"),
+    (_png(depth=16, colour=6), "not 8-bit RGBA"),
+    (_png(256, 200), "not square"),
+    (_png(127), "each side must be 128 to 512"),
+    (_png(513), "each side must be 128 to 512"),
+    (_png(padding=model.LOGO_MAX_BYTES), "the control panel keeps at most"),
+])
+def test_a_logo_the_panel_would_refuse_is_reported(sources, png, needle):
+    _logo(png, {"source": "https://example.com/logo.svg"})
+    with pytest.raises(model.SourceError, match=needle):
+        model.load_sources()
+
+
+def test_a_logo_and_its_source_field_come_together(sources):
+    _logo(_png())
+    with pytest.raises(model.SourceError, match="has no x-catena.logo"):
+        model.load_sources()
+    (model.BLUEPRINTS / "example" / model.LOGO_NAME).unlink()
+    _logo(_png(), {"source": "https://example.com/logo.svg"})
+    (model.BLUEPRINTS / "example" / model.LOGO_NAME).unlink()
+    with pytest.raises(model.SourceError, match="x-catena.logo is set but"):
+        model.load_sources()
+
+
+def test_a_logo_source_holds_no_other_field(sources):
+    _logo(_png(), {"source": "https://example.com/logo.svg", "licence": "MIT"})
+    with pytest.raises(model.SourceError, match="licence"):
+        model.load_sources()
+
+
+def _service_labels(labels) -> None:
+    path = model.BLUEPRINTS / "example" / model.COMPOSE_NAME
+    path.write_text(yaml.safe_dump({
+        model.BLOCK_KEY: {"schema": 2, "env": ENV},
+        "services": {"app": {"labels": labels}}}))
+
+
+@pytest.mark.parametrize("labels", [
+    ["vps.homepage.name=Example"],
+    {"vps.homepage.name": "Example"},
+    ["vps.route.port=80"],
+])
+def test_a_name_label_equal_to_the_display_name_or_absent_passes(sources, labels):
+    _write(sources, _valid_doc())
+    _service_labels(labels)
+    assert [e.slug for e in model.load_sources()] == ["example"]
+
+
+@pytest.mark.parametrize("labels", [
+    ["vps.homepage.name=Other"],
+    {"vps.homepage.name": "Other"},
+])
+def test_a_name_label_different_from_the_display_name_fails(sources, labels):
+    _write(sources, _valid_doc())
+    _service_labels(labels)
+    with pytest.raises(model.SourceError, match="vps.homepage.name='Other'"):
+        model.load_sources()
+
+
+def test_a_name_label_on_another_service_is_not_read(sources):
+    _write(sources, _valid_doc())
+    path = model.BLUEPRINTS / "example" / model.COMPOSE_NAME
+    path.write_text(yaml.safe_dump({
+        model.BLOCK_KEY: {"schema": 2, "env": ENV},
+        "services": {"app": {}, "db": {"labels": ["vps.homepage.name=Other"]}}}))
+    assert [e.slug for e in model.load_sources()] == ["example"]

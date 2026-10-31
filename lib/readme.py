@@ -203,6 +203,10 @@ def _section(entry: Entry, locale: str) -> str:
         label = ("**Template source:**", "**Source du modèle :**")[lang]
         source = (f"\n- {label} <{origin['source']}>, {origin['licence']}. "
                   f"{origin['attribution']}")
+    logo = catena.get("logo")
+    if logo:
+        label = ("**Logo:**", "**Logo :**")[lang]
+        source += f"\n- {label} <{logo['source']}>. {logo.get('notice', '')}".rstrip()
     replaces = ", ".join(f"**{name}**" for name in prose["replaces"])
     extra = prose.get("extra_notes", "").rstrip()
 

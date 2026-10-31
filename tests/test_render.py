@@ -268,6 +268,39 @@ def test_an_entry_needing_a_newer_catena_says_so_in_its_description_and_readme()
     assert "Catena 0.11.0" not in readme.render_readme(plain)
 
 
+def test_a_readme_prints_the_logo_source_and_notice_in_both_languages():
+    entry = model.load_sources()[0]
+    raw = copy.deepcopy(entry.raw)
+    raw["x-catena"]["logo"] = {"source": "https://example.com/logo.svg",
+                               "notice": "Example is a trademark of Example Inc."}
+    body = readme.render_readme(model.Entry(raw, entry.block))
+    assert "- **Logo:** <https://example.com/logo.svg>. Example is a trademark of Example Inc." in body
+    assert "- **Logo :** <https://example.com/logo.svg>. Example is a trademark of Example Inc." in body
+
+    del raw["x-catena"]["logo"]["notice"]
+    body = readme.render_readme(model.Entry(raw, entry.block))
+    assert "- **Logo:** <https://example.com/logo.svg>.\n" in body
+
+    del raw["x-catena"]["logo"]
+    assert "**Logo" not in readme.render_readme(model.Entry(raw, entry.block))
+
+
+def test_the_published_readmes_name_each_logo_source():
+    """A placed logo is the one the templates.json entry names, and its
+    README prints the source; an entry with none keeps the placeholder."""
+    templates = {t["name"]: t for t in json.loads((ROOT / "templates.json").read_text())["templates"]}
+    for entry in model.load_sources():
+        logo = templates[entry.raw["name"]]["logo"]
+        body = (entry.app_dir / "README.md").read_text()
+        if entry.logo_path.exists():
+            assert logo.endswith("/logo.png"), entry.slug
+            assert not (entry.app_dir / "logo.svg").exists(), entry.slug
+            assert f"<{entry.catena['logo']['source']}>" in body, entry.slug
+        else:
+            assert logo.endswith("/logo.svg"), entry.slug
+            assert "**Logo" not in body, entry.slug
+
+
 def test_the_required_release_is_a_full_version():
     schema = model._schema(model.SOURCE_SCHEMA)
     entry = model.load_sources()[0]
