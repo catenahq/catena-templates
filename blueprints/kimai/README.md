@@ -12,6 +12,7 @@ Open-source time tracker. Customers, projects, activities, timesheets, multi-use
 - **Replaces:** **Toggl**, **Clockify**, **Harvest**, **TimeCamp**
 - **Sign-in (SSO):** Enabled from the application's own admin screens: the `OIDC_*` values from the Environment tab are pasted in once.
 - **Address:** `time.yourdomain.com`, served from `kimai:8001`
+- **Logo:** <https://raw.githubusercontent.com/linuxserver/docker-templates/4e4de5382212f1e9127d3893ade511c0d5ce6b36/linuxserver.io/img/kimai-logo.png>.
 
 The address is attached when the template is deployed. A different one is
 arranged beforehand, on request.
@@ -72,6 +73,7 @@ Suivi du temps open-source. Clients, projets, activités, feuilles de temps, éq
 - **Remplace :** **Toggl**, **Clockify**, **Harvest**, **TimeCamp**
 - **Connexion (SSO) :** À activer depuis les écrans d'administration de l'application : les valeurs `OIDC_*` de l'onglet Environment y sont collées une fois.
 - **Adresse :** `time.yourdomain.com`, servie par `kimai:8001`
+- **Logo :** <https://raw.githubusercontent.com/linuxserver/docker-templates/4e4de5382212f1e9127d3893ade511c0d5ce6b36/linuxserver.io/img/kimai-logo.png>.
 
 L'adresse est attachée au déploiement du modèle. Une autre se convient au
 préalable, sur demande.

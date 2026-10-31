@@ -11,6 +11,9 @@
   "x-catena": {
     "app_name": "catena-kimai",
     "upstream_url": "https://www.kimai.org/",
+    "logo": {
+      "source": "https://raw.githubusercontent.com/linuxserver/docker-templates/4e4de5382212f1e9127d3893ade511c0d5ce6b36/linuxserver.io/img/kimai-logo.png"
+    },
     "sso_mode": "post-deploy-ui",
     "domain": {
       "host": "time.{{ cloudflare_zone }}",

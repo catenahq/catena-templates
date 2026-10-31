@@ -1430,7 +1430,7 @@
           "name": "KIMAI_MAIL_URL"
         }
       ],
-      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/kimai/logo.svg",
+      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/kimai/logo.png",
       "maintainer": "https://github.com/catenahq/catena-templates",
       "name": "catena-kimai",
       "note": "<p>Open-source time tracker. Customers, projects, activities, timesheets, multi-user teams, invoice generation from tracked time. SAML federates with Keycloak via the post-deploy admin UI.</p><p>Replaces Toggl, Clockify, Harvest, TimeCamp.</p><p><a href=\"https://github.com/catenahq/catena-templates/blob/main/blueprints/kimai/README.md\">https://github.com/catenahq/catena-templates/blob/main/blueprints/kimai/README.md</a></p>",
