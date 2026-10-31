@@ -396,6 +396,7 @@
           "Amazon Photos"
         ],
         "setup_steps": "1. *(Optional)* Keep the library on a separate disk: mount the disk on the server, create a directory on it (for example `/mnt/photos/immich`), and set `UPLOAD_LOCATION` to that path in the **Environment** tab. The directory has to exist before the deploy. Then add the same path under **Settings** -> **Backup** -> extra paths in catena-admin, so the nightly backup includes it.\n2. Click **Deploy**. The first boot takes 2 to 3 minutes while the database initialises. On its first start Immich makes its administrator from the server's admin email (`IMMICH_ADMIN_EMAIL`), with the password `IMMICH_ADMIN_PASSWORD` from the Environment tab.\n3. Wait for the sign-in values. Within a few minutes of the first deploy, the server creates Immich's own sign-in entry in Keycloak, writes its values (`OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_ISSUER_URL`) into the Environment tab, and Immich restarts once and turns on **Sign in with Keycloak**.\n4. Sign in with Keycloak. The server's admin lands in the administrator account, matched by email; everyone else gets an account on their first sign-in. The administrator's password keeps working as a break-glass.\n5. Install the Immich app on each phone, enter the Immich domain as the server address, sign in with Keycloak, and turn on backup.\n",
+        "summary": "Photo and video library with automatic backup from phones, albums and sharing.",
         "what_it_is": "Photo and video library with automatic backup from phones, albums, sharing, face recognition and search by content."
       },
       "env": {
@@ -450,10 +451,12 @@
           "Amazon Photos"
         ],
         "setup_steps": "1. *(Optionnel)* Placez la biblioth\u00e8que sur un disque s\u00e9par\u00e9 : montez le disque sur le serveur, cr\u00e9ez-y un r\u00e9pertoire (par exemple `/mnt/photos/immich`) et indiquez ce chemin dans `UPLOAD_LOCATION` dans l'onglet **Environment**. Le r\u00e9pertoire doit exister avant le d\u00e9ploiement. Ajoutez ensuite le m\u00eame chemin dans catena-admin sous **Settings** -> **Backup** -> chemins suppl\u00e9mentaires, pour que la sauvegarde nocturne l'inclue.\n2. Cliquez **Deploy**. Le premier d\u00e9marrage prend 2 \u00e0 3 minutes, le temps d'initialiser la base de donn\u00e9es. \u00c0 son premier d\u00e9marrage, Immich cr\u00e9e son administrateur avec l'adresse courriel d'administration du serveur (`IMMICH_ADMIN_EMAIL`) et le mot de passe `IMMICH_ADMIN_PASSWORD` de l'onglet Environment.\n3. Attendez les valeurs de connexion. Dans les minutes qui suivent le premier d\u00e9ploiement, le serveur cr\u00e9e l'entr\u00e9e de connexion propre \u00e0 Immich dans Keycloak, inscrit ses valeurs (`OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_ISSUER_URL`) dans l'onglet Environment, et Immich red\u00e9marre une fois puis active **Sign in with Keycloak**.\n4. Connectez-vous avec Keycloak. L'administrateur du serveur arrive dans le compte administrateur, reconnu par son adresse courriel ; les autres personnes re\u00e7oivent un compte \u00e0 leur premi\u00e8re connexion. Le mot de passe de l'administrateur continue de fonctionner comme issue de secours.\n5. Installez l'application Immich sur chaque t\u00e9l\u00e9phone, indiquez le domaine Immich comme adresse du serveur, connectez-vous avec Keycloak et activez la sauvegarde.\n",
+        "summary": "Biblioth\u00e8que de photos et de vid\u00e9os avec sauvegarde automatique depuis les t\u00e9l\u00e9phones, albums et partage.",
         "what_it_is": "Biblioth\u00e8que de photos et vid\u00e9os avec sauvegarde automatique depuis les t\u00e9l\u00e9phones, albums, partage, reconnaissance des visages et recherche par contenu."
       },
       "hostname_baked": false,
       "id": "immich",
+      "requires_catena": "0.11.12",
       "sizing": {
         "disk_baseline_mb": null,
         "idle_cpu_pct": null,
