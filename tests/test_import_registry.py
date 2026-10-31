@@ -21,7 +21,7 @@ import yaml
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from lib import changes, model, provenance, quiesce_lint, readme, render  # noqa: E402
+from lib import changes, model, pack, provenance, quiesce_lint, readme, render  # noqa: E402
 from lib.importers import (arcane, awesome_selfhosted, dedup, dokploy, pipeline,  # noqa: E402
                            portainer, publish, upstream)
 
@@ -246,6 +246,18 @@ def test_the_imported_compose_starts_with_a_block_that_holds_its_env(catalog):
     assert block["env"]["ADMIN_PASSWORD"] == {"generated": {"length": 32, "alphabet": "alnum"}}
     assert block["env"]["TZ"] == {"setting": {"default": "UTC"}}
     assert "env_defaults" not in _source("notes")["x-catena"]
+
+
+def test_an_imported_entry_is_held_as_neat_files_that_pack_to_its_compose(catalog):
+    assert _run() == 0
+    for slug in ("web-stack", "notes"):
+        folder = model.BLUEPRINTS / slug
+        text = (folder / model.COMPOSE_NAME).read_text()
+        assert (folder / "services.yml").is_file() and (folder / "settings.yml").is_file()
+        assert text.startswith("x-catena:\n  schema: 2\n  env:\n")
+        neat, hooks = pack._read_neat(folder)
+        assert pack.pack_texts(neat, hooks) == text
+        assert pack.pack_all(model.BLUEPRINTS.parent) == []
 
 
 def test_a_single_container_entry_becomes_a_one_service_compose(catalog):

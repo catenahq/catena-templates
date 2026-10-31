@@ -31,7 +31,8 @@ An adapter reads one registry format into Candidates. For each, in order:
             lint and Postgres pin rule refuse, is recorded on the entry.
 
 Each entry is written as blueprints/<id>/app.json (sources/<id>.json while the
-catalog has no catalog-meta.json) and blueprints/<id>/docker-compose.yml with
+catalog has no catalog-meta.json) and blueprints/<id>/docker-compose.yml, held
+as neat files beside it (services.yml, settings.yml), with
 status "imported", its origin and what a person still has to choose. An entry
 the catalog's order does not list follows the listed ones.
 """
@@ -57,7 +58,7 @@ from typing import Any, Callable
 
 import yaml
 
-from .. import model, postgres_pins, render, swarm_lint
+from .. import model, pack, postgres_pins, render, swarm_lint
 
 GITHUB_API = "https://api.github.com"
 RAW_GITHUB = "https://raw.githubusercontent.com"
@@ -798,11 +799,12 @@ def entry_paths(slug: str) -> list[str]:
 
 
 def write_entry(slug: str, source: dict[str, Any], compose: str) -> None:
-    """The entry's two hand-edited files: its compose and its card file (or, when
-    the catalog has no catalog-meta.json, its source)."""
+    """The entry's files: its compose, held as neat files beside it (pack.unpack),
+    and its card file (or, when the catalog has no catalog-meta.json, its source)."""
     app_dir = model.BLUEPRINTS / slug
     app_dir.mkdir(parents=True)
     (app_dir / model.COMPOSE_NAME).write_text(compose)
+    pack.unpack(slug, model.BLUEPRINTS.parent)
     if model.card_layout():
         (app_dir / model.CARD_NAME).write_text(json.dumps(card_of(source), indent=2) + "\n")
     else:
