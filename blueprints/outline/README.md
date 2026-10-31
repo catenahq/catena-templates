@@ -12,6 +12,7 @@ Team wiki / knowledge base. Notion-style pages, collections, nested docs. Keyclo
 - **Replaces:** **Notion**, **Confluence**, **Google Sites**
 - **Sign-in (SSO):** Pre-wired. Within a few minutes of the first deploy, the server gives the application its own sign-in entry in Keycloak and the application restarts once with it; the login page then offers Keycloak, with no step to take.
 - **Address:** `wiki.yourdomain.com`, served from `outline:3000`
+- **Logo:** <https://avatars.githubusercontent.com/u/1765001>.
 
 The address is attached when the template is deployed. A different one is
 arranged beforehand, on request.
@@ -46,6 +47,7 @@ Wiki d'équipe / base de connaissances. Pages façon Notion, collections, docume
 - **Remplace :** **Notion**, **Confluence**, **Google Sites**
 - **Connexion (SSO) :** Pré-câblé. Dans les minutes qui suivent le premier déploiement, le serveur donne à l'application sa propre entrée de connexion dans Keycloak et l'application redémarre une fois avec elle ; la page de connexion propose alors Keycloak, sans aucune étape à effectuer.
 - **Adresse :** `wiki.yourdomain.com`, servie par `outline:3000`
+- **Logo :** <https://avatars.githubusercontent.com/u/1765001>.
 
 L'adresse est attachée au déploiement du modèle. Une autre se convient au
 préalable, sur demande.

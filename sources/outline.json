@@ -11,6 +11,9 @@
   "x-catena": {
     "app_name": "catena-outline",
     "upstream_url": "https://www.getoutline.com/",
+    "logo": {
+      "source": "https://avatars.githubusercontent.com/u/1765001"
+    },
     "sso_mode": "pre-wired",
     "domain": {
       "host": "wiki.{{ cloudflare_zone }}",

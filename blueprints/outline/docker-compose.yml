@@ -104,6 +104,9 @@ services:
     volumes:
       - outline-data:/var/lib/outline/data
     labels:
+      - "vps.homepage.name=Outline"
+      - "vps.homepage.description=A team wiki for notes and documents, organised in collections."
+      - "vps.homepage.description-fr=Un wiki d'équipe pour les notes et les documents, organisés en collections."
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=3000"
       - "vps.auth.mode=public"

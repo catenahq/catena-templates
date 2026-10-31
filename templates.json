@@ -684,7 +684,7 @@
           "name": "DB_PASSWORD"
         }
       ],
-      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/outline/logo.svg",
+      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/outline/logo.png",
       "maintainer": "https://github.com/catenahq/catena-templates",
       "name": "catena-outline",
       "note": "<p>Team wiki / knowledge base. Notion-style pages, collections, nested docs. Keycloak SSO pre-wired.</p><p>Replaces Notion, Confluence, Google Sites.</p><p><a href=\"https://github.com/catenahq/catena-templates/blob/main/blueprints/outline/README.md\">https://github.com/catenahq/catena-templates/blob/main/blueprints/outline/README.md</a></p>",
