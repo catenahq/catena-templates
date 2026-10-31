@@ -431,6 +431,9 @@ services:
         JSON
         exec nginx -g 'daemon off;'
     labels:
+      - "vps.homepage.name=Element / Matrix"
+      - "vps.homepage.description=Team chat with voice and video calls, hosted on this server."
+      - "vps.homepage.description-fr=Messagerie d'équipe avec appels vocaux et vidéo, hébergée sur ce serveur."
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=80"
       - "vps.route.main=true"

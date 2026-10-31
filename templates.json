@@ -564,7 +564,7 @@
           "name": "JIGASI_SIP_SERVER"
         }
       ],
-      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/element/logo.svg",
+      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/element/logo.png",
       "maintainer": "https://github.com/catenahq/catena-templates",
       "name": "catena-element",
       "note": "<p>Requires Catena 0.11.3 or later.</p><p>Self-hosted Element + Matrix homeserver -- federated-capable team chat with end-to-end encryption, voice and group video (bundled Jitsi). Calls work without the relay; adding the Call relay app gives calls from restrictive networks.</p><p>Replaces Slack, Microsoft Teams, Signal (for team use), Zoom (for small group calls).</p><p><a href=\"https://github.com/catenahq/catena-templates/blob/main/blueprints/element/README.md\">https://github.com/catenahq/catena-templates/blob/main/blueprints/element/README.md</a></p>",

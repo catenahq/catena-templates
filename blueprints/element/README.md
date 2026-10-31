@@ -14,6 +14,7 @@ Self-hosted Element + Matrix homeserver -- federated-capable team chat with end-
 - **Replaces:** **Slack**, **Microsoft Teams**, **Signal (for team use)**, **Zoom (for small group calls)**
 - **Sign-in (SSO):** Pre-wired. Within a few minutes of the first deploy, the server gives the application its own sign-in entry in Keycloak and the application restarts once with it; the login page then offers Keycloak, with no step to take.
 - **Address:** `element.yourdomain.com`, served from `element-web:80`
+- **Logo:** <https://raw.githubusercontent.com/element-hq/element-web/a9cf6f38e48ab0a3fd8a4abcaa52730f612ba632/apps/web/res/themes/element/img/logos/element-logo.svg>.
 
 The address is attached when the template is deployed. A different one is
 arranged beforehand, on request.
@@ -83,6 +84,7 @@ Element + serveur Matrix auto-hébergés -- messagerie d'équipe avec chiffremen
 - **Remplace :** **Slack**, **Microsoft Teams**, **Signal (en usage pro)**, **Zoom (pour les petits appels de groupe)**
 - **Connexion (SSO) :** Pré-câblé. Dans les minutes qui suivent le premier déploiement, le serveur donne à l'application sa propre entrée de connexion dans Keycloak et l'application redémarre une fois avec elle ; la page de connexion propose alors Keycloak, sans aucune étape à effectuer.
 - **Adresse :** `element.yourdomain.com`, servie par `element-web:80`
+- **Logo :** <https://raw.githubusercontent.com/element-hq/element-web/a9cf6f38e48ab0a3fd8a4abcaa52730f612ba632/apps/web/res/themes/element/img/logos/element-logo.svg>.
 
 L'adresse est attachée au déploiement du modèle. Une autre se convient au
 préalable, sur demande.

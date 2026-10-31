@@ -11,6 +11,9 @@
   "x-catena": {
     "app_name": "catena-element",
     "upstream_url": "https://element.io/",
+    "logo": {
+      "source": "https://raw.githubusercontent.com/element-hq/element-web/a9cf6f38e48ab0a3fd8a4abcaa52730f612ba632/apps/web/res/themes/element/img/logos/element-logo.svg"
+    },
     "requires_catena": "0.11.3",
     "sso_mode": "pre-wired",
     "domain": {
