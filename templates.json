@@ -636,7 +636,7 @@
           "name": "SMTP_AUTH"
         }
       ],
-      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/docuseal/logo.svg",
+      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/docuseal/logo.png",
       "maintainer": "https://github.com/catenahq/catena-templates",
       "name": "catena-docuseal",
       "note": "<p>Default document-signing app in the suite. Upload a PDF, place signature fields, send for signature. Audit trail + signed-PDF generation built-in.</p><p>Replaces DocuSign, HelloSign, PandaDoc, Adobe Sign.</p><p><a href=\"https://github.com/catenahq/catena-templates/blob/main/blueprints/docuseal/README.md\">https://github.com/catenahq/catena-templates/blob/main/blueprints/docuseal/README.md</a></p>",

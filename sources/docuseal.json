@@ -11,6 +11,9 @@
   "x-catena": {
     "app_name": "catena-docuseal",
     "upstream_url": "https://www.docuseal.com/",
+    "logo": {
+      "source": "https://avatars.githubusercontent.com/u/138379721"
+    },
     "sso_mode": "none",
     "domain": {
       "host": "sign.{{ cloudflare_zone }}",

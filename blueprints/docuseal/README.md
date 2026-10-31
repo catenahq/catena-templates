@@ -12,6 +12,7 @@ Default document-signing app in the suite. Upload a PDF, place signature fields,
 - **Replaces:** **DocuSign**, **HelloSign**, **PandaDoc**, **Adobe Sign**
 - **Sign-in (SSO):** Not available. This application's community edition has no OIDC support, so each account keeps a per-application login.
 - **Address:** `sign.yourdomain.com`, served from `docuseal:3000`
+- **Logo:** <https://avatars.githubusercontent.com/u/138379721>.
 
 The address is attached when the template is deployed. A different one is
 arranged beforehand, on request.
@@ -59,6 +60,7 @@ Application de signature électronique par défaut de la suite. Téléversez un 
 - **Remplace :** **DocuSign**, **HelloSign**, **PandaDoc**, **Adobe Sign**
 - **Connexion (SSO) :** Non disponible. L'édition communautaire de cette application n'a pas de support OIDC : chaque compte garde un identifiant propre à l'application.
 - **Adresse :** `sign.yourdomain.com`, servie par `docuseal:3000`
+- **Logo :** <https://avatars.githubusercontent.com/u/138379721>.
 
 L'adresse est attachée au déploiement du modèle. Une autre se convient au
 préalable, sur demande.

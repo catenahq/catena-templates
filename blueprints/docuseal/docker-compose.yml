@@ -82,6 +82,9 @@ services:
     volumes:
       - docuseal-data:/data
     labels:
+      - "vps.homepage.name=DocuSeal"
+      - "vps.homepage.description=Send documents to be signed online and keep a record of each signature."
+      - "vps.homepage.description-fr=Envoi de documents à signer en ligne, avec la trace de chaque signature."
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=3000"
       - "vps.auth.mode=public"
