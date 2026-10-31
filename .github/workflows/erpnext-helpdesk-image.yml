@@ -80,6 +80,11 @@ jobs:
           GHCR_USER: ${{ github.actor }}
           GHCR_TOKEN: ${{ github.token }}
         run: python3 build.py publish
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        if: >-
+          (github.event_name != 'workflow_dispatch' || inputs.publish) &&
+          steps.plan.outputs.pin == 'true' &&
+          (steps.plan.outputs.build != 'true' || steps.publish.outcome == 'success')
       - name: Pin
         id: pin
         if: >-
@@ -89,7 +94,7 @@ jobs:
         working-directory: ${{ github.workspace }}
         run: |
           python3 images/erpnext-helpdesk/build.py pin
-          if git diff --quiet -- images/erpnext-helpdesk/apps.json blueprints/erpnext-helpdesk/docker-compose.yml; then
+          if git diff --quiet -- images/erpnext-helpdesk/apps.json blueprints/erpnext-helpdesk; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
@@ -126,7 +131,7 @@ jobs:
           git config user.name "catena image pin"
           git config user.email "image-pin@users.noreply.github.com"
           git checkout -B "$branch"
-          git add images/erpnext-helpdesk/apps.json blueprints/erpnext-helpdesk/docker-compose.yml
+          git add images/erpnext-helpdesk/apps.json blueprints/erpnext-helpdesk
           git commit -m "$title"
           push=true
           if [ -n "$(git ls-remote origin "refs/heads/$branch")" ]; then

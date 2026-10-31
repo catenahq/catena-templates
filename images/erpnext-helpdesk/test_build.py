@@ -401,6 +401,27 @@ def test_pin_rewrites_the_seven_image_lines_and_keeps_the_rest(spec, blueprint, 
     assert B.pinned_tag() == "v16.2.0-1"
 
 
+def test_pin_edits_services_yml_where_it_exists_and_renders(spec, blueprint, monkeypatch):
+    neat = blueprint.with_name("services.yml")
+    neat.write_text(PINS)
+    ran = []
+    monkeypatch.setattr(B, "run", lambda *argv, **kw: ran.append((argv, kw)) or "")
+    monkeypatch.setattr(B, "load", lambda: {"tag": "v16.2.0-1"})
+    B.cmd_pin(argparse.Namespace())
+    assert neat.read_text() == PINS.replace("v16.1.0-1", "v16.2.0-1")
+    assert blueprint.read_text() == PINS
+    [(argv, _kw)] = ran
+    assert argv == ("uv", "run", str(B.RENDER))
+
+
+def test_pin_runs_no_render_without_services_yml(spec, blueprint, monkeypatch):
+    ran = []
+    monkeypatch.setattr(B, "run", lambda *argv, **kw: ran.append(argv) or "")
+    monkeypatch.setattr(B, "load", lambda: {"tag": "v16.2.0-1"})
+    B.cmd_pin(argparse.Namespace())
+    assert ran == []
+
+
 @pytest.mark.parametrize("edit", [
     lambda t: t.replace(f"    image: {B.SPEC['image']}:v16.1.0-1\n    command: x\n  scheduler", "    command: x\n  scheduler"),
     lambda t: t + f"  extra:\n    image: {B.SPEC['image']}:v16.1.0-1\n",

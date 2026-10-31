@@ -24,7 +24,8 @@
            before the migration
   publish  push the tag; needs GHCR_TOKEN and refuses a tag the registry
            already holds
-  pin      set the seven Frappe services of the blueprint to inputs.json's tag
+  pin      set the seven Frappe services of the blueprint to inputs.json's tag;
+           in services.yml when the blueprint folder holds one, then render
 
 A GHCR_TOKEN in the environment (with GHCR_USER) authenticates registry reads.
 Stdlib only. Run from anywhere; paths resolve beside this file.
@@ -51,6 +52,7 @@ APPS_JSON = HERE / "apps.json"
 SPEC = json.loads(APPS_JSON.read_text())
 INPUTS = HERE / "inputs.json"
 BLUEPRINT = HERE.parent.parent / "blueprints" / "erpnext-helpdesk" / "docker-compose.yml"
+RENDER = HERE.parent.parent / "build" / "render.py"
 TAG_RE = re.compile(r"^v(\d+)\.(\d+)\.(\d+)-(\d+)$")
 BUILDER_IMAGES = ("build", "base")
 FRAPPE_SERVICES = ("backend", "frontend", "websocket", "queue-default", "queue-short",
@@ -473,19 +475,29 @@ def cmd_plan(args) -> None:
     print(json.dumps(out, indent=2))
 
 
+def pin_file() -> Path:
+    """The file the pin is written to: services.yml when the blueprint folder
+    holds one (the render packs it into BLUEPRINT), else BLUEPRINT."""
+    neat = BLUEPRINT.with_name("services.yml")
+    return neat if neat.is_file() else BLUEPRINT
+
+
 def cmd_pin(args) -> None:
     tag = load()["tag"]
-    text = BLUEPRINT.read_text()
+    target = pin_file()
+    text = target.read_text()
     found = pinned_images(text)
     if sorted(s for _i, s, _t in found) != sorted(FRAPPE_SERVICES):
-        raise SystemExit(f"{BLUEPRINT.name} pins {[s for _i, s, _t in found]} to {SPEC['image']}; "
+        raise SystemExit(f"{target.name} pins {[s for _i, s, _t in found]} to {SPEC['image']}; "
                          f"expected exactly {list(FRAPPE_SERVICES)}")
     lines = text.splitlines(keepends=True)
     for i, _service, _old in found:
         lines[i] = re.sub(r"(image:\s*)\S+", lambda m: f"{m.group(1)}{SPEC['image']}:{tag}",
                           lines[i], count=1)
-    BLUEPRINT.write_text("".join(lines))
-    log(f"{BLUEPRINT.name} pins {SPEC['image']}:{tag}")
+    target.write_text("".join(lines))
+    log(f"{target.name} pins {SPEC['image']}:{tag}")
+    if target != BLUEPRINT:
+        run("uv", "run", str(RENDER), cwd=RENDER.parent.parent)
 
 
 # --- build -------------------------------------------------------------------
