@@ -3237,6 +3237,7 @@
           "Docker Desktop"
         ],
         "setup_steps": "1. Click **Deploy**. Wait ~30 s.\n2. Visit the Portainer domain within 5 minutes and create the first administrator account. After 5 minutes Portainer locks its setup page; restart the application from the server's Apps page to open it again.\n3. Choose the **local** environment to manage this server.\n",
+        "summary": "A web page to manage this server's Docker containers, volumes and networks.",
         "what_it_is": "A web console for Docker: deploy, inspect and manage containers, volumes and networks on this server."
       },
       "env": {
@@ -3258,10 +3259,12 @@
           "Docker Desktop"
         ],
         "setup_steps": "1. Cliquez **Deploy**. Patientez ~30 s.\n2. Visitez le domaine Portainer dans les 5 minutes et cr\u00e9ez le premier compte administrateur. Apr\u00e8s 5 minutes, Portainer verrouille sa page de configuration : red\u00e9marrez l'application depuis la page Apps du serveur pour la rouvrir.\n3. Choisissez l'environnement **local** pour g\u00e9rer ce serveur.\n",
+        "summary": "Une page web pour g\u00e9rer les conteneurs, les volumes et les r\u00e9seaux Docker de ce serveur.",
         "what_it_is": "Une console web pour Docker : d\u00e9ployer, inspecter et g\u00e9rer les conteneurs, volumes et r\u00e9seaux de ce serveur."
       },
       "hostname_baked": false,
       "id": "portainer",
+      "requires_catena": "0.11.12",
       "sizing": {
         "disk_baseline_mb": null,
         "idle_cpu_pct": null,

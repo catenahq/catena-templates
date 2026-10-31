@@ -7,30 +7,6 @@
       "description": "Docker management console, reachable by administrators only.",
       "env": [
         {
-          "default": "portainer.",
-          "label": "Domain",
-          "name": "DOMAIN_HOST"
-        }
-      ],
-      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/portainer/logo.png",
-      "maintainer": "https://github.com/catenahq/catena-templates",
-      "name": "catena-portainer",
-      "note": "<p>A web console for Docker: deploy, inspect and manage containers, volumes and networks on this server.</p><p>Replaces Docker command line, Docker Desktop.</p><p><a href=\"https://github.com/catenahq/catena-templates/blob/main/blueprints/portainer/README.md\">https://github.com/catenahq/catena-templates/blob/main/blueprints/portainer/README.md</a></p>",
-      "platform": "linux",
-      "repository": {
-        "stackfile": "blueprints/portainer/docker-compose.yml",
-        "url": "https://github.com/catenahq/catena-templates"
-      },
-      "title": "Portainer",
-      "type": 2
-    },
-    {
-      "categories": [
-        "Infrastructure"
-      ],
-      "description": "Docker management console, reachable by administrators only.",
-      "env": [
-        {
           "default": "arcane.",
           "label": "Domain",
           "name": "DOMAIN_HOST"
