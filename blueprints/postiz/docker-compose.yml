@@ -12,9 +12,15 @@ x-catena:
   images:
     db:
       rule: {kind: partial_line}
-  # verify asks the backend for its root through the /api route of the bundled nginx, then the front end.
-  # The processes behind nginx start after it does, so each ask is repeated every 4 seconds while the port
-  # refuses or nginx answers 502/503, until 150 seconds after the hook started; the last answer is then judged.
+    temporal:
+      rule: {kind: pattern, tag_pattern: '(\d+)\.(\d+)\.(\d+)(?:\.(\d+))?'}
+    temporal-setup:
+      rule: {kind: pattern, tag_pattern: '(\d+)\.(\d+)\.(\d+)(?:\.(\d+))?'}
+  # verify asks the backend for its root through the /api route of the bundled nginx, then the front end, then
+  # the health of the orchestrator, which asks Temporal for its default namespace. The processes behind nginx
+  # and Temporal start after the hook's container does, so each ask is repeated every 4 seconds while the port
+  # refuses, nginx answers 502/503 or the orchestrator times out or answers 500, until 130 seconds after the
+  # hook started; the last answer is then judged. Three asks of 15 seconds at most follow the deadline.
   hooks:
     service: postiz
     timeout_seconds: 180
@@ -22,52 +28,73 @@ x-catena:
       - - node
         - -e
         - |
-          const end = Date.now() + 150000;
+          const end = Date.now() + 130000;
+          const NGINX = 5000;
+          const ORCHESTRATOR = 3002;
           const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-          const once = (path) => new Promise((resolve, reject) => {
-            require('http').get({ host: '127.0.0.1', port: 5000, path, timeout: 15000 }, (res) => {
+          const once = (port, path) => new Promise((resolve, reject) => {
+            require('http').get({ host: '127.0.0.1', port, path, timeout: 15000 }, (res) => {
               let body = '';
               res.on('data', (d) => { body += d; });
               res.on('end', () => resolve({ status: res.statusCode, body }));
             }).on('timeout', function () {
-              this.destroy(new Error('no answer in 15s'));
+              const e = new Error('no answer in 15s');
+              e.code = 'ETIMEDOUT';
+              this.destroy(e);
             }).on('error', reject);
           });
-          const get = async (path) => {
+          const get = async (port, path, again) => {
             for (;;) {
               let res;
               try {
-                res = await once(path);
+                res = await once(port, path);
               } catch (e) {
-                if (e.code !== 'ECONNREFUSED' || Date.now() >= end) throw e;
+                if (!again.codes.includes(e.code) || Date.now() >= end) throw e;
                 await sleep(4000);
                 continue;
               }
-              if ((res.status === 502 || res.status === 503) && Date.now() < end) {
+              if (again.statuses.includes(res.status) && Date.now() < end) {
                 await sleep(4000);
                 continue;
               }
               return res;
             }
           };
+          const PROXY = { codes: ['ECONNREFUSED'], statuses: [502, 503] };
+          const HEALTH = { codes: ['ECONNREFUSED', 'ETIMEDOUT'], statuses: [500] };
           (async () => {
-            const api = await get('/api/');
+            const api = await get(NGINX, '/api/', PROXY);
             if (api.status !== 200 || !api.body.includes('App is running')) {
               throw new Error('the backend answered ' + api.status + ' on /api/');
             }
-            const front = await get('/');
+            const front = await get(NGINX, '/', PROXY);
             if (front.status >= 400) {
               throw new Error('the front end answered ' + front.status);
             }
-            console.log('Postiz backend and front end answer on 5000');
+            const health = await get(ORCHESTRATOR, '/health/status', HEALTH);
+            if (health.status !== 200 || !health.body.includes('"status":"ok"')) {
+              throw new Error('the orchestrator answered ' + health.status + ' on /health/status: it does not reach Temporal');
+            }
+            console.log('Postiz backend and front end answer on 5000 and its orchestrator reaches Temporal');
           })().catch((e) => {
-            console.error('Postiz does not answer on 5000: ' + e.message);
+            console.error('Postiz does not answer: ' + e.message);
             process.exit(1);
           });
 
 services:
   postiz:
     image: ghcr.io/gitroomhq/postiz-app:v2.24.0
+    # The orchestrator starts its Temporal workers only if Temporal answers when it boots and otherwise runs
+    # without them, so the image's own command runs once Temporal's default namespace answers.
+    command:
+      - sh
+      - -c
+      - |
+        echo "postiz waits for the default namespace of Temporal"
+        until node -e "setTimeout(() => process.exit(1), 15000); require('@temporalio/client').Connection.connect({ address: process.env.TEMPORAL_ADDRESS }).then((c) => c.workflowService.describeNamespace({ namespace: 'default' })).then(() => process.exit(0), () => process.exit(1))"; do
+          sleep 3
+        done
+        nginx && pnpm run pm2
     deploy:
       restart_policy:
         condition: any
@@ -86,6 +113,8 @@ services:
       BACKEND_INTERNAL_URL: http://localhost:3000
       DATABASE_URL: postgres://postiz:${DB_PASSWORD}@db:5432/postiz
       REDIS_URL: redis://redis:6379
+      TEMPORAL_ADDRESS: temporal:7233
+      RUN_CRON: "true"
       JWT_SECRET: ${JWT_SECRET}
       DISABLE_REGISTRATION: "false"
     volumes:
@@ -136,6 +165,69 @@ services:
     deploy:
       restart_policy:
         condition: any
+    labels:
+      - "vps.auto-update=patch"
+    networks:
+      - default
+
+  temporal:
+    image: temporalio/server:1.32.1
+    deploy:
+      restart_policy:
+        condition: any
+    environment:
+      DB: postgres12
+      DB_PORT: "5432"
+      POSTGRES_SEEDS: db
+      POSTGRES_USER: postiz
+      POSTGRES_PWD: ${DB_PASSWORD}
+      BIND_ON_IP: 0.0.0.0
+      # The server reads a dynamic config file and its image ships none: /dev/null is an empty one, so every
+      # setting keeps its default.
+      DYNAMIC_CONFIG_FILE_PATH: /dev/null
+      # Without it the server reports its cluster to version-info.temporal.io every day.
+      TEMPORAL_VERSION_CHECK_DISABLED: "1"
+      # Smaller pools than Temporal's defaults (20 and 10 connections), so Temporal and Postiz share db's limit.
+      SQL_MAX_CONNS: "10"
+      SQL_MAX_IDLE_CONNS: "10"
+      SQL_VIS_MAX_CONNS: "5"
+      SQL_VIS_MAX_IDLE_CONNS: "5"
+    labels:
+      - "vps.auto-update=patch"
+    networks:
+      - default
+
+  # Creates Temporal's two databases in db and brings their schema to this image's version, creates the default
+  # namespace once the server answers, then stays up so swarm keeps it at its replica count. Each step leaves what
+  # is already done as it is; a step that fails exits and swarm starts the task again; TERM ends the wait at once.
+  temporal-setup:
+    image: temporalio/admin-tools:1.32.1
+    deploy:
+      restart_policy:
+        condition: any
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        temporal-sql-tool --db temporal create
+        temporal-sql-tool --db temporal setup-schema -v 0.0
+        temporal-sql-tool --db temporal update-schema -d /etc/temporal/schema/postgresql/v12/temporal/versioned
+        temporal-sql-tool --db temporal_visibility create
+        temporal-sql-tool --db temporal_visibility setup-schema -v 0.0
+        temporal-sql-tool --db temporal_visibility update-schema -d /etc/temporal/schema/postgresql/v12/visibility/versioned
+        until temporal operator cluster health --address temporal:7233; do sleep 5; done
+        temporal operator namespace describe -n default --address temporal:7233 > /dev/null 2>&1 ||
+          temporal operator namespace create -n default --address temporal:7233
+        trap 'exit 0' TERM
+        sleep infinity &
+        wait
+    environment:
+      SQL_PLUGIN: postgres12
+      SQL_HOST: db
+      SQL_PORT: "5432"
+      SQL_USER: postiz
+      SQL_PASSWORD: ${DB_PASSWORD}
     labels:
       - "vps.auto-update=patch"
     networks:

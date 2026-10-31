@@ -2363,11 +2363,11 @@
       "sizing": {
         "disk_baseline_mb": 200,
         "idle_cpu_pct": 2,
-        "idle_ram_mb": 480,
-        "notes": "Postiz + Postgres + Redis. Mid-weight; image-heavy posts push the\nSharp library hard during scheduling.",
-        "notes_fr": "Postiz + Postgres + Redis. Poids moyen ; les publications avec\nimages sollicitent fortement la biblioth\u00e8que Sharp lors de la\nplanification.",
+        "idle_ram_mb": 800,
+        "notes": "Postiz + Postgres + Redis + Temporal, the scheduler that publishes posts at their time; its databases live in the same Postgres. Mid-weight; image-heavy posts push the Sharp library hard during scheduling.",
+        "notes_fr": "Postiz + Postgres + Redis + Temporal, le planificateur qui publie les messages \u00e0 l'heure pr\u00e9vue ; ses bases de donn\u00e9es sont dans le m\u00eame Postgres. Poids moyen ; les publications avec images sollicitent fortement la biblioth\u00e8que Sharp lors de la planification.",
         "peak_cpu_pct": 35,
-        "peak_ram_mb": 680
+        "peak_ram_mb": 1300
       },
       "sso_mode": "none",
       "upstream_url": "https://postiz.com/"
