@@ -1,5 +1,6 @@
 x-catena:
   schema: 2
+  requires_catena: 0.11.12
   env:
     DOMAIN_HOST:
       setting: {default: "crm.{{ cloudflare_zone }}"}
@@ -99,9 +100,6 @@ services:
       - custom:/var/www/html/custom
       - client-custom:/var/www/html/client/custom
     labels:
-      - "vps.homepage.name=EspoCRM"
-      - "vps.homepage.description=Customer records, leads and sales follow-up, with a calendar and email."
-      - "vps.homepage.description-fr=Dossiers de clients, prospects et suivi des ventes, avec calendrier et courriel."
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=80"
       - "vps.auth.mode=public"

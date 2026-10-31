@@ -5,59 +5,6 @@
         "CRM",
         "Business"
       ],
-      "description": "Open-source CRM (default). Replaces Salesforce / HubSpot / Zoho.",
-      "env": [
-        {
-          "default": "crm.",
-          "label": "Domain",
-          "name": "DOMAIN_HOST"
-        },
-        {
-          "default": "crm.",
-          "label": "Espocrm hostname",
-          "name": "ESPOCRM_HOSTNAME"
-        },
-        {
-          "default": "admin",
-          "label": "Espocrm admin username",
-          "name": "ESPOCRM_ADMIN_USERNAME"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
-          "label": "Espocrm admin password",
-          "name": "ESPOCRM_ADMIN_PASSWORD"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
-          "label": "Database password",
-          "name": "DB_PASSWORD"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
-          "label": "Database root password",
-          "name": "DB_ROOT_PASSWORD"
-        }
-      ],
-      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/espocrm/logo.png",
-      "maintainer": "https://github.com/catenahq/catena-templates",
-      "name": "catena-espocrm",
-      "note": "<p>Default CRM in the suite. Contacts, accounts, opportunities, leads, calendar, email integration, mass mail, workflow automation. Keycloak sign-in pre-wired.</p><p>Replaces Salesforce, HubSpot, Zoho CRM, Pipedrive.</p><p><a href=\"https://github.com/catenahq/catena-templates/blob/main/blueprints/espocrm/README.md\">https://github.com/catenahq/catena-templates/blob/main/blueprints/espocrm/README.md</a></p>",
-      "platform": "linux",
-      "repository": {
-        "stackfile": "blueprints/espocrm/docker-compose.yml",
-        "url": "https://github.com/catenahq/catena-templates"
-      },
-      "title": "EspoCRM",
-      "type": 2
-    },
-    {
-      "categories": [
-        "CRM",
-        "Business"
-      ],
       "description": "Modern open-source CRM (alternative to EspoCRM). Replaces Salesforce / HubSpot.",
       "env": [
         {

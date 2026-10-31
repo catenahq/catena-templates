@@ -1,0 +1,54 @@
+{
+  "schema": 1,
+  "app_name": "catena-espocrm",
+  "upstream_url": "https://www.espocrm.com/",
+  "categories": [
+    "CRM",
+    "Business"
+  ],
+  "logo": {
+    "source": "https://raw.githubusercontent.com/espocrm/espocrm/54bfaf847a6ac4632f5c2d461af94d85c6b48ac5/client/img/favicon-196.png"
+  },
+  "sso_mode": "pre-wired",
+  "bench": {
+    "pack": "mariadb",
+    "hostname_baked": true
+  },
+  "sizing": {
+    "idle_ram_mb": 240,
+    "peak_ram_mb": 480,
+    "idle_cpu_pct": 1,
+    "peak_cpu_pct": 40,
+    "disk_baseline_mb": 200,
+    "notes": "PHP-Apache + MariaDB + cron sidecar. Lightweight day-to-day; mass\nemail or bulk import pushes peak RAM to ~480 MB and CPU to ~40%\non one vCPU.",
+    "notes_fr": "PHP-Apache + MariaDB + sidecar cron. L\u00e9ger au quotidien ; envoi\nmass-email ou import en masse poussent \u00e0 ~480 Mo et ~40 % CPU sur\nun vCPU."
+  },
+  "en": {
+    "display_name": "EspoCRM",
+    "summary": "Customer records, leads and sales follow-up, with a calendar and email.",
+    "what_it_is": "Default CRM in the suite. Contacts, accounts, opportunities, leads, calendar, email integration, mass mail, workflow automation. Keycloak sign-in pre-wired.",
+    "replaces": [
+      "Salesforce",
+      "HubSpot",
+      "Zoho CRM",
+      "Pipedrive"
+    ],
+    "compose_description": "Open-source CRM (default). Replaces Salesforce / HubSpot / Zoho.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/espocrm/README.md\n",
+    "setup_steps": "1. Click **Deploy**. Wait ~1 min.\n2. Wait for the sign-in values. Within a few minutes of the first deploy, the server creates EspoCRM's own sign-in entry in Keycloak, writes its values (`OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_ISSUER_URL`) into the Environment tab, and EspoCRM restarts once with them.\n3. Visit the EspoCRM domain and sign in with Keycloak. EspoCRM creates the account on its first sign-in, with the email address as its user name (50 characters at most); the account has no roles until an administrator gives it some under **Administration** -> **Users**.\n4. The local administrator, `ESPOCRM_ADMIN_USERNAME` / `ESPOCRM_ADMIN_PASSWORD` from the Environment tab, keeps signing in with its password as a break-glass.\n",
+    "extra_notes": "### Why EspoCRM is the default\n\nIt is the only fully open-source CRM in this catalog with native OIDC in the community edition (no Pro tier upgrade), pre-built mobile apps, and an established record of stable upgrades. Twenty is the alternative for a modern Notion-like UI; both are kept in the catalog so the choice stays open.\n\n### Resource note\n\nEspoCRM runs as PHP-Apache + MariaDB + a cron sidecar. Plan for ~1 GB RAM at idle, ~2 GB under bulk-import or mass-email workloads.\n"
+  },
+  "fr": {
+    "display_name": "EspoCRM",
+    "summary": "Dossiers de clients, prospects et suivi des ventes, avec calendrier et courriel.",
+    "what_it_is": "CRM par d\u00e9faut de la suite. Contacts, comptes, opportunit\u00e9s, prospects, calendrier, int\u00e9gration email, mass mail, automatisation. Connexion Keycloak pr\u00e9-c\u00e2bl\u00e9e.",
+    "replaces": [
+      "Salesforce",
+      "HubSpot",
+      "Zoho CRM",
+      "Pipedrive"
+    ],
+    "compose_description": "CRM open-source (par d\u00e9faut). Remplace Salesforce / HubSpot / Zoho.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/espocrm/README.md\n",
+    "setup_steps": "1. Cliquez **Deploy**. Patientez ~1 min.\n2. Attendez les valeurs de connexion. Dans les minutes qui suivent le premier d\u00e9ploiement, le serveur cr\u00e9e l'entr\u00e9e de connexion propre \u00e0 EspoCRM dans Keycloak, inscrit ses valeurs (`OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_ISSUER_URL`) dans l'onglet Environment, et EspoCRM red\u00e9marre une fois avec elles.\n3. Visitez le domaine EspoCRM et connectez-vous avec Keycloak. EspoCRM cr\u00e9e le compte \u00e0 sa premi\u00e8re connexion, avec l'adresse courriel comme nom d'utilisateur (50 caract\u00e8res au plus) ; le compte n'a aucun r\u00f4le tant qu'un administrateur ne lui en donne pas sous **Administration** -> **Users**.\n4. L'administrateur local, `ESPOCRM_ADMIN_USERNAME` / `ESPOCRM_ADMIN_PASSWORD` de l'onglet Environment, continue de se connecter par mot de passe comme issue de secours.\n",
+    "extra_notes": "### Pourquoi EspoCRM est le CRM par d\u00e9faut\n\nC'est le seul CRM enti\u00e8rement open-source du catalogue avec OIDC natif en \u00e9dition communautaire (sans palier Pro), des apps mobiles existantes et un historique stable de mises \u00e0 jour. Twenty est l'alternative pour une UI moderne fa\u00e7on Notion ; les deux restent au catalogue pour laisser le choix ouvert.\n\n### Ressources\n\nEspoCRM tourne en PHP-Apache + MariaDB + un cron sidecar. Pr\u00e9voyez ~1 GB RAM au repos, ~2 GB sous import en masse ou envoi mass-email.\n"
+  }
+}
