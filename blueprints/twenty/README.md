@@ -12,6 +12,7 @@ Modern open-source CRM. Contacts, companies, opportunities, email sync, pipeline
 - **Replaces:** **Salesforce**, **HubSpot**, **Pipedrive**
 - **Sign-in (SSO):** Not available. This application's community edition has no OIDC support, so each account keeps a per-application login.
 - **Address:** `twenty.yourdomain.com`, served from `server:3000`
+- **Logo:** <https://cdn.jsdelivr.net/gh/selfhst/icons@02dd039d62a8e7132f4828e69162fca30bd43bb5/png/twenty-crm.png>. Icon: selfh.st icons, CC BY 4.0
 
 The address is attached when the template is deployed. A different one is
 arranged beforehand, on request.
@@ -46,6 +47,7 @@ CRM moderne open-source. Contacts, entreprises, opportunités, synchronisation e
 - **Remplace :** **Salesforce**, **HubSpot**, **Pipedrive**
 - **Connexion (SSO) :** Non disponible. L'édition communautaire de cette application n'a pas de support OIDC : chaque compte garde un identifiant propre à l'application.
 - **Adresse :** `twenty.yourdomain.com`, servie par `server:3000`
+- **Logo :** <https://cdn.jsdelivr.net/gh/selfhst/icons@02dd039d62a8e7132f4828e69162fca30bd43bb5/png/twenty-crm.png>. Icon: selfh.st icons, CC BY 4.0
 
 L'adresse est attachée au déploiement du modèle. Une autre se convient au
 préalable, sur demande.

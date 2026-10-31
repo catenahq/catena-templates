@@ -65,6 +65,9 @@ services:
     volumes:
       - server-data:/app/.local-storage
     labels:
+      - "vps.homepage.name=Twenty"
+      - "vps.homepage.description=Customer records, companies and sales pipelines in one CRM."
+      - "vps.homepage.description-fr=Dossiers de clients, entreprises et suivi des ventes dans un seul CRM."
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=3000"
       - "vps.auth.mode=public"

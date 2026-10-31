@@ -779,7 +779,7 @@
           "name": "DB_PASSWORD"
         }
       ],
-      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/twenty/logo.svg",
+      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/twenty/logo.png",
       "maintainer": "https://github.com/catenahq/catena-templates",
       "name": "catena-twenty",
       "note": "<p>Modern open-source CRM. Contacts, companies, opportunities, email sync, pipelines. Alternative to EspoCRM (the default CRM).</p><p>Replaces Salesforce, HubSpot, Pipedrive.</p><p><a href=\"https://github.com/catenahq/catena-templates/blob/main/blueprints/twenty/README.md\">https://github.com/catenahq/catena-templates/blob/main/blueprints/twenty/README.md</a></p>",
