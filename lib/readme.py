@@ -1,7 +1,7 @@
 """Render one template's README from its source prose.
 
 The README ships inside the blueprint directory, beside the compose file
-Portainer deploys, so whoever reads the stackfile reads what it is for in
+a host deploys, so whoever reads the stackfile reads what it is for in
 the same place. Both languages live in one file because the directory
 holds one README per template.
 

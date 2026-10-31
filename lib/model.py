@@ -9,8 +9,8 @@ that are catalog-wide rather than per-template. Everything else in the repo is
 rendered from these.
 
 The compose sits in the blueprint directory because that directory is
-what Portainer clones and deploys: one file, in the place that serves
-it, with the app's README and logo beside it. Its root `x-catena` block
+what a host fetches at a tag and deploys byte for byte: one file, in the
+place that serves it, with the app's README and logo beside it. Its root `x-catena` block
 declares what the host needs to back up, update and restore the deployed
 app (env, lifecycle, quiesce, object_store, hooks and the rest of
 block.schema.json); the loader reads it beside the source.
@@ -26,8 +26,7 @@ Validation runs in two layers:
      service's name label equal to the source's display name (a moved app's
      compose carries no vps.homepage.* label).
      A schema cannot see across files, and these are exactly the failures
-     that reach a client's Portainer as a broken template when nothing
-     checks them.
+     that reach a host as a broken app when nothing checks them.
 """
 from __future__ import annotations
 
@@ -129,7 +128,7 @@ class Entry:
 
     @property
     def app_dir(self) -> Path:
-        """The directory Portainer clones: the compose, the README and the
+        """The directory a host fetches: the compose, the README and the
         logo of this one template."""
         return BLUEPRINTS / self.slug
 
@@ -423,9 +422,8 @@ def load_sources() -> list[Entry]:
 
     Order comes from `_meta.json.order`, not from the filesystem. It is a
     curated deployment sequence (hubs first, integrations next,
-    independents last) that the Portainer gallery and the generated docs
-    index both present to clients; sorting by filename would silently
-    replace it with alphabetical. An imported entry the order does not list
+    independents last) that the generated catalog files present; sorting
+    by filename would silently replace it with alphabetical. An imported entry the order does not list
     comes after the listed ones, alphabetically."""
     sources = [p for p in sorted(SOURCES.glob("*.json")) if not p.name.startswith("_")] \
         if SOURCES.is_dir() else []
@@ -531,9 +529,7 @@ def load_sources() -> list[Entry]:
 
 def validate_output(doc: dict[str, Any]) -> list[str]:
     """Validate a rendered templates.json against the published
-    Portainer-format schema. The generated artifact is what a client's
-    Portainer actually fetches, so it gets checked as strictly as the
-    input."""
+    Portainer-format schema, as strictly as the input."""
     if jsonschema is None:
         print(
             "templates.json: jsonschema is not installed, so the rendered "

@@ -68,7 +68,7 @@ USER_AGENT = "catena-templates-import-registry"
 APPLINT_ENV = "CATENA_APPLINT"
 
 # The host every imported entry answers on until a person picks one, in the
-# form the host's catalog render resolves.
+# form the host evaluates (catena-admin payload/engines/appenv).
 ZONE = "{{ cloudflare_zone }}"
 
 # The checker's rules that refuse a feature giving the app the server itself.
@@ -525,8 +525,8 @@ def secret_like(name: str) -> bool:
 
 
 def lookup(length: int, chars: str = "ascii_letters,digits", lower: bool = False) -> str:
-    """A value each host's catalog render (catena-admin shell/marketplace)
-    mints and keeps: `length` letters and digits, or hex digits with
+    """An expression for a value the host mints and keeps (catena-admin
+    payload/engines/appenv): `length` letters and digits, or hex digits with
     chars="hexdigits" and lower, the two sets it mints."""
     pipe = " | lower" if lower else ""
     return f"{{{{ lookup('password', '/dev/null length={length} chars={chars}'){pipe} }}}}"
@@ -540,7 +540,7 @@ _GENERATED = re.compile(
 def env_spec(value: str) -> dict[str, Any]:
     """The block's env entry for one env value: an expression that mints letters
     and digits, or lowercase hex digits, is a generated secret; anything else,
-    a lowercased lookup included, is a setting the host's render evaluates."""
+    a lowercased lookup included, is a setting the host evaluates."""
     m = _GENERATED.match(value)
     if m:
         return {"generated": {"length": int(m.group(1)),

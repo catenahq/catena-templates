@@ -38,7 +38,7 @@ The helpers, and what each becomes:
   uuid, randomPort, jwt, jwt:SECRET[:PAYLOAD], timestamp, timestamps,
   timestampms         nothing the host mints: a choice to make
 
-The host mints one value per setting (catena-admin shell/marketplace). So a
+The host mints one value per setting (catena-admin payload/engines/appenv). So a
 generated value that two env lines read is one setting, and a line that
 combines it with other text is written into the compose file in place of
 its own.

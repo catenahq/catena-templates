@@ -1,15 +1,14 @@
 """Swarm-compatibility gate over the catalog's compose sources (CI gate).
 
-Every template in this catalog is a Portainer type-2 (swarm stack) entry, so
-each `blueprints/<id>/docker-compose.yml` is read by `docker stack deploy`, not
+Every template in this catalog is a swarm stack file, so each
+`blueprints/<id>/docker-compose.yml` is read by `docker stack deploy`, not
 by `docker compose up`. The two loaders accept overlapping but different
 files, and the ways they differ are not symmetric:
 
   REFUSED   the swarm loader rejects the file and nothing deploys. Loud, and
             therefore the cheap case.
   WARNED    the file loads, `docker stack deploy` prints "Ignoring unsupported
-            options: <key>", and the key does not reach the service. A client
-            deploying from the Portainer UI never sees that line.
+            options: <key>", and the key does not reach the service.
   DROPPED   the file loads, the deploy says NOTHING, and the key still does
             not reach the service.
 
@@ -29,14 +28,11 @@ Four positive requirements go with the bans:
   restart-policy   `restart:` is gone, so every service states what happens
                    when it dies, in `deploy.restart_policy.condition`.
   keeps-running    that condition is `any`. A service that finishes (`none`,
-                   `on-failure`) stays below its replica count, and Portainer
-                   fails a deploy when the first task it lists for a service
-                   below its count failed (its deploy check, libstack swarm
-                   getServiceStatus): one failed run of such a service can fail
-                   every later deploy of the stack, and Portainer then keeps a
-                   stored file its services do not run, which the update engine
-                   refuses to deploy over. A setup step runs in a long-running
-                   service, before its process starts or before it waits.
+                   `on-failure`) stays below its replica count, and its
+                   finished task never reads running to the host (catena-admin
+                   `payload/engines/appdecl` OneShot). A setup step runs in a
+                   long-running service, before its process starts or before
+                   it waits.
   data-pinning     a service that mounts a named volume or a host path is
                    pinned to node.labels.catena.role==data. At one node this
                    is a no-op; the moment a second node joins, swarm may
@@ -51,10 +47,10 @@ Four positive requirements go with the bans:
                    fail2ban, media relays picking ICE candidates), so ingress
                    is never the intent and `mode: host` is required.
 
-One more check rides along, because the swarm move is what created the need
-for it. A swarm stack file has no inline `configs` content -- `configs`
-accepts a file read from beside the compose (which does not exist when
-Portainer deploys a posted string) or an external object -- so config files
+One more check rides along. A swarm stack file has no inline `configs`
+content -- `configs` accepts a file read from beside the compose (which does
+not exist when a stack is deployed from a posted string) or an external
+object -- so config files
 a template needs are written by the service's own entrypoint.
 Those scripts live inside a YAML block scalar inside a file that is then
 interpolated, which puts them out of reach of every editor and every other
@@ -93,8 +89,7 @@ REFUSED = {
 }
 
 # The file loads and the key does not reach the service. WARNED entries print
-# a line on `docker stack deploy` that a client deploying from the Portainer
-# UI never sees; DROPPED entries print nothing anywhere.
+# a line on `docker stack deploy`; DROPPED entries print nothing anywhere.
 DROPPED = {
     "depends_on": (
         "swarm has no start ordering and drops this in SILENCE. Give the "
@@ -171,10 +166,10 @@ def lint_service(name: str, service: dict, *, label: str) -> list[str]:
     elif condition != "any":
         errors.append(
             f"{where}: deploy.restart_policy.condition is {condition!r}. A "
-            f"service that finishes stays below its replica count, and one "
-            f"failed run of it can fail every later Portainer deploy of the "
-            f"stack. Run the step in a long-running service, before its "
-            f"process starts or before it waits"
+            f"service that finishes stays below its replica count, and its "
+            f"finished task never reads running to the host. Run the step in "
+            f"a long-running service, before its process starts or before it "
+            f"waits"
         )
 
     if _mounts_state(service) and not _pinned(service):
@@ -254,12 +249,10 @@ def lint_configs(doc: dict, *, label: str) -> list[str]:
     """A top-level `configs:` entry may only be `external`.
 
     `file:` reads a path beside the compose, and neither deploy path has one.
-    Portainer's App Templates entry points at `blueprints/<id>/
-    docker-compose.yml` and `build/render.py` emits exactly the compose, the
-    logo and the quiesce hooks into that directory -- never a sibling asset.
-    The API path is worse: a stack created from `StackFileContent` is a posted
-    STRING with no directory at all, and that is the path the bench and the
-    provisioner both use.
+    A host adds `blueprints/<id>/docker-compose.yml` byte for byte, and
+    `build/render.py` emits only the README and the logo beside it -- never a
+    sibling asset. A stack deployed from a posted string has no directory at
+    all.
 
     Neither failure is visible from here. `docker stack config` resolves the
     path against THIS repository, where the file does sit next to the compose,

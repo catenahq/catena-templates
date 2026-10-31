@@ -179,7 +179,7 @@ outputs. CI verifies with `git diff --exit-code` over all four.
 ## Every compose here is a SWARM stack file
 
 The client host runs a single-node swarm carrying the catena services, and
-every template deploys onto it (Portainer template type 2). `docker stack
+every template deploys onto it. `docker stack
 deploy` reads these files, not `docker compose up`, and the two loaders
 differ in ways that are not symmetric. Four rules follow, all enforced by
 `make lint` (`lib/swarm_lint.py`):
@@ -192,10 +192,9 @@ differ in ways that are not symmetric. Four rules follow, all enforced by
   state and then takes the upgrade branch on the retry) the service waits for
   its dependency ITSELF, in its entrypoint. Nextcloud is the worked example.
 - **Every service runs until stopped.** `deploy.restart_policy.condition` is
-  `any`. A service that finishes stays below its replica count, and Portainer
-  fails a deploy when the first task it lists for such a service failed, so
-  one failed run can fail every later deploy and leave Portainer's stored
-  file behind what the services run. A setup step runs in a long-running
+  `any`. A service that finishes stays below its replica count, and its
+  finished task never reads running to the host (catena-admin
+  `payload/engines/appdecl` OneShot). A setup step runs in a long-running
   service: before its process starts (ERPNext's `backend` creates the site,
   then serves it), or before it waits (Zammad's `zammad-init`).
 - **A service that mounts state declares where it lives.** Named volume or
