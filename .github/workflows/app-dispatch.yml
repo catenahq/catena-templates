@@ -34,11 +34,13 @@ name: app-dispatch
 # same change: the commit itself; on the default branch the head of the pull
 # request merged as the commit, on another branch the head the branch had before
 # the push; and, with the state `success`, the run that made the app's newest tag
-# when the app is tested at the commit. A `failure` is carried only on a branch
-# other than the default branch. A candidate holds the same change when the app's
-# files (`build/versions.py same`) are the same at the candidate and at the commit
-# and at the points each is judged from. A read token of the App (contents,
-# pull requests and statuses read, on the repository that pushed) fetches the
+# when the app's files at the commit differ from that tag in presentation alone or
+# not at all. A `failure` is carried only on a branch other than the default
+# branch. A candidate holds the same change when the app's files differ in
+# presentation alone (`build/versions.py same`) between the candidate and the
+# commit and between the points each is judged from: a difference in runtime or
+# tests is never carried. A read token of the App (contents, pull requests and
+# statuses read, on the repository that pushed) fetches the
 # candidate and reads its pull requests and statuses. The status description must
 # name exactly the commit's app. Without the read token every commit runs in full.
 #

@@ -394,7 +394,11 @@ layout; `app-main.yml` serves this repository alone. Their inputs are `catalog`
 (default true), `tools-ref` (default `main`) and `own-images` (default empty);
 `app-ci.yml` also takes `sha` and `base` and `app-dispatch.yml` takes `commits`
 (the commits of a push to send, default every commit of the push), all
-defaulting to empty. `app-dispatch.yml` and `app-tag.yml` take the
+defaulting to empty. A caller of `app-ci.yml` grants `contents: read` and
+`statuses: read`: the `app` job reads the `app-ci` status of the app's last
+runtime change, and GitHub refuses a called workflow that asks for more than its
+caller grants. A status that is absent or unreadable, as in a repository that posts
+no `app-ci` status, runs the heavy steps. `app-dispatch.yml` and `app-tag.yml` take the
 secrets `RENOVATE_APP_CLIENT_ID` and `RENOVATE_APP_PRIVATE_KEY`. With `catalog`
 false a called workflow checks out catena-templates at `tools-ref` into
 `.tools` and sets `TEMPLATES_ROOT` to the caller's tree. It runs the swarm lint
@@ -407,7 +411,9 @@ and `scope`.
 App ids come from changed file names, so the workflow hands them to scripts
 through `env:` only and refuses an id that is not a lowercase slug.
 `uv run build/app_check.py` runs the per-app checks locally (`images ID`,
-`provenance ID` after pulling the images).
+`provenance ID` after pulling the images; `ci-passed SHA` exits 0 when the commit
+has an `app-ci` success from github-actions[bot], with `GITHUB_REPOSITORY` and a
+token set).
 
 ## The bench lifecycle
 

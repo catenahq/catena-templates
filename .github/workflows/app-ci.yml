@@ -31,6 +31,15 @@ name: app-ci
 # provenance step passes. The catalog itself builds an image for each folder of
 # `images/`, published as ghcr.io/<owner>/<folder>; the provenance step adds
 # those to the list.
+#
+# The heavy steps of `app` (image pulls, provenance, scanctl, ClamAV) judge the
+# runtime. A first step reads the classes of the change (`build/versions.py
+# classes`) and skips them when the change leaves the runtime alone and the
+# app's last runtime change before the base (`build/versions.py runtime-change`)
+# has an `app-ci` status of success posted by github-actions[bot] for a run of
+# this repository (`build/app_check.py ci-passed`, which the job's `statuses: read`
+# lets read it). A change of the runtime, a runtime change without that status
+# and a status that cannot be read run them. The job summary says which path ran.
 
 on:
   pull_request:
@@ -218,6 +227,9 @@ jobs:
     if: needs.plan.outputs.apps != '[]'
     runs-on: ${{ inputs.runner || 'ubuntu-latest' }}
     timeout-minutes: 60
+    permissions:
+      contents: read
+      statuses: read
     strategy:
       fail-fast: false
       matrix:
@@ -241,6 +253,36 @@ jobs:
           ref: ${{ inputs.tools-ref }}
           path: .tools
           persist-credentials: false
+      - name: Scope of the change
+        id: scope
+        env:
+          BASE_SHA: ${{ inputs.base }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          base="${BASE_SHA:-$(git rev-parse HEAD^1)}"
+          classes="$(env -u GH_TOKEN uv run "$TOOLS/build/versions.py" classes "$APP" \
+            --ref "$(git rev-parse HEAD)" --base "$base")" || classes=runtime
+          heavy=true
+          reason="the change touches the runtime"
+          if ! grep -qx runtime <<< "$classes"; then
+            runtime_change="$(env -u GH_TOKEN uv run "$TOOLS/build/versions.py" runtime-change "$APP" --ref "$base")" \
+              || runtime_change=""
+            if [ -z "$runtime_change" ]; then
+              reason="the app has no runtime change before the base to rely on"
+            elif uv run "$TOOLS/build/app_check.py" ci-passed "$runtime_change"; then
+              heavy=false
+              reason="the runtime is as app-ci passed it at $runtime_change"
+            else
+              reason="app-ci has no success at the last runtime change, $runtime_change"
+            fi
+          fi
+          echo "heavy=$heavy" >> "$GITHUB_OUTPUT"
+          if [ "$heavy" = true ]; then
+            echo "$APP: heavy steps run: $reason" | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            echo "$APP: heavy steps skipped: $reason" | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
       - name: Swarm loader reads the stack file
         run: docker stack config --skip-interpolation -c "blueprints/$APP/docker-compose.yml" > /dev/null
       - name: The released app checker reads the app
@@ -275,11 +317,13 @@ jobs:
           cat "$RUNNER_TEMP/applint-errors.txt"
           [ ! -s "$RUNNER_TEMP/applint-errors.txt" ]
       - name: Pull the app's images
+        if: steps.scope.outputs.heavy == 'true'
         run: |
           set -euo pipefail
           uv run "$TOOLS/build/app_check.py" images "$APP" > "$RUNNER_TEMP/images.txt"
           while read -r image; do docker pull "$image"; done < "$RUNNER_TEMP/images.txt"
       - name: Provenance (project age and releases)
+        if: steps.scope.outputs.heavy == 'true'
         env:
           GITHUB_TOKEN: ${{ github.token }}
           OWNER: ${{ github.repository_owner }}
@@ -296,10 +340,12 @@ jobs:
             done
           fi
           PROVENANCE_OWN_IMAGES="$own" uv run "$TOOLS/build/app_check.py" provenance "$APP"
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+      - if: steps.scope.outputs.heavy == 'true'
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
           go-version: stable
       - name: scanctl on the app's images
+        if: steps.scope.outputs.heavy == 'true'
         # Only trivy runs, over the one compose file's images. The change is
         # judged from its base (-baseline-ref): a vulnerability at or above high
         # with a fix, or a secret in an image, fails only when the change adds it,
@@ -335,9 +381,10 @@ jobs:
             -out "$RUNNER_TEMP/scanctl.sarif" \
             -summary "$RUNNER_TEMP/scanctl-summary.md" .
       - name: Scan summary
-        if: always()
+        if: always() && steps.scope.outputs.heavy == 'true'
         run: cat "$RUNNER_TEMP/scanctl-summary.md" >> "$GITHUB_STEP_SUMMARY" || true
       - name: ClamAV over each image's files
+        if: steps.scope.outputs.heavy == 'true'
         # .clamav-allow.sfp joins the image's databases: the files it lists by
         # exact content pass. The regular files of an image, one name per inode
         # (hardlinked names hold the same content), are dealt round robin to one

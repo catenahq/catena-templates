@@ -40,6 +40,11 @@ USER_AGENT = "catena-templates-provenance"
 
 Fetch = Callable[[str], Any]
 
+
+def api_url() -> str:
+    """The GitHub API address: the runner's GITHUB_API_URL, else GitHub's."""
+    return os.environ.get("GITHUB_API_URL") or GITHUB_API
+
 _IMAGE_LINE = re.compile(r"""(?m)^\s*image:\s*["']?([^"'\s#]+)""")
 _DEFAULT = re.compile(r"\$\{[A-Za-z_][A-Za-z0-9_]*:?-([^}$]*)\}")
 _GITHUB_SOURCE = re.compile(r"github\.com[/:]([^/\s]+)/([^/\s#?]+)")
@@ -190,10 +195,10 @@ def check_image(ref: str, labels: dict[str, str] | None, fetch: Fetch,
 
 
 def http_fetch(url: str) -> Any:
-    """GET a JSON page; None for a 404. GitHub answers with GITHUB_TOKEN."""
+    """GET a JSON page; None for a 404. GitHub answers with GITHUB_TOKEN, else GH_TOKEN."""
     headers = {"User-Agent": USER_AGENT, "Accept": "application/json"}
-    token = os.environ.get("GITHUB_TOKEN")
-    if token and url.startswith(GITHUB_API):
+    token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
+    if token and url.startswith((GITHUB_API, api_url())):
         headers["Authorization"] = f"Bearer {token}"
     request = urllib.request.Request(url, headers=headers)
     try:

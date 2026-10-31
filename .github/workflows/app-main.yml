@@ -133,6 +133,7 @@ jobs:
       apps: ${{ matrix.commit.apps }}
     permissions:
       contents: read
+      statuses: read
 
   verdict:
     needs: [list, checks]

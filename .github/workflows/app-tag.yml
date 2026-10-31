@@ -5,21 +5,34 @@ name: app-tag
 # commit, the apps that passed on it (comma-separated slugs) and the address of
 # the run. `build/versions.py plan --ref <sha>`, from the default branch's own
 # checkout, reads each app at the commit against its tags:
-#   create TAG  the app's files differ from its newest tag, or it has none: an
+#   create TAG  the app has no tag, or its files differ from its newest tag in
+#               runtime (or in verification together with presentation): an
 #               annotated tag `<app>/<version>-<revision>` on the commit
-#   mark TAG    its newest tag was made by hand and holds the same files: that
-#               tag is annotated where it stands
-#   skip TAG    a passing run made its newest tag, which holds the same files,
-#               or the newest tag is on a later commit, or the default branch
-#               holds other files of the app than the commit (`skip -` when
-#               the app has no tag)
+#   create TAG FROM
+#               the files differ from the newest tag FROM, a passing run's, in
+#               presentation alone: the commit has no run of its own, and the
+#               annotation says the runtime and tests are FROM's
+#   mark TAG    its newest tag was made by hand and the files differ from it in
+#               verification alone or not at all: that tag is annotated where it
+#               stands
+#   skip TAG    a passing run made its newest tag and the files differ from it in
+#               verification alone or not at all, or the newest tag is on a later
+#               commit, or the default branch holds other files of the app than
+#               the commit (`skip -` when the app has no tag)
 # In the catalog itself (`catalog` true) a `create` or `mark` line stands only when
 # the commit that last changed the app's files on the first-parent line up to the
 # passed commit (`build/versions.py last-change`) holds an `app-ci` commit status
 # of success, posted by github-actions[bot] with the address of a run of this
-# repository (app-main posts it). Any other app is dropped with a warning: no tag
-# without the app checks at the app's last change.
-# The annotation opens with `app-tests passed` and names the commit and the run.
+# repository (app-main posts it; `build/app_check.py ci-passed` reads it). Any
+# other app is dropped with a warning: no tag without the app checks at the app's
+# last change.
+# A tag stands when app-ci passed at the app's last change on main and app-tests
+# passed on a commit whose runtime and tests are the tagged commit's: the commit
+# itself or, for a change of presentation alone, the run that tested the same
+# runtime and tests.
+# The annotation opens with `app-tests passed` and names the commit and the run;
+# for `create TAG FROM` a blank line and "Runtime and tests as FROM; this revision
+# changes the presentation alone." follow.
 # The tags are written through the API with the catenahq-renovate GitHub App's
 # token (secrets RENOVATE_APP_CLIENT_ID and RENOVATE_APP_PRIVATE_KEY), the one
 # actor the tag ruleset lets create or move a `*/*` tag; ops sends the event
@@ -128,28 +141,17 @@ jobs:
         if: format('{0}', inputs.catalog) != 'false'
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
-          REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
-          shopt -s inherit_errexit
-          run_url="^https://github\\.com/$REPO/actions/runs/[0-9]+\$"
           : > "$RUNNER_TEMP/kept.txt"
-          while read -r app action tag <&3; do
+          while read -r app action tag from <&3; do
             if [ "$action" = skip ]; then
-              echo "$app $action $tag" >> "$RUNNER_TEMP/kept.txt"
+              echo "$app $action $tag${from:+ $from}" >> "$RUNNER_TEMP/kept.txt"
               continue
             fi
             last="$(env -u GH_TOKEN uv run "$TOOLS/build/versions.py" last-change "$app" --ref "$SHA")"
-            state=""
-            creator=""
-            url=""
-            if [ -n "$last" ]; then
-              IFS=$'\t' read -r state creator url <<< "$(gh api "repos/$REPO/commits/$last/statuses" --jq \
-                '[.[] | select(.context == "app-ci")] | .[0] | select(. != null)
-                 | [.state, .creator.login, .target_url] | @tsv' || true)" || true
-            fi
-            if [ "$state" = success ] && [ "$creator" = "github-actions[bot]" ] && [[ "$url" =~ $run_url ]]; then
-              echo "$app $action $tag" >> "$RUNNER_TEMP/kept.txt"
+            if [ -n "$last" ] && uv run "$TOOLS/build/app_check.py" ci-passed "$last"; then
+              echo "$app $action $tag${from:+ $from}" >> "$RUNNER_TEMP/kept.txt"
             else
               echo "::warning::$app: ${last:-no commit} has no app-ci success, so $tag is not written"
             fi
@@ -161,9 +163,13 @@ jobs:
           REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
-          message="app-tests passed at $SHA: $RUN"
-          while read -r app action tag <&3; do
+          passed="app-tests passed at $SHA: $RUN"
+          while read -r app action tag from <&3; do
             for try in 1 2 3; do
+              message="$passed"
+              if [ "$action" = create ] && [ -n "$from" ]; then
+                message="$passed"$'\n\n'"Runtime and tests as $from; this revision changes the presentation alone."
+              fi
               case "$action" in
                 skip)
                   echo "$app: keeps $tag"; break ;;
@@ -181,7 +187,7 @@ jobs:
                   [ "$try" -lt 3 ] || { echo "::error::$app: $tag could not be created"; exit 1; }
                   git fetch -q --force origin '+refs/tags/*:refs/tags/*'
                   plan="$(env -u GH_TOKEN uv run "$TOOLS/build/versions.py" plan "$app" --ref "$SHA")"
-                  read -r action tag <<< "$plan" ;;
+                  read -r action tag from <<< "$plan" ;;
               esac
             done
           done 3< "$RUNNER_TEMP/plan.txt"

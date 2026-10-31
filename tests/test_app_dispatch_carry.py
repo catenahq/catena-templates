@@ -47,21 +47,25 @@ def scene(tmp_path):
     sha = git("rev-parse", "HEAD")
     gh = bin_dir / "gh"
     gh.write_text('#!/bin/bash\ncase "$2" in\n'
-                  '  */statuses) printf "%b\\n" "$STATUS" ;;\nesac\n')
+                  '  *"${STATUS_ONLY}/statuses") printf "%b\\n" "$STATUS" ;;\nesac\n')
     gh.chmod(0o755)
     (runner / "dispatches.txt").write_text(f"{sha} {base} web\n")
 
-    def run(description, state="success", token="x", branch="feat"):
+    def run(description, state="success", token="x", branch="feat", before="0" * 40, head=None):
+        only = before if head else ""
+        if head:
+            (runner / "dispatches.txt").write_text(f"{head} {base} web\n")
         status = f"{state}\\tcatenahq-renovate[bot]\\t{RUN}\\t{description}"
         step_env = {**env, "PATH": f"{bin_dir}:{env['PATH']}", "RUNNER_TEMP": str(runner),
                     "TEMPLATES_ROOT": str(repo), "TOOLS": str(ROOT), "GH_TOKEN": token,
                     "APP_SLUG": "catenahq-renovate", "OWNER": "o", "REPO_NAME": "r", "BRANCH": branch,
-                    "DEFAULT_BRANCH": "main", "BEFORE": "0" * 40, "STATUS": status}
+                    "DEFAULT_BRANCH": "main", "BEFORE": before, "STATUS_ONLY": only, "STATUS": status}
         done = subprocess.run(["bash", "-c", _step_script()], cwd=repo, env=step_env,
                               capture_output=True, text=True, check=False)
         assert done.returncode == 0, done.stderr
-        return (runner / "payloads.txt").read_text().strip().split(" "), sha, base
+        return (runner / "payloads.txt").read_text().strip().split(" "), head or sha, base
 
+    run.git, run.repo = git, repo
     return run
 
 
@@ -100,3 +104,31 @@ def test_a_failure_that_names_another_app_is_not_carried(scene, description):
 def test_without_a_read_token_every_commit_runs_in_full(scene):
     fields, sha, base = scene("passed 1 app(s): web", token="")
     assert fields == [sha, base, "web", "-", "-"]
+
+
+def _push(scene, path):
+    (scene.repo / path).write_text("changed")
+    scene.git("add", "-A")
+    scene.git("commit", "-qm", path)
+    return scene.git("rev-parse", "HEAD")
+
+
+def test_a_branch_push_that_changes_the_presentation_alone_carries_the_previous_head_s_verdict(scene):
+    before = scene.git("rev-parse", "HEAD")
+    head = _push(scene, "blueprints/web/README.md")
+    fields, sha, _ = scene("passed 1 app(s): web", before=before, head=head)
+    assert fields[3:] == [RUN, "success"]
+
+
+def test_a_branch_push_that_changes_the_runtime_runs_in_full(scene):
+    before = scene.git("rev-parse", "HEAD")
+    head = _push(scene, "blueprints/web/docker-compose.yml")
+    fields, sha, _ = scene("passed 1 app(s): web", before=before, head=head)
+    assert fields[3:] == ["-", "-"]
+
+
+def test_a_branch_push_that_changes_the_tests_runs_in_full(scene):
+    before = scene.git("rev-parse", "HEAD")
+    head = _push(scene, "blueprints/web/test.yml")
+    fields, sha, _ = scene("passed 1 app(s): web", before=before, head=head)
+    assert fields[3:] == ["-", "-"]

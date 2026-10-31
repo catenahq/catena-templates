@@ -2,10 +2,14 @@
 repository with a stub `gh`, and the workflow files are checked for their shape."""
 from __future__ import annotations
 
+import json
 import os
 import re
 import shutil
 import subprocess
+import threading
+from contextlib import contextmanager
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
 import pytest
@@ -341,7 +345,7 @@ def test_checks_is_a_matrix_of_local_calls_that_do_not_cancel_each_other():
     assert checks["uses"] == "./.github/workflows/app-ci.yml"
     assert checks["with"] == {"sha": "${{ matrix.commit.check }}", "base": "${{ matrix.commit.parent }}",
                               "apps": "${{ matrix.commit.apps }}"}
-    assert checks["permissions"] == {"contents": "read"}
+    assert checks["permissions"] == {"contents": "read", "statuses": "read"}
     assert checks["name"] == "app-ci ${{ matrix.commit.sha }}"
 
 
@@ -597,10 +601,40 @@ def test_scope_passes_with_named_apps_whatever_the_diff_holds(scratch):
 GATE = _step("app-tag.yml", "tag", "Hold back")
 
 
-def _gate(scratch, plan, status, sha=None):
+@contextmanager
+def _statuses_api(body, code=200):
+    """A local GitHub API that answers every request with `body`; yields its address
+    and the list of paths it receives."""
+    paths = []
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            paths.append(self.path)
+            data = body.encode()
+            self.send_response(code)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+
+        def log_message(self, *args):
+            pass
+
+    server = HTTPServer(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        yield f"http://127.0.0.1:{server.server_port}", paths
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
+def _gate(scratch, plan, status, sha=None, code=200):
     run, git, commit, runner = scratch
     (runner / "plan.txt").write_text(plan)
-    done, _ = run(GATE["run"], SHA=sha or git("rev-parse", "HEAD"), STATUS=status)
+    with _statuses_api(status, code) as (api, _):
+        done, _ = run(GATE["run"], SHA=sha or git("rev-parse", "HEAD"), GITHUB_API_URL=api)
     assert done.returncode == 0, done.stderr
     return done, (runner / "plan.txt").read_text()
 
@@ -613,8 +647,8 @@ def _app_commit(scratch):
     return last
 
 
-def _status(state="success", creator="github-actions[bot]", url=RUN):
-    return f"{state}\\t{creator}\\t{url}"
+def _status(state="success", creator="github-actions[bot]", url=RUN, context="app-ci"):
+    return json.dumps([{"context": context, "state": state, "creator": {"login": creator}, "target_url": url}])
 
 
 @needs_uv
@@ -630,7 +664,12 @@ def test_an_app_whose_last_change_passed_app_ci_keeps_its_line(scratch, action):
 @pytest.mark.parametrize("status", [
     _status(state="failure"),
     _status(state="pending"),
-    "",
+    "[]",
+    _status(context="app-tests"),
+    json.dumps([{"context": "app-ci", "state": "failure", "creator": {"login": "github-actions[bot]"},
+                 "target_url": RUN},
+                {"context": "app-ci", "state": "success", "creator": {"login": "github-actions[bot]"},
+                 "target_url": RUN}]),
     _status(creator="someone"),
     _status(creator="catenahq-renovate[bot]"),
     _status(url="https://github.com/other/r/actions/runs/5"),
@@ -641,6 +680,14 @@ def test_an_app_whose_last_change_passed_app_ci_keeps_its_line(scratch, action):
 def test_an_app_whose_last_change_has_no_app_ci_success_is_dropped_with_a_warning(scratch, status):
     last = _app_commit(scratch)
     done, plan = _gate(scratch, "web create web/1.0-1\n", status)
+    assert plan == ""
+    assert f"::warning::web: {last}" in done.stdout
+
+
+@needs_uv
+def test_an_unreadable_status_holds_the_app_back(scratch):
+    last = _app_commit(scratch)
+    done, plan = _gate(scratch, "web create web/1.0-1\n", "{}", code=500)
     assert plan == ""
     assert f"::warning::web: {last}" in done.stdout
 
@@ -667,3 +714,55 @@ def test_the_gate_is_skipped_for_another_repository_and_reads_statuses_with_the_
     assert mint["with"]["permission-statuses"] == "read"
     names = [s.get("name", "") for s in _doc("app-tag.yml")["jobs"]["tag"]["steps"]]
     assert names.index(GATE["name"]) == names.index("Write the tags") - 1
+
+
+@needs_uv
+def test_the_gate_keeps_the_from_of_a_presentation_line(scratch):
+    _app_commit(scratch)
+    _, plan = _gate(scratch, "web create web/1.0-2 web/1.0-1\nx skip x/1.0-1\n", _status())
+    assert plan == "web create web/1.0-2 web/1.0-1\nx skip x/1.0-1\n"
+
+
+@needs_uv
+def test_the_gate_does_not_read_the_from_into_the_tag(scratch):
+    _app_commit(scratch)
+    done, plan = _gate(scratch, "web create web/1.0-2 web/1.0-1\n", _status(state="failure"))
+    assert plan == ""
+    assert "web/1.0-2 is not written" in done.stdout
+
+
+# the annotation
+
+WRITE = _step("app-tag.yml", "tag", "Write the tags")
+
+
+def _write(scratch, plan):
+    run, git, _, runner = scratch
+    (runner / "plan.txt").write_text(plan)
+    sha = git("rev-parse", "HEAD")
+    done, _ = run(WRITE["run"], SHA=sha, RUN=RUN)
+    assert done.returncode == 0, done.stderr
+    posted = runner / "posted.txt"
+    return sha, (posted.read_text() if posted.exists() else "")
+
+
+def test_a_create_line_with_a_from_says_the_runtime_and_tests_are_the_froms(scratch):
+    _, _, commit, _ = scratch
+    commit("README.md")
+    sha, posted = _write(scratch, "web create web/1.0-2 web/1.0-1\n")
+    assert (f"tag=web/1.0-2 -f message=app-tests passed at {sha}: {RUN}\n\n"
+            "Runtime and tests as web/1.0-1; this revision changes the presentation alone.") in posted
+
+
+def test_a_create_line_without_a_from_has_the_one_line_annotation(scratch):
+    _, _, commit, _ = scratch
+    commit("README.md")
+    sha, posted = _write(scratch, "web create web/1.0-2\n")
+    assert f"message=app-tests passed at {sha}: {RUN} -f object={sha}" in posted
+    assert "Runtime and tests as" not in posted
+
+
+def test_a_skip_line_with_a_tag_and_no_from_writes_nothing(scratch):
+    _, _, commit, _ = scratch
+    commit("README.md")
+    assert _write(scratch, "web skip web/1.0-1\n")[1] == ""
