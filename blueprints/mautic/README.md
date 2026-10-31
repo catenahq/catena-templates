@@ -12,6 +12,7 @@ Open-source marketing automation. Contact segments, email campaigns, drip sequen
 - **Replaces:** **Mailchimp**, **ActiveCampaign**, **HubSpot Marketing**, **Brevo (Sendinblue)**
 - **Sign-in (SSO):** Not available. This application's community edition has no OIDC support, so each account keeps a per-application login.
 - **Address:** `marketing.yourdomain.com`, served from `mautic_web:80`
+- **Logo:** <https://raw.githubusercontent.com/mautic/mautic/ee2b5b60dd2490ecc5a1631d726cb904a5ffd06a/app/assets/images/mautic_logo_db200.png>. Mautic(R) is a registered trademark held by Open Source Collective on behalf of the Mautic project.
 
 The address is attached when the template is deployed. A different one is
 arranged beforehand, on request.
@@ -71,6 +72,7 @@ Automatisation marketing open-source. Segments de contacts, campagnes courriel, 
 - **Remplace :** **Mailchimp**, **ActiveCampaign**, **HubSpot Marketing**, **Brevo (Sendinblue)**
 - **Connexion (SSO) :** Non disponible. L'édition communautaire de cette application n'a pas de support OIDC : chaque compte garde un identifiant propre à l'application.
 - **Adresse :** `marketing.yourdomain.com`, servie par `mautic_web:80`
+- **Logo :** <https://raw.githubusercontent.com/mautic/mautic/ee2b5b60dd2490ecc5a1631d726cb904a5ffd06a/app/assets/images/mautic_logo_db200.png>. Mautic(R) is a registered trademark held by Open Source Collective on behalf of the Mautic project.
 
 L'adresse est attachée au déploiement du modèle. Une autre se convient au
 préalable, sur demande.

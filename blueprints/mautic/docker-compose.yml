@@ -90,6 +90,9 @@ services:
       retries: 10
       start_period: 60s
     labels:
+      - "vps.homepage.name=Mautic"
+      - "vps.homepage.description=Email campaigns, contact lists, forms and landing pages for marketing."
+      - "vps.homepage.description-fr=Campagnes de courriel, listes de contacts, formulaires et pages d'atterrissage pour le marketing."
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=80"
       - "vps.auth.mode=public"

@@ -1361,7 +1361,7 @@
           "name": "SMTP_FROM_ADDRESS"
         }
       ],
-      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/mautic/logo.svg",
+      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/mautic/logo.png",
       "maintainer": "https://github.com/catenahq/catena-templates",
       "name": "catena-mautic",
       "note": "<p>Open-source marketing automation. Contact segments, email campaigns, drip sequences, landing pages, forms, lead scoring. Replaces Mailchimp / ActiveCampaign / HubSpot Marketing.</p><p>Replaces Mailchimp, ActiveCampaign, HubSpot Marketing, Brevo (Sendinblue).</p><p><a href=\"https://github.com/catenahq/catena-templates/blob/main/blueprints/mautic/README.md\">https://github.com/catenahq/catena-templates/blob/main/blueprints/mautic/README.md</a></p>",

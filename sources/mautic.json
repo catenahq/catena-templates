@@ -11,6 +11,10 @@
   "x-catena": {
     "app_name": "catena-mautic",
     "upstream_url": "https://www.mautic.org/",
+    "logo": {
+      "source": "https://raw.githubusercontent.com/mautic/mautic/ee2b5b60dd2490ecc5a1631d726cb904a5ffd06a/app/assets/images/mautic_logo_db200.png",
+      "notice": "Mautic(R) is a registered trademark held by Open Source Collective on behalf of the Mautic project."
+    },
     "sso_mode": "none",
     "domain": {
       "host": "marketing.{{ cloudflare_zone }}",
