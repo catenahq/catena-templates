@@ -108,7 +108,16 @@ services:
     deploy:
       restart_policy:
         condition: any
-    command: ./bin/docker-entrypoint-api.sh
+    # The migrator script waits for the database and runs the migrations; the api entrypoint only waits for
+    # them. Running both here keeps every service of the stack up, and the worker and beat-worker, which
+    # also wait for the migrations, start working once this one has migrated.
+    command:
+      - sh
+      - -c
+      - |
+        set -e
+        ./bin/docker-entrypoint-migrator.sh
+        exec ./bin/docker-entrypoint-api.sh
     environment: &backend-env
       DEBUG: "0"
       SECRET_KEY: ${PLANE_SECRET_KEY}

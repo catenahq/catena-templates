@@ -43,6 +43,14 @@ def test_the_hook_runs_in_a_service_of_the_stack():
     assert quiesce_lint.lint_hooks(_entry()) == []
 
 
+def test_the_api_migrates_the_database_before_it_serves():
+    script = _compose()["services"]["api"]["command"][-1]
+    assert script.startswith("set -e")
+    assert script.index("./bin/docker-entrypoint-migrator.sh") < script.index("exec ./bin/docker-entrypoint-api.sh")
+    for service in ("worker", "beat-worker"):
+        assert "migrat" not in str(_compose()["services"][service]["command"])
+
+
 def test_the_wait_ends_inside_the_hook_timeout():
     assert "time.monotonic() + 150" in _verify()[-1]
     assert 150 + 15 < _entry().block["hooks"]["timeout_seconds"] <= 300
