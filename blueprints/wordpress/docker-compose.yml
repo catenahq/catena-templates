@@ -1,5 +1,6 @@
 x-catena:
   schema: 2
+  requires_catena: 0.11.12
   version_from: wp
   env:
     DOMAIN_HOST:
@@ -169,6 +170,7 @@ x-catena:
             exit(1);
           }
           echo "WordPress answers through nginx and PHP\n";
+
 services:
   wp:
     image: wordpress:7.1.4-fpm-alpine
@@ -389,9 +391,6 @@ services:
       timeout: 5s
       retries: 5
     labels:
-      - "vps.homepage.name=WordPress"
-      - "vps.homepage.description=A website and blog publishing system."
-      - "vps.homepage.description-fr=Un système de publication de site web et de blogue."
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=80"
       - "vps.auth.mode=public"

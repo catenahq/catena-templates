@@ -21,7 +21,6 @@ APPS = sorted(p.parent.name for p in CATALOG.glob("*/docker-compose.yml"))
 OUT_OF_FORM = {
     "clamav": "images is out of order",
     "erpnext-helpdesk": "images is out of order",
-    "wordpress": "followed by exactly one empty line",
 }
 
 SERVICES = "services:\n  web:\n    image: web:1.0\n"
@@ -45,13 +44,6 @@ def _scratch(tmp_path, app, text=None):
     else:
         (folder / pack.COMPOSE).write_text(text)
     return tmp_path
-
-
-def _gap(text):
-    """The compose with an empty line after its block."""
-    lines = text.split("\n")
-    at = next(i for i, line in enumerate(lines) if i and line and not line.startswith(" "))
-    return "\n".join(lines[:at] + [""] + lines[at:])
 
 
 def _pack(neat=None, hooks=None, snippets=None):
@@ -103,16 +95,6 @@ def test_an_app_unpacks_and_packs_back_to_the_same_bytes_or_is_refused(tmp_path,
 
 def test_the_refusal_list_names_apps_of_the_catalog():
     assert set(OUT_OF_FORM) <= set(APPS)
-
-
-@pytest.mark.parametrize("app", ["wordpress"])
-def test_an_empty_line_after_the_block_is_all_element_and_wordpress_lack(tmp_path, app):
-    text = _gap((CATALOG / app / pack.COMPOSE).read_text())
-    tree = _scratch(tmp_path, app, text)
-    pack.unpack(app, tree)
-    (tree / "blueprints" / app / pack.COMPOSE).unlink()
-    pack.pack_all(tree)
-    assert (tree / "blueprints" / app / pack.COMPOSE).read_text() == text
 
 
 def test_a_comment_above_a_key_travels_with_it(tmp_path):
