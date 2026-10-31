@@ -12,6 +12,7 @@ Conversation-first omnichannel inbox. Email, live-chat widget, WhatsApp, Faceboo
 - **Replaces:** **Intercom**, **Front**, **Help Scout (for chat channels)**
 - **Sign-in (SSO):** Not available. This application's community edition has no OIDC support, so each account keeps a per-application login.
 - **Address:** `support.yourdomain.com`, served from `rails:3000`
+- **Logo:** <https://cdn.jsdelivr.net/gh/selfhst/icons@02dd039d62a8e7132f4828e69162fca30bd43bb5/png/chatwoot.png>. Icon: selfh.st icons, CC BY 4.0
 
 The address is attached when the template is deployed. A different one is
 arranged beforehand, on request.
@@ -47,6 +48,7 @@ Boîte de réception omnicanale orientée conversation. Email, widget de chat, W
 - **Remplace :** **Intercom**, **Front**, **Help Scout (canaux de chat)**
 - **Connexion (SSO) :** Non disponible. L'édition communautaire de cette application n'a pas de support OIDC : chaque compte garde un identifiant propre à l'application.
 - **Adresse :** `support.yourdomain.com`, servie par `rails:3000`
+- **Logo :** <https://cdn.jsdelivr.net/gh/selfhst/icons@02dd039d62a8e7132f4828e69162fca30bd43bb5/png/chatwoot.png>. Icon: selfh.st icons, CC BY 4.0
 
 L'adresse est attachée au déploiement du modèle. Une autre se convient au
 préalable, sur demande.

@@ -960,7 +960,7 @@
           "name": "DB_PASSWORD"
         }
       ],
-      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/chatwoot/logo.svg",
+      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/chatwoot/logo.png",
       "maintainer": "https://github.com/catenahq/catena-templates",
       "name": "catena-chatwoot",
       "note": "<p>Conversation-first omnichannel inbox. Email, live-chat widget, WhatsApp, Facebook, Instagram, Twitter/X in one inbox.</p><p>Replaces Intercom, Front, Help Scout (for chat channels).</p><p><a href=\"https://github.com/catenahq/catena-templates/blob/main/blueprints/chatwoot/README.md\">https://github.com/catenahq/catena-templates/blob/main/blueprints/chatwoot/README.md</a></p>",
