@@ -10,6 +10,9 @@
   "x-catena": {
     "app_name": "catena-portainer",
     "upstream_url": "https://www.portainer.io/",
+    "logo": {
+      "source": "https://raw.githubusercontent.com/portainer/portainer/be20b574172a27251fd8648cefe1b810a8dad6a5/app/assets/ico/logomark.svg"
+    },
     "sso_mode": "none",
     "domain": {
       "host": "portainer.{{ cloudflare_zone }}",

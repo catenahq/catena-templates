@@ -40,6 +40,9 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - portainer-data:/data
     labels:
+      - "vps.homepage.name=Portainer"
+      - "vps.homepage.description=A web page to manage this server's Docker containers, volumes and networks."
+      - "vps.homepage.description-fr=Une page web pour gérer les conteneurs, les volumes et les réseaux Docker de ce serveur."
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=9000"
       - "vps.auth.mode=admin-only"

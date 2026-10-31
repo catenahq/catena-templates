@@ -1717,7 +1717,7 @@
           "name": "DOMAIN_HOST"
         }
       ],
-      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/portainer/logo.svg",
+      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/portainer/logo.png",
       "maintainer": "https://github.com/catenahq/catena-templates",
       "name": "catena-portainer",
       "note": "<p>A web console for Docker: deploy, inspect and manage containers, volumes and networks on this server.</p><p>Replaces Docker command line, Docker Desktop.</p><p><a href=\"https://github.com/catenahq/catena-templates/blob/main/blueprints/portainer/README.md\">https://github.com/catenahq/catena-templates/blob/main/blueprints/portainer/README.md</a></p>",

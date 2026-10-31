@@ -12,6 +12,7 @@ A web console for Docker: deploy, inspect and manage containers, volumes and net
 - **Replaces:** **Docker command line**, **Docker Desktop**
 - **Sign-in (SSO):** Not available. This application's community edition has no OIDC support, so each account keeps a per-application login.
 - **Address:** `portainer.yourdomain.com`, served from `portainer:9000`
+- **Logo:** <https://raw.githubusercontent.com/portainer/portainer/be20b574172a27251fd8648cefe1b810a8dad6a5/app/assets/ico/logomark.svg>.
 
 The address is attached when the template is deployed. A different one is
 arranged beforehand, on request.
@@ -44,6 +45,7 @@ Une console web pour Docker : déployer, inspecter et gérer les conteneurs, vol
 - **Remplace :** **Ligne de commande Docker**, **Docker Desktop**
 - **Connexion (SSO) :** Non disponible. L'édition communautaire de cette application n'a pas de support OIDC : chaque compte garde un identifiant propre à l'application.
 - **Adresse :** `portainer.yourdomain.com`, servie par `portainer:9000`
+- **Logo :** <https://raw.githubusercontent.com/portainer/portainer/be20b574172a27251fd8648cefe1b810a8dad6a5/app/assets/ico/logomark.svg>.
 
 L'adresse est attachée au déploiement du modèle. Une autre se convient au
 préalable, sur demande.
