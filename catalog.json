@@ -1350,6 +1350,7 @@
           "Pipedrive"
         ],
         "setup_steps": "1. Click **Deploy**. Wait ~1 min.\n2. Visit the Twenty domain and sign up to create the initial workspace + admin user. Twenty keeps its own login: single sign-on is in its paid editions only.\n",
+        "summary": "Customer records, companies and sales pipelines in one CRM.",
         "what_it_is": "Modern open-source CRM. Contacts, companies, opportunities, email sync, pipelines. Alternative to EspoCRM (the default CRM)."
       },
       "env": {
@@ -1392,10 +1393,12 @@
           "Pipedrive"
         ],
         "setup_steps": "1. Cliquez **Deploy**. Patientez ~1 min.\n2. Visitez le domaine Twenty et cr\u00e9ez le compte initial (workspace + admin). Twenty garde sa propre connexion : l'authentification unique n'existe que dans ses \u00e9ditions payantes.\n",
+        "summary": "Dossiers de clients, entreprises et suivi des ventes dans un seul CRM.",
         "what_it_is": "CRM moderne open-source. Contacts, entreprises, opportunit\u00e9s, synchronisation email, pipelines. Alternative \u00e0 EspoCRM (le CRM par d\u00e9faut)."
       },
       "hostname_baked": true,
       "id": "twenty",
+      "requires_catena": "0.11.12",
       "sizing": {
         "disk_baseline_mb": 220,
         "idle_cpu_pct": 4,

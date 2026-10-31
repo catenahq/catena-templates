@@ -2,48 +2,6 @@
   "templates": [
     {
       "categories": [
-        "CRM",
-        "Business"
-      ],
-      "description": "Modern open-source CRM (alternative to EspoCRM). Replaces Salesforce / HubSpot.",
-      "env": [
-        {
-          "default": "twenty.",
-          "label": "Domain",
-          "name": "DOMAIN_HOST"
-        },
-        {
-          "default": "twenty.",
-          "label": "Twenty hostname",
-          "name": "TWENTY_HOSTNAME"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
-          "label": "Twenty app secret",
-          "name": "TWENTY_APP_SECRET"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
-          "label": "Database password",
-          "name": "DB_PASSWORD"
-        }
-      ],
-      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/twenty/logo.png",
-      "maintainer": "https://github.com/catenahq/catena-templates",
-      "name": "catena-twenty",
-      "note": "<p>Modern open-source CRM. Contacts, companies, opportunities, email sync, pipelines. Alternative to EspoCRM (the default CRM).</p><p>Replaces Salesforce, HubSpot, Pipedrive.</p><p><a href=\"https://github.com/catenahq/catena-templates/blob/main/blueprints/twenty/README.md\">https://github.com/catenahq/catena-templates/blob/main/blueprints/twenty/README.md</a></p>",
-      "platform": "linux",
-      "repository": {
-        "stackfile": "blueprints/twenty/docker-compose.yml",
-        "url": "https://github.com/catenahq/catena-templates"
-      },
-      "title": "Twenty",
-      "type": 2
-    },
-    {
-      "categories": [
         "Project management"
       ],
       "description": "Open-source project management. Replaces Jira / Linear / Asana.",
