@@ -85,7 +85,9 @@ services:
   postiz:
     image: ghcr.io/gitroomhq/postiz-app:v2.24.0
     # The orchestrator starts its Temporal workers only if Temporal answers when it boots and otherwise runs
-    # without them, so the image's own command runs once Temporal's default namespace answers.
+    # without them, so the image's start runs once Temporal's default namespace answers. It is the image's
+    # pm2-run script with the schema push run by the image's own prisma (a devDependency the image installs),
+    # where the script fetches prisma from the npm registry at every start.
     command:
       - sh
       - -c
@@ -94,7 +96,9 @@ services:
         until node -e "setTimeout(() => process.exit(1), 15000); require('@temporalio/client').Connection.connect({ address: process.env.TEMPORAL_ADDRESS }).then((c) => c.workflowService.describeNamespace({ namespace: 'default' })).then(() => process.exit(0), () => process.exit(1))"; do
           sleep 3
         done
-        nginx && pnpm run pm2
+        nginx && { pm2 delete all || true; } &&
+          pnpm exec prisma db push --accept-data-loss --schema ./libraries/nestjs-libraries/src/database/prisma/schema.prisma &&
+          pnpm run --parallel pm2 && pm2 logs
     deploy:
       restart_policy:
         condition: any

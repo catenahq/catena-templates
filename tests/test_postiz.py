@@ -177,7 +177,10 @@ def test_temporal_is_wired_to_postiz_and_to_the_db_service():
     postiz = services["postiz"]
     assert postiz["environment"]["TEMPORAL_ADDRESS"] == "temporal:7233"
     assert postiz["environment"]["RUN_CRON"] == "true"
-    assert postiz["command"][-1].rstrip().endswith("nginx && pnpm run pm2")
+    start = postiz["command"][-1]
+    # The schema push runs the image's own prisma: the start fetches nothing from the npm registry.
+    assert "pnpm exec prisma db push" in start and "dlx" not in start and "pnpm run pm2\n" not in start
+    assert start.rstrip().endswith("pnpm run --parallel pm2 && pm2 logs")
     temporal, setup = services["temporal"], services["temporal-setup"]
     for service in (temporal, setup):
         assert service["networks"] == ["default"]
