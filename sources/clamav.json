@@ -11,6 +11,9 @@
   "x-catena": {
     "app_name": "catena-clamav",
     "upstream_url": "https://www.clamav.net/",
+    "logo": {
+      "source": "https://raw.githubusercontent.com/Cisco-Talos/clamav/dd3aa1907cf6e34286c86f8a24dd16e7a8d8810d/logo.png"
+    },
     "sso_mode": "n/a",
     "bench": {
       "pack": "nodb",

@@ -12,6 +12,7 @@ One antivirus scanner for the whole server. The mail server scans every message 
 - **Replaces:** **A scanner per application**
 - **Sign-in (SSO):** Not applicable. This template has no sign-in screen (server-to-server use only).
 - **Address:** none, other applications on this server reach it
+- **Logo:** <https://raw.githubusercontent.com/Cisco-Talos/clamav/dd3aa1907cf6e34286c86f8a24dd16e7a8d8810d/logo.png>.
 
 It has no web address.
 
@@ -45,6 +46,7 @@ Un seul analyseur antivirus pour tout le serveur. Le serveur de courriel y analy
 - **Remplace :** **Un analyseur par application**
 - **Connexion (SSO) :** Sans objet. Ce modèle n'a pas d'écran de connexion (usage serveur à serveur uniquement).
 - **Adresse :** aucune, les autres applications de ce serveur l'atteignent
+- **Logo :** <https://raw.githubusercontent.com/Cisco-Talos/clamav/dd3aa1907cf6e34286c86f8a24dd16e7a8d8810d/logo.png>.
 
 Il n'a pas d'adresse web.
 

@@ -1643,7 +1643,7 @@
           "name": "CLAMD_CONCURRENT_RELOAD"
         }
       ],
-      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/clamav/logo.svg",
+      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/clamav/logo.png",
       "maintainer": "https://github.com/catenahq/catena-templates",
       "name": "catena-clamav",
       "note": "<p>One antivirus scanner for the whole server. The mail server scans every message through it and Nextcloud scans every uploaded file; the compliance evidence store scans its files through it too.</p><p>Replaces A scanner per application.</p><p><a href=\"https://github.com/catenahq/catena-templates/blob/main/blueprints/clamav/README.md\">https://github.com/catenahq/catena-templates/blob/main/blueprints/clamav/README.md</a></p>",
