@@ -14,6 +14,7 @@ Full open-source ERP suite -- accounting, inventory, HR/payroll, CRM, manufactur
 - **Replaces:** **SAP Business One**, **Odoo**, **Oracle NetSuite**
 - **Sign-in (SSO):** Pre-wired. Within a few minutes of the first deploy, the server gives the application its own sign-in entry in Keycloak and the application restarts once with it; the login page then offers Keycloak, with no step to take.
 - **Address:** `erp.yourdomain.com`, served from `frontend:8080`
+- **Logo:** <https://raw.githubusercontent.com/frappe/erpnext/90370c5e2add5b6365d87972570673518442a0ce/erpnext/public/images/erpnext-logo.svg>.
 
 The address is attached when the template is deployed. A different one is
 arranged beforehand, on request.
@@ -63,6 +64,7 @@ Suite ERP open-source complète -- comptabilité, inventaire, RH/paie, CRM, prod
 - **Remplace :** **SAP Business One**, **Odoo**, **Oracle NetSuite**
 - **Connexion (SSO) :** Pré-câblé. Dans les minutes qui suivent le premier déploiement, le serveur donne à l'application sa propre entrée de connexion dans Keycloak et l'application redémarre une fois avec elle ; la page de connexion propose alors Keycloak, sans aucune étape à effectuer.
 - **Adresse :** `erp.yourdomain.com`, servie par `frontend:8080`
+- **Logo :** <https://raw.githubusercontent.com/frappe/erpnext/90370c5e2add5b6365d87972570673518442a0ce/erpnext/public/images/erpnext-logo.svg>.
 
 L'adresse est attachée au déploiement du modèle. Une autre se convient au
 préalable, sur demande.

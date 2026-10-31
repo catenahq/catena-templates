@@ -246,7 +246,8 @@ def _without_the_differences(slug: str) -> dict:
     """The compose with what the two apps differ in set aside: the Frappe
     images and their tag rules, FRAPPE_APPS and the install-app line, the
     address defaults, what the sign-in differs in (the access level, the users
-    hook, the groups the main address admits and the sign-ups the entry is made
+    hook, the groups the main address admits, the name and description labels
+    and the sign-ups the entry is made
     with) and what the helpdesk closes (the web forms setting and its start
     step, the site setting block_endpoints)."""
     compose = copy.deepcopy(_compose(slug))
@@ -255,7 +256,8 @@ def _without_the_differences(slug: str) -> dict:
     block.pop("access", None)
     block["hooks"].pop("users", None)
     frontend = compose["services"]["frontend"]
-    frontend["labels"] = [label for label in frontend["labels"] if not label.startswith("vps.auth.groups")]
+    frontend["labels"] = [label for label in frontend["labels"]
+                          if not label.startswith(("vps.auth.groups", "vps.homepage."))]
     scheduler = compose["services"]["scheduler"]
     scheduler["environment"].pop("SIGNIN_SIGN_UPS")
     scheduler["environment"].pop("ERPNEXT_WEB_FORMS", None)
