@@ -53,7 +53,7 @@ x-catena:
 
 services:
   espocrm:
-    image: espocrm/espocrm:10.0.10
+    image: espocrm/espocrm:10.0.11
     deploy:
       restart_policy:
         condition: any
@@ -116,7 +116,7 @@ services:
       default: {}
 
   cron:
-    image: espocrm/espocrm:10.0.10
+    image: espocrm/espocrm:10.0.11
     deploy:
       restart_policy:
         condition: any
