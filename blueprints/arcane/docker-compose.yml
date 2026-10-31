@@ -1,5 +1,6 @@
 x-catena:
   schema: 2
+  requires_catena: 0.11.12
   privileges: [docker_socket]
   env:
     DOMAIN_HOST:
@@ -39,9 +40,6 @@ services:
       retries: 5
       start_period: 15s
     labels:
-      - "vps.homepage.name=Arcane"
-      - "vps.homepage.description=A web page to manage this server's Docker containers, images, volumes and networks."
-      - "vps.homepage.description-fr=Une page web pour gérer les conteneurs, les images, les volumes et les réseaux Docker de ce serveur."
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=3552"
       - "vps.auth.mode=admin-only"
