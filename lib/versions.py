@@ -19,8 +19,11 @@ decides what runs and how Catena operates it), VERIFICATION (what tests it) and
 PRESENTATION (name, descriptions, logo, README). FILE_CLASSES gives the class of
 each file of `blueprints/<id>/` and FIELD_CLASSES the class of each field of the
 card file (`blueprints/<id>/app.json`, or `sources/<id>.json` with its
-`x-catena.` prefix dropped); anything unlisted is RUNTIME. `changed_classes`
-returns the classes of the difference between two commits.
+`x-catena.` prefix dropped); anything unlisted is RUNTIME. The neat files of an
+app held as `services.yml` and its section files (lib/pack.py) are DERIVED: they
+add no class, since the render packs `docker-compose.yml` from them and that file
+is judged byte for byte. `changed_classes` returns the classes of the difference
+between two commits.
 
 A tag a passing app-tests run made is annotated, its message opening with
 PASSED; the tags made by hand are not. An app is `tested` when its newest tag is
@@ -69,7 +72,7 @@ from typing import Any, Iterable
 
 import yaml
 
-from . import changes, provenance
+from . import changes, pack, provenance
 from .adopt import FILE_MODES
 from .model import ROOT, main_service
 
@@ -78,13 +81,19 @@ PASSED = "app-tests passed"
 CARD = "app.json"
 
 RUNTIME, VERIFICATION, PRESENTATION = "runtime", "verification", "presentation"
+# A file the render packs into docker-compose.yml adds no class: that file is judged
+# byte for byte.
+DERIVED = "derived"
 # The state of an app whose files differ from its tested tag in presentation alone is
 # named like that class.
 TESTED, CHANGED, UNTESTED = "tested", "changed", "untested"
 
-# Class of each file of blueprints/<id>/. app.json is judged per field (FIELD_CLASSES).
+# Class of each file of blueprints/<id>/ (a key ending in `/` is a folder). app.json is
+# judged per field (FIELD_CLASSES).
 FILE_CLASSES = {
     "docker-compose.yml": RUNTIME,
+    **{name: DERIVED for name in pack.NEAT_FILES},
+    f"{pack.HOOKS_DIR}/": DERIVED,
     "test.yml": VERIFICATION,
     "logo.png": PRESENTATION,
     "logo.svg": PRESENTATION,
@@ -323,18 +332,26 @@ def _regular(entry: tuple[str, str] | None) -> bool:
     return entry is None or entry[0] in FILE_MODES
 
 
+def file_class(path: str) -> str:
+    """The class of a file of the app's folder, by its path from the folder."""
+    if path in FILE_CLASSES:
+        return FILE_CLASSES[path]
+    folder, slash, _ = path.partition("/")
+    return FILE_CLASSES.get(folder + slash, RUNTIME) if slash else RUNTIME
+
+
 def changed_classes(app: str, a: str, b: str) -> frozenset[str]:
     """The classes of the difference between the app's files at commits `a` and `b`:
-    a differing, added or removed file takes its class, and the card file is read at
-    both commits (under whichever of its two names it has there) and each differing
-    field takes its class."""
+    a differing, added or removed file takes its class (a file the render packs takes
+    none), and the card file is read at both commits (under whichever of its two names
+    it has there) and each differing field takes its class."""
     folder = f"blueprints/{app}/"
     cards = (folder + CARD, f"sources/{app}.json")
     before, after = _files(app, a), _files(app, b)
-    classes = {FILE_CLASSES.get(path.removeprefix(folder), RUNTIME)
+    classes = {file_class(path.removeprefix(folder))
                if _regular(before.get(path)) and _regular(after.get(path)) else RUNTIME
                for path in before.keys() | after.keys()
-               if path not in cards and before.get(path) != after.get(path)}
+               if path not in cards and before.get(path) != after.get(path)} - {DERIVED}
     if any(before.get(path) != after.get(path) for path in cards):
         if not all(_regular(entry.get(path)) for entry in (before, after) for path in cards):
             classes.add(RUNTIME)

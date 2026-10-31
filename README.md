@@ -27,6 +27,11 @@ blueprints/              # ONE directory per template -- what a host fetches at 
                          # sources/<id>.json holds, minus the Portainer fields
                          # (app.schema.json); an app holds this or its source,
                          # never both
+    services.yml         # HAND-EDITED; optional; an app held as neat files: every
+    settings.yml         # top-level key after the block, and the block's keys by
+    access.yml           # section (env + secrets; access and needs; lifecycle,
+    lifecycle.yml        # hooks and the rest); the render packs them into
+    hooks/<hook>.<ext>   # docker-compose.yml, hook scripts one per file
     test.yml             # HAND-EDITED; optional; the state the CI harness
                          # seeds after a deploy and checks after a restore
     logo.png             # HAND-PLACED; optional
@@ -54,6 +59,7 @@ lib/                     # the build library
   provenance.py          # an image's project: age, releases (app-ci check)
   app_checks.py          # the per-app app-ci checks' commands
   versions.py            # app version tags and the one-app scope check
+  pack.py                # an app's neat files -> its docker-compose.yml (and back: unpack)
   adopt.py               # a fork's one-app pull request -> branch adopt/<pr>
   importers/             # the registry importer: pipeline.py, dedup.py,
                          # publish.py (waves), plus one adapter per registry
@@ -61,7 +67,7 @@ lib/                     # the build library
 
 build/                   # thin entrypoints
   render.py  validate.py  lint_quiesce.py  lint_postgres_pins.py
-  lint_swarm.py  import_registry.py  app_check.py  versions.py  adopt.py
+  lint_swarm.py  import_registry.py  app_check.py  versions.py  adopt.py  pack.py
 
 catalog-meta.json        # optional; the template order + sizing header, read in
                          # place of sources/_meta.json when it exists
@@ -94,6 +100,25 @@ where the web address `domain` is derived from the compose labels and
 it. A card file's app has no Portainer fields, so `templates.json` lists the
 apps held as sources alone, and its compose carries no `vps.homepage.*` label. Everything else listed as generated is a committed build artifact; CI
 re-renders on every push and pull request and fails if the committed copies drift.
+
+## An app held as neat files
+
+A folder that holds `services.yml` is an app held as neat files. The render
+(`lib/pack.py`) writes its `docker-compose.yml` from them, committed beside them
+and drift-checked like the README: `x-catena:` and `schema: 2`, the text of each
+block key in the order of `ORDER` (every line indented two spaces; a comment above
+a key travels with it), one empty line, then `services.yml` as written. In
+`lifecycle.yml`'s `hooks`, an item `- {file: hooks/<name>}` becomes the script in
+that file (each `$` written once in the file, twice in the compose). A hook file is
+named for its place (`verify.js`, `verify-2.sh`), ends with one newline and is
+referenced; any other layout stops the render with the file and line to fix.
+
+Hosts, the bench and every check read the packed `docker-compose.yml`, so a change
+of neat files that packs to the same bytes changes no class (`lib/versions.py`) and
+runs no bench. `uv run build/pack.py unpack <id>` turns an app's compose (an import,
+another repository's app) into neat files, refusing one out of normal form (the
+block first, its keys in `ORDER`, one empty line after it) and writing nothing
+unless packing the files gives the compose back byte for byte.
 
 ## Who reads this repository
 

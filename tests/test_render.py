@@ -455,6 +455,52 @@ def test_rendering_a_card_tree_twice_gives_identical_artifacts(tmp_path):
     assert {name: (tmp_path / name).read_bytes() for name in names} == first
 
 
+def _neat_tree(root: Path) -> Path:
+    """The card tree with its app `example` held as neat files; its folder."""
+    _tree(root, as_card=True)
+    folder = root / "blueprints" / "example"
+    (folder / "docker-compose.yml").unlink()
+    (folder / "services.yml").write_text(
+        "services:\n  app:\n    image: example/app:1.2.3\n    labels:\n"
+        "      - vps.route.host=${DOMAIN_HOST}\n      - vps.route.port=8080\n")
+    (folder / "settings.yml").write_text("env:\n  DOMAIN_HOST:\n    setting: {default: x.example.com}\n")
+    (folder / "lifecycle.yml").write_text("requires_catena: 0.11.5\n")
+    return folder
+
+
+def test_the_render_packs_an_app_held_as_neat_files_before_it_reads_the_block(tmp_path):
+    folder = _neat_tree(tmp_path)
+    done = _rendered(tmp_path)
+    assert done.returncode == 0, done.stderr
+    assert "packed 1 compose file(s)" in done.stdout
+    assert (folder / "docker-compose.yml").read_text() == (
+        "x-catena:\n  schema: 2\n  requires_catena: 0.11.5\n  env:\n    DOMAIN_HOST:\n"
+        "      setting: {default: x.example.com}\n\n" + (folder / "services.yml").read_text())
+    entry = json.loads((tmp_path / "catalog.json").read_text())["templates"][0]
+    assert (entry["domain_host"], entry["domain_service"], entry["requires_catena"]) == (
+        "x.example.com", "app", "0.11.5")
+
+
+def test_rendering_an_app_held_as_neat_files_twice_gives_identical_artifacts(tmp_path):
+    folder = _neat_tree(tmp_path)
+    names = ("catalog.json", "index.html", "blueprints/example/README.md", "blueprints/example/docker-compose.yml")
+    assert _rendered(tmp_path).returncode == 0
+    first = {name: (tmp_path / name).read_bytes() for name in names}
+    done = _rendered(tmp_path)
+    assert done.returncode == 0 and "packed" not in done.stdout
+    assert {name: (tmp_path / name).read_bytes() for name in names} == first
+    assert (folder / "docker-compose.yml").is_file()
+
+
+def test_the_render_stops_on_neat_files_out_of_normal_form(tmp_path):
+    folder = _neat_tree(tmp_path)
+    (folder / "settings.yml").write_text("bogus: 1\n")
+    done = _rendered(tmp_path)
+    assert done.returncode == 1
+    assert "blueprints/example/settings.yml:1: bogus is not a key of the block" in done.stdout
+    assert not (folder / "docker-compose.yml").exists()
+
+
 def test_a_card_blueprint_is_kept_by_the_render(tmp_path, monkeypatch):
     blueprints = tmp_path / "blueprints"
     (blueprints / "moved").mkdir(parents=True)

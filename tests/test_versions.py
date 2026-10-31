@@ -14,7 +14,7 @@ import pytest
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from lib import versions  # noqa: E402
+from lib import pack, versions  # noqa: E402
 
 
 @pytest.mark.parametrize("ref,version", [
@@ -411,8 +411,8 @@ def test_every_schema_property_has_a_class():
             names |= (set(props) - {"x-catena"}) | set(props.get("x-catena", {}).get("properties", {}))
     assert names
     assert names <= versions.FIELD_CLASSES.keys(), sorted(names - versions.FIELD_CLASSES.keys())
-    assert set(versions.FIELD_CLASSES.values()) | set(versions.FILE_CLASSES.values()) <= {
-        RUNTIME, VERIFICATION, PRESENTATION}
+    assert set(versions.FIELD_CLASSES.values()) <= {RUNTIME, VERIFICATION, PRESENTATION}
+    assert set(versions.FILE_CLASSES.values()) <= {RUNTIME, VERIFICATION, PRESENTATION, versions.DERIVED}
 
 
 @pytest.mark.parametrize("name,expected", [
@@ -422,8 +422,7 @@ def test_every_schema_property_has_a_class():
     ("logo.png", PRESENTATION),
     ("logo.svg", PRESENTATION),
     ("notes.txt", RUNTIME),
-    ("hooks/verify.sh", RUNTIME),
-    ("services.yml", RUNTIME),
+    ("snippets/wait.sh", RUNTIME),
 ])
 def test_a_file_takes_its_class_when_changed_added_or_removed(repo, name, expected):
     git, _ = repo
@@ -434,6 +433,52 @@ def test_a_file_takes_its_class_when_changed_added_or_removed(repo, name, expect
     assert _classes(start, changed) == {expected}
     assert _classes(changed, removed) == {expected}
     assert _classes(removed, start) == {expected}
+
+
+def test_the_derived_names_are_the_files_pack_reads():
+    derived = {name for name, cls in versions.FILE_CLASSES.items() if cls == versions.DERIVED}
+    assert derived == {*pack.NEAT_FILES, f"{pack.HOOKS_DIR}/"}
+
+
+@pytest.mark.parametrize("name", [*pack.NEAT_FILES, "hooks/verify.sh", "hooks/sub/verify.js"])
+def test_a_neat_file_adds_no_class_when_changed_added_or_removed(repo, name):
+    git, _ = repo
+    path = f"blueprints/web/{name}"
+    start = _put(git, {path: "one"})
+    changed = _put(git, {path: "two"})
+    removed = _put(git, remove=[path])
+    assert _classes(start, changed) == frozenset()
+    assert _classes(changed, removed) == frozenset()
+    assert _classes(removed, start) == frozenset()
+
+
+def test_a_neat_file_beside_a_changed_file_leaves_that_files_class(repo):
+    git, _ = repo
+    before = _head()
+    after = _put(git, {"blueprints/web/services.yml": "x", "blueprints/web/test.yml": "t"})
+    assert _classes(before, after) == {VERIFICATION}
+    runtime = _put(git, {"blueprints/web/lifecycle.yml": "x", COMPOSE: "services: {}\n"})
+    assert _classes(after, runtime) == {RUNTIME}
+
+
+def test_a_commit_of_neat_files_that_packs_to_the_same_bytes_has_no_class(repo):
+    git, _ = repo
+    git("tag", "-a", "web/1.2.0-1", "-m", f"{versions.PASSED} at {'a' * 40}: https://x")
+    before = _head()
+    folder = versions.ROOT / "blueprints" / "web"
+    (folder / "docker-compose.yml").write_text(
+        "x-catena:\n  schema: 2\n  hooks:\n    service: web\n    verify:\n      - - sh\n        - -c\n"
+        "        - |\n          echo $$HOME\n\nservices:\n  web:\n    image: web:1.2.0\n")
+    packed = _put(git)
+    assert _classes(before, packed) == {RUNTIME}
+    git("tag", "-a", "web/1.2.0-2", "-m", f"{versions.PASSED} at {'b' * 40}: https://x")
+    pack.unpack("web", versions.ROOT)
+    neat = _put(git)
+    assert (folder / "hooks" / "verify.sh").read_text() == "echo $HOME\n"
+    assert _classes(packed, neat) == frozenset()
+    assert versions.tested_state("web") == (versions.TESTED, "web/1.2.0-2")
+    assert versions.plan("web") == "skip web/1.2.0-2"
+    assert versions.tested_run("web", neat) == "https://x"
 
 
 def test_equal_objects_and_files_outside_the_app_change_nothing(repo):

@@ -40,6 +40,11 @@ name: app-ci
 # this repository (`build/app_check.py ci-passed`, which the job's `statuses: read`
 # lets read it). A change of the runtime, a runtime change without that status
 # and a status that cannot be read run them. The job summary says which path ran.
+#
+# An app held as neat files (`services.yml` in its folder) is judged by the
+# `docker-compose.yml` the render packs from them. `repo` re-renders and fails
+# when `git diff blueprints` shows that file, or any other generated one, out of
+# step with its inputs.
 
 on:
   pull_request:
@@ -123,6 +128,7 @@ jobs:
           base: ${{ steps.base.outputs.sha }}
           run: |
             make
+            git diff --exit-code blueprints
             docker run --rm -v "$PWD:/work:ro" \
               --entrypoint /usr/local/share/catena-ee/bin/catena-applint \
               ghcr.io/catenahq/catena-admin:latest --catalog --nodes 2 /work/blueprints
@@ -135,6 +141,8 @@ jobs:
           repo-path: ${{ github.workspace }}
           base: ${{ steps.base.outputs.sha }}
           run: |
+            uv run "$TOOLS/build/render.py"
+            git diff --exit-code blueprints
             uv run "$TOOLS/build/lint_swarm.py"
             docker run --rm -v "$PWD:/work:ro" \
               --entrypoint /usr/local/share/catena-ee/bin/catena-applint \

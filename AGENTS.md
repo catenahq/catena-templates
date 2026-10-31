@@ -83,6 +83,11 @@ the repository, and the checks.
   `x-catena.requires_catena`), the one place that release is written: the
   render puts it in the Portainer description and the README, so the
   prose never repeats it.
+- An app whose folder holds `services.yml` is held as neat files: edit
+  `services.yml`, `settings.yml`, `access.yml`, `lifecycle.yml` and `hooks/`, never
+  its `docker-compose.yml`, which the render packs from them (`lib/pack.py`; README.md,
+  "An app held as neat files"). A file in `hooks/` that `lifecycle.yml` does not
+  name stops the render.
 - A file's or field's class (runtime, verification or presentation) comes from
   `lib/versions.py` (`FILE_CLASSES`, `FIELD_CLASSES`). A new file type or field
   gets a row there; anything unlisted is runtime.
