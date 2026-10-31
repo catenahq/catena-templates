@@ -2,42 +2,6 @@
   "templates": [
     {
       "categories": [
-        "Support",
-        "Helpdesk"
-      ],
-      "description": "Ticket-first help desk. Replaces Zendesk / Freshdesk.",
-      "env": [
-        {
-          "default": "help.",
-          "label": "Domain",
-          "name": "DOMAIN_HOST"
-        },
-        {
-          "default": "help.",
-          "label": "Zammad hostname",
-          "name": "ZAMMAD_HOSTNAME"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
-          "label": "Database password",
-          "name": "DB_PASSWORD"
-        }
-      ],
-      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/zammad/logo.png",
-      "maintainer": "https://github.com/catenahq/catena-templates",
-      "name": "catena-zammad",
-      "note": "<p>Ticket-first help desk. Email, Telegram, social channels, SLAs, knowledge base. Keycloak sign-in pre-wired.</p><p>Replaces Zendesk, Freshdesk, Jira Service Desk.</p><p><a href=\"https://github.com/catenahq/catena-templates/blob/main/blueprints/zammad/README.md\">https://github.com/catenahq/catena-templates/blob/main/blueprints/zammad/README.md</a></p>",
-      "platform": "linux",
-      "repository": {
-        "stackfile": "blueprints/zammad/docker-compose.yml",
-        "url": "https://github.com/catenahq/catena-templates"
-      },
-      "title": "Zammad",
-      "type": 2
-    },
-    {
-      "categories": [
         "Communication",
         "Support"
       ],
