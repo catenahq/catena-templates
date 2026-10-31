@@ -2,47 +2,6 @@
   "templates": [
     {
       "categories": [
-        "Scheduling"
-      ],
-      "description": "Open-source customer booking app. One or many providers, public booking page, ICS sync. Replaces Calendly / Acuity.",
-      "env": [
-        {
-          "default": "book.",
-          "label": "Domain",
-          "name": "DOMAIN_HOST"
-        },
-        {
-          "default": "book.",
-          "label": "Easyappointments hostname",
-          "name": "EASYAPPOINTMENTS_HOSTNAME"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
-          "label": "Database password",
-          "name": "DB_PASSWORD"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
-          "label": "Database root password",
-          "name": "DB_ROOT_PASSWORD"
-        }
-      ],
-      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/easyappointments/logo.png",
-      "maintainer": "https://github.com/catenahq/catena-templates",
-      "name": "catena-easyappointments",
-      "note": "<p>Customer-facing booking app for one or many providers (clinic, salon, lessons, repair shop). Public booking page; staff calendars; email + SMS reminders; ICS export.</p><p>Replaces Calendly, Acuity, SimplyBook, Setmore.</p><p><a href=\"https://github.com/catenahq/catena-templates/blob/main/blueprints/easyappointments/README.md\">https://github.com/catenahq/catena-templates/blob/main/blueprints/easyappointments/README.md</a></p>",
-      "platform": "linux",
-      "repository": {
-        "stackfile": "blueprints/easyappointments/docker-compose.yml",
-        "url": "https://github.com/catenahq/catena-templates"
-      },
-      "title": "Easy!Appointments",
-      "type": 2
-    },
-    {
-      "categories": [
         "Marketing",
         "Automation"
       ],
