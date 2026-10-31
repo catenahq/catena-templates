@@ -74,6 +74,9 @@ services:
     volumes:
       - n8n-data:/home/node/.n8n
     labels:
+      - "vps.homepage.name=n8n"
+      - "vps.homepage.description=Connects apps and services into automated workflows built on a visual canvas."
+      - "vps.homepage.description-fr=Relie des applications et des services en flux de travail automatisés, construits sur un canevas visuel."
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=5678"
       - "vps.auth.mode=public"

@@ -10,6 +10,9 @@
   "x-catena": {
     "app_name": "catena-n8n",
     "upstream_url": "https://n8n.io/",
+    "logo": {
+      "source": "https://guidelines.n8n.design/brand/n8n-symbol.svg"
+    },
     "sso_mode": "none",
     "domain": {
       "host": "automate.{{ cloudflare_zone }}",

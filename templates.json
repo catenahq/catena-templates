@@ -1091,7 +1091,7 @@
           "name": "DB_PASSWORD"
         }
       ],
-      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/n8n/logo.svg",
+      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/n8n/logo.png",
       "maintainer": "https://github.com/catenahq/catena-templates",
       "name": "catena-n8n",
       "note": "<p>Workflow automation -- visually chain hundreds of integrations (APIs, apps, databases) into no-code/low-code workflows.</p><p>Replaces Zapier, Make (Integromat), Tray.io.</p><p><a href=\"https://github.com/catenahq/catena-templates/blob/main/blueprints/n8n/README.md\">https://github.com/catenahq/catena-templates/blob/main/blueprints/n8n/README.md</a></p>",

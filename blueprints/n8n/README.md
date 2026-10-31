@@ -12,6 +12,7 @@ Workflow automation -- visually chain hundreds of integrations (APIs, apps, data
 - **Replaces:** **Zapier**, **Make (Integromat)**, **Tray.io**
 - **Sign-in (SSO):** Not available. This application's community edition has no OIDC support, so each account keeps a per-application login.
 - **Address:** `automate.yourdomain.com`, served from `n8n:5678`
+- **Logo:** <https://guidelines.n8n.design/brand/n8n-symbol.svg>.
 
 The address is attached when the template is deployed. A different one is
 arranged beforehand, on request.
@@ -50,6 +51,7 @@ Automatisation de flux de travail -- enchaînez visuellement des centaines d'int
 - **Remplace :** **Zapier**, **Make (Integromat)**, **Tray.io**
 - **Connexion (SSO) :** Non disponible. L'édition communautaire de cette application n'a pas de support OIDC : chaque compte garde un identifiant propre à l'application.
 - **Adresse :** `automate.yourdomain.com`, servie par `n8n:5678`
+- **Logo :** <https://guidelines.n8n.design/brand/n8n-symbol.svg>.
 
 L'adresse est attachée au déploiement du modèle. Une autre se convient au
 préalable, sur demande.
