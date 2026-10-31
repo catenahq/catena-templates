@@ -81,7 +81,7 @@ the repository, and the checks.
   serve names the oldest release it works on in
   `requires_catena` (the compose block's field, or a source's
   `x-catena.requires_catena`), the one place that release is written: the
-  render puts it in the Portainer description and the README, so the
+  render puts it in the templates.json description and the README, so the
   prose never repeats it.
 - An app whose folder holds `services.yml` is held as neat files: edit
   `services.yml`, `settings.yml`, `access.yml`, `lifecycle.yml` and `hooks/`, never
@@ -143,7 +143,7 @@ the repository, and the checks.
 ## The render contract
 
 `make render` (thin entrypoint: `build/render.py`, logic in `lib/`)
-transforms `sources/` into:
+transforms each app's metadata file (`app.json` or source) and compose into:
 
 - `blueprints/<id>/README.md` -- the template's own page: what it is,
   what it replaces, how sign-in works, the setup steps and the env
@@ -158,20 +158,21 @@ Jinja stays in place; the env it reads is settled on the host, and routing is
 reconciled post-deploy by dashboard-sync. The render never writes into
 that file, and it deletes a blueprint directory only when no source file
 claims it any more.
-- `templates.json` -- one Portainer App Template per source: type 2,
+- `templates.json` -- a Portainer-shaped index (format v3) with one entry per
+  app held as a source: type 2,
   title/name/description/note/categories/logo, `repository{url,
   stackfile}` pointing at `blueprints/<id>/`, and `env` with human
-  labels. Three classes of value render to the sentinel: the block's
-  `managed` env keys, `lookup('password', ...)` expressions, and
-  anything still carrying Jinja (Portainer has no template engine, so an
-  unresolved expression would become the app's literal secret).
-- `catalog.json` -- the machine view the seeding consumers read, in one
+  labels. Nothing in Catena reads it. Three classes of value render to the
+  sentinel: the block's `managed` env keys, `lookup('password', ...)`
+  expressions, and anything still carrying Jinja (the format has no
+  template engine).
+- `catalog.json` -- the browsable catalog, in one
   fetch: the flat per-template fields, `sizing`, the EN/FR prose, and the
   compose block lifted under the keys `env`, `lifecycle`, `quiesce`,
   `object_store` and `env_managed_keys`. `env_defaults` is the
   env as `KEY=value` lines: a setting's default, the `lookup('password', ...)`
   expression of a generated key, a managed key's expression.
-- `index.html` -- a static preview of the catalog.
+- `index.html` -- a static preview of the catalog, browsable beside `catalog.json`.
 
 The render must be idempotent: running it twice produces byte-identical
 outputs. CI verifies with `git diff --exit-code` over all four.
@@ -209,10 +210,8 @@ differ in ways that are not symmetric. Four rules follow, all enforced by
 
 `configs:` is refused outright unless the object is `external`. A swarm stack
 file has no inline content form, and its `configs.file` reads a path beside
-the compose that neither deploy path has: `build/render.py` puts only the
-README and the logo beside the compose, and a stack
-created from a posted `StackFileContent` string has no directory at all.
-`docker stack config` cannot see either problem, because it resolves the path
+the compose that a host does not have: it adds the compose byte for byte.
+`docker stack config` cannot see the problem, because it resolves the path
 against this repository, where the file does sit next to the compose. Config
 files a template needs are written by the service's own entrypoint, and the
 lint offers every inline script to the interpreter it names.
@@ -220,7 +219,7 @@ lint offers every inline script to the interpreter it names.
 ## Naming and identity
 
 `name` and `x-catena.app_name` are the same string and both start with
-`catena-`. That string is the Portainer stack name a client sees, so under
+`catena-`. That string is the stack name, so under
 swarm it prefixes every service (`catena-nextcloud_app`), every task
 container (`catena-nextcloud_app.1.<task-id>`) and every volume
 (`catena-nextcloud_nc-data`).
@@ -259,8 +258,7 @@ it.
 2. Cross-file invariants in `lib/model.py` -- id matches filename, no
    duplicate slug, the compose file exists and its block declares an env.
 3. `Schema.json` -- the generated `templates.json` against the published
-   Portainer App Templates format, because that file is what a client's
-   Portainer fetches.
+   Portainer App Templates format it follows.
 4. `make lint` -- the block holds no `$` (outside a hooks body) and no
    image reference of its compose, the quiesce, lifecycle and hooks argv
    allowlists, a hooks script that parses in the interpreter it names, a
@@ -328,8 +326,7 @@ search of the workspace finds.
 
 - No secrets, ever: sentinel placeholders only (gitleaks on every
   change; the catalog is public and fetched raw by every deployment).
-- No unresolved Jinja in `templates.json`: it would become the literal
-  value of the app's secret on a marketplace deploy. Asserted in
+- No unresolved Jinja in `templates.json`. Asserted in
   `tests/test_render.py`.
 - Generated artifacts are BUILD OUTPUTS; hand-edits fail the
   idempotent-render CI gate.

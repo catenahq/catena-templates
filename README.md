@@ -4,10 +4,11 @@ Single source of truth for the Catena template catalog: one directory
 per application holding its compose file and its README, one JSON file
 per application holding its metadata and prose, and the build pipeline
 that renders them into the machine catalog (`catalog.json`), a static preview
-(`index.html`) and a Portainer-shaped index (`templates.json`, format v3). A
-host adds an app from `blueprints/<id>` at a tag (see "Who reads this
-repository"); a deployed app keeps the compose, and the `x-catena` block in
-it, that it was deployed with.
+(`index.html`) and a Portainer-shaped index (`templates.json`, format v3) that
+nothing in Catena reads. A host fetches `blueprints/<id>/` at a tag
+`<app>/<ver>-<rev>` and deploys its `docker-compose.yml` with `docker stack
+deploy` (see "Who reads this repository"); a deployed app keeps the compose, and
+the `x-catena` block in it, that it was deployed with.
 
 **What this repo promises and how that is enforced:** [SPEC.md](SPEC.md)
 -- hand-written intent plus machine-checked invariants, each citing the
@@ -25,8 +26,8 @@ blueprints/              # ONE directory per template -- what a host fetches at 
                          # and managed env expressions
     app.json             # HAND-EDITED; an app held as a card file: the metadata
                          # sources/<id>.json holds, minus the Portainer fields
-                         # (app.schema.json); an app holds this or its source,
-                         # never both
+                         # (app.schema.json), at most 64 KiB; an app holds this
+                         # or its source, never both
     services.yml         # HAND-EDITED; optional; an app held as neat files: every
     settings.yml         # top-level key after the block, and the block's keys by
     access.yml           # section (env + secrets; access and needs; lifecycle,
@@ -135,11 +136,11 @@ unless packing the files gives the compose back byte for byte.
   `payload/cmd/catena-applint`) reads the `blueprints/` folders in catena-admin's
   CI.
 
-`templates.json` carries the Portainer fields and the sentinel (next section)
-where a secret or a host value belongs. A Portainer cannot deploy the catalog:
-the composes join the external network `catena-network`, publish no web port,
-are routed by `vps.route.*` labels only Catena's edge reads, and run hooks only
-Catena runs.
+`templates.json` and `Schema.json` are generated and nothing in Catena reads
+them. `templates.json` carries the Portainer fields and the sentinel (next
+section) where a secret or a host value belongs. The composes join the external
+network `catena-network`, publish no web port, are routed by `vps.route.*`
+labels only Catena's edge reads, and run hooks only Catena runs.
 
 ## The env sentinel convention
 
@@ -157,8 +158,8 @@ the sign-in labels on the service of the app's main address (its only
 address, or the one marked `vps.route.main=true`), and the compose reads
 them as `${OIDC_CLIENT_ID:-}`.
 
-Portainer has no per-deploy secret generator and no template engine, so
-three classes of value collapse to the sentinel: the keys of the compose
+The Portainer format has no per-deploy secret generator and no template
+engine, so three classes of value collapse to the sentinel in `templates.json`: the keys of the compose
 block's `managed` env keys, Ansible `lookup('password', ...)` expressions
 (the block's `generated` env keys), and any value still carrying Jinja after
 render.
@@ -251,7 +252,7 @@ there).
    services. Real example: `blueprints/nextcloud-s3-oidc`.
 7. If the entry works only on a Catena release newer than some servers
    run, `requires_catena` (a field of the compose block, or of a source's
-   `x-catena`) names the oldest one it works on (`0.11.0`). The render opens the entry's Portainer description and its
+   `x-catena`) names the oldest one it works on (`0.11.0`). The render opens the entry's templates.json description and its
    README with that release. A block field a published release does not read
    needs `requires_catena` at the release that reads it; app-ci refuses the entry
    until that release is published.
@@ -701,7 +702,7 @@ uv run build/import_registry.py --wave 5 --also arcane=<registry.json address> <
 An imported entry renders with stubs (no bench pack, no measured peak,
 placeholder prose) and the published catalog marks it untested:
 `status` and `origin` in `catalog.json`, "Imported, untested" in the
-Portainer description and note, the README and `index.html`. Finishing
+templates.json description and note, the README and `index.html`. Finishing
 it means filling the stubs, settling `pending`, and deleting both
 `pending` and `status`; `origin` stays.
 
@@ -723,6 +724,6 @@ it means filling the stubs, settling `pending`, and deleting both
 ## Why this is its own repo
 
 A host fetches an app by sparse clone from a repository address, so the
-catalog is a public repository of its own. The per-template JSON layout
-follows the Portainer App Templates format and the community layout used by
+catalog is a public repository of its own. The source files' Portainer fields
+follow the Portainer App Templates format and the community layout used by
 Lissy93/portainer-templates.

@@ -72,9 +72,9 @@ def test_a_service_must_say_what_happens_when_it_dies():
 
 
 def test_a_service_that_finishes_is_refused():
-    """A finished service stays below its replica count, and Portainer fails
-    a deploy when the first task it lists for such a service failed: a setup
-    step runs in a long-running service instead."""
+    """A finished service stays below its replica count, and its finished task
+    never reads running to the host: a setup step runs in a long-running
+    service instead."""
     for condition in ("none", "on-failure"):
         errs = L.lint_compose(
             _body().replace("condition: any", f"condition: {condition}"), label="x")
@@ -183,10 +183,9 @@ def test_a_configs_entry_reading_a_sibling_file_is_rejected():
     """`configs.file` lints clean here and fails on a host.
 
     `docker stack config` resolves the path against THIS repository, where
-    the file does sit next to the compose. Neither deploy path has it:
-    build/render.py emits only the compose, the logo and the quiesce hooks
-    into blueprints/<id>/, and a stack created from a posted string has no
-    directory at all."""
+    the file does sit next to the compose. A host does not have it: it adds
+    the compose of blueprints/<id>/ byte for byte, and `docker stack deploy`
+    resolves no file beside it."""
     body = _body() + (
         "configs:\n"
         "  app_conf:\n"
