@@ -171,7 +171,7 @@ services:
       - default
 
   temporal:
-    image: temporalio/server:1.32.1
+    image: temporalio/server:1.31.4
     deploy:
       restart_policy:
         condition: any
@@ -201,7 +201,7 @@ services:
   # namespace once the server answers, then stays up so swarm keeps it at its replica count. Each step leaves what
   # is already done as it is; a step that fails exits and swarm starts the task again; TERM ends the wait at once.
   temporal-setup:
-    image: temporalio/admin-tools:1.32.1
+    image: temporalio/admin-tools:1.31.4
     deploy:
       restart_policy:
         condition: any
