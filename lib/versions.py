@@ -71,7 +71,7 @@ import yaml
 
 from . import changes, provenance
 from .adopt import FILE_MODES
-from .model import ROOT, _service_labels
+from .model import ROOT, main_service
 
 BLOCK_KEY = "x-catena"
 PASSED = "app-tests passed"
@@ -94,6 +94,7 @@ FILE_CLASSES = {
 # Class of each field of the card file; a source's fields are keyed without `x-catena.`.
 FIELD_CLASSES = {
     "id": RUNTIME,
+    "schema": RUNTIME,
     "type": PRESENTATION,
     "platform": PRESENTATION,
     "name": PRESENTATION,
@@ -114,7 +115,6 @@ FIELD_CLASSES = {
     "requires_catena": RUNTIME,
     "env_required_when": RUNTIME,
 }
-_TRUE = ("true", "yes", "1")
 _ABSENT = object()
 
 _NUMERIC = re.compile(r"v?(\d+(?:[._]\d+)*)")
@@ -143,20 +143,11 @@ def version_of_image(ref: str) -> str:
     return match.group(1)
 
 
-def _main_service(compose: dict[str, Any]) -> str | None:
-    """The service of the main address: the only one carrying vps.route.host, or of
-    several the last also carrying vps.route.main=true."""
-    labels = {name: _service_labels(spec) for name, spec in (compose.get("services") or {}).items()}
-    hosts = [name for name, found in labels.items() if found.get("vps.route.host", "").strip()]
-    marked = [name for name in hosts if labels[name].get("vps.route.main", "").strip().lower() in _TRUE]
-    return hosts[0] if len(hosts) == 1 else marked[-1] if marked else None
-
-
 def version_service(source: dict[str, Any] | None, compose: dict[str, Any]) -> str:
     """The service whose image tag is the app's version."""
     block = compose.get(BLOCK_KEY) or {}
     domain = ((source or {}).get(BLOCK_KEY) or {}).get("domain") or {}
-    service = block.get("version_from") or domain.get("service") or _main_service(compose)
+    service = block.get("version_from") or domain.get("service") or main_service(compose)
     if not service:
         raise VersionError("the app has no web address, so its block must name version_from")
     return service

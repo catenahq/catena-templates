@@ -4,7 +4,8 @@ marked imported and untested.
 An adapter reads one registry format into Candidates. For each, in order:
 
   id        the adapter's slug, refused when a source file or a blueprint
-            directory already holds it: the importer never overwrites. An
+            directory (its app.json among its files) already holds it: the
+            importer never overwrites. An
             entry whose title or id holds a word on the banned-word list
             check:unicode reads is skipped too.
   licence   the licence the forge detects for the repository the adapter
@@ -29,9 +30,10 @@ An adapter reads one registry format into Candidates. For each, in order:
             corrects the file. What it leaves, and what the catalog's swarm
             lint and Postgres pin rule refuse, is recorded on the entry.
 
-Each entry is written as sources/<id>.json and
-blueprints/<id>/docker-compose.yml with status "imported", its origin and
-what a person still has to choose, and its id joins the _meta.json order.
+Each entry is written as blueprints/<id>/app.json (sources/<id>.json while the
+catalog has no catalog-meta.json) and blueprints/<id>/docker-compose.yml with
+status "imported", its origin and what a person still has to choose. An entry
+the catalog's order does not list follows the listed ones.
 """
 from __future__ import annotations
 
@@ -770,12 +772,42 @@ class Report:
         return out
 
 
+def card_of(source: dict[str, Any]) -> dict[str, Any]:
+    """The entry as an app.json: the source without its Portainer fields, its web
+    address (the compose holds it) and its long descriptions, each language
+    gaining the card's one-line `summary` (the first line of the description)."""
+    cat = source["x-catena"]
+    card: dict[str, Any] = {"schema": 1}
+    for key in ("app_name", "upstream_url"):
+        card[key] = cat[key]
+    card["categories"] = source["categories"]
+    for key in ("logo", "sso_mode", "status", "origin", "pending", "bench", "sizing"):
+        if key in cat:
+            card[key] = cat[key]
+    for lang in ("en", "fr"):
+        prose = dict(cat[lang])
+        description = prose.pop("compose_description")
+        card[lang] = {"display_name": prose.pop("display_name"),
+                      "summary": description.strip().splitlines()[0], **prose}
+    return card
+
+
+def entry_paths(slug: str) -> list[str]:
+    """The repo-relative paths an entry writes."""
+    paths = [f"{model.BLUEPRINTS.name}/{slug}"]
+    return paths if model.card_layout() else [*paths, f"{model.SOURCES.name}/{slug}.json"]
+
+
 def write_entry(slug: str, source: dict[str, Any], compose: str) -> None:
-    """The entry's two hand-edited files."""
+    """The entry's two hand-edited files: its compose and its card file (or, while
+    the catalog has no catalog-meta.json, its source)."""
     app_dir = model.BLUEPRINTS / slug
     app_dir.mkdir(parents=True)
     (app_dir / model.COMPOSE_NAME).write_text(compose)
-    (model.SOURCES / f"{slug}.json").write_text(json.dumps(source, indent=2) + "\n")
+    if model.card_layout():
+        (app_dir / model.CARD_NAME).write_text(json.dumps(card_of(source), indent=2) + "\n")
+    else:
+        (model.SOURCES / f"{slug}.json").write_text(json.dumps(source, indent=2) + "\n")
 
 
 @dataclass
@@ -1083,7 +1115,8 @@ def main(argv: list[str], adapters: dict[str, Callable[[Any, str], list[Candidat
          render_fn: Callable[[], int] | None = None, today: date | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="import_registry.py",
-        description="Import a template registry into sources/ and blueprints/ as entries "
+        description="Import a template registry into blueprints/ (and sources/ before the "
+                    "catalog moves to app.json) as entries "
                     "marked imported and untested.")
     parser.add_argument("registry", help="address of the registry document (https:// or file://)")
     parser.add_argument("--format", choices=sorted(adapters), default=next(iter(adapters)),
@@ -1177,7 +1210,7 @@ def main(argv: list[str], adapters: dict[str, Callable[[Any, str], list[Candidat
             return publisher.publish(
                 slug, publish.pull_request_title(source), publish.pull_request_body(source),
                 lambda: write_entry(slug, source, compose),
-                [f"{model.BLUEPRINTS.name}/{slug}", f"{model.SOURCES.name}/{slug}.json"])
+                entry_paths(slug))
     try:
         if publisher:
             publisher.start()
@@ -1187,7 +1220,8 @@ def main(argv: list[str], adapters: dict[str, Callable[[Any, str], list[Candidat
                 url = publisher.publish(
                     "aliases", "chore(import): record aliases of apps already in the catalog",
                     publish.alias_body(report.new_aliases), lambda: dedup.add_aliases(report.new_aliases),
-                    [f"{model.SOURCES.name}/{dedup.ALIASES_NAME}"], render=False)
+                    [model.aliases_path().relative_to(model.BLUEPRINTS.parent).as_posix()],
+                    render=False)
                 report.pull_requests.append(url)
             else:
                 dedup.add_aliases(report.new_aliases)

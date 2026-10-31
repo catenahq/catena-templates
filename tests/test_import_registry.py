@@ -884,12 +884,64 @@ def test_an_entry_of_an_app_already_in_the_catalog_is_recorded_as_an_alias(feed,
     out = capsys.readouterr().out
     assert "Notes: alias of curated (in the catalog)" in out
     assert not (model.SOURCES / "notes.json").exists()
-    records = json.loads((model.SOURCES / dedup.ALIASES_NAME).read_text())["aliases"]
+    records = json.loads((model.SOURCES / model.ALIASES_NAME).read_text())["aliases"]
     assert records == [{"app": "curated", "registry": REGISTRY, "entry": "Notes", "source": REGISTRY}]
     # The next run knows the entry and weighs nothing again.
     assert _run() == 0
     assert "Notes: already recorded as an alias of curated" in capsys.readouterr().out
-    assert changes.app_ids([f"sources/{dedup.ALIASES_NAME}", "sources/_meta.json"]) == []
+    assert changes.app_ids([f"sources/{model.ALIASES_NAME}", "sources/_meta.json",
+                            model.CATALOG_ALIASES, model.CATALOG_META]) == []
+
+
+def _card_layout(root: Path) -> None:
+    """The catalog's order moves to catalog-meta.json: the layout whose new entries are card files."""
+    (root / model.CATALOG_META).write_text((model.SOURCES / model.META_NAME).read_text())
+    (model.SOURCES / model.META_NAME).unlink()
+
+
+def test_the_card_layout_writes_an_app_json_and_no_source(catalog):
+    root, _ = catalog
+    _card_layout(root)
+    assert _run() == 0
+    assert list(model.SOURCES.glob("*.json")) == []
+    card = json.loads((model.BLUEPRINTS / "web-stack" / model.CARD_NAME).read_text())
+    assert card["schema"] == 1
+    assert card["status"] == "imported"
+    assert card["origin"]["entry"] == "Web Stack"
+    assert card["categories"] == ["Web"]
+    assert not {"id", "type", "title", "name", "platform", "x-catena", "domain"} & set(card)
+    assert card["en"]["display_name"] == "Web Stack"
+    assert card["en"]["summary"] == "A web app -- with its database"
+    assert "compose_description" not in card["en"]
+    assert card["fr"]["summary"].startswith("Description du registre, non traduite : ")
+    entry = next(e for e in model.load_sources() if e.slug == "web-stack")
+    assert entry.card
+    assert entry.domain == {"host": "web-stack.{{ cloudflare_zone }}", "service": "web", "port": 80}
+    assert entry.title == "Web Stack"
+
+
+def test_the_card_layout_lists_the_paths_an_entry_commits(catalog):
+    root, _ = catalog
+    assert pipeline.entry_paths("x") == ["blueprints/x", "sources/x.json"]
+    _card_layout(root)
+    assert pipeline.entry_paths("x") == ["blueprints/x"]
+
+
+def test_the_card_layout_reads_card_apps_and_records_aliases_in_catalog_aliases(catalog, capsys):
+    root, _ = catalog
+    _card_layout(root)
+    (model.BLUEPRINTS / "curated").mkdir()
+    (model.BLUEPRINTS / "curated" / model.CARD_NAME).write_text(json.dumps({"schema": 1}))
+    (model.BLUEPRINTS / "curated" / model.COMPOSE_NAME).write_text(
+        "services:\n  app:\n    image: docker.io/example/notes:2.0.0\n"
+        "    labels:\n      - vps.route.host=h\n      - vps.route.port=80\n")
+    assert _run() == 0
+    assert "Notes: alias of curated (in the catalog)" in capsys.readouterr().out
+    assert not (model.BLUEPRINTS / "notes").exists()
+    records = json.loads((root / model.CATALOG_ALIASES).read_text())["aliases"]
+    assert records == [{"app": "curated", "registry": REGISTRY, "entry": "Notes", "source": REGISTRY}]
+    assert not (model.SOURCES / model.ALIASES_NAME).exists()
+    assert model.aliases_path() == root / model.CATALOG_ALIASES
 
 
 def test_the_richness_counts_settings_a_health_check_and_sign_in_labels():

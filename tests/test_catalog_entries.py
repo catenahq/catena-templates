@@ -410,9 +410,6 @@ def test_the_container_managers_hold_the_socket_for_administrators_only():
     the docker_socket privilege the app checker looks for, the only address of
     each is for administrators, and the prose tells the client that what is
     deployed from them is outside Catena."""
-    import json
-
-    sources = Path(__file__).resolve().parent.parent / "sources"
     for slug, image in (("portainer", "portainer/portainer-ce:"), ("arcane", "ghcr.io/getarcaneapp/manager:v")):
         compose = yaml.safe_load(_entry(slug).compose_path.read_text(encoding="utf-8"))
         assert compose["x-catena"]["privileges"] == ["docker_socket"]
@@ -426,6 +423,6 @@ def test_the_container_managers_hold_the_socket_for_administrators_only():
                 assert not [v for v in other.get("volumes", []) if "docker.sock" in str(v)], name
                 assert not [label for label in other.get("labels", [])
                             if label.startswith(("vps.route", "vps.auth"))], name
-        source = json.loads((sources / f"{slug}.json").read_text(encoding="utf-8"))["x-catena"]
-        assert "outside Catena" in source["en"]["extra_notes"]
-        assert "hors de Catena" in source["fr"]["extra_notes"]
+        card = _entry(slug).catena
+        assert "outside Catena" in card["en"]["extra_notes"]
+        assert "hors de Catena" in card["fr"]["extra_notes"]

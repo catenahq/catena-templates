@@ -1,9 +1,10 @@
 """Which apps a set of changed paths touches.
 
-An app is `blueprints/<id>/**` plus `sources/<id>.json`. Anything else in the
-repo (the generated catalog files, the workflows, the library) belongs to no
-app, and a `sources/` file whose name starts with an underscore
-(`_meta.json`, `_aliases.json`) is the catalog's, not an app's.
+An app is `blueprints/<id>/**` (its `app.json` among them) plus `sources/<id>.json`.
+Anything else in the repo (the generated catalog files, `catalog-meta.json`,
+`catalog-aliases.json`, the workflows, the library) belongs to no app, and a
+`sources/` file whose name starts with an underscore (`_meta.json`,
+`_aliases.json`) is the catalog's, not an app's.
 """
 from __future__ import annotations
 
@@ -34,7 +35,7 @@ def app_ids(paths: Iterable[str]) -> list[str]:
 
 
 def slug_errors(ids: Iterable[str]) -> list[str]:
-    """Ids that are not the plain slug sources.schema.json requires. A pull
+    """Ids that are not the plain slug app.schema.json and sources.schema.json require. A pull
     request names its files, so an id is untrusted until it passes."""
     return [f"{i!r} is not a plain app id (lowercase letters, digits, hyphens)"
             for i in ids if not SLUG.fullmatch(i)]

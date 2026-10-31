@@ -4,6 +4,7 @@ A blueprint directory mixes the two on purpose, because it is the unit
 Portainer clones and a reader opens:
 
   blueprints/<id>/docker-compose.yml  HAND-EDITED; the type-2 stackfile
+  blueprints/<id>/app.json            HAND-EDITED; the card and catalog data of a moved app
   blueprints/<id>/logo.png            HAND-PLACED; optional
   blueprints/<id>/README.md           generated from the source prose
   blueprints/<id>/logo.svg            generated placeholder, absent a logo.png
@@ -19,7 +20,9 @@ Two consumers, two artifacts, on purpose. Portainer reads
 on each host and the ops tooling read `catalog.json`, which carries the
 SSO mode, the compose's x-catena block (env, quiesce and lifecycle commands,
 object-store check), bench membership, sizing, and the
-bilingual prose alongside the same ids. Neither file is hand-edited.
+bilingual prose alongside the same ids. Neither file is hand-edited. An app
+held as app.json has no Portainer fields, so `templates.json` lists the apps
+still held as sources/<id>.json alone.
 
 Idempotency is the contract: rendering twice produces byte-identical
 output, and CI fails the PR when the committed artifacts drift.
@@ -366,7 +369,7 @@ def render_index_html(entries: list[Entry], meta: dict[str, Any]) -> str:
 
 
 def _prune_orphan_blueprints(entries: list[Entry]) -> list[str]:
-    """Drop blueprint directories no source file claims.
+    """Drop blueprint directories no source file or app.json claims.
 
     The render cannot simply wipe `blueprints/` and rebuild it: the
     compose in each directory is hand-edited, and so is any logo.png
@@ -397,11 +400,12 @@ def render_all() -> int:
         out_dir = entry.app_dir
         (out_dir / "README.md").write_text(render_readme(entry))
         logo_filename = resolve_logo(entry)
-        templates.append(render_portainer_template(entry, logo_filename))
+        if not entry.card:
+            templates.append(render_portainer_template(entry, logo_filename))
         catalog_entries.append(render_catalog_entry(entry))
 
     doc = {"version": PORTAINER_TEMPLATES_VERSION, "templates": templates}
-    schema_errors = validate_output(doc)
+    schema_errors = validate_output(doc) if templates else []
     if schema_errors:
         print("rendered templates.json violates Schema.json:")
         for err in schema_errors:

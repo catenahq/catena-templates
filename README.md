@@ -23,6 +23,10 @@ blueprints/              # ONE directory per template -- what a host fetches at 
                          # x-catena block declares the app's backup mode,
                          # update and restore commands, object-store check
                          # and managed env expressions
+    app.json             # HAND-EDITED; an app held as a card file: the metadata
+                         # sources/<id>.json holds, minus the Portainer fields
+                         # (app.schema.json); an app holds this or its source,
+                         # never both
     test.yml             # HAND-EDITED; optional; the state the CI harness
                          # seeds after a deploy and checks after a restore
     logo.png             # HAND-PLACED; optional
@@ -59,7 +63,13 @@ build/                   # thin entrypoints
   render.py  validate.py  lint_quiesce.py  lint_postgres_pins.py
   lint_swarm.py  import_registry.py  app_check.py  versions.py  adopt.py
 
+catalog-meta.json        # optional; the template order + sizing header, read in
+                         # place of sources/_meta.json when it exists
+catalog-aliases.json     # optional; the importer's aliases, in place of
+                         # sources/_aliases.json once catalog-meta.json exists
+
 sources.schema.json      # schema for a sources/<id>.json
+app.schema.json          # schema for a blueprints/<id>/app.json
 block.schema.json        # schema for the x-catena block of a compose
 Schema.json              # schema for the generated templates.json
 
@@ -77,9 +87,12 @@ layout: the environment variable `TEMPLATES_ROOT` names the tree holding its
 schemas are always read from this checkout. The render writes into that tree and
 `build/versions.py` reads its git tags.
 
-Three things are human-edited: `sources/<id>.json`, the compose in
+Three things are human-edited: `sources/<id>.json` (or `blueprints/<id>/app.json`,
+where the web address `domain` is derived from the compose labels and
+`requires_catena` is a field of the compose block), the compose in
 `blueprints/<id>/` with its `x-catena` block, and an optional logo beside
-it. Everything else listed as generated is a committed build artifact; CI
+it. A card file's app has no Portainer fields, so `templates.json` lists the
+apps held as sources alone, and its compose carries no `vps.homepage.*` label. Everything else listed as generated is a committed build artifact; CI
 re-renders on every push and pull request and fails if the committed copies drift.
 
 ## Who reads this repository
@@ -212,8 +225,8 @@ there).
    checks that the compose reads each key and that `switch` runs in one of its
    services. Real example: `blueprints/nextcloud-s3-oidc`.
 7. If the entry works only on a Catena release newer than some servers
-   run, `x-catena.requires_catena` names the oldest one it works on
-   (`0.11.0`). The render opens the entry's Portainer description and its
+   run, `requires_catena` (a field of the compose block, or of a source's
+   `x-catena`) names the oldest one it works on (`0.11.0`). The render opens the entry's Portainer description and its
    README with that release. A block field a published release does not read
    needs `requires_catena` at the release that reads it; app-ci refuses the entry
    until that release is published.

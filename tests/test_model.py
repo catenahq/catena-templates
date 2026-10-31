@@ -575,3 +575,191 @@ def test_a_name_label_on_another_service_is_not_read(sources):
         model.BLOCK_KEY: {"schema": 2, "env": ENV},
         "services": {"app": {}, "db": {"labels": ["vps.homepage.name=Other"]}}}))
     assert [e.slug for e in model.load_sources()] == ["example"]
+
+
+def _card_doc() -> dict:
+    cat = _valid_doc()["x-catena"]
+    return {"schema": 1, **{k: v for k, v in cat.items() if k != "domain"},
+            "categories": ["Testing"]}
+
+
+def _write_card(slug: str = "example", doc: dict | None = None) -> None:
+    app_dir = model.BLUEPRINTS / slug
+    app_dir.mkdir(parents=True, exist_ok=True)
+    (app_dir / model.CARD_NAME).write_text(json.dumps(doc or _card_doc()))
+
+
+def _routed(labels, block: dict | None = None, slug: str = "example") -> None:
+    """The compose of `slug` with one service `app` carrying `labels`."""
+    path = model.BLUEPRINTS / slug / model.COMPOSE_NAME
+    path.write_text(yaml.safe_dump({
+        model.BLOCK_KEY: {"schema": 2, "env": ENV, **(block or {})},
+        "services": {"app": {"labels": labels}}}, sort_keys=False))
+
+
+ROUTE = ["vps.route.host=${DOMAIN_HOST}", "vps.route.port=80"]
+
+
+def test_a_card_file_loads_with_its_web_address_derived_from_the_compose(sources):
+    _write_card()
+    _routed(ROUTE)
+    entry = model.load_sources()[0]
+    assert entry.card
+    assert (entry.slug, entry.title) == ("example", "Example")
+    assert entry.domain == {"host": "x.example.com", "service": "app", "port": 80}
+    assert entry.catena["domain"] == entry.domain
+    assert "id" not in entry.catena and "schema" not in entry.catena
+    assert entry.source_path == "blueprints/example/app.json"
+    assert entry.catena["app_name"] == "example"
+
+
+def test_a_card_loads_with_no_sources_directory(tmp_path, monkeypatch):
+    monkeypatch.setattr(model, "SOURCES", tmp_path / "sources")
+    monkeypatch.setattr(model, "BLUEPRINTS", tmp_path / "blueprints")
+    _blueprint(model.BLUEPRINTS, "example")
+    _write_card()
+    (tmp_path / model.CATALOG_META).write_text(json.dumps({"order": ["example"]}))
+    assert [e.slug for e in model.load_sources()] == ["example"]
+
+
+def test_catalog_meta_json_is_the_order_when_it_exists(sources):
+    _write_card()
+    _write(sources, _valid_doc("other"))
+    _blueprint(model.BLUEPRINTS, "other")
+    _meta(sources, ["other", "example"])
+    assert [e.slug for e in model.load_sources()] == ["other", "example"]
+    (sources.parent / model.CATALOG_META).write_text(json.dumps({"order": ["example"]}))
+    assert model.meta_path() == sources.parent / model.CATALOG_META
+    with pytest.raises(model.SourceError, match="sources/other.json: not listed in catalog-meta.json order"):
+        model.load_sources()
+
+
+def test_an_app_holds_a_card_or_a_source_never_both(sources):
+    _write(sources, _valid_doc())
+    _write_card()
+    with pytest.raises(model.SourceError, match="duplicate id 'example'.*never both"):
+        model.load_sources()
+
+
+def test_a_card_file_is_checked_against_its_schema(sources):
+    for field, value in (("x-catena", {}), ("domain", {"host": "h", "service": "a", "port": 1}),
+                         ("requires_catena", "0.11.0"), ("title", "T"), ("schema", 2),
+                         ("sso_mode", "invented-mode")):
+        doc = _card_doc()
+        doc[field] = value
+        _write_card(doc=doc)
+        with pytest.raises(model.SourceError, match=f"app.json: .*{field}"):
+            model.load_sources()
+
+
+def test_a_card_folder_name_is_a_plain_app_id(sources):
+    _write_card("Bad_Name")
+    _blueprint(model.BLUEPRINTS, "Bad_Name")
+    with pytest.raises(model.SourceError, match="not a plain app id"):
+        model.load_sources()
+
+
+def test_a_moved_apps_compose_carries_no_homepage_label(sources):
+    _write_card()
+    _routed(ROUTE + ["vps.homepage.name=Example", "vps.homepage.description=x"])
+    with pytest.raises(model.SourceError) as err:
+        model.load_sources()
+    text = str(err.value)
+    assert "app labels vps.homepage.name; the card data lives in blueprints/example/app.json" in text
+    assert "vps.homepage.description" in text
+    _routed(ROUTE + ["vps.display-name=Example"])
+    assert model.load_sources()[0].card
+
+
+def test_a_cards_logo_field_and_file_come_together(sources):
+    _write_card()
+    (model.BLUEPRINTS / "example" / model.LOGO_NAME).write_bytes(_png())
+    with pytest.raises(model.SourceError, match="has no logo naming its source"):
+        model.load_sources()
+    doc = _card_doc()
+    doc["logo"] = {"source": "https://example.com/logo.svg", "notice": "Example is a mark."}
+    _write_card(doc=doc)
+    assert model.load_sources()[0].catena["logo"]["notice"] == "Example is a mark."
+    (model.BLUEPRINTS / "example" / model.LOGO_NAME).unlink()
+    with pytest.raises(model.SourceError, match="logo is set but"):
+        model.load_sources()
+
+
+def test_requires_catena_comes_from_the_block_or_the_source(sources):
+    _write(sources, _valid_doc())
+    assert model.load_sources()[0].requires_catena is None
+    doc = _valid_doc()
+    doc["x-catena"]["requires_catena"] = "0.10.0"
+    _write(sources, doc)
+    assert model.load_sources()[0].requires_catena == "0.10.0"
+    _block({"schema": 2, "requires_catena": "0.11.5"})
+    assert model.load_sources()[0].requires_catena == "0.11.5"
+    (sources / "example.json").unlink()
+    _write_card()
+    assert model.load_sources()[0].requires_catena == "0.11.5"
+    _block({"schema": 2})
+    assert model.load_sources()[0].requires_catena is None
+
+
+def test_the_block_refuses_a_malformed_requires_catena(sources):
+    _write_card()
+    _block({"schema": 2, "requires_catena": "v0.11"})
+    with pytest.raises(model.SourceError, match="requires_catena"):
+        model.load_sources()
+
+
+def _compose_of(labels: dict[str, list[str]], env: dict | None = None) -> dict:
+    return {model.BLOCK_KEY: {"schema": 2, "env": env if env is not None else ENV},
+            "services": {name: {"labels": value} for name, value in labels.items()}}
+
+
+@pytest.mark.parametrize("labels,env,expected", [
+    # the host names an env key: a setting's default, or a managed expression
+    ({"a": ["vps.route.host=${DOMAIN_HOST}", "vps.route.port=8080"]}, None,
+     {"host": "x.example.com", "service": "a", "port": 8080}),
+    ({"a": ["vps.route.host=${DOMAIN_HOST:-z.example.com}", "vps.route.port=80"]},
+     {"DOMAIN_HOST": {"managed": {"expr": "app.{{ cloudflare_zone }}"}}},
+     {"host": "app.{{ cloudflare_zone }}", "service": "a", "port": 80}),
+    # a literal host, and a host an env key cannot give
+    ({"a": ["vps.route.host=app.example.org", "vps.route.port=80"]}, None,
+     {"host": "app.example.org", "service": "a", "port": 80}),
+    ({"a": ["vps.route.host=${UNKNOWN}", "vps.route.port=80"]}, None,
+     {"host": "${UNKNOWN}", "service": "a", "port": 80}),
+    # the map form of labels
+    ({"a": []}, None, None),
+])
+def test_the_web_address_is_derived_from_the_main_service(labels, env, expected):
+    assert model.derive_domain(_compose_of(labels, env)) == (expected, [])
+
+
+def test_the_main_address_of_several_is_the_last_one_marked():
+    compose = _compose_of({
+        "web": ["vps.route.host=${DOMAIN_HOST}", "vps.route.port=80", "vps.route.main=yes"],
+        "admin": ["vps.route.host=admin.example.org", "vps.route.port=81"],
+        "late": ["vps.route.host=late.example.org", "vps.route.port=82", "vps.route.main=1"]})
+    assert model.derive_domain(compose)[0]["service"] == "late"
+    compose["services"]["late"]["labels"] = ["vps.route.host=late.example.org", "vps.route.port=82",
+                                             "vps.route.main=no"]
+    assert model.derive_domain(compose)[0]["service"] == "web"
+    compose["services"]["web"]["labels"] = ["vps.route.host=h", "vps.route.port=80"]
+    assert model.derive_domain(compose) == (None, [])
+    compose["services"]["web"]["labels"] = {"vps.route.host": "h", "vps.route.port": "80",
+                                            "vps.route.main": "true"}
+    assert model.derive_domain(compose)[0]["service"] == "web"
+
+
+@pytest.mark.parametrize("port", ["", "http", "0", "70000"])
+def test_a_main_service_without_a_port_number_is_reported(sources, port):
+    _write_card()
+    _routed(["vps.route.host=${DOMAIN_HOST}", f"vps.route.port={port}"])
+    with pytest.raises(model.SourceError, match="not a port number"):
+        model.load_sources()
+
+
+def test_the_web_address_derived_from_every_real_compose_is_the_one_its_source_holds():
+    """Table B of the runtime-scope plan: `domain` repeats the compose, so a moved
+    app loses the field and nothing changes for its readers."""
+    for entry in model.load_sources():
+        derived, errors = model.derive_domain(model.compose_doc(entry.compose_path))
+        assert errors == []
+        assert derived == entry.catena.get("domain"), entry.slug

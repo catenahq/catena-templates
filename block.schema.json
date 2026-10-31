@@ -13,6 +13,11 @@
       "const": 2,
       "description": "The block format."
     },
+    "requires_catena": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+      "description": "The oldest Catena release the app deploys and updates correctly on, for an app that needs a newer one than some servers run. The README names it, and a server older than it refuses the app."
+    },
     "lifecycle": {
       "type": "object",
       "additionalProperties": false,

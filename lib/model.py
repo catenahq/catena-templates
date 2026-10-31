@@ -1,9 +1,12 @@
 """Load + validate the hand-edited inputs.
 
-A template is two hand-edited files: its metadata at
-`sources/<id>.json`, and its compose at `blueprints/<id>/docker-compose.yml`.
-`sources/_meta.json` holds the values that are catalog-wide rather than
-per-template. Everything else in the repo is rendered from these.
+A template is two hand-edited files: its metadata and its compose at
+`blueprints/<id>/docker-compose.yml`. The metadata is the card file
+`blueprints/<id>/app.json` (schema `app.schema.json`) or, for an app not moved
+yet, `sources/<id>.json` (schema `sources.schema.json`); an app holds one of
+them, never both. `catalog-meta.json` (or `sources/_meta.json`) holds the values
+that are catalog-wide rather than per-template. Everything else in the repo is
+rendered from these.
 
 The compose sits in the blueprint directory because that directory is
 what Portainer clones and deploys: one file, in the place that serves
@@ -14,13 +17,14 @@ block.schema.json); the loader reads it beside the source.
 
 Validation runs in two layers:
 
-  1. JSON Schema (`sources.schema.json` for the source, `block.schema.json`
-     for the compose block) -- shape, enums, required keys. Catches the
-     mechanical mistakes at the field level.
+  1. JSON Schema (`app.schema.json` for a card file, `sources.schema.json`
+     for a source, `block.schema.json` for the compose block) -- shape, enums,
+     required keys. Catches the mechanical mistakes at the field level.
   2. Cross-file invariants below -- id/filename agreement, compose file
      present with a block that declares an env, duplicate slugs, a logo.png
      the control panel keeps beside the source that names it, the main
-     service's name label equal to the source's display name.
+     service's name label equal to the source's display name (a moved app's
+     compose carries no vps.homepage.* label).
      A schema cannot see across files, and these are exactly the failures
      that reach a client's Portainer as a broken template when nothing
      checks them.
@@ -29,6 +33,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import struct
 import sys
 from dataclasses import dataclass, field
@@ -52,7 +57,12 @@ BLUEPRINTS = ROOT / "blueprints"
 COMPOSE_NAME = "docker-compose.yml"
 BLOCK_KEY = "x-catena"
 META_NAME = "_meta.json"
+CARD_NAME = "app.json"
+CATALOG_META = "catalog-meta.json"
+CATALOG_ALIASES = "catalog-aliases.json"
+ALIASES_NAME = "_aliases.json"
 SOURCE_SCHEMA = TOOLS_ROOT / "sources.schema.json"
+CARD_SCHEMA = TOOLS_ROOT / "app.schema.json"
 BLOCK_SCHEMA = TOOLS_ROOT / "block.schema.json"
 OUTPUT_SCHEMA = TOOLS_ROOT / "Schema.json"
 
@@ -66,6 +76,10 @@ LOGO_MAX_BYTES = 65536
 _PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 _PNG_RGBA = (8, 6)  # bit depth, colour type
 NAME_LABEL = "vps.homepage.name"
+HOMEPAGE_PREFIX = "vps.homepage."
+SLUG_RE = re.compile(r"[a-z0-9][a-z0-9-]*")
+_TRUE = ("true", "yes", "1")
+_ENV_REF = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)(?::?-[^}]*)?\}")
 
 
 class SourceError(Exception):
@@ -76,12 +90,16 @@ class SourceError(Exception):
 @dataclass(frozen=True)
 class Entry:
     """One template, normalized. `raw` is the source document as written
-    and `block` the compose's x-catena block (empty when it has none); the
+    (a card entry's is its app.json with the folder name as `id`) and `block`
+    the compose's x-catena block (empty when it has none); `domain` is the web
+    address a card entry's compose gives (a source holds its own). The
     properties below are the accessors render/lint paths use so a future
     key rename lands here instead of in five call sites."""
 
     raw: dict[str, Any]
     block: dict[str, Any] = field(default_factory=dict)
+    card: bool = False
+    domain: dict[str, Any] | None = None
 
     @property
     def slug(self) -> str:
@@ -89,7 +107,25 @@ class Entry:
 
     @property
     def catena(self) -> dict[str, Any]:
-        return self.raw["x-catena"]
+        """The catena-specific fields: a source's `x-catena` object, or a card
+        file's fields with the web address derived from the compose."""
+        if not self.card:
+            return self.raw["x-catena"]
+        out = {k: v for k, v in self.raw.items() if k not in ("id", "schema")}
+        if self.domain:
+            out["domain"] = self.domain
+        return out
+
+    @property
+    def title(self) -> str:
+        return self.raw["en"]["display_name"] if self.card else self.raw["title"]
+
+    @property
+    def source_path(self) -> str:
+        """Repo-relative path of the file holding the metadata."""
+        if self.card:
+            return f"{BLUEPRINTS.name}/{self.slug}/{CARD_NAME}"
+        return f"{SOURCES.name}/{self.slug}.json"
 
     @property
     def app_dir(self) -> Path:
@@ -165,8 +201,9 @@ class Entry:
     @property
     def requires_catena(self) -> str | None:
         """The oldest Catena release the entry works on, when it needs a newer
-        one than some servers run: named in its description and its README."""
-        return self.catena.get("requires_catena")
+        one than some servers run: named in its description and its README.
+        The block names it; a source that still carries it is the fallback."""
+        return self.block.get("requires_catena") or self.catena.get("requires_catena")
 
     def prose(self, lang: str) -> dict[str, Any]:
         return self.catena[lang]
@@ -187,10 +224,33 @@ def env_value(spec: dict[str, Any]) -> str:
             f"chars={GENERATED_CHARS[gen['alphabet']]}'){lower} }}}}")
 
 
+def _data_root() -> Path:
+    return BLUEPRINTS.parent
+
+
+def meta_path() -> Path:
+    """The catalog-wide values: `catalog-meta.json`, else `sources/_meta.json`.
+    Resolved at call time so a test can point the whole loader at a fixture tree."""
+    new = _data_root() / CATALOG_META
+    return new if new.exists() else SOURCES / META_NAME
+
+
+def card_layout() -> bool:
+    """Whether new entries are written as card files: the catalog holds `catalog-meta.json`."""
+    return (_data_root() / CATALOG_META).exists()
+
+
+def aliases_path() -> Path:
+    """The importer's alias records: `catalog-aliases.json` in the card layout,
+    else `sources/_aliases.json`."""
+    if card_layout() or (_data_root() / CATALOG_ALIASES).exists():
+        return _data_root() / CATALOG_ALIASES
+    return SOURCES / ALIASES_NAME
+
+
 def load_meta() -> dict[str, Any]:
-    """Catalog-wide values: the deployment order and the sizing header. Resolved against SOURCES at call time so a test can point the
-    whole loader at a fixture tree."""
-    return json.loads((SOURCES / META_NAME).read_text())
+    """Catalog-wide values: the deployment order and the sizing header."""
+    return json.loads(meta_path().read_text())
 
 
 def _schema(path: Path) -> dict[str, Any]:
@@ -253,10 +313,11 @@ def _logo_errors(entry: Entry, label: str) -> list[str]:
     comes from; one without the other is an error."""
     has_file = entry.logo_path.exists()
     has_field = "logo" in entry.catena
+    name = "logo" if entry.card else "x-catena.logo"
     if has_field and not has_file:
-        return [f"{label}: x-catena.logo is set but {entry.slug}/{LOGO_NAME} does not exist"]
+        return [f"{label}: {name} is set but {entry.slug}/{LOGO_NAME} does not exist"]
     if has_file and not has_field:
-        return [f"{label}: {entry.slug}/{LOGO_NAME} has no x-catena.logo naming its source"]
+        return [f"{label}: {entry.slug}/{LOGO_NAME} has no {name} naming its source"]
     if not has_file:
         return []
     data = entry.logo_path.read_bytes()
@@ -287,6 +348,58 @@ def _service_labels(service: Any) -> dict[str, str]:
     return {key: value for key, _, value in pairs}
 
 
+def main_service(compose: dict[str, Any]) -> str | None:
+    """The service of the main address: the only one carrying vps.route.host, or of
+    several the last also carrying vps.route.main as true, 1 or yes (catena-admin
+    `payload/engines/stackupdate` reads it that way)."""
+    labels = {name: _service_labels(spec) for name, spec in (compose.get("services") or {}).items()}
+    hosts = [name for name, found in labels.items() if found.get("vps.route.host", "").strip()]
+    marked = [name for name in hosts if labels[name].get("vps.route.main", "").strip().lower() in _TRUE]
+    return hosts[0] if len(hosts) == 1 else marked[-1] if marked else None
+
+
+def derive_domain(compose: dict[str, Any]) -> tuple[dict[str, Any] | None, list[str]]:
+    """The web address a compose gives: its main service, the service's
+    `vps.route.port` and its `vps.route.host`, which names an env key of the
+    block (the key's default or managed expression is the host) or holds the
+    host itself. None for a compose with no main address."""
+    service = main_service(compose)
+    if service is None:
+        return None, []
+    labels = _service_labels(compose["services"][service])
+    host = labels["vps.route.host"].strip()
+    ref = _ENV_REF.fullmatch(host)
+    if ref:
+        spec = ((compose.get(BLOCK_KEY) or {}).get("env") or {}).get(ref.group(1))
+        if isinstance(spec, dict) and len(spec) == 1:
+            host = env_value(spec)
+    port = labels.get("vps.route.port", "").strip()
+    if not port.isdigit() or not 0 < int(port) < 65536:
+        return None, [f"{service} labels vps.route.port={port!r}, not a port number"]
+    return {"host": host, "service": service, "port": int(port)}, []
+
+
+def compose_doc(path: Path) -> dict[str, Any]:
+    """The compose as a map; empty when it cannot be read."""
+    try:
+        doc = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except (OSError, yaml.YAMLError):
+        return {}
+    return doc if isinstance(doc, dict) else {}
+
+
+def _homepage_errors(entry: Entry, label: str) -> list[str]:
+    """A moved app's compose carries no vps.homepage.* label: its card file holds that data."""
+    services = compose_doc(entry.compose_path).get("services")
+    errors = []
+    for name, service in (services.items() if isinstance(services, dict) else ()):
+        for key in sorted(_service_labels(service)):
+            if key.startswith(HOMEPAGE_PREFIX):
+                errors.append(f"{label}: {name} labels {key}; the card data lives in "
+                              f"{entry.source_path}, not in the compose")
+    return errors
+
+
 def _name_label_errors(entry: Entry, label: str) -> list[str]:
     """The main address's service carries the name the source gives, or no
     name label at all."""
@@ -314,7 +427,10 @@ def load_sources() -> list[Entry]:
     index both present to clients; sorting by filename would silently
     replace it with alphabetical. An imported entry the order does not list
     comes after the listed ones, alphabetically."""
-    if not SOURCES.is_dir():
+    sources = [p for p in sorted(SOURCES.glob("*.json")) if not p.name.startswith("_")] \
+        if SOURCES.is_dir() else []
+    cards = sorted(BLUEPRINTS.glob(f"*/{CARD_NAME}")) if BLUEPRINTS.is_dir() else []
+    if not SOURCES.is_dir() and not cards:
         raise SourceError(f"missing sources directory: {SOURCES}")
 
     if jsonschema is None:
@@ -325,22 +441,22 @@ def load_sources() -> list[Entry]:
             file=sys.stderr,
         )
     schema = _schema(SOURCE_SCHEMA)
+    card_schema = _schema(CARD_SCHEMA)
     block_schema = _schema(BLOCK_SCHEMA)
     errors: list[str] = []
     entries: list[Entry] = []
-    seen: dict[str, Path] = {}
+    seen: dict[str, str] = {}
 
-    for path in sorted(SOURCES.glob("*.json")):
-        if path.name.startswith("_"):
-            continue
-        label = f"sources/{path.name}"
+    for path in [*sources, *cards]:
+        is_card = path.name == CARD_NAME
+        label = f"{BLUEPRINTS.name}/{path.parent.name}/{CARD_NAME}" if is_card else f"sources/{path.name}"
         try:
             doc = json.loads(path.read_text())
         except json.JSONDecodeError as exc:
             errors.append(f"{label}: invalid JSON: {exc}")
             continue
 
-        schema_errors = _validate_schema(doc, schema, label)
+        schema_errors = _validate_schema(doc, card_schema if is_card else schema, label)
         errors.extend(schema_errors)
         if schema_errors:
             # Cross-file checks below index into keys the schema just
@@ -348,14 +464,21 @@ def load_sources() -> list[Entry]:
             # error into a cascade of KeyErrors.
             continue
 
-        slug = doc["id"]
-        if slug != path.stem:
-            errors.append(f"{label}: id {slug!r} does not match the filename stem")
+        if is_card:
+            slug = path.parent.name
+            if not SLUG_RE.fullmatch(slug):
+                errors.append(f"{label}: the folder name {slug!r} is not a plain app id")
+            doc = {"id": slug, **doc}
+        else:
+            slug = doc["id"]
+            if slug != path.stem:
+                errors.append(f"{label}: id {slug!r} does not match the filename stem")
         if slug in seen:
-            errors.append(f"{label}: duplicate id {slug!r} (also in {seen[slug].name})")
-        seen[slug] = path
+            errors.append(f"{label}: duplicate id {slug!r} (also in {seen[slug]}); "
+                          f"an app has one metadata file, never both")
+        seen[slug] = label
 
-        entry = Entry(doc)
+        entry = Entry(doc, card=is_card)
         if not entry.compose_path.exists():
             errors.append(
                 f"{label}: {entry.compose_file} does not exist -- every "
@@ -365,9 +488,14 @@ def load_sources() -> list[Entry]:
             block, block_errors = _read_block(
                 entry.compose_path, block_schema, entry.compose_file)
             errors.extend(block_errors)
-            entry = Entry(doc, block)
+            domain = None
+            if is_card:
+                domain, domain_errors = derive_domain(compose_doc(entry.compose_path))
+                errors.extend(f"{label}: {e}" for e in domain_errors)
+            entry = Entry(doc, block, is_card, domain)
             if not block_errors:
-                errors.extend(_name_label_errors(entry, label))
+                errors.extend(_homepage_errors(entry, label) if is_card
+                              else _name_label_errors(entry, label))
 
         errors.extend(_logo_errors(entry, label))
         if entry.compose_path.exists() and not entry.env:
@@ -386,13 +514,15 @@ def load_sources() -> list[Entry]:
     # An imported entry follows the listed ones, by id: its pull request
     # touches no shared file, so concurrent import pull requests never conflict.
     unlisted = {e.slug for e in entries if e.imported}
+    meta_name = meta_path().name
+    where = {e.slug: e.source_path for e in entries}
     for slug in sorted(found - set(ranked) - unlisted):
         errors.append(
-            f"sources/{slug}.json: not listed in _meta.json order -- add it "
+            f"{where[slug]}: not listed in {meta_name} order -- add it "
             f"where the template belongs in the deployment sequence"
         )
     for slug in sorted(set(ranked) - found):
-        errors.append(f"_meta.json order names {slug!r}, which has no source file")
+        errors.append(f"{meta_name} order names {slug!r}, which has no source file or {CARD_NAME}")
 
     if errors:
         raise SourceError("\n".join(f"  {e}" for e in errors))

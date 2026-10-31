@@ -6,9 +6,12 @@ the repository, and the checks.
 ## Edit rules
 
 - A template is TWO hand-edited files: `sources/<id>.json` and
-  `blueprints/<id>/docker-compose.yml`. The `id` MUST equal the source
-  filename stem AND the blueprint directory name; the loader fails the
-  build otherwise.
+  `blueprints/<id>/docker-compose.yml`, or `blueprints/<id>/app.json` in place
+  of the source (never both). The `id` MUST equal the source
+  filename stem AND the blueprint directory name (an `app.json` has no `id`:
+  the folder name is it); the loader fails the build otherwise. An app held as
+  `app.json` has a compose with no `vps.homepage.*` label and its `domain`
+  derived from the compose labels.
 - Everything else is generated: the per-app `README.md` and placeholder
   `logo.svg`, plus `templates.json`, `catalog.json` and `index.html`.
   Never hand-edit a generated file -- the change is overwritten on the
@@ -76,7 +79,8 @@ the repository, and the checks.
   deployed with: a new commit changes no running app.
 - An entry that an older Catena release deploys in a shape it cannot
   serve names the oldest release it works on in
-  `x-catena.requires_catena`, the one place that release is written: the
+  `requires_catena` (the compose block's field, or a source's
+  `x-catena.requires_catena`), the one place that release is written: the
   render puts it in the Portainer description and the README, so the
   prose never repeats it.
 - A file's or field's class (runtime, verification or presentation) comes from
@@ -84,8 +88,9 @@ the repository, and the checks.
   gets a row there; anything unlisted is runtime.
 - A block field a published catena-admin release does not read reaches `main`
   only once the release that reads it is published, with
-  `x-catena.requires_catena` raised to it; app-ci's released app checker
-  refuses it before.
+  `requires_catena` raised to it; app-ci's released app checker
+  refuses it before. The block's own `requires_catena` is such a field: a
+  compose sets it only once the release that reads it is published.
 - Every image pin is a version the update engine can order (catena-admin
   `payload/engines/stackupdate`): no floating tags. A tag scheme the generic
   rules do not read (a partial `18.6-alpine`, a build number, a date stamp) is

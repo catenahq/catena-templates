@@ -9,10 +9,12 @@ Two layers, both non-mutating:
 
   1. sources/ against sources.schema.json plus the cross-file invariants
      (id matches filename, compose file exists, no duplicate slug, no
-     env_managed_key that names nothing).
+     env_managed_key that names nothing). A card file (blueprints/<id>/app.json)
+     is checked against app.schema.json.
   2. the COMMITTED templates.json against Schema.json -- the Portainer
-     App Templates format. This catches a hand-edit of the generated file
-     that a render would have overwritten anyway, before Portainer does.
+     App Templates format, when it lists any app. This catches a hand-edit of
+     the generated file that a render would have overwritten anyway, before
+     Portainer does.
 
 Use it as the fast pre-commit gate; `render.py` runs the same checks but
 rewrites the tree.
@@ -44,7 +46,8 @@ def main() -> int:
     if not TEMPLATES_JSON.exists():
         print(f"missing {TEMPLATES_JSON.name}; run build/render.py", file=sys.stderr)
         return 1
-    errors = validate_output(json.loads(TEMPLATES_JSON.read_text()))
+    doc = json.loads(TEMPLATES_JSON.read_text())
+    errors = validate_output(doc) if doc.get("templates") else []
     if errors:
         print("templates.json violates Schema.json:", file=sys.stderr)
         for err in errors:

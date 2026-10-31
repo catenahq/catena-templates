@@ -3,10 +3,10 @@
 # requires-python = ">=3.11"
 # dependencies = ["jsonschema>=4.23", "pyyaml>=6.0"]
 # ///
-"""Render sources/ into blueprints/ + templates.json + catalog.json + index.html.
+"""Render sources/ and blueprints/*/app.json into blueprints/ + templates.json + catalog.json + index.html.
 
 Thin entrypoint; the work lives in lib/render.py. Run it after every
-sources/ edit and commit the generated diff -- CI re-runs it and fails
+sources/ or app.json edit and commit the generated diff -- CI re-runs it and fails
 the PR if the committed artifacts drift.
 """
 from __future__ import annotations

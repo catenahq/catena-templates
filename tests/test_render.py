@@ -5,7 +5,9 @@ from __future__ import annotations
 
 import copy
 import json
+import os
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -356,3 +358,107 @@ def test_a_blueprint_with_no_source_file_is_dropped(tmp_path, monkeypatch):
     assert render._prune_orphan_blueprints([kept]) == ["orphan"]
     assert (blueprints / "kept").is_dir()
     assert not (blueprints / "orphan").exists()
+
+
+# The keys a catalog.json entry of an app with a web address carries, whichever layout holds the app.
+CONSUMED_KEYS = {
+    "id", "app_name", "upstream_url", "sso_mode", "domain_host", "domain_service", "domain_port",
+    "compose_file", "env_defaults", "env", "bench_pack", "bench_fixture", "hostname_baked",
+    "categories", "sizing", "en", "fr",
+}
+
+
+def _tree(root: Path, as_card: bool) -> None:
+    """A one-app tree in another repository's layout: the app `example` held as
+    sources/example.json or as blueprints/example/app.json."""
+    prose = {"display_name": "Example", "what_it_is": "An example.", "replaces": ["Other"],
+             "setup_steps": "1. Open it.\n"}
+    cat = {"app_name": "catena-example", "upstream_url": "https://example.com/",
+           "sso_mode": "none", "bench": {"pack": "nodb"}, "sizing": {"peak_ram_mb": 256},
+           "en": {**prose, "compose_description": "An example.\n"},
+           "fr": {**prose, "compose_description": "Un exemple.\n"}}
+    app_dir = root / "blueprints" / "example"
+    app_dir.mkdir(parents=True)
+    block = {"schema": 2, "env": {"DOMAIN_HOST": {"setting": {"default": "x.example.com"}}}}
+    services = {"app": {"image": "example/app:1.2.3", "labels": [
+        "vps.route.host=${DOMAIN_HOST}", "vps.route.port=8080"]}}
+    meta = {"order": ["example"], "sizing": {"measurement_host": "h", "last_measured_at": "d"}}
+    if as_card:
+        block["requires_catena"] = "0.11.5"
+        (app_dir / "docker-compose.yml").write_text(
+            json.dumps({"x-catena": block, "services": services}))
+        (root / "catalog-meta.json").write_text(json.dumps(meta))
+        card = {"schema": 1, **cat, "categories": ["Testing"]}
+        for lang in ("en", "fr"):
+            del card[lang]["compose_description"]
+        (app_dir / "app.json").write_text(json.dumps(card))
+        return
+    (app_dir / "docker-compose.yml").write_text(
+        json.dumps({"x-catena": block, "services": services}))
+    cat["domain"] = {"host": "x.example.com", "service": "app", "port": 8080}
+    cat["requires_catena"] = "0.11.5"
+    (root / "sources").mkdir()
+    (root / "sources" / "_meta.json").write_text(json.dumps(meta))
+    (root / "sources" / "example.json").write_text(json.dumps({
+        "id": "example", "type": 2, "title": "Example", "name": "catena-example",
+        "categories": ["Testing"], "platform": "linux", "x-catena": cat}))
+
+
+def _rendered(root: Path) -> subprocess.CompletedProcess:
+    env = {**os.environ, "TEMPLATES_ROOT": str(root), "PYTHONPATH": str(ROOT)}
+    return subprocess.run([sys.executable, str(ROOT / "build" / "render.py")], cwd=root, env=env,
+                          capture_output=True, text=True, check=False)
+
+
+def test_an_app_held_as_a_card_renders_what_its_source_renders(tmp_path):
+    """The two layouts give one catalog entry, README and index row; the card has no
+    Portainer fields, so templates.json lists the source app alone."""
+    sourced, carded = tmp_path / "sourced", tmp_path / "carded"
+    _tree(sourced, as_card=False)
+    _tree(carded, as_card=True)
+    for root in (sourced, carded):
+        done = _rendered(root)
+        assert done.returncode == 0, done.stderr
+
+    def catalog(root: Path) -> dict:
+        entry = json.loads((root / "catalog.json").read_text())["templates"][0]
+        for lang in ("en", "fr"):
+            entry[lang].pop("compose_description", None)
+            entry[lang].pop("summary", None)
+        return entry
+
+    assert catalog(carded) == catalog(sourced)
+    published = catalog(carded)
+    assert published["domain_host"] == "x.example.com"
+    assert (published["domain_service"], published["domain_port"]) == ("app", 8080)
+    assert published["requires_catena"] == "0.11.5"
+    assert CONSUMED_KEYS <= set(published)
+
+    def readme(root: Path) -> list[str]:
+        return (root / "blueprints" / "example" / "README.md").read_text().splitlines()[1:]
+
+    assert readme(carded) == readme(sourced)
+    first = (carded / "blueprints" / "example" / "README.md").read_text().splitlines()[0]
+    assert "from blueprints/example/app.json." in first
+    assert (carded / "index.html").read_text() == (sourced / "index.html").read_text()
+    assert [t["name"] for t in json.loads((sourced / "templates.json").read_text())["templates"]] == [
+        "catena-example"]
+    assert json.loads((carded / "templates.json").read_text())["templates"] == []
+
+
+def test_rendering_a_card_tree_twice_gives_identical_artifacts(tmp_path):
+    _tree(tmp_path, as_card=True)
+    names = ("catalog.json", "index.html", "templates.json", "blueprints/example/README.md")
+    assert _rendered(tmp_path).returncode == 0
+    first = {name: (tmp_path / name).read_bytes() for name in names}
+    assert _rendered(tmp_path).returncode == 0
+    assert {name: (tmp_path / name).read_bytes() for name in names} == first
+
+
+def test_a_card_blueprint_is_kept_by_the_render(tmp_path, monkeypatch):
+    blueprints = tmp_path / "blueprints"
+    (blueprints / "moved").mkdir(parents=True)
+    monkeypatch.setattr(render, "BLUEPRINTS", blueprints)
+    moved = model.Entry({"id": "moved", "en": {"display_name": "Moved"}}, card=True)
+    assert render._prune_orphan_blueprints([moved]) == []
+    assert (blueprints / "moved").is_dir()

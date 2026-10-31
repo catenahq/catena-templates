@@ -9,21 +9,18 @@ entry that shares a key with an app already in the catalog, become alias
 records: recorded, not imported.
 
 An alias of an app being imported stays in that app's `origin.aliases`. An
-alias of an app already in the catalog is kept in sources/_aliases.json, which
-a later run reads so it does not weigh that entry again.
+alias of an app already in the catalog is kept in the catalog's alias file
+(`model.aliases_path()`: catalog-aliases.json, or sources/_aliases.json before
+the catalog holds catalog-meta.json), which a later run reads so it does not
+weigh that entry again.
 """
 from __future__ import annotations
 
 import json
-from pathlib import Path
 from typing import Any, Iterable
-
-import yaml
 
 from .. import model
 from . import pipeline
-
-ALIASES_NAME = "_aliases.json"
 
 # What the three parts of an entry's richness are worth, in settings.
 HEALTH_WEIGHT = 3
@@ -109,16 +106,29 @@ def reference(p: pipeline.Prepared) -> dict[str, str]:
 
 
 def _compose_keys(slug: str, cat: dict[str, Any]) -> list[str]:
-    path = model.BLUEPRINTS / slug / model.COMPOSE_NAME
-    try:
-        doc = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-    except (OSError, yaml.YAMLError):
-        return []
-    block = doc.get(model.BLOCK_KEY) if isinstance(doc, dict) else None
+    doc = model.compose_doc(model.BLUEPRINTS / slug / model.COMPOSE_NAME)
+    block = doc.get(model.BLOCK_KEY)
     service = ((block or {}).get("version_from") if isinstance(block, dict) else None) \
-        or (cat.get("domain") or {}).get("service")
-    spec = ((doc.get("services") or {}) if isinstance(doc, dict) else {}).get(service)
+        or (cat.get("domain") or {}).get("service") or model.main_service(doc)
+    spec = (doc.get("services") or {}).get(service)
     return [k for k in [image_key(str((spec or {}).get("image") or ""))] if k]
+
+
+def _catalog_cards() -> Iterable[tuple[str, dict[str, Any]]]:
+    """Each app of the catalog with its catena fields: a source's `x-catena`
+    object, or a card file's fields."""
+    paths = sorted(model.SOURCES.glob("*.json")) if model.SOURCES.is_dir() else []
+    for path in [p for p in paths if not p.name.startswith("_")]:
+        try:
+            doc = json.loads(path.read_text())
+            yield doc["id"], doc.get("x-catena") or {}
+        except (OSError, ValueError, KeyError, TypeError):
+            continue
+    for path in sorted(model.BLUEPRINTS.glob(f"*/{model.CARD_NAME}")):
+        try:
+            yield path.parent.name, dict(json.loads(path.read_text()))
+        except (OSError, ValueError, TypeError):
+            continue
 
 
 def catalog_index() -> dict[str, str]:
@@ -127,15 +137,7 @@ def catalog_index() -> dict[str, str]:
     app's counts through its origin, as its upstream address may be the
     registry's."""
     index: dict[str, str] = {}
-    for path in sorted(model.SOURCES.glob("*.json")):
-        if path.name.startswith("_"):
-            continue
-        try:
-            doc = json.loads(path.read_text())
-            slug = doc["id"]
-            cat = doc.get("x-catena") or {}
-        except (OSError, ValueError, KeyError, TypeError):
-            continue
+    for slug, cat in _catalog_cards():
         found = _compose_keys(slug, cat)
         address = (cat.get("origin") or {}).get("project") if cat.get("status") == "imported" \
             else cat.get("upstream_url")
@@ -147,13 +149,9 @@ def catalog_index() -> dict[str, str]:
     return index
 
 
-def _aliases_path() -> Path:
-    return model.SOURCES / ALIASES_NAME
-
-
 def _load_records() -> list[dict[str, str]]:
     try:
-        return list(json.loads(_aliases_path().read_text()).get("aliases") or [])
+        return list(json.loads(model.aliases_path().read_text()).get("aliases") or [])
     except (OSError, ValueError, AttributeError):
         return []
 
@@ -165,10 +163,10 @@ def load_aliases() -> dict[tuple[str, str], str]:
 
 
 def add_aliases(records: Iterable[dict[str, str]]) -> None:
-    """Records new aliases in sources/_aliases.json, one per entry."""
+    """Records new aliases in the catalog's alias file, one per entry."""
     known = {(r.get("registry"), r.get("entry")): r for r in _load_records()}
     for record in records:
         known.setdefault((record.get("registry"), record.get("entry")), record)
     ordered = sorted(known.values(), key=lambda r: (r.get("app", ""), r.get("registry", ""),
                                                     r.get("entry", "")))
-    _aliases_path().write_text(json.dumps({"aliases": ordered}, indent=2) + "\n")
+    model.aliases_path().write_text(json.dumps({"aliases": ordered}, indent=2) + "\n")

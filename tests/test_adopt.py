@@ -130,3 +130,30 @@ def test_the_pull_request_is_the_open_one_at_that_head_on_that_fork():
     assert adopt.find_pr(lambda *a, **k: prs, "o/r", "fork/x", HEAD) == 3
     with pytest.raises(adopt.AdoptError):
         adopt.find_pr(lambda *a, **k: prs, "o/r", "fork/y", HEAD)
+
+
+def test_a_moved_app_is_planned_by_its_card_file_and_its_removed_source():
+    p = adopt.plan([_f("blueprints/x/app.json"), _f("blueprints/x/logo.png"),
+                    _f("blueprints/x/docker-compose.yml", "modified"),
+                    _f("sources/x.json", "removed"), _f("catalog.json", "modified")])
+    assert p == {"app": "x",
+                 "copy": ["blueprints/x/app.json", "blueprints/x/docker-compose.yml",
+                          "blueprints/x/logo.png"],
+                 "delete": ["sources/x.json"], "ignored": ["catalog.json"]}
+
+
+@pytest.mark.parametrize("name", ["catalog-meta.json", "catalog-aliases.json",
+                                  "sources/_meta.json", "sources/_aliases.json"])
+def test_the_catalogs_own_files_are_no_apps_to_adopt(name):
+    with pytest.raises(adopt.AdoptError, match="belongs to no app"):
+        adopt.plan([_f("blueprints/x/app.json"), _f(name, "modified")])
+
+
+def test_a_card_file_is_copied_as_data_like_any_file_of_the_app():
+    entries = [{"path": "blueprints/x/app.json", "mode": "100644", "type": "blob", "sha": "s" * 40,
+                "size": 4}]
+    api = FakeApi(entries)
+    out = adopt.adopt(api, "o/r", "fork/x", HEAD, 7, [_f("blueprints/x/app.json")])
+    assert out["app"] == "x"
+    tree = next(b for m, p, b in api.calls if p == "repos/o/r/git/trees")
+    assert [i["path"] for i in tree["tree"]] == ["blueprints/x/app.json"]

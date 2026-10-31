@@ -1,0 +1,339 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/catenahq/catena-templates/main/app.schema.json",
+  "title": "Catena app card file",
+  "description": "blueprints/<id>/app.json: the hand-edited card, catalog and bench data of one app, beside its compose. The id is the folder name. The runtime declarations (env, backup, update and restore, hooks, requires_catena) live in the compose block (block.schema.json) and the web address is derived from the compose labels. catalog.json, index.html and the app's README are generated from this file and the compose. An entry the registry importer wrote carries status \"imported\": it publishes with stubs where a curated entry has hand-written parts, and the published catalog marks it untested.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "app_name",
+    "upstream_url",
+    "categories",
+    "sso_mode",
+    "bench",
+    "sizing",
+    "en",
+    "fr"
+  ],
+  "properties": {
+    "schema": {
+      "const": 1,
+      "description": "The card file format."
+    },
+    "app_name": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$",
+      "description": "The stack name the bench and the app checker use."
+    },
+    "upstream_url": {
+      "type": "string",
+      "format": "uri"
+    },
+    "categories": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "Descriptive app categories, never internal enums."
+    },
+    "logo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source"
+      ],
+      "description": "Where blueprints/<id>/logo.png comes from. Present exactly when the logo is placed.",
+      "properties": {
+        "source": {
+          "type": "string",
+          "format": "uri",
+          "description": "The address the picture was taken from, pinned to a commit where it is a repository."
+        },
+        "notice": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The line the logo owner's terms ask for, printed in the README as written."
+        }
+      }
+    },
+    "sso_mode": {
+      "enum": [
+        "pre-wired",
+        "post-deploy-ui",
+        "jackson-curl",
+        "auto",
+        "panel-action",
+        "none",
+        "n/a"
+      ]
+    },
+    "status": {
+      "const": "imported",
+      "description": "Marks an entry build/import_registry.py wrote from a third-party registry and no person has finished. Its bench pack and peak_ram_mb may be null stubs and its prose is the importer's placeholder; the published catalog flags it as untested. A curated entry carries no status."
+    },
+    "origin": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "registry",
+        "entry",
+        "source",
+        "licence",
+        "attribution"
+      ],
+      "description": "Where an imported entry's compose file comes from, published with the entry: the registry, the entry's title there, the repository or registry the file is copied from, that source's licence and its copyright notice. It stays once a person finishes the entry.",
+      "properties": {
+        "registry": {
+          "type": "string",
+          "minLength": 1
+        },
+        "entry": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source": {
+          "type": "string",
+          "minLength": 1
+        },
+        "licence": {
+          "type": "string",
+          "minLength": 1,
+          "description": "SPDX identifier of the source's licence as its forge names it, NOASSERTION when it names none. A record, not a condition."
+        },
+        "attribution": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The copyright lines of the source's licence file, or the file's or the repository's address when there are none."
+        },
+        "commit": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$",
+          "description": "The commit of the source the entry was read at."
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The entry's path in the source at that commit."
+        },
+        "project": {
+          "type": "string",
+          "format": "uri",
+          "description": "The upstream project's repository, whose licence is the app's and was checked."
+        },
+        "aliases": {
+          "type": "array",
+          "description": "Entries of other registries (or the same one) that are this same app: recorded, not imported.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["registry", "entry"],
+            "properties": {
+              "registry": { "type": "string", "minLength": 1 },
+              "entry": { "type": "string", "minLength": 1 },
+              "source": { "type": "string" },
+              "commit": { "type": "string" },
+              "path": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "pending": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "findings",
+        "to_choose"
+      ],
+      "description": "What a person still settles before an imported entry is curated: the findings the app checker and the catalog lint leave on its compose file, and the choices the importer cannot make. Only an imported entry carries it.",
+      "properties": {
+        "findings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "to_choose": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "bench": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pack"
+      ],
+      "properties": {
+        "pack": {
+          "enum": [
+            "postgres",
+            "mariadb",
+            "mongo",
+            "nodb",
+            "embedded",
+            null
+          ],
+          "description": "null only on an imported entry: it is in no bench pack."
+        },
+        "fixture": {
+          "enum": [
+            "required",
+            "skip"
+          ]
+        },
+        "hostname_baked": {
+          "type": "boolean"
+        }
+      }
+    },
+    "sizing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "peak_ram_mb"
+      ],
+      "properties": {
+        "idle_ram_mb": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "peak_ram_mb": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1,
+          "description": "Required. The bench scheduler multiplies it by 1.15 to gate slot acquisition. null only on an imported entry, which is not measured yet."
+        },
+        "idle_cpu_pct": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "peak_cpu_pct": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "disk_baseline_mb": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "notes": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "notes_fr": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "en": {
+      "$ref": "#/$defs/prose"
+    },
+    "fr": {
+      "$ref": "#/$defs/prose"
+    }
+  },
+  "dependentRequired": {
+    "pending": [
+      "status"
+    ]
+  },
+  "if": {
+    "required": [
+      "status"
+    ]
+  },
+  "then": {
+    "required": [
+      "origin",
+      "pending"
+    ]
+  },
+  "else": {
+    "properties": {
+      "bench": {
+        "properties": {
+          "pack": {
+            "type": "string"
+          }
+        }
+      },
+      "sizing": {
+        "properties": {
+          "peak_ram_mb": {
+            "type": "integer"
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "prose": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "display_name",
+        "what_it_is",
+        "replaces",
+        "setup_steps"
+      ],
+      "properties": {
+        "display_name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The app's name on the card, the app page and the README."
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The card's one-line description."
+        },
+        "what_it_is": {
+          "type": "string",
+          "minLength": 1
+        },
+        "replaces": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "compose_description": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The long description catalog.json publishes."
+        },
+        "setup_steps": {
+          "type": "string"
+        },
+        "extra_notes": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}
