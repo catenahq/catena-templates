@@ -92,15 +92,14 @@ def test_the_relay_password_and_the_spamhaus_key_are_settings_of_the_app_with_bo
     assert not {k for k in _entry().managed_env if k in ("RELAY_PASSWORD", "SPAMHAUS_DQS_KEY")}
 
 
-def test_the_webmail_signs_in_with_its_own_client_that_dovecot_introspects_with():
+def test_the_webmail_signs_in_with_its_own_client():
     labels = _compose()["services"]["roundcube"]["labels"]
     for label in ("vps.route.main=true", "vps.auth.oidc=true", "vps.auth.oidc.introspect=true",
                   "vps.auth.groups=staff,client",
                   "vps.auth.oidc.redirect_uris=https://${DOMAIN_HOST}/index.php/login/oauth"):
         assert label in labels
-    for service in ("dms", "roundcube"):
-        env = _compose()["services"][service]["environment"]
-        assert {"OIDC_CLIENT_ID", "OIDC_CLIENT_SECRET", "OIDC_ISSUER_URL"} <= set(env)
+    env = _compose()["services"]["roundcube"]["environment"]
+    assert {"OIDC_CLIENT_ID", "OIDC_CLIENT_SECRET", "OIDC_ISSUER_URL"} <= set(env)
     assert not {k for k in _entry().env if k.startswith("OIDC_CLIENT") or k == "OIDC_ISSUER_URL"}
 
 
@@ -150,16 +149,19 @@ def test_the_start_keeps_the_mailboxes_it_finds_and_ends_a_line_it_extends(tmp_p
     assert len((cfg / "postfix-accounts.cf").read_text().splitlines()) == 2
 
 
-def test_the_dovecot_login_is_written_only_when_the_sign_in_values_are_there(tmp_path):
-    conf = tmp_path / "cfg" / "dovecot-oauth2.conf.ext"
-    assert _start(tmp_path).returncode == 0 and not conf.exists()
+def test_dovecot_checks_a_token_at_the_realm_userinfo_endpoint(tmp_path):
+    compose = _compose()["services"]["dms"]
+    assert compose["environment"]["ENABLE_OAUTH2"] == "1"
+    assert compose["environment"]["OAUTH2_INTROSPECTION_URL"] == "${OIDC_USERINFO_URL}"
+    default = _entry().block["env"]["OIDC_USERINFO_URL"]["setting"]["default"]
+    assert default.endswith("/realms/{{ keycloak_realm | default('vps') }}/protocol/openid-connect/userinfo")
+    assert "OIDC_INTROSPECTION_URL" not in _entry().block["env"]
+    assert not {"OIDC_CLIENT_ID", "OIDC_CLIENT_SECRET", "OIDC_ISSUER_URL"} & set(compose["environment"])
     out = _start(tmp_path, OIDC_CLIENT_ID="app-catena-mailserver", OIDC_CLIENT_SECRET="s3cret",
                  OIDC_ISSUER_URL="https://auth.a.example/realms/vps/")
     assert out.returncode == 0, out.stderr
-    assert ("introspection_url = https://app-catena-mailserver:s3cret@auth.a.example/realms/vps"
-            "/protocol/openid-connect/token/introspect") in conf.read_text()
-    assert stat.S_IMODE(conf.stat().st_mode) == 0o640
-    assert _start(tmp_path).returncode == 0 and not conf.exists()
+    assert not (tmp_path / "cfg" / "dovecot-oauth2.conf.ext").exists()
+    assert "token/introspect" not in _body(compose["entrypoint"])
 
 
 SCANNER = {"ANTIVIRUS_HOST": "scan", "ANTIVIRUS_PORT": "3310"}

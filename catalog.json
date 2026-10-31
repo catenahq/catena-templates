@@ -2865,9 +2865,9 @@
             "default": "mail.{{ cloudflare_zone }}"
           }
         },
-        "OIDC_INTROSPECTION_URL": {
+        "OIDC_USERINFO_URL": {
           "setting": {
-            "default": "https://{{ keycloak_hostname | default('auth.' ~ cloudflare_zone) }}/realms/{{ keycloak_realm | default('vps') }}/protocol/openid-connect/token/introspect"
+            "default": "https://{{ keycloak_hostname | default('auth.' ~ cloudflare_zone) }}/realms/{{ keycloak_realm | default('vps') }}/protocol/openid-connect/userinfo"
           }
         },
         "RELAY_HOST": {
@@ -2914,7 +2914,7 @@
         "MAIL_HOSTNAME=mail.{{ cloudflare_zone }}",
         "MAIL_DOMAIN={{ cloudflare_zone }}",
         "WEBMAIL_HOSTNAME=webmail.{{ cloudflare_zone }}",
-        "OIDC_INTROSPECTION_URL=https://{{ keycloak_hostname | default('auth.' ~ cloudflare_zone) }}/realms/{{ keycloak_realm | default('vps') }}/protocol/openid-connect/token/introspect",
+        "OIDC_USERINFO_URL=https://{{ keycloak_hostname | default('auth.' ~ cloudflare_zone) }}/realms/{{ keycloak_realm | default('vps') }}/protocol/openid-connect/userinfo",
         "RELAY_HOST=",
         "RELAY_PORT=587",
         "RELAY_USER=",

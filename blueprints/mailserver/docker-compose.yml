@@ -10,8 +10,8 @@ x-catena:
       setting: {default: "{{ cloudflare_zone }}"}
     WEBMAIL_HOSTNAME:
       setting: {default: "webmail.{{ cloudflare_zone }}"}
-    OIDC_INTROSPECTION_URL:
-      setting: {default: "https://{{ keycloak_hostname | default('auth.' ~ cloudflare_zone) }}/realms/{{ keycloak_realm | default('vps') }}/protocol/openid-connect/token/introspect"}
+    OIDC_USERINFO_URL:
+      setting: {default: "https://{{ keycloak_hostname | default('auth.' ~ cloudflare_zone) }}/realms/{{ keycloak_realm | default('vps') }}/protocol/openid-connect/userinfo"}
     RELAY_HOST:
       setting: {default: ""}
     RELAY_PORT:
@@ -218,8 +218,8 @@ services:
     # docker-mailserver shuts down after 120 s without a mailbox, and with
     # SSL_TYPE=manual it needs the certificate of mail-certs at start. This
     # script runs before the image's own start and leaves what it needs in the
-    # mail-config volume: the postmaster mailbox and the abuse alias, the Dovecot
-    # token introspection login, and the rspamd settings with the start hook
+    # mail-config volume: the postmaster mailbox and the abuse alias, and the
+    # rspamd settings with the start hook
     # that puts them in /etc/rspamd for each new container. The image starts
     # dumb-init over supervisord.
     entrypoint:
@@ -239,21 +239,6 @@ services:
         if ! grep -qs "^abuse@$${MAIL_DOMAIN} " "$$virtual"; then
           newline "$$virtual"
           echo "abuse@$${MAIL_DOMAIN} postmaster@$${MAIL_DOMAIN}" >> "$$virtual"
-        fi
-        rm -f "$$cfg/dovecot-oauth2.conf.ext"
-        if [ -n "$${OIDC_CLIENT_ID:-}" ] && [ -n "$${OIDC_CLIENT_SECRET:-}" ] && [ -n "$${OIDC_ISSUER_URL:-}" ]; then
-          issuer="$${OIDC_ISSUER_URL%/}"
-          issuer="$${issuer#https://}"
-          cat > "$$cfg/dovecot-oauth2.conf.ext" <<EOF
-        introspection_url = https://$${OIDC_CLIENT_ID}:$${OIDC_CLIENT_SECRET}@$${issuer}/protocol/openid-connect/token/introspect
-        introspection_mode = post
-        force_introspection = yes
-        active_attribute = active
-        active_value = true
-        username_attribute = email
-        tls_ca_cert_file = /etc/ssl/certs/ca-certificates.crt
-        EOF
-          chmod 0640 "$$cfg/dovecot-oauth2.conf.ext"
         fi
         rspamd="$$cfg/rspamd/local.d"
         rm -f "$$rspamd/rbl.conf"
@@ -473,14 +458,10 @@ services:
       ANTIVIRUS_HOST: ${ANTIVIRUS_HOST:-}
       ANTIVIRUS_PORT: ${ANTIVIRUS_PORT:-}
       SPAMHAUS_DQS_KEY: ${SPAMHAUS_DQS_KEY:-}
-      # Keycloak sign-in: Dovecot validates access tokens by introspection,
-      # signed in with the application's own client (OIDC_*, written into the
-      # app's .env from its sign-in labels).
+      # Keycloak sign-in: Dovecot checks an access token by a GET with the token
+      # to the realm's userinfo endpoint and takes the mailbox from its email.
       ENABLE_OAUTH2: "1"
-      OAUTH2_INTROSPECTION_URL: ${OIDC_INTROSPECTION_URL}
-      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-}
-      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-}
-      OIDC_ISSUER_URL: ${OIDC_ISSUER_URL:-}
+      OAUTH2_INTROSPECTION_URL: ${OIDC_USERINFO_URL}
       # Outbound smarthost (separate from transactional SMTP_*).
       RELAY_HOST: ${RELAY_HOST}
       RELAY_PORT: ${RELAY_PORT}
@@ -619,8 +600,7 @@ services:
       - "vps.route.port=80"
       - "vps.route.main=true"
       # Roundcube does its OWN Keycloak login (not behind oauth2-proxy);
-      # public at the proxy layer, OIDC enforced by the app. The same client
-      # lets Dovecot introspect the tokens it issues.
+      # public at the proxy layer, OIDC enforced by the app.
       - "vps.auth.mode=public"
       - "vps.auth.oidc=true"
       - "vps.auth.oidc.introspect=true"

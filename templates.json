@@ -1566,8 +1566,8 @@
         {
           "default": "__CATENA_OPERATOR_WIRED__",
           "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
-          "label": "OIDC introspection URL",
-          "name": "OIDC_INTROSPECTION_URL"
+          "label": "OIDC userinfo URL",
+          "name": "OIDC_USERINFO_URL"
         },
         {
           "default": "",
