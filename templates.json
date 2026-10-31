@@ -296,7 +296,7 @@
           "name": "OFFICE_URL"
         }
       ],
-      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/collabora/logo.svg",
+      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/collabora/logo.png",
       "maintainer": "https://github.com/catenahq/catena-templates",
       "name": "catena-collabora",
       "note": "<p>Collaborative ODT/DOCX/XLSX/PPTX editing -- bolts into Nextcloud for real-time co-editing. LibreOffice-based; lighter than OnlyOffice; better fidelity for ODF formats.</p><p>Replaces Microsoft Office Online, Google Docs (as embedded editor).</p><p><a href=\"https://github.com/catenahq/catena-templates/blob/main/blueprints/collabora/README.md\">https://github.com/catenahq/catena-templates/blob/main/blueprints/collabora/README.md</a></p>",

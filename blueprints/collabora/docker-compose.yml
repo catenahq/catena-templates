@@ -38,6 +38,9 @@ services:
       # its discovery XML even though it itself is listening on http.
       extra_params: --o:ssl.enable=false --o:ssl.termination=true
     labels:
+      - "vps.homepage.name=Collabora Online (CODE)"
+      - "vps.homepage.description=Edit documents, spreadsheets and presentations online with other people, from inside Nextcloud."
+      - "vps.homepage.description-fr=Édition de documents, de chiffriers et de présentations en ligne à plusieurs, dans Nextcloud."
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=9980"
       # The WOPI allow-list above is what authenticates a caller, so the

@@ -11,6 +11,9 @@
   "x-catena": {
     "app_name": "catena-collabora",
     "upstream_url": "https://www.collaboraonline.com/",
+    "logo": {
+      "source": "https://www.collaboraonline.com/wp-content/uploads/2025/11/code-logo-2025-1024x385.png"
+    },
     "sso_mode": "n/a",
     "domain": {
       "host": "office.{{ cloudflare_zone }}",
