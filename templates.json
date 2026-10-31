@@ -2,56 +2,6 @@
   "templates": [
     {
       "categories": [
-        "Infrastructure",
-        "Communication"
-      ],
-      "description": "Shared call relay (TURN and STUN). Nextcloud Talk and Element find it on their own.",
-      "env": [
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
-          "label": "TURN hostname",
-          "name": "TURN_HOSTNAME"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
-          "label": "TURN port",
-          "name": "TURN_PORT"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
-          "label": "TURN TLS port",
-          "name": "TURN_TLS_PORT"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
-          "label": "TURN external IP",
-          "name": "TURN_EXTERNAL_IP"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
-          "label": "TURN secret",
-          "name": "TURN_SECRET"
-        }
-      ],
-      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/coturn/logo.svg",
-      "maintainer": "https://github.com/catenahq/catena-templates",
-      "name": "catena-coturn",
-      "note": "<p>A relay for voice and video calls. Calls in Nextcloud Talk and Element connect directly when the network allows it. From behind a network that blocks direct media, such as a hotel or an office firewall, they go through this relay. Adding it is optional: the applications that use it find it on their own. With it, Nextcloud Talk and Element calls also reach people on restrictive networks, and Nextcloud Talk gains its high-performance backend for larger calls.</p><p>Replaces A hosted TURN service.</p><p><a href=\"https://github.com/catenahq/catena-templates/blob/main/blueprints/coturn/README.md\">https://github.com/catenahq/catena-templates/blob/main/blueprints/coturn/README.md</a></p>",
-      "platform": "linux",
-      "repository": {
-        "stackfile": "blueprints/coturn/docker-compose.yml",
-        "url": "https://github.com/catenahq/catena-templates"
-      },
-      "title": "Call relay (TURN)",
-      "type": 2
-    },
-    {
-      "categories": [
         "Infrastructure"
       ],
       "description": "Docker management console, reachable by administrators only.",
