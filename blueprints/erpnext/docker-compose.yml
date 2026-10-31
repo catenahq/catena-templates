@@ -1,5 +1,6 @@
 x-catena:
   schema: 2
+  requires_catena: 0.11.12
   env:
     DOMAIN_HOST:
       setting: {default: "erp.{{ cloudflare_zone }}"}
@@ -269,9 +270,6 @@ services:
       - sites:/home/frappe/frappe-bench/sites
       - logs:/home/frappe/frappe-bench/logs
     labels:
-      - "vps.homepage.name=ERPNext"
-      - "vps.homepage.description=Business management with accounting, inventory, sales, purchasing, payroll and projects."
-      - "vps.homepage.description-fr=Gestion d'entreprise avec comptabilité, inventaire, ventes, achats, paie et projets."
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=8080"
       - "vps.auth.mode=public"

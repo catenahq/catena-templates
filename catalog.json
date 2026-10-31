@@ -2014,6 +2014,7 @@
           "Oracle NetSuite"
         ],
         "setup_steps": "1. Click **Deploy**. First boot takes 5-10 min -- the site is created, MariaDB initialized and ERPNext installed. The `backend` container logs in Portainer track the progress.\n2. Visit the ERPNext domain. Sign in as `Administrator` / `ERPNEXT_ADMIN_PASSWORD` from the Environment tab.\n3. Complete the setup wizard: company name, fiscal year, base currency, chart of accounts template. For its first user, enter the email address you sign in to Catena with: that account becomes ERPNext's System Manager. Complete the wizard before you sign in with Keycloak.\n4. Within a few minutes of the first deploy, the server creates ERPNext's own sign-in entry in Keycloak and writes its values (`OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_ISSUER_URL`) into the Environment tab. Once the site is up, its login page offers **Login with Keycloak**.\n5. **Login with Keycloak** opens only accounts ERPNext already has. For a colleague, add them under **Users** with the email address they sign in to Catena with and the roles they need, and untick **Send Welcome Email**. For a customer, give them **ERPNext: Customer portal** when you invite them on the People page: their ERPNext account is made for them, and their orders and invoices show once their email address is a contact of their customer in ERPNext.\n",
+        "summary": "Business management with accounting, inventory, sales, purchasing, payroll and projects.",
         "what_it_is": "Full open-source ERP suite -- accounting, inventory, HR/payroll, CRM, manufacturing, projects and a built-in website/e-commerce module."
       },
       "env": {
@@ -2056,6 +2057,7 @@
           "Oracle NetSuite"
         ],
         "setup_steps": "1. Cliquez **Deploy**. Le premier d\u00e9marrage dure 5-10 min -- le site est cr\u00e9\u00e9, MariaDB initialis\u00e9 et ERPNext install\u00e9. Les logs du conteneur `backend` dans Portainer permettent de suivre la progression.\n2. Visitez le domaine ERPNext. Connexion avec `Administrator` / `ERPNEXT_ADMIN_PASSWORD` de l'onglet Environment.\n3. Compl\u00e9tez l'assistant : nom de soci\u00e9t\u00e9, exercice fiscal, devise, plan comptable. Pour son premier utilisateur, saisissez l'adresse courriel avec laquelle vous vous connectez \u00e0 Catena : ce compte devient le System Manager d'ERPNext. Terminez l'assistant avant de vous connecter avec Keycloak.\n4. Quelques minutes apr\u00e8s le premier d\u00e9ploiement, le serveur cr\u00e9e l'entr\u00e9e de connexion d'ERPNext dans Keycloak et \u00e9crit ses valeurs (`OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_ISSUER_URL`) dans l'onglet Environment. Une fois le site en ligne, sa page de connexion propose **Login with Keycloak**.\n5. **Login with Keycloak** n'ouvre que les comptes qu'ERPNext a d\u00e9j\u00e0. Pour un coll\u00e8gue, ajoutez-le sous **Users** avec l'adresse courriel qu'il utilise pour Catena et les r\u00f4les dont il a besoin, puis d\u00e9cochez **Send Welcome Email**. Pour un client, donnez-lui **ERPNext : Portail client** quand vous l'invitez dans la page People : son compte ERPNext est cr\u00e9\u00e9 pour lui, et ses commandes et factures apparaissent d\u00e8s que son adresse courriel est un contact de son client dans ERPNext.\n",
+        "summary": "Gestion d'entreprise avec comptabilit\u00e9, inventaire, ventes, achats, paie et projets.",
         "what_it_is": "Suite ERP open-source compl\u00e8te -- comptabilit\u00e9, inventaire, RH/paie, CRM, production, projets et un module site web / e-commerce int\u00e9gr\u00e9."
       },
       "hostname_baked": true,
@@ -2096,7 +2098,7 @@
         "service": "backend",
         "timeout_seconds": 3600
       },
-      "requires_catena": "0.11.10",
+      "requires_catena": "0.11.12",
       "sizing": {
         "disk_baseline_mb": 850,
         "idle_cpu_pct": 8,
