@@ -11,6 +11,8 @@ x-catena:
       generated: {length: 64, alphabet: alnum}
     DB_PASSWORD:
       generated: {length: 32, alphabet: alnum}
+    PLANE_MQ_PASSWORD:
+      generated: {length: 32, alphabet: alnum}
     PLANE_MINIO_ACCESS_KEY:
       generated: {length: 20, alphabet: alnum}
     PLANE_MINIO_SECRET_KEY:
@@ -135,6 +137,7 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: "6379"
       REDIS_URL: redis://redis:6379/
+      AMQP_URL: amqp://plane:${PLANE_MQ_PASSWORD}@mq:5672/plane
       AWS_REGION: ""
       AWS_ACCESS_KEY_ID: ${PLANE_MINIO_ACCESS_KEY}
       AWS_SECRET_ACCESS_KEY: ${PLANE_MINIO_SECRET_KEY}
@@ -249,6 +252,28 @@ services:
     networks:
       - default
 
+  # The Celery broker: the api queues background jobs here and the worker and beat-worker take them.
+  mq:
+    image: rabbitmq:4.3.7-alpine
+    deploy:
+      restart_policy:
+        condition: any
+      placement:
+        constraints:
+          - node.labels.catena.role==data
+    environment:
+      # The node name keys the stored state, and a task's hostname changes at every restart.
+      RABBITMQ_NODENAME: rabbit@localhost
+      RABBITMQ_DEFAULT_USER: plane
+      RABBITMQ_DEFAULT_PASS: ${PLANE_MQ_PASSWORD}
+      RABBITMQ_DEFAULT_VHOST: plane
+    volumes:
+      - mq-data:/var/lib/rabbitmq
+    labels:
+      - "vps.auto-update=patch"
+    networks:
+      - default
+
   minio:
     image: pgsty/silo:RELEASE.2026-09-16T00-00-00Z
     deploy:
@@ -275,6 +300,7 @@ services:
 volumes:
   db-data:
   redis-data:
+  mq-data:
   minio-data:
 
 networks:

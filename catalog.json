@@ -1442,6 +1442,12 @@
             "length": 40
           }
         },
+        "PLANE_MQ_PASSWORD": {
+          "generated": {
+            "alphabet": "alnum",
+            "length": 32
+          }
+        },
         "PLANE_SECRET_KEY": {
           "generated": {
             "alphabet": "alnum",
@@ -1455,6 +1461,7 @@
         "PLANE_SECRET_KEY={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}",
         "PLANE_LIVE_SECRET_KEY={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}",
         "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
+        "PLANE_MQ_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
         "PLANE_MINIO_ACCESS_KEY={{ lookup('password', '/dev/null length=20 chars=ascii_letters,digits') }}",
         "PLANE_MINIO_SECRET_KEY={{ lookup('password', '/dev/null length=40 chars=ascii_letters,digits') }}"
       ],

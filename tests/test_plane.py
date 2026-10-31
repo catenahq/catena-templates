@@ -51,6 +51,21 @@ def test_the_api_migrates_the_database_before_it_serves():
         assert "migrat" not in str(_compose()["services"][service]["command"])
 
 
+def test_the_celery_services_share_a_broker_with_a_generated_password():
+    compose = _compose()
+    assert _entry().block["env"]["PLANE_MQ_PASSWORD"]["generated"] == {"length": 32, "alphabet": "alnum"}
+    url = "amqp://plane:${PLANE_MQ_PASSWORD}@mq:5672/plane"
+    assert compose["services"]["api"]["environment"]["AMQP_URL"] == url
+    for service in ("worker", "beat-worker"):
+        assert compose["services"][service]["environment"]["AMQP_URL"] == url
+    mq = compose["services"]["mq"]
+    assert mq["image"].startswith("rabbitmq:")
+    assert mq["environment"]["RABBITMQ_DEFAULT_PASS"] == "${PLANE_MQ_PASSWORD}"
+    assert mq["environment"]["RABBITMQ_DEFAULT_VHOST"] == "plane"
+    assert "mq-data:/var/lib/rabbitmq" in mq["volumes"]
+    assert "mq-data" in compose["volumes"]
+
+
 def test_the_wait_ends_inside_the_hook_timeout():
     assert "time.monotonic() + 150" in _verify()[-1]
     assert 150 + 15 < _entry().block["hooks"]["timeout_seconds"] <= 300
