@@ -1285,7 +1285,7 @@ services:
   # `ghcr.io/nextcloud-releases/aio-talk` tags and picking the
   # most recent stable one (the upstream tag scheme is YYYYMMDD_HHMMSS).
   talk-hpb:
-    image: ghcr.io/nextcloud-releases/aio-talk:20261014_095932
+    image: ghcr.io/nextcloud-releases/aio-talk:20261029_171813
     init: true
     deploy:
       restart_policy:
