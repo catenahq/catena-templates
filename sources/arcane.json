@@ -10,6 +10,9 @@
   "x-catena": {
     "app_name": "catena-arcane",
     "upstream_url": "https://getarcane.app/",
+    "logo": {
+      "source": "https://raw.githubusercontent.com/getarcaneapp/arcane/3d459173ccb08de4531411a3c0d7e73d145cfa92/backend/resources/images/logo.svg"
+    },
     "sso_mode": "none",
     "domain": {
       "host": "arcane.{{ cloudflare_zone }}",

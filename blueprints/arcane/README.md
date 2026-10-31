@@ -12,6 +12,7 @@ A modern web console for Docker: manage containers, images, volumes, networks an
 - **Replaces:** **Docker command line**, **Docker Desktop**
 - **Sign-in (SSO):** Not available. This application's community edition has no OIDC support, so each account keeps a per-application login.
 - **Address:** `arcane.yourdomain.com`, served from `arcane:3552`
+- **Logo:** <https://raw.githubusercontent.com/getarcaneapp/arcane/3d459173ccb08de4531411a3c0d7e73d145cfa92/backend/resources/images/logo.svg>.
 
 The address is attached when the template is deployed. A different one is
 arranged beforehand, on request.
@@ -45,6 +46,7 @@ Une console web moderne pour Docker : gérer les conteneurs, images, volumes, r�
 - **Remplace :** **Ligne de commande Docker**, **Docker Desktop**
 - **Connexion (SSO) :** Non disponible. L'édition communautaire de cette application n'a pas de support OIDC : chaque compte garde un identifiant propre à l'application.
 - **Adresse :** `arcane.yourdomain.com`, servie par `arcane:3552`
+- **Logo :** <https://raw.githubusercontent.com/getarcaneapp/arcane/3d459173ccb08de4531411a3c0d7e73d145cfa92/backend/resources/images/logo.svg>.
 
 L'adresse est attachée au déploiement du modèle. Une autre se convient au
 préalable, sur demande.
