@@ -11,6 +11,9 @@
   "x-catena": {
     "app_name": "catena-immich",
     "upstream_url": "https://immich.app",
+    "logo": {
+      "source": "https://raw.githubusercontent.com/immich-app/immich/3184b1532fd74a0b777207f8a86e9efe7dafce65/design/immich-logo.svg"
+    },
     "sso_mode": "pre-wired",
     "domain": {
       "host": "photos.{{ cloudflare_zone }}",

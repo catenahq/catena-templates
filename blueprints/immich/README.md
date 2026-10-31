@@ -12,6 +12,7 @@ Photo and video library with automatic backup from phones, albums, sharing, face
 - **Replaces:** **Google Photos**, **iCloud Photos**, **Amazon Photos**
 - **Sign-in (SSO):** Pre-wired. Within a few minutes of the first deploy, the server gives the application its own sign-in entry in Keycloak and the application restarts once with it; the login page then offers Keycloak, with no step to take.
 - **Address:** `photos.yourdomain.com`, served from `immich-server:2283`
+- **Logo:** <https://raw.githubusercontent.com/immich-app/immich/3184b1532fd74a0b777207f8a86e9efe7dafce65/design/immich-logo.svg>.
 
 The address is attached when the template is deployed. A different one is
 arranged beforehand, on request.
@@ -61,6 +62,7 @@ Bibliothèque de photos et vidéos avec sauvegarde automatique depuis les télé
 - **Remplace :** **Google Photos**, **Photos iCloud**, **Amazon Photos**
 - **Connexion (SSO) :** Pré-câblé. Dans les minutes qui suivent le premier déploiement, le serveur donne à l'application sa propre entrée de connexion dans Keycloak et l'application redémarre une fois avec elle ; la page de connexion propose alors Keycloak, sans aucune étape à effectuer.
 - **Adresse :** `photos.yourdomain.com`, servie par `immich-server:2283`
+- **Logo :** <https://raw.githubusercontent.com/immich-app/immich/3184b1532fd74a0b777207f8a86e9efe7dafce65/design/immich-logo.svg>.
 
 L'adresse est attachée au déploiement du modèle. Une autre se convient au
 préalable, sur demande.

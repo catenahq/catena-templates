@@ -130,6 +130,9 @@ services:
       # library on a separately mounted disk is one Environment value.
       - ${UPLOAD_LOCATION}:/data
     labels:
+      - "vps.homepage.name=Immich"
+      - "vps.homepage.description=Photo and video library with automatic backup from phones, albums and sharing."
+      - "vps.homepage.description-fr=Bibliothèque de photos et de vidéos avec sauvegarde automatique depuis les téléphones, albums et partage."
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=2283"
       - "vps.auth.mode=public"
