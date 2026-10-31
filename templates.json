@@ -2,59 +2,6 @@
   "templates": [
     {
       "categories": [
-        "ERP",
-        "Business",
-        "Helpdesk"
-      ],
-      "description": "Requires Catena 0.11.10 or later. Open-source ERP (accounting/inventory/HR/CRM/manufacturing) with a helpdesk. Replaces SAP / Odoo / NetSuite.",
-      "env": [
-        {
-          "default": "desk.",
-          "label": "Domain",
-          "name": "DOMAIN_HOST"
-        },
-        {
-          "default": "desk.",
-          "label": "Erpnext hostname",
-          "name": "ERPNEXT_HOSTNAME"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
-          "label": "Erpnext admin password",
-          "name": "ERPNEXT_ADMIN_PASSWORD"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
-          "label": "Database root password",
-          "name": "DB_ROOT_PASSWORD"
-        },
-        {
-          "default": "erpnext,telephony,helpdesk",
-          "label": "Frappe apps",
-          "name": "FRAPPE_APPS"
-        },
-        {
-          "default": "off",
-          "label": "ERPNext issue and task forms",
-          "name": "ERPNEXT_WEB_FORMS"
-        }
-      ],
-      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/erpnext-helpdesk/logo.png",
-      "maintainer": "https://github.com/catenahq/catena-templates",
-      "name": "catena-erpnext-helpdesk",
-      "note": "<p>Requires Catena 0.11.10 or later.</p><p>Full open-source ERP suite -- accounting, inventory, HR/payroll, CRM, manufacturing, projects, a built-in website/e-commerce module, and a helpdesk linked to its customers.</p><p>Replaces SAP Business One, Odoo, Oracle NetSuite.</p><p><a href=\"https://github.com/catenahq/catena-templates/blob/main/blueprints/erpnext-helpdesk/README.md\">https://github.com/catenahq/catena-templates/blob/main/blueprints/erpnext-helpdesk/README.md</a></p>",
-      "platform": "linux",
-      "repository": {
-        "stackfile": "blueprints/erpnext-helpdesk/docker-compose.yml",
-        "url": "https://github.com/catenahq/catena-templates"
-      },
-      "title": "ERPNext with Helpdesk",
-      "type": 2
-    },
-    {
-      "categories": [
         "Marketing",
         "Social"
       ],

@@ -1,5 +1,6 @@
 x-catena:
   schema: 2
+  requires_catena: 0.11.12
   env:
     DOMAIN_HOST:
       setting: {default: "desk.{{ cloudflare_zone }}"}
@@ -56,6 +57,21 @@ x-catena:
             process.exit(1);
           })();
     timeout_seconds: 3600
+  images:
+    backend:
+      rule: {kind: build_suffix, registry: ghcr.io, repo: catenahq/erpnext-helpdesk, tag_pattern: 'v16\.\d+\.\d+-\d+'}
+    frontend:
+      rule: {kind: build_suffix, registry: ghcr.io, repo: catenahq/erpnext-helpdesk, tag_pattern: 'v16\.\d+\.\d+-\d+'}
+    websocket:
+      rule: {kind: build_suffix, registry: ghcr.io, repo: catenahq/erpnext-helpdesk, tag_pattern: 'v16\.\d+\.\d+-\d+'}
+    queue-default:
+      rule: {kind: build_suffix, registry: ghcr.io, repo: catenahq/erpnext-helpdesk, tag_pattern: 'v16\.\d+\.\d+-\d+'}
+    queue-short:
+      rule: {kind: build_suffix, registry: ghcr.io, repo: catenahq/erpnext-helpdesk, tag_pattern: 'v16\.\d+\.\d+-\d+'}
+    queue-long:
+      rule: {kind: build_suffix, registry: ghcr.io, repo: catenahq/erpnext-helpdesk, tag_pattern: 'v16\.\d+\.\d+-\d+'}
+    scheduler:
+      rule: {kind: build_suffix, registry: ghcr.io, repo: catenahq/erpnext-helpdesk, tag_pattern: 'v16\.\d+\.\d+-\d+'}
   # Once its start has finished, the scheduler's process is the container's first
   # process, so an exec into it proves it runs; while the start waits for the
   # backend the first process is bash. From there the check asks the app server
@@ -94,21 +110,6 @@ x-catena:
           PY
   data:
     db: {volume: db-data, upgrade: dump_restore}
-  images:
-    backend:
-      rule: {kind: build_suffix, registry: ghcr.io, repo: catenahq/erpnext-helpdesk, tag_pattern: 'v16\.\d+\.\d+-\d+'}
-    frontend:
-      rule: {kind: build_suffix, registry: ghcr.io, repo: catenahq/erpnext-helpdesk, tag_pattern: 'v16\.\d+\.\d+-\d+'}
-    websocket:
-      rule: {kind: build_suffix, registry: ghcr.io, repo: catenahq/erpnext-helpdesk, tag_pattern: 'v16\.\d+\.\d+-\d+'}
-    queue-default:
-      rule: {kind: build_suffix, registry: ghcr.io, repo: catenahq/erpnext-helpdesk, tag_pattern: 'v16\.\d+\.\d+-\d+'}
-    queue-short:
-      rule: {kind: build_suffix, registry: ghcr.io, repo: catenahq/erpnext-helpdesk, tag_pattern: 'v16\.\d+\.\d+-\d+'}
-    queue-long:
-      rule: {kind: build_suffix, registry: ghcr.io, repo: catenahq/erpnext-helpdesk, tag_pattern: 'v16\.\d+\.\d+-\d+'}
-    scheduler:
-      rule: {kind: build_suffix, registry: ghcr.io, repo: catenahq/erpnext-helpdesk, tag_pattern: 'v16\.\d+\.\d+-\d+'}
 
 x-common: &frappe-env
   SITE_NAME: ${ERPNEXT_HOSTNAME}
@@ -202,9 +203,6 @@ services:
       - sites:/home/frappe/frappe-bench/sites
       - logs:/home/frappe/frappe-bench/logs
     labels:
-      - "vps.homepage.name=ERPNext with Helpdesk"
-      - "vps.homepage.description=Business management with a customer support desk linked to the customer records."
-      - "vps.homepage.description-fr=Gestion d'entreprise avec un service d'assistance lié aux dossiers des clients."
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=8080"
       - "vps.auth.mode=public"

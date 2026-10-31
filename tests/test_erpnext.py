@@ -209,7 +209,6 @@ def test_the_two_apps_default_to_different_addresses():
 def test_the_app_is_named_after_its_id(slug):
     entry = _entry(slug)
     assert entry.catena["app_name"] == f"catena-{slug}"
-    assert entry.card or entry.raw["name"] == f"catena-{slug}"
 
 
 def test_the_plain_app_runs_frappes_own_image_and_installs_erpnext_alone():
@@ -302,7 +301,7 @@ def test_the_block_offers_the_customer_level_and_runs_no_group_hook(slug):
 @each_signin_app
 def test_the_entry_needs_the_release_that_reads_the_sign_in_labels(slug):
     entry = _entry(slug)
-    assert entry.requires_catena == ("0.11.12" if entry.card else "0.11.10")
+    assert entry.card and entry.requires_catena == "0.11.12"
     assert entry.catena["sso_mode"] == "pre-wired"
 
 

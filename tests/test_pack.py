@@ -20,7 +20,6 @@ APPS = sorted(p.parent.name for p in CATALOG.glob("*/docker-compose.yml"))
 # commit that puts an app in normal form deletes its line.
 OUT_OF_FORM = {
     "clamav": "images is out of order",
-    "erpnext-helpdesk": "images is out of order",
 }
 
 SERVICES = "services:\n  web:\n    image: web:1.0\n"
