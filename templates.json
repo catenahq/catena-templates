@@ -416,7 +416,7 @@
           "name": "JITSI_JVB_AUTH_PASSWORD"
         }
       ],
-      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/rocketchat-oidc/logo.svg",
+      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/rocketchat-oidc/logo.png",
       "maintainer": "https://github.com/catenahq/catena-templates",
       "name": "catena-rocketchat",
       "note": "<p>Requires Catena 0.11.3 or later.</p><p>Team chat -- channels, direct messages, file sharing, mobile apps, and video calls. Keycloak SSO pre-wired.</p><p>Replaces Slack, Microsoft Teams, Discord (for work).</p><p><a href=\"https://github.com/catenahq/catena-templates/blob/main/blueprints/rocketchat-oidc/README.md\">https://github.com/catenahq/catena-templates/blob/main/blueprints/rocketchat-oidc/README.md</a></p>",

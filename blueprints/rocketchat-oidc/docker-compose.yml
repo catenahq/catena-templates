@@ -205,6 +205,9 @@ services:
       Jitsi_URL_Room_Hash: "false"
       Jitsi_Enable_Channels: "true"
     labels:
+      - "vps.homepage.name=Rocket.Chat"
+      - "vps.homepage.description=Team chat with channels, direct messages and file sharing."
+      - "vps.homepage.description-fr=Messagerie d'équipe avec canaux, messages directs et partage de fichiers."
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=3000"
       - "vps.route.main=true"
