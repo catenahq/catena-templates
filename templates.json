@@ -2,50 +2,6 @@
   "templates": [
     {
       "categories": [
-        "Productivity",
-        "Documents"
-      ],
-      "description": "Collaborative DOCX/XLSX/PPTX editor. Embedded in Nextcloud. Replaces Office 365 / Google Docs as the embedded editor.",
-      "env": [
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
-          "label": "Domain",
-          "name": "DOMAIN_HOST"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
-          "label": "JWT secret",
-          "name": "JWT_SECRET"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
-          "label": "Office editor",
-          "name": "OFFICE_EDITOR"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
-          "label": "Office URL",
-          "name": "OFFICE_URL"
-        }
-      ],
-      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/onlyoffice/logo.png",
-      "maintainer": "https://github.com/catenahq/catena-templates",
-      "name": "catena-onlyoffice",
-      "note": "<p>Collaborative DOCX/XLSX/PPTX editing -- bolts into Nextcloud for real-time co-editing with high MS Office fidelity.</p><p>Replaces Microsoft Office Online, Google Docs (as embedded editor).</p><p><a href=\"https://github.com/catenahq/catena-templates/blob/main/blueprints/onlyoffice/README.md\">https://github.com/catenahq/catena-templates/blob/main/blueprints/onlyoffice/README.md</a></p>",
-      "platform": "linux",
-      "repository": {
-        "stackfile": "blueprints/onlyoffice/docker-compose.yml",
-        "url": "https://github.com/catenahq/catena-templates"
-      },
-      "title": "OnlyOffice",
-      "type": 2
-    },
-    {
-      "categories": [
         "Communication",
         "Chat"
       ],
