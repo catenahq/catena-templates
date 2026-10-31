@@ -87,7 +87,9 @@ the repository, and the checks.
   `services.yml`, `settings.yml`, `access.yml`, `lifecycle.yml` and `hooks/`, never
   its `docker-compose.yml`, which the render packs from them (`lib/pack.py`; README.md,
   "An app held as neat files"). A file in `hooks/` that `lifecycle.yml` does not
-  name stops the render.
+  name stops the render. A snippet version (`snippets/<name>/<n>.<ext>`) that two or
+  more apps include is never edited: add a version and move each app to it in its own
+  commit.
 - A file's or field's class (runtime, verification or presentation) comes from
   `lib/versions.py` (`FILE_CLASSES`, `FIELD_CLASSES`). A new file type or field
   gets a row there; anything unlisted is runtime.

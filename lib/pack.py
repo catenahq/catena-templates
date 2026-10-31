@@ -12,17 +12,28 @@ An app is held as neat files when `blueprints/<id>/` holds `services.yml`:
   hooks/<hook>[-<n>].<ext>
                   one hook script per file, each `$` written once
 
+and, shared by apps and belonging to none, at the root of the tree:
+
+  snippets/<name>/<n>.<ext>
+                  a part of hook scripts, one file per version, each `$` written once
+
 `pack` writes `x-catena:` and `  schema: 2`, then the text of each block key in
 `ORDER`, every line indented two spaces, one empty line and `services.yml` as it is.
 A key's text runs from the blank and comment lines just above it to the next key, so
 a comment travels with the key below it. In `lifecycle.yml`'s `hooks`, an item
-`- {file: hooks/<name>}` becomes `- |` followed by the file's lines, each indented two
-past the dash and each `$` written `$$`. The packed file is what hosts, the bench and
-every check read; the render commits it beside the neat files.
+`- {file: hooks/<name>}`, `- {include: [<snippet>/<n>, ...]}` or
+`- {file: hooks/<name>, include: [<snippet>/<n>, ...]}` becomes `- |` followed by the
+snippets' lines, then the file's, each indented two past the dash and each `$` written
+`$$`. An include names an existing snippet file with the script's extension. A snippet
+version no app includes is refused unless it is the newest of its snippet, and so are
+two versions of a snippet with the same text. The packed file is what hosts, the bench
+and every check read; the render commits it beside the neat files.
 
 `unpack` cuts a packed compose into the neat files and writes them only when packing
-them gives the compose back byte for byte. A compose out of normal form is refused with
-the change to make. Pack reads text and PyYAML's node positions only.
+them gives the compose back byte for byte. A script body that begins with a snippet's
+text (`$$` read as `$`) is written as an include of it, the longest snippet first. A
+compose out of normal form is refused with the change to make. Pack reads text and
+PyYAML's node positions only.
 """
 from __future__ import annotations
 
@@ -39,6 +50,7 @@ COMPOSE = "docker-compose.yml"
 BLOCK_KEY = "x-catena"
 SERVICES = "services.yml"
 HOOKS_DIR = "hooks"
+SNIPPETS_DIR = "snippets"
 
 # The block keys each section file holds.
 SECTIONS = {
@@ -57,8 +69,11 @@ NEAT_FILES = (SERVICES, *SECTIONS)
 INTERPRETERS = {"sh": "sh", "bash": "sh", "python3": "py", "python": "py", "node": "js", "php": "php"}
 
 _KEY = re.compile(r"[A-Za-z_][A-Za-z0-9_-]*(?=:(?: |$))")
-_INCLUDE = re.compile(r"( *)- \{file: (hooks/[A-Za-z0-9._-]+)\}")
+_ITEM = re.compile(r"(?P<indent> *)- \{(?:file: (?P<file>hooks/[A-Za-z0-9._-]+)"
+                   r"(?:, include: \[(?P<both>[^\]]*)\])?|include: \[(?P<only>[^\]]*)\])\}")
 _INCLUDE_FORM = re.compile(r"\s*- \{\s*(?:file|include)\s*:")
+_REF = re.compile(r"([a-z0-9][a-z0-9-]*)/([1-9][0-9]*)")
+_SNIPPET_PATH = re.compile(r"snippets/([a-z0-9][a-z0-9-]*)/([1-9][0-9]*)\.([a-z]+)")
 _HEADER = re.compile(r"( *)- \|")
 _ODD_DOLLARS = re.compile(r"(?<!\$)(?:\$\$)*\$(?!\$)")
 _APP = re.compile(r"[a-z0-9][a-z0-9-]*")
@@ -168,23 +183,80 @@ def _scripts(lines: list[str]) -> list[tuple[str, int, str, int]]:
     return found
 
 
-def _expand_hooks(chunk: list[str], first: int, hooks: dict[str, str], where: str) -> tuple[list[str], list[str]]:
-    """The `hooks` text with each `- {file: ...}` item written out, and the files used."""
+class _Snippet:
+    """One snippet file: its path, extension, lines and text."""
+
+    def __init__(self, path: str, ext: str, text: str):
+        self.path, self.ext, self.text = path, ext, text
+        self.lines = _hook_lines(path, text, path)
+
+
+def _snippet_index(snippets: dict[str, str]) -> dict[str, _Snippet]:
+    """The snippet files (`snippets/<name>/<n>.<ext>` to text) by `<name>/<n>`, or the
+    reason one is not a snippet."""
+    index, texts = {}, {}
+    for path in sorted(snippets):
+        match = _SNIPPET_PATH.fullmatch(path)
+        if not match or match[3] not in INTERPRETERS.values():
+            raise PackError(f"{path}: not a snippet file; {SNIPPETS_DIR}/<name>/<n>.<ext> is expected, "
+                            f"<n> counting from 1 and <ext> one of {', '.join(sorted(set(INTERPRETERS.values())))}")
+        ref = f"{match[1]}/{match[2]}"
+        if ref in index:
+            raise PackError(f"{path}: {ref} is already held in {index[ref].path}")
+        index[ref] = _Snippet(path, match[3], snippets[path])
+        if (match[1], snippets[path]) in texts:
+            raise PackError(f"{path}: holds the text of {texts[match[1], snippets[path]]}; "
+                            f"a snippet keeps one version per text")
+        texts[match[1], snippets[path]] = path
+    return index
+
+
+def _unused_snippets(snippets: dict[str, str], included: set[str]) -> None:
+    """Refuse a snippet version no app includes unless it is the newest of its snippet."""
+    index = _snippet_index(snippets)
+    newest = {}
+    for ref in index:
+        name, n = ref.split("/")
+        newest[name] = max(newest.get(name, 0), int(n))
+    for ref, snippet in index.items():
+        name, n = ref.split("/")
+        if snippet.path not in included and int(n) != newest[name]:
+            raise PackError(f"{snippet.path}: no app includes this version and {name}/{newest[name]} is "
+                            f"newer; delete it")
+
+
+def _expand_hooks(chunk: list[str], first: int, hooks: dict[str, str], where: str,
+                  index: dict[str, _Snippet], included: set[str]) -> tuple[list[str], list[str]]:
+    """The `hooks` text with each `- {file: ...}` and `- {include: ...}` item written out,
+    and the files used; the snippet files used join `included`."""
     out, source, placed, used = [], [], {}, []
     for n, line in enumerate(chunk):
-        match = _INCLUDE.fullmatch(line)
+        match = _ITEM.fullmatch(line)
         if not match:
             if _INCLUDE_FORM.match(line):
-                raise PackError(f"{where}:{first + n + 1}: only `- {{file: hooks/<name>}}` is read here")
+                raise PackError(f"{where}:{first + n + 1}: only `- {{file: hooks/<name>}}`, "
+                                f"`- {{include: [<snippet>/<n>, ...]}}` or `- {{file: hooks/<name>, "
+                                f"include: [<snippet>/<n>, ...]}}` is read here")
             out.append(line)
             source.append(n)
             continue
-        indent, name = match.groups()
-        if name not in hooks:
-            raise PackError(f"{where}:{first + n + 1}: {name} does not exist")
-        body = _hook_lines(name, hooks[name], f"{Path(where).parent / name}")
-        placed[len(out)] = (name, n)
-        used.append(name)
+        indent, name = match["indent"], match["file"]
+        listed = match["both"] if match["both"] is not None else match["only"]
+        refs = listed.split(", ") if listed is not None else []
+        body = []
+        for ref in refs:
+            if not _REF.fullmatch(ref):
+                raise PackError(f"{where}:{first + n + 1}: {ref!r} is not <snippet>/<n>")
+            if ref not in index:
+                raise PackError(f"{where}:{first + n + 1}: the snippet {ref} does not exist")
+            body += index[ref].lines
+            included.add(index[ref].path)
+        if name:
+            if name not in hooks:
+                raise PackError(f"{where}:{first + n + 1}: {name} does not exist")
+            body += _hook_lines(name, hooks[name], f"{Path(where).parent / name}")
+            used.append(name)
+        placed[len(out)] = (name, n, refs)
         out.append(f"{indent}- |")
         source.append(n)
         for text in body:
@@ -196,20 +268,28 @@ def _expand_hooks(chunk: list[str], first: int, hooks: dict[str, str], where: st
         if header not in placed:
             raise PackError(f"{where}:{first + source[header] + 1}: the script of {hook} is inline; "
                             f"move it to {expected}")
-        name, n = placed[header]
-        if name != expected:
+        name, n, refs = placed[header]
+        if name and name != expected:
             raise PackError(f"{where}:{first + n + 1}: {name} is not named after its place; "
                             f"this script of {hook} is {expected}")
-    if len(scripts) != len(used):
-        stray = next(n for h, (name, n) in placed.items() if h not in {s[3] for s in scripts})
+        for ref in refs:
+            if index[ref].ext != ext:
+                raise PackError(f"{where}:{first + n + 1}: {index[ref].path} is not a .{ext} file; "
+                                f"this script of {hook} is one")
+    if len(scripts) != len(placed):
+        stray = next(n for h, (name, n, refs) in placed.items() if h not in {s[3] for s in scripts})
         raise PackError(f"{where}:{first + stray + 1}: {chunk[stray].strip()} is not the last item of "
                         f"[interpreter, flag, body] of a hook")
     return out, used
 
 
-def pack_texts(neat: dict[str, str], hooks: dict[str, str], prefix: str = "") -> str:
+def pack_texts(neat: dict[str, str], hooks: dict[str, str], prefix: str = "",
+               snippets: dict[str, str] | None = None, included: set[str] | None = None) -> str:
     """The packed compose of an app's neat files (`neat`: file name to text, `hooks`:
-    `hooks/<name>` to text); `prefix` opens the paths of error messages."""
+    `hooks/<name>` to text, `snippets`: `snippets/<name>/<n>.<ext>` to text); `prefix`
+    opens the paths of error messages; the snippet files the app includes join `included`."""
+    index = _snippet_index(snippets or {})
+    included = set() if included is None else included
     if SERVICES not in neat:
         raise PackError(f"{prefix}{SERVICES}: missing")
     services = _lines(neat[SERVICES], prefix + SERVICES)
@@ -244,7 +324,7 @@ def pack_texts(neat: dict[str, str], hooks: dict[str, str], prefix: str = "") ->
                                 f"{ORDER[previous]}: {', '.join(ORDER)}")
             previous = ORDER.index(key)
             if key == "hooks":
-                chunk, files = _expand_hooks(chunk, start, hooks, where)
+                chunk, files = _expand_hooks(chunk, start, hooks, where, index, included)
                 used += files
             chunks[key] = (name, chunk)
     for name in sorted(set(hooks) - set(used)):
@@ -273,11 +353,30 @@ def _read_neat(folder: Path) -> tuple[dict[str, str], dict[str, str]]:
     return neat, hooks
 
 
+def _read_snippets(tree: Path) -> dict[str, str]:
+    """The files under the tree's `snippets/` folder, by path from the tree."""
+    folder = tree / SNIPPETS_DIR
+    if folder.is_symlink():
+        raise PackError(f"{SNIPPETS_DIR}: a link")
+    snippets = {}
+    if folder.is_dir():
+        for path in sorted(folder.rglob("*")):
+            rel = path.relative_to(tree).as_posix()
+            if path.is_symlink():
+                raise PackError(f"{rel}: a link")
+            if path.is_file():
+                snippets[rel] = _read(path)
+    return snippets
+
+
 def pack_all(root: Path | None = None) -> list[Path]:
     """Pack every folder holding `services.yml`; the compose files written. A section file
-    or a `hooks/` folder in a folder without `services.yml` is refused."""
+    or a `hooks/` folder in a folder without `services.yml` is refused, and so is a snippet
+    version that no app includes while a newer one exists. Nothing is written on a refusal."""
     base = (root / "blueprints") if root else BLUEPRINTS
-    written = []
+    snippets = _read_snippets(base.parent)
+    included: set[str] = set()
+    packed = []
     for folder in sorted(p for p in base.glob("*") if p.is_dir()):
         if not (folder / SERVICES).is_file():
             for name in (*SECTIONS, HOOKS_DIR):
@@ -286,15 +385,17 @@ def pack_all(root: Path | None = None) -> list[Path]:
                                     f"so nothing reads this")
             continue
         neat, hooks = _read_neat(folder)
-        text = pack_texts(neat, hooks, f"blueprints/{folder.name}/")
+        text = pack_texts(neat, hooks, f"blueprints/{folder.name}/", snippets, included)
         target = folder / COMPOSE
         if not target.is_file() or _read(target) != text:
-            target.write_text(text, encoding="utf-8", newline="")
-            written.append(target)
-    return written
+            packed.append((target, text))
+    _unused_snippets(snippets, included)
+    for target, text in packed:
+        target.write_text(text, encoding="utf-8", newline="")
+    return [target for target, _ in packed]
 
 
-def _cut(text: str, where: str) -> tuple[dict[str, str], dict[str, str]]:
+def _cut(text: str, where: str, index: dict[str, _Snippet]) -> tuple[dict[str, str], dict[str, str]]:
     """The neat files of a packed compose, or the reason it is out of normal form."""
     lines = _lines(text, where)
     try:
@@ -340,7 +441,7 @@ def _cut(text: str, where: str) -> tuple[dict[str, str], dict[str, str]]:
     for n, name in enumerate(names):
         chunk = [line[2:] for line in block_lines[starts[n]:ends[n]]]
         if name == "hooks":
-            chunk, hooks = _extract_hooks(chunk, starts[n], where)
+            chunk, hooks = _extract_hooks(chunk, starts[n], where, index)
         home = next(file for file, keys in SECTIONS.items() if name in keys)
         sections.setdefault(home, []).extend(chunk)
     neat = {file: "\n".join(chunk) + "\n" for file, chunk in sections.items()}
@@ -348,8 +449,33 @@ def _cut(text: str, where: str) -> tuple[dict[str, str], dict[str, str]]:
     return neat, hooks
 
 
-def _extract_hooks(chunk: list[str], first: int, where: str) -> tuple[list[str], dict[str, str]]:
-    """The `hooks` text with each script written as a `- {file: ...}` item, and the files."""
+def _split_snippets(body: str, ext: str, index: dict[str, _Snippet]) -> tuple[list[str], str]:
+    """The snippets a script body begins with, longest first, and what follows them."""
+    found = sorted(((ref, s.text) for ref, s in index.items() if s.ext == ext), key=lambda p: -len(p[1]))
+    refs = []
+    while True:
+        for ref, text in found:
+            rest = body[len(text):]
+            if body.startswith(text) and (not rest or _valid_hook_text(rest)):
+                refs.append(ref)
+                body = rest
+                break
+        else:
+            return refs, body
+
+
+def _valid_hook_text(text: str) -> bool:
+    try:
+        _hook_lines("", text, "")
+    except PackError:
+        return False
+    return True
+
+
+def _extract_hooks(chunk: list[str], first: int, where: str,
+                   index: dict[str, _Snippet]) -> tuple[list[str], dict[str, str]]:
+    """The `hooks` text with each script written as a `- {file: ...}` and `- {include: ...}`
+    item, and the files."""
     files, out = {}, list(chunk)
     for hook, ordinal, ext, header in reversed(_scripts(chunk)):
         indent = len(_HEADER.fullmatch(chunk[header]).group(1))
@@ -371,8 +497,11 @@ def _extract_hooks(chunk: list[str], first: int, where: str) -> tuple[list[str],
         opening = next((line for line in body if line), None)
         if opening is None or opening.startswith(" "):
             raise PackError(f"{where}:{first + header + 1}: the script of {hook} is empty or starts with a space")
-        files[name] = "\n".join(body) + "\n"
-        out[header:end] = [f"{' ' * indent}- {{file: {name}}}"]
+        refs, rest = _split_snippets("\n".join(body) + "\n", ext, index)
+        parts = ([f"file: {name}"] if rest else []) + ([f"include: [{', '.join(refs)}]"] if refs else [])
+        if rest:
+            files[name] = rest
+        out[header:end] = [f"{' ' * indent}- {{{', '.join(parts)}}}"]
     return out, files
 
 
@@ -384,8 +513,9 @@ def unpack(app: str, root: Path | None = None) -> list[Path]:
     if (folder / SERVICES).exists():
         raise PackError(f"blueprints/{app}: already held as neat files")
     text = _read(folder / COMPOSE)
-    neat, hooks = _cut(text, where)
-    if pack_texts(neat, hooks, f"blueprints/{app}/") != text:
+    snippets = _read_snippets(folder.parent.parent)
+    neat, hooks = _cut(text, where, _snippet_index(snippets))
+    if pack_texts(neat, hooks, f"blueprints/{app}/", snippets) != text:
         raise PackError(f"{where}: does not pack back to the same bytes")
     written = []
     for name, body in {**neat, **hooks}.items():

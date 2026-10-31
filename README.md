@@ -39,6 +39,9 @@ blueprints/              # ONE directory per template -- what a host fetches at 
     README.md            # generated from the source prose, EN then FR
     logo.svg             # generated placeholder, absent a logo.png
 
+snippets/                # hand-edited; optional; hook script parts apps share:
+  <name>/<n>.<ext>       # one file per version, belonging to no app
+
 sources/                 # hand-edited metadata
   _meta.json             # template order + sizing measurement header
   <id>.json              # ONE file per template: the Portainer fields a human
@@ -114,12 +117,24 @@ that file (each `$` written once in the file, twice in the compose). A hook file
 named for its place (`verify.js`, `verify-2.sh`), ends with one newline and is
 referenced; any other layout stops the render with the file and line to fix.
 
+A part of a hook script several apps share is a snippet: `snippets/<name>/<n>.<ext>`
+at the root of the repository, one file per version, belonging to no app. An item
+`- {include: [<name>/<n>, ...]}` or `- {file: hooks/<name>, include: [<name>/<n>, ...]}`
+writes the snippets' text, then the file's. An include names an existing snippet file with
+the script's extension. A version two or more apps include is never edited, since the
+commit would change two packed composes and `scope` refuses it: add a version, move each
+app to it in its own commit, and delete the old version with the last app. A version one app
+includes may be edited in place, which is a runtime change of that app. A version no app
+includes is refused unless it is the newest of its snippet, and so are two versions of a
+snippet with the same text.
+
 Hosts, the bench and every check read the packed `docker-compose.yml`, so a change
 of neat files that packs to the same bytes changes no class (`lib/versions.py`) and
 runs no bench. `uv run build/pack.py unpack <id>` turns an app's compose (an import,
 another repository's app) into neat files, refusing one out of normal form (the
 block first, its keys in `ORDER`, one empty line after it) and writing nothing
-unless packing the files gives the compose back byte for byte.
+unless packing the files gives the compose back byte for byte. A script body that
+begins with a snippet's text becomes an include of it, the longest snippet first.
 
 ## Who reads this repository
 

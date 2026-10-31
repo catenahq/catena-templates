@@ -11,7 +11,7 @@ import pytest
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from lib import pack  # noqa: E402
+from lib import changes, pack, versions  # noqa: E402
 
 CATALOG = ROOT / "blueprints"
 APPS = sorted(p.parent.name for p in CATALOG.glob("*/docker-compose.yml"))
@@ -58,8 +58,28 @@ def _gap(text):
     return "\n".join(lines[:at] + [""] + lines[at:])
 
 
-def _pack(neat=None, hooks=None):
-    return pack.pack_texts({**NEAT, **(neat or {})}, {**HOOKS, **(hooks or {})}, "blueprints/web/")
+def _pack(neat=None, hooks=None, snippets=None):
+    return pack.pack_texts({**NEAT, **(neat or {})}, {**HOOKS, **(hooks or {})}, "blueprints/web/", snippets)
+
+
+def _hook(item, hook="verify", interpreter="sh"):
+    """A lifecycle.yml whose hook holds one script written as `item`."""
+    return f"hooks:\n  service: web\n  {hook}:\n    - - {interpreter}\n      - -c\n      - {item}\n"
+
+
+def _tree(tmp_path, apps, snippets):
+    """A scratch tree of apps held as neat files (each `lifecycle.yml` text by app id) and
+    the snippet files; the tree."""
+    for app, lifecycle in apps.items():
+        folder = tmp_path / "blueprints" / app
+        (folder / "hooks").mkdir(parents=True)
+        for name, text in {**NEAT, "lifecycle.yml": lifecycle}.items():
+            (folder / name).write_text(text)
+        (folder / "hooks" / "verify.sh").write_text("echo ok\n")
+    for path, text in snippets.items():
+        (tmp_path / path).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / path).write_text(text)
+    return tmp_path
 
 
 # the catalog
@@ -221,7 +241,14 @@ def test_pack_all_writes_the_compose_once(tmp_path):
     ({"settings.yml": "text\n"}, None, "holds no key"),
     ({"settings.yml": "env: {}"}, None, "does not end with a newline"),
     ({pack.SERVICES: "\nservices: {}\n"}, None, "starts with an empty line"),
-    ({"lifecycle.yml": LIFECYCLE.replace("{file: hooks/verify.sh}", "{include: [a/1]}")}, None, "only"),
+    ({"lifecycle.yml": LIFECYCLE.replace("{file: hooks/verify.sh}", "{include: a/1}")}, None, "only"),
+    ({"lifecycle.yml": LIFECYCLE.replace("{file: hooks/verify.sh}", "{include: [a/1], file: hooks/verify.sh}")},
+     None, "only"),
+    ({"lifecycle.yml": LIFECYCLE.replace("{file: hooks/verify.sh}", "{include: []}")}, None, "is not <snippet>/<n>"),
+    ({"lifecycle.yml": LIFECYCLE.replace("{file: hooks/verify.sh}", "{include: [a/0]}")}, None,
+     "is not <snippet>/<n>"),
+    ({"lifecycle.yml": LIFECYCLE.replace("{file: hooks/verify.sh}", "{include: [a/1]}")}, None,
+     "the snippet a/1 does not exist"),
     ({"lifecycle.yml": LIFECYCLE.replace("hooks/verify.sh", "hooks/other.sh")}, None, "does not exist"),
     ({"lifecycle.yml": LIFECYCLE.replace("hooks/verify.sh", "hooks/configure.sh")},
      {"hooks/configure.sh": "x\n"}, "not named after its place"),
@@ -264,12 +291,220 @@ def test_a_missing_services_file_is_refused():
         pack.pack_texts({"settings.yml": SETTINGS}, {})
 
 
+# snippets
+
+SNIPPETS = {"snippets/wait/1.sh": "wait one\n", "snippets/sign/1.sh": "sign $ONE\n"}
+BOTH = _hook("{file: hooks/verify.sh, include: [wait/1, sign/1]}")
+ONLY = _hook("{include: [wait/1, sign/1]}")
+
+
+def _packed_script(*lines, interpreter="sh"):
+    body = "".join(f"          {line}\n" for line in lines)
+    return ("x-catena:\n  schema: 2\n"
+            f"  hooks:\n    service: web\n    verify:\n      - - {interpreter}\n        - -c\n        - |\n"
+            f"{body}\n" + SERVICES)
+
+
+def test_snippets_come_before_the_file_in_the_order_of_the_include():
+    packed = _pack({"lifecycle.yml": BOTH}, snippets=SNIPPETS)
+    assert "          wait one\n          sign $$ONE\n          echo ok\n" in packed
+
+
+def test_an_include_alone_is_the_snippets_text_and_reads_no_hook_file():
+    packed = pack.pack_texts({**NEAT, "lifecycle.yml": ONLY}, {}, "blueprints/web/", SNIPPETS)
+    assert "        - |\n          wait one\n          sign $$ONE\n\n" in packed
+
+
+def test_a_snippet_on_a_hook_of_two_scripts_counts_in_the_name_of_the_second():
+    lifecycle = ONLY + "    - - sh\n      - -c\n      - {file: hooks/verify-2.sh}\n"
+    packed = pack.pack_texts({**NEAT, "lifecycle.yml": lifecycle}, {"hooks/verify-2.sh": "two\n"},
+                             "blueprints/web/", SNIPPETS)
+    assert packed.count("- |") == 2
+    with pytest.raises(pack.PackError, match="verify.sh is not named after its place"):
+        pack.pack_texts({**NEAT, "lifecycle.yml": lifecycle.replace("verify-2", "verify")},
+                        {"hooks/verify.sh": "two\n"}, "blueprints/web/", SNIPPETS)
+
+
+@pytest.mark.parametrize("lifecycle,snippets,reason", [
+    (_hook("{file: hooks/verify.sh, include: [wait/2]}"), SNIPPETS, "the snippet wait/2 does not exist"),
+    (_hook("{file: hooks/verify.sh, include: [wait/1]}"), {"snippets/wait/1.py": "x\n"}, "wait/1.py is not a .sh"),
+    (_hook("{file: hooks/verify.sh, include: [wait/1]}", interpreter="node"), SNIPPETS,
+     "is not named after its place"),
+    (_hook("{include: [wait/1]}", interpreter="node"), SNIPPETS, r"wait/1.sh is not a \.js file"),
+    (_hook("{file: hooks/verify.sh, include: [wait/1]}"), {"snippets/wait/1.sh": "wait"}, "exactly one newline"),
+    (_hook("{file: hooks/verify.sh, include: [wait/1]}"), {"snippets/wait/1.sh": " wait\n"},
+     "first line starts with a space"),
+    (_hook("{file: hooks/verify.sh}"), {"snippets/wait.sh": "x\n"}, "not a snippet file"),
+    (_hook("{file: hooks/verify.sh}"), {"snippets/wait/0.sh": "x\n"}, "not a snippet file"),
+    (_hook("{file: hooks/verify.sh}"), {"snippets/wait/1.txt": "x\n"}, "not a snippet file"),
+    (_hook("{file: hooks/verify.sh}"), {"snippets/wait/1.sh": "x\n", "snippets/wait/1.py": "x\n"},
+     "wait/1 is already held in snippets/wait/1.py"),
+    (_hook("{file: hooks/verify.sh}"), {"snippets/wait/1.sh": "x\n", "snippets/wait/2.sh": "x\n"},
+     "holds the text of snippets/wait/1.sh"),
+])
+def test_an_include_of_a_missing_or_misnamed_snippet_is_refused(lifecycle, snippets, reason):
+    with pytest.raises(pack.PackError, match=reason):
+        _pack({"lifecycle.yml": lifecycle}, snippets=snippets)
+
+
+def test_the_same_text_in_two_snippets_is_two_snippets():
+    snippets = {"snippets/wait/1.sh": "x\n", "snippets/sign/1.sh": "x\n"}
+    assert _pack(snippets=snippets) == PACKED
+
+
+def test_a_snippet_no_app_includes_is_refused_unless_it_is_the_newest_of_its_snippet(tmp_path):
+    tree = _tree(tmp_path, {"web": _hook("{file: hooks/verify.sh, include: [wait/2]}")},
+                 {"snippets/wait/1.sh": "one\n", "snippets/wait/2.sh": "two\n", "snippets/wait/3.sh": "three\n"})
+    with pytest.raises(pack.PackError, match=r"snippets/wait/1.sh: no app includes this version and wait/3 is newer"):
+        pack.pack_all(tree)
+    assert not (tree / "blueprints" / "web" / pack.COMPOSE).exists()
+    (tree / "snippets" / "wait" / "1.sh").unlink()
+    assert pack.pack_all(tree) == [tree / "blueprints" / "web" / pack.COMPOSE]
+
+
+def test_a_new_snippet_nobody_includes_yet_is_allowed(tmp_path):
+    tree = _tree(tmp_path, {"web": LIFECYCLE}, {"snippets/frappe-verify/1.sh": "one\n"})
+    assert pack.pack_all(tree) == [tree / "blueprints" / "web" / pack.COMPOSE]
+
+
+def test_an_edited_version_two_apps_include_changes_two_composes_and_fails_scope(tmp_path):
+    lifecycle = _hook("{file: hooks/verify.sh, include: [wait/1]}")
+    tree = _tree(tmp_path, {"one": lifecycle, "two": lifecycle}, {"snippets/wait/1.sh": "before\n"})
+    assert len(pack.pack_all(tree)) == 2
+    assert pack.pack_all(tree) == []
+    (tree / "snippets" / "wait" / "1.sh").write_text("after\n")
+    written = pack.pack_all(tree)
+    assert [p.parent.name for p in written] == ["one", "two"]
+    paths = [p.relative_to(tree).as_posix() for p in written] + ["snippets/wait/1.sh"]
+    assert versions.scope_errors(paths) == ["the change touches 2 apps (one, two); a commit or pull request "
+                                            "changes one app"]
+
+
+def test_an_edited_version_one_app_includes_changes_that_app_alone(tmp_path):
+    tree = _tree(tmp_path, {"one": _hook("{file: hooks/verify.sh, include: [wait/1]}"), "two": LIFECYCLE},
+                 {"snippets/wait/1.sh": "before\n"})
+    pack.pack_all(tree)
+    (tree / "snippets" / "wait" / "1.sh").write_text("after\n")
+    written = pack.pack_all(tree)
+    assert [p.parent.name for p in written] == ["one"]
+    assert versions.scope_errors([p.relative_to(tree).as_posix() for p in written] + ["snippets/wait/1.sh"]) == []
+
+
+def test_the_snippets_folder_belongs_to_no_app():
+    assert changes.app_ids(["snippets/wait/1.sh", "snippets/wait/2.sh"]) == []
+    assert changes.app_ids(["snippets/wait/1.sh", "blueprints/web/docker-compose.yml"]) == ["web"]
+    assert versions.scope_errors(["snippets/wait/1.sh", "blueprints/web/docker-compose.yml"]) == []
+
+
+def test_a_link_under_snippets_is_refused(tmp_path):
+    tree = _tree(tmp_path, {"web": LIFECYCLE}, {})
+    (tree / "snippets").mkdir()
+    (tree / "snippets" / "other").symlink_to(tree)
+    with pytest.raises(pack.PackError, match="snippets/other: a link"):
+        pack.pack_all(tree)
+
+
 # unpack
 
-def _unpack(tmp_path, text):
+def _unpack(tmp_path, text, snippets=None):
     tree = _scratch(tmp_path, "web", text)
+    for path, body in (snippets or {}).items():
+        (tree / path).parent.mkdir(parents=True, exist_ok=True)
+        (tree / path).write_text(body)
     pack.unpack("web", tree)
     return tree / "blueprints" / "web"
+
+
+def test_a_script_that_is_a_snippets_text_unpacks_into_an_include_alone(tmp_path):
+    folder = _unpack(tmp_path, _packed_script("wait one"), {"snippets/wait/1.sh": "wait one\n"})
+    assert "      - {include: [wait/1]}\n" in (folder / "lifecycle.yml").read_text()
+    assert not (folder / "hooks").exists()
+
+
+def test_a_script_that_begins_with_snippets_unpacks_into_them_then_a_file(tmp_path):
+    packed = _packed_script("wait one", "sign $$ONE", "echo $$HOME")
+    folder = _unpack(tmp_path, packed, SNIPPETS)
+    assert "      - {file: hooks/verify.sh, include: [wait/1, sign/1]}\n" in (folder / "lifecycle.yml").read_text()
+    assert (folder / "hooks" / "verify.sh").read_text() == "echo $HOME\n"
+
+
+def test_the_longest_snippet_that_begins_a_script_is_the_one_included(tmp_path):
+    snippets = {"snippets/short/1.sh": "a\n", "snippets/long/1.sh": "a\nb\n", "snippets/mid/1.sh": "a\nb\nc\nd\n"}
+    folder = _unpack(tmp_path, _packed_script("a", "b", "c"), snippets)
+    assert "- {include: [long/1, " not in (folder / "lifecycle.yml").read_text()
+    assert "- {file: hooks/verify.sh, include: [long/1]}" in (folder / "lifecycle.yml").read_text()
+    assert (folder / "hooks" / "verify.sh").read_text() == "c\n"
+
+
+def test_a_snippet_of_another_extension_or_text_is_not_included(tmp_path):
+    folder = _unpack(tmp_path, _packed_script("wait one", "x"),
+                     {"snippets/wait/1.py": "wait one\n", "snippets/other/1.sh": "wait two\n"})
+    assert "include" not in (folder / "lifecycle.yml").read_text()
+    assert (folder / "hooks" / "verify.sh").read_text() == "wait one\nx\n"
+
+
+def test_a_snippet_that_would_leave_a_file_starting_with_a_space_is_not_included(tmp_path):
+    folder = _unpack(tmp_path, _packed_script("if x; then", "  y", "fi"), {"snippets/cut/1.sh": "if x; then\n"})
+    assert "include" not in (folder / "lifecycle.yml").read_text()
+
+
+@pytest.mark.parametrize("lifecycle", [BOTH, ONLY, _hook("{file: hooks/verify.sh}")])
+def test_pack_then_unpack_and_unpack_then_pack_change_nothing(tmp_path, lifecycle):
+    hooks = {} if lifecycle == ONLY else HOOKS
+    neat = {**NEAT, "lifecycle.yml": lifecycle}
+    text = pack.pack_texts(neat, hooks, "blueprints/web/", SNIPPETS)
+    folder = _unpack(tmp_path, text, SNIPPETS)
+    assert pack._read_neat(folder) == (neat, hooks)
+    assert pack.pack_texts(*pack._read_neat(folder), snippets=SNIPPETS) == text
+
+
+def test_erpnexts_verify_script_unpacks_into_the_snippet_that_holds_it(tmp_path):
+    plain = _scratch(tmp_path / "plain", "erpnext")
+    pack.unpack("erpnext", plain)
+    script = (plain / "blueprints" / "erpnext" / "hooks" / "verify.sh").read_text()
+    tree = _scratch(tmp_path / "shared", "erpnext")
+    (tree / "snippets" / "frappe-verify").mkdir(parents=True)
+    (tree / "snippets" / "frappe-verify" / "1.sh").write_text(script)
+    original = (tree / "blueprints" / "erpnext" / pack.COMPOSE).read_bytes()
+    pack.unpack("erpnext", tree)
+    folder = tree / "blueprints" / "erpnext"
+    assert "- {include: [frappe-verify/1]}" in (folder / "lifecycle.yml").read_text()
+    assert not (folder / "hooks" / "verify.sh").exists()
+    (folder / pack.COMPOSE).unlink()
+    assert pack.pack_all(tree) == [folder / pack.COMPOSE]
+    assert (folder / pack.COMPOSE).read_bytes() == original
+
+
+@pytest.mark.parametrize("app", [a for a in APPS if a not in OUT_OF_FORM])
+def test_an_app_round_trips_with_every_script_of_the_catalog_as_a_snippet(tmp_path, app):
+    plain = _scratch(tmp_path / "plain", app)
+    pack.unpack(app, plain)
+    scripts = sorted((plain / "blueprints" / app).glob("hooks/*"))
+    tree = _scratch(tmp_path / "shared", app)
+    original = (tree / "blueprints" / app / pack.COMPOSE).read_bytes()
+    for n, script in enumerate(scripts, 1):
+        ext = script.suffix[1:]
+        (tree / "snippets" / f"s{n}").mkdir(parents=True, exist_ok=True)
+        (tree / "snippets" / f"s{n}" / f"1.{ext}").write_text(script.read_text())
+    pack.unpack(app, tree)
+    assert len(list((tree / "blueprints" / app).glob("hooks/*"))) == 0
+    (tree / "blueprints" / app / pack.COMPOSE).unlink()
+    pack.pack_all(tree)
+    assert (tree / "blueprints" / app / pack.COMPOSE).read_bytes() == original
+
+
+def test_a_snippet_no_script_begins_with_stays_unused_at_unpack(tmp_path):
+    folder = _unpack(tmp_path, PACKED, {"snippets/wait/1.sh": "wait one\n"})
+    assert (folder / "hooks" / "verify.sh").read_text() == "echo ok\n"
+
+
+def test_a_snippet_file_that_is_not_one_stops_unpack_and_nothing_is_written(tmp_path):
+    tree = _scratch(tmp_path, "web", PACKED)
+    (tree / "snippets").mkdir()
+    (tree / "snippets" / "stray.txt").write_text("x\n")
+    with pytest.raises(pack.PackError, match="not a snippet file"):
+        pack.unpack("web", tree)
+    assert [p.name for p in (tree / "blueprints" / "web").iterdir()] == [pack.COMPOSE]
 
 
 def test_a_packed_compose_unpacks_into_the_files_that_pack_it(tmp_path):
