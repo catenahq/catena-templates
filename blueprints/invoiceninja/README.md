@@ -12,6 +12,7 @@ Open-source invoicing with Stripe + PayPal payment gateways, recurring billing, 
 - **Replaces:** **FreshBooks**, **QuickBooks (invoicing module)**, **Zoho Invoice**, **Harvest (invoicing)**
 - **Sign-in (SSO):** Enabled from the application's own admin screens: the `OIDC_*` values from the Environment tab are pasted in once.
 - **Address:** `invoice.yourdomain.com`, served from `nginx:80`
+- **Logo:** <https://raw.githubusercontent.com/xneo1/portainer_templates/bdd2703fc2662aa73c87d2b432b751c5c23b7e8b/Images/invoice_ninja.png>.
 
 The address is attached when the template is deployed. A different one is
 arranged beforehand, on request.
@@ -85,6 +86,7 @@ Facturation open-source avec passerelles de paiement Stripe + PayPal, facturatio
 - **Remplace :** **FreshBooks**, **QuickBooks (module facturation)**, **Zoho Invoice**, **Harvest (facturation)**
 - **Connexion (SSO) :** À activer depuis les écrans d'administration de l'application : les valeurs `OIDC_*` de l'onglet Environment y sont collées une fois.
 - **Adresse :** `invoice.yourdomain.com`, servie par `nginx:80`
+- **Logo :** <https://raw.githubusercontent.com/xneo1/portainer_templates/bdd2703fc2662aa73c87d2b432b751c5c23b7e8b/Images/invoice_ninja.png>.
 
 L'adresse est attachée au déploiement du modèle. Une autre se convient au
 préalable, sur demande.

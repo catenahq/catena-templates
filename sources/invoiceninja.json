@@ -11,6 +11,9 @@
   "x-catena": {
     "app_name": "catena-invoiceninja",
     "upstream_url": "https://www.invoiceninja.com/",
+    "logo": {
+      "source": "https://raw.githubusercontent.com/xneo1/portainer_templates/bdd2703fc2662aa73c87d2b432b751c5c23b7e8b/Images/invoice_ninja.png"
+    },
     "sso_mode": "post-deploy-ui",
     "domain": {
       "host": "invoice.{{ cloudflare_zone }}",

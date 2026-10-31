@@ -1518,7 +1518,7 @@
           "name": "INVOICENINJA_MAIL_FROM_NAME"
         }
       ],
-      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/invoiceninja/logo.svg",
+      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/invoiceninja/logo.png",
       "maintainer": "https://github.com/catenahq/catena-templates",
       "name": "catena-invoiceninja",
       "note": "<p>Open-source invoicing with Stripe + PayPal payment gateways, recurring billing, expense tracking, client portal for online payment. Self-hosted gets all Pro + Enterprise features.</p><p>Replaces FreshBooks, QuickBooks (invoicing module), Zoho Invoice, Harvest (invoicing).</p><p><a href=\"https://github.com/catenahq/catena-templates/blob/main/blueprints/invoiceninja/README.md\">https://github.com/catenahq/catena-templates/blob/main/blueprints/invoiceninja/README.md</a></p>",

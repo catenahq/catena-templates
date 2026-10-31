@@ -200,6 +200,9 @@ services:
       timeout: 5s
       retries: 5
     labels:
+      - "vps.homepage.name=Invoice Ninja"
+      - "vps.homepage.description=Invoices, quotes and expenses, with online payment by customers."
+      - "vps.homepage.description-fr=Factures, soumissions et dépenses, avec paiement en ligne par les clients."
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=80"
       - "vps.auth.mode=public"
