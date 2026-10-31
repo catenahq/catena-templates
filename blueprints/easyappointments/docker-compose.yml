@@ -67,6 +67,9 @@ services:
       retries: 10
       start_period: 30s
     labels:
+      - "vps.homepage.name=Easy!Appointments"
+      - "vps.homepage.description=An online booking page where customers book a time with a staff member."
+      - "vps.homepage.description-fr=Une page de réservation en ligne où les clients prennent rendez-vous avec un membre du personnel."
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=80"
       - "vps.auth.mode=public"

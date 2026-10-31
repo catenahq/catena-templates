@@ -1294,7 +1294,7 @@
           "name": "DB_ROOT_PASSWORD"
         }
       ],
-      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/easyappointments/logo.svg",
+      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/easyappointments/logo.png",
       "maintainer": "https://github.com/catenahq/catena-templates",
       "name": "catena-easyappointments",
       "note": "<p>Customer-facing booking app for one or many providers (clinic, salon, lessons, repair shop). Public booking page; staff calendars; email + SMS reminders; ICS export.</p><p>Replaces Calendly, Acuity, SimplyBook, Setmore.</p><p><a href=\"https://github.com/catenahq/catena-templates/blob/main/blueprints/easyappointments/README.md\">https://github.com/catenahq/catena-templates/blob/main/blueprints/easyappointments/README.md</a></p>",

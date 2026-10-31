@@ -12,6 +12,7 @@ Customer-facing booking app for one or many providers (clinic, salon, lessons, r
 - **Replaces:** **Calendly**, **Acuity**, **SimplyBook**, **Setmore**
 - **Sign-in (SSO):** Not available. This application's community edition has no OIDC support, so each account keeps a per-application login.
 - **Address:** `book.yourdomain.com`, served from `easyappointments:80`
+- **Logo:** <https://raw.githubusercontent.com/alextselegidis/easyappointments/f6c8a4c2f364bf8c64b1f913a531a7134dcfd3c6/logo.png>.
 
 The address is attached when the template is deployed. A different one is
 arranged beforehand, on request.
@@ -61,6 +62,7 @@ Application de réservation côté client pour un ou plusieurs prestataires (cli
 - **Remplace :** **Calendly**, **Acuity**, **SimplyBook**, **Setmore**
 - **Connexion (SSO) :** Non disponible. L'édition communautaire de cette application n'a pas de support OIDC : chaque compte garde un identifiant propre à l'application.
 - **Adresse :** `book.yourdomain.com`, servie par `easyappointments:80`
+- **Logo :** <https://raw.githubusercontent.com/alextselegidis/easyappointments/f6c8a4c2f364bf8c64b1f913a531a7134dcfd3c6/logo.png>.
 
 L'adresse est attachée au déploiement du modèle. Une autre se convient au
 préalable, sur demande.

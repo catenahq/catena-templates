@@ -10,6 +10,9 @@
   "x-catena": {
     "app_name": "catena-easyappointments",
     "upstream_url": "https://easyappointments.org/",
+    "logo": {
+      "source": "https://raw.githubusercontent.com/alextselegidis/easyappointments/f6c8a4c2f364bf8c64b1f913a531a7134dcfd3c6/logo.png"
+    },
     "sso_mode": "none",
     "domain": {
       "host": "book.{{ cloudflare_zone }}",
