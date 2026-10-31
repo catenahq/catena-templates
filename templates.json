@@ -2,48 +2,6 @@
   "templates": [
     {
       "categories": [
-        "Communication",
-        "Support"
-      ],
-      "description": "Conversation-first omnichannel inbox. Replaces Intercom / Front.",
-      "env": [
-        {
-          "default": "support.",
-          "label": "Domain",
-          "name": "DOMAIN_HOST"
-        },
-        {
-          "default": "support.",
-          "label": "Chatwoot hostname",
-          "name": "CHATWOOT_HOSTNAME"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
-          "label": "Application secret",
-          "name": "SECRET_KEY_BASE"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
-          "label": "Database password",
-          "name": "DB_PASSWORD"
-        }
-      ],
-      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/chatwoot/logo.png",
-      "maintainer": "https://github.com/catenahq/catena-templates",
-      "name": "catena-chatwoot",
-      "note": "<p>Conversation-first omnichannel inbox. Email, live-chat widget, WhatsApp, Facebook, Instagram, Twitter/X in one inbox.</p><p>Replaces Intercom, Front, Help Scout (for chat channels).</p><p><a href=\"https://github.com/catenahq/catena-templates/blob/main/blueprints/chatwoot/README.md\">https://github.com/catenahq/catena-templates/blob/main/blueprints/chatwoot/README.md</a></p>",
-      "platform": "linux",
-      "repository": {
-        "stackfile": "blueprints/chatwoot/docker-compose.yml",
-        "url": "https://github.com/catenahq/catena-templates"
-      },
-      "title": "Chatwoot",
-      "type": 2
-    },
-    {
-      "categories": [
         "CMS",
         "Website"
       ],

@@ -1,5 +1,6 @@
 x-catena:
   schema: 2
+  requires_catena: 0.11.12
   env:
     DOMAIN_HOST:
       setting: {default: "support.{{ cloudflare_zone }}"}
@@ -82,9 +83,6 @@ services:
     volumes:
       - storage-data:/app/storage
     labels:
-      - "vps.homepage.name=Chatwoot"
-      - "vps.homepage.description=A shared inbox for customer conversations from email, live chat and social networks."
-      - "vps.homepage.description-fr=Une boîte de réception commune pour les conversations avec les clients par courriel, clavardage et réseaux sociaux."
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=3000"
       - "vps.auth.mode=public"
