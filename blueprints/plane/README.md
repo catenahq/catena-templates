@@ -12,6 +12,7 @@ Open-source project management -- issues, cycles, modules, pages, workspaces.
 - **Replaces:** **Jira**, **Linear**, **Asana**, **ClickUp**
 - **Sign-in (SSO):** Not available. This application's community edition has no OIDC support, so each account keeps a per-application login.
 - **Address:** `projects.yourdomain.com`, served from `proxy:80`
+- **Logo:** <https://raw.githubusercontent.com/makeplane/plane/b98e1defb0e089d4505712d89ee9e137fd0935cd/apps/admin/public/favicon/android-chrome-512x512.png>.
 
 The address is attached when the template is deployed. A different one is
 arranged beforehand, on request.
@@ -47,6 +48,7 @@ Gestion de projet open-source -- issues, cycles, modules, pages, workspaces.
 - **Remplace :** **Jira**, **Linear**, **Asana**, **ClickUp**
 - **Connexion (SSO) :** Non disponible. L'édition communautaire de cette application n'a pas de support OIDC : chaque compte garde un identifiant propre à l'application.
 - **Adresse :** `projects.yourdomain.com`, servie par `proxy:80`
+- **Logo :** <https://raw.githubusercontent.com/makeplane/plane/b98e1defb0e089d4505712d89ee9e137fd0935cd/apps/admin/public/favicon/android-chrome-512x512.png>.
 
 L'adresse est attachée au déploiement du modèle. Une autre se convient au
 préalable, sur demande.

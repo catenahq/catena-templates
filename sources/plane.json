@@ -10,6 +10,9 @@
   "x-catena": {
     "app_name": "catena-plane",
     "upstream_url": "https://plane.so/",
+    "logo": {
+      "source": "https://raw.githubusercontent.com/makeplane/plane/b98e1defb0e089d4505712d89ee9e137fd0935cd/apps/admin/public/favicon/android-chrome-512x512.png"
+    },
     "sso_mode": "none",
     "domain": {
       "host": "projects.{{ cloudflare_zone }}",

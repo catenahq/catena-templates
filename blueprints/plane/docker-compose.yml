@@ -186,6 +186,9 @@ services:
       FILE_SIZE_LIMIT: "5242880"
       BUCKET_NAME: uploads
     labels:
+      - "vps.homepage.name=Plane"
+      - "vps.homepage.description=Project management with issues, cycles and modules."
+      - "vps.homepage.description-fr=Gestion de projet avec tâches, cycles et modules."
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=80"
       - "vps.auth.mode=public"

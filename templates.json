@@ -838,7 +838,7 @@
           "name": "PLANE_MINIO_SECRET_KEY"
         }
       ],
-      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/plane/logo.svg",
+      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/plane/logo.png",
       "maintainer": "https://github.com/catenahq/catena-templates",
       "name": "catena-plane",
       "note": "<p>Open-source project management -- issues, cycles, modules, pages, workspaces.</p><p>Replaces Jira, Linear, Asana, ClickUp.</p><p><a href=\"https://github.com/catenahq/catena-templates/blob/main/blueprints/plane/README.md\">https://github.com/catenahq/catena-templates/blob/main/blueprints/plane/README.md</a></p>",
