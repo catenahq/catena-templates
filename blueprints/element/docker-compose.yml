@@ -1,5 +1,6 @@
 x-catena:
   schema: 2
+  requires_catena: 0.11.12
   env:
     DOMAIN_HOST:
       setting: {default: "element.{{ cloudflare_zone }}"}
@@ -96,6 +97,7 @@ x-catena:
               if "turn:" + turn + ":" not in conf or "turn_shared_secret" not in conf:
                   sys.exit("the call relay " + turn + " is provided, but homeserver.yaml does not name it")
           print("Synapse answers, newest Matrix version " + versions[-1] + (", call relay " + turn + " wired" if turn else ""))
+
 x-synapse-image: &synapse_image
   image: matrixdotorg/synapse:v1.161.0
 
@@ -146,12 +148,12 @@ services:
     #
     # Carried inline rather than in a `configs:` entry because a swarm stack
     # file has no inline config content: `configs` accepts `file:` (read from
-    # beside the compose file, which does not exist when a stack is deployed
-    # from a posted string) or an external object, and neither survives a
-    # client deploying this template from the Portainer catalog.
+    # beside the compose file, which a host does not have: it adds the
+    # compose byte for byte) or an external object, and neither survives
+    # a host deploying this compose with docker stack deploy.
     #
-    # The ${VAR} placeholders below are substituted by compose at deploy time
-    # from the Environment tab, the same as everywhere else in this file.
+    # The ${VAR} placeholders below are substituted by docker stack deploy
+    # from the app's env, the same as everywhere else in this file.
     entrypoint:
       - python3
       - -c
@@ -431,9 +433,6 @@ services:
         JSON
         exec nginx -g 'daemon off;'
     labels:
-      - "vps.homepage.name=Element / Matrix"
-      - "vps.homepage.description=Team chat with voice and video calls, hosted on this server."
-      - "vps.homepage.description-fr=Messagerie d'équipe avec appels vocaux et vidéo, hébergée sur ce serveur."
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=80"
       - "vps.route.main=true"

@@ -21,7 +21,6 @@ APPS = sorted(p.parent.name for p in CATALOG.glob("*/docker-compose.yml"))
 OUT_OF_FORM = {
     "clamav": "images is out of order",
     "erpnext-helpdesk": "images is out of order",
-    "element": "followed by exactly one empty line",
     "wordpress": "followed by exactly one empty line",
 }
 
@@ -106,7 +105,7 @@ def test_the_refusal_list_names_apps_of_the_catalog():
     assert set(OUT_OF_FORM) <= set(APPS)
 
 
-@pytest.mark.parametrize("app", ["element", "wordpress"])
+@pytest.mark.parametrize("app", ["wordpress"])
 def test_an_empty_line_after_the_block_is_all_element_and_wordpress_lack(tmp_path, app):
     text = _gap((CATALOG / app / pack.COMPOSE).read_text())
     tree = _scratch(tmp_path, app, text)
@@ -129,7 +128,7 @@ def test_a_comment_above_a_key_travels_with_it(tmp_path):
 
 
 def test_the_anchors_of_element_stay_in_services(tmp_path):
-    tree = _scratch(tmp_path, "element", _gap((CATALOG / "element" / pack.COMPOSE).read_text()))
+    tree = _scratch(tmp_path, "element")
     pack.unpack("element", tree)
     services = (tree / "blueprints" / "element" / pack.SERVICES).read_text()
     assert services.startswith("x-synapse-image:")
