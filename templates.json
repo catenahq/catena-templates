@@ -2,50 +2,6 @@
   "templates": [
     {
       "categories": [
-        "Project management",
-        "Support"
-      ],
-      "description": "Work management with test runs, time tracking, and customer portals. Replaces Jira / Jira Service Management.",
-      "env": [
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
-          "label": "Domain",
-          "name": "DOMAIN_HOST"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
-          "label": "Windshift hostname",
-          "name": "WINDSHIFT_HOSTNAME"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
-          "label": "Session signing secret",
-          "name": "SSO_SECRET"
-        },
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
-          "label": "Database password",
-          "name": "DB_PASSWORD"
-        }
-      ],
-      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/windshift/logo.png",
-      "maintainer": "https://github.com/catenahq/catena-templates",
-      "name": "catena-windshift",
-      "note": "<p>Work management with test runs, time tracking, and branded customer portals.</p><p>Replaces Jira, Jira Service Management, Tempo, Xray.</p><p><a href=\"https://github.com/catenahq/catena-templates/blob/main/blueprints/windshift/README.md\">https://github.com/catenahq/catena-templates/blob/main/blueprints/windshift/README.md</a></p>",
-      "platform": "linux",
-      "repository": {
-        "stackfile": "blueprints/windshift/docker-compose.yml",
-        "url": "https://github.com/catenahq/catena-templates"
-      },
-      "title": "Windshift",
-      "type": 2
-    },
-    {
-      "categories": [
         "Support",
         "Helpdesk"
       ],
