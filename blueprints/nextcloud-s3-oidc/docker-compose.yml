@@ -60,17 +60,17 @@ x-catena:
     OFFICE_JWT_SECRET:
       managed: {expr: "{{ provided.office.jwt_secret }}"}
     SMTP_RELAY_HOST:
-      managed: {expr: "{{ smtp_relay_host }}"}
+      managed: {expr: "{{ smtp_relay_host | default('') }}"}
     SMTP_RELAY_PORT:
-      managed: {expr: "{{ smtp_relay_port }}"}
+      managed: {expr: "{{ smtp_relay_port | default('') }}"}
     SMTP_RELAY_USER:
-      managed: {expr: "{{ smtp_relay_user }}"}
+      managed: {expr: "{{ smtp_relay_user | default('') }}"}
     SMTP_RELAY_PASSWORD:
-      managed: {expr: "{{ smtp_password }}"}
+      managed: {expr: "{{ smtp_password | default('') }}"}
     SMTP_RELAY_TLS:
-      managed: {expr: "{{ smtp_relay_tls }}"}
+      managed: {expr: "{{ smtp_relay_tls | default('') }}"}
     SMTP_RELAY_SENDER:
-      managed: {expr: "{{ smtp_relay_sender }}"}
+      managed: {expr: "{{ smtp_relay_sender | default('') }}"}
   secrets: [smtp_password]
   access:
     user:

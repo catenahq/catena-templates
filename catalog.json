@@ -155,32 +155,32 @@
         },
         "SMTP_RELAY_HOST": {
           "managed": {
-            "expr": "{{ smtp_relay_host }}"
+            "expr": "{{ smtp_relay_host | default('') }}"
           }
         },
         "SMTP_RELAY_PASSWORD": {
           "managed": {
-            "expr": "{{ smtp_password }}"
+            "expr": "{{ smtp_password | default('') }}"
           }
         },
         "SMTP_RELAY_PORT": {
           "managed": {
-            "expr": "{{ smtp_relay_port }}"
+            "expr": "{{ smtp_relay_port | default('') }}"
           }
         },
         "SMTP_RELAY_SENDER": {
           "managed": {
-            "expr": "{{ smtp_relay_sender }}"
+            "expr": "{{ smtp_relay_sender | default('') }}"
           }
         },
         "SMTP_RELAY_TLS": {
           "managed": {
-            "expr": "{{ smtp_relay_tls }}"
+            "expr": "{{ smtp_relay_tls | default('') }}"
           }
         },
         "SMTP_RELAY_USER": {
           "managed": {
-            "expr": "{{ smtp_relay_user }}"
+            "expr": "{{ smtp_relay_user | default('') }}"
           }
         },
         "TALK_INTERNAL_SECRET": {
@@ -245,12 +245,12 @@
         "OFFICE_EDITOR={{ provided.office.editor }}",
         "OFFICE_URL={{ provided.office.url }}",
         "OFFICE_JWT_SECRET={{ provided.office.jwt_secret }}",
-        "SMTP_RELAY_HOST={{ smtp_relay_host }}",
-        "SMTP_RELAY_PORT={{ smtp_relay_port }}",
-        "SMTP_RELAY_USER={{ smtp_relay_user }}",
-        "SMTP_RELAY_PASSWORD={{ smtp_password }}",
-        "SMTP_RELAY_TLS={{ smtp_relay_tls }}",
-        "SMTP_RELAY_SENDER={{ smtp_relay_sender }}"
+        "SMTP_RELAY_HOST={{ smtp_relay_host | default('') }}",
+        "SMTP_RELAY_PORT={{ smtp_relay_port | default('') }}",
+        "SMTP_RELAY_USER={{ smtp_relay_user | default('') }}",
+        "SMTP_RELAY_PASSWORD={{ smtp_password | default('') }}",
+        "SMTP_RELAY_TLS={{ smtp_relay_tls | default('') }}",
+        "SMTP_RELAY_SENDER={{ smtp_relay_sender | default('') }}"
       ],
       "env_managed_keys": [
         "DOMAIN_HOST",

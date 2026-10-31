@@ -44,8 +44,9 @@ for layout, consumer model, and BASE URL setup.
   hook, when declared, receives each member's levels.
 - The outgoing mail chosen in Settings reaches an application as the facts
   `smtp_relay_host`, `smtp_relay_port`, `smtp_relay_user`, `smtp_relay_tls`
-  (`ssl` or `tls`) and `smtp_relay_sender` in a managed expression, empty when
-  no relay is chosen. The password is the stored secret `smtp_password`.
+  (`ssl` or `tls`) and `smtp_relay_sender` in a managed expression. The password
+  is the stored secret `smtp_password`. None of them exists until a relay is
+  chosen, so each read carries `| default('')`.
 - An application with no web address (a scanner, a relay) leaves `domain` out of
   its source and names `version_from` in its block.
 - An application that runs on the server's own network declares the

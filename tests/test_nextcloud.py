@@ -599,10 +599,17 @@ def test_the_relay_password_is_read_from_the_env_file_only():
     entry = _entry()
     app_env = _compose()["services"]["app"]["environment"]
     assert entry.block["secrets"] == ["smtp_password"]
-    assert entry.managed_env["SMTP_RELAY_PASSWORD"] == "{{ smtp_password }}"
+    assert entry.managed_env["SMTP_RELAY_PASSWORD"] == "{{ smtp_password | default('') }}"
     for key in RELAY:
         assert key in entry.managed_env and key not in app_env
     assert quiesce_lint.lint_managed_secrets(entry) == []
+
+
+def test_a_host_without_a_relay_adds_nextcloud_with_empty_mail_values():
+    # Catena sets no relay fact and no smtp_password until Settings chooses a relay, and an
+    # expression without a default is then refused.
+    for key in RELAY:
+        assert _entry().managed_env[key].endswith(" | default('') }}")
 
 
 def test_a_first_configure_with_a_relay_writes_the_mail_settings(nc):
