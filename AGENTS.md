@@ -1,7 +1,7 @@
-# catenahq/catena-templates -- Portainer App Template catalog
+# catenahq/catena-templates -- the Catena app catalog
 
-This repo holds the Catena Portainer App Template catalog. See README.md
-for layout, consumer model, and BASE URL setup.
+This repo holds the Catena app catalog. See README.md for layout, who reads
+the repository, and the checks.
 
 ## Edit rules
 
@@ -23,7 +23,7 @@ for layout, consumer model, and BASE URL setup.
   app's own `blueprints/<id>/docker-compose.yml`, and nowhere else. That
   includes the app's env: every key the deploy form shows, and how each is
   set.
-  Portainer stores that file byte for byte, so the block travels with the
+  A host adds that file byte for byte, so the block travels with the
   deployed app and the server never reads this catalog to manage it. The
   block holds no `$` (Docker interpolates it at deploy), except in a
   `hooks` body, which writes each `$` as `$$`, and no image reference (an
@@ -79,6 +79,9 @@ for layout, consumer model, and BASE URL setup.
   `x-catena.requires_catena`, the one place that release is written: the
   render puts it in the Portainer description and the README, so the
   prose never repeats it.
+- A file's or field's class (runtime, verification or presentation) comes from
+  `lib/versions.py` (`FILE_CLASSES`, `FIELD_CLASSES`). A new file type or field
+  gets a row there; anything unlisted is runtime.
 - A block field a published catena-admin release does not read reaches `main`
   only once the release that reads it is published, with
   `x-catena.requires_catena` raised to it; app-ci's released app checker
@@ -124,11 +127,8 @@ for layout, consumer model, and BASE URL setup.
   and `status`; `origin` stays.
 - No secrets, ever. Sentinel placeholders (`__CATENA_OPERATOR_WIRED__`)
   in templates.json. This repo is public and one file serves every
-  client, so it cannot hold a per-host value; a client's Portainer reads
-  its OWN host's render of it instead (catena-admin
-  `shell/marketplace`, from `catalog.json`). Nothing resolves the
-  sentinel in this repo, and the published templates.json is the
-  render's INPUT rather than a catalog to deploy from.
+  client, so it cannot hold a per-host value. Nothing resolves the
+  sentinel in this repo, and no host deploys from `templates.json`.
 
 ## The render contract
 
@@ -143,9 +143,8 @@ transforms `sources/` into:
   hand-placed `logo.png` sits beside it.
 
 `blueprints/<id>/docker-compose.yml` is NOT rendered: it is the
-hand-edited input and Portainer clones it from this public repo as the
-type-2 stackfile. Jinja stays in place; the env it reads is resolved by
-the host's own catalog render before the deploy, and routing is
+hand-edited input, and a host fetches it from this public repo at a tag.
+Jinja stays in place; the env it reads is settled on the host, and routing is
 reconciled post-deploy by dashboard-sync. The render never writes into
 that file, and it deletes a blueprint directory only when no source file
 claims it any more.
@@ -298,23 +297,17 @@ README.md, "How to add a template", says how; these are the rules.
 ## Changing catalog.json
 
 `sources.schema.json` and `block.schema.json` are internal to this repo; the
-CONTRACT with every seeding consumer is `catalog.json`. A source or block
+CONTRACT with every reader of the catalog is `catalog.json`. A source or block
 change that leaves `catalog.json` identical needs nothing else. A change to
-`catalog.json` lands in the same merge window as its consumers, since they
-fetch `main`:
-
-1. ops `automation/helpers/templates_catalog.py` and
-   `automation/operator-tools/generate-sizing-doc.py`.
-2. The per-host render in catena-admin (`shell/marketplace`) and its
-   catalog engine (`payload/engines/catalog`) -- the render reads
-   `catalog.json` and rewrites `templates.json` for one host, so a shape
-   change breaks a client's marketplace, not just a report.
+`catalog.json` lands in the same merge window as its readers, since they
+fetch `main`: ops `automation/helpers/templates_catalog.py` and
+`automation/operator-tools/generate-sizing-doc.py`, and any other reader a
+search of the workspace finds.
 
 ## What does NOT live here
 
-- The per-host render that resolves the sentinels, and the on-box
-  minting of per-deploy app passwords. catenahq/catena-admin
-  (`shell/marketplace`).
+- The on-box settling of an app's env and the minting of per-deploy app
+  passwords. catenahq/catena-admin.
 - On-box config key names: catenahq/catena-ce. The Keycloak client an
   app signs in with: catenahq/catena-admin's settings sync, from the
   app's sign-in labels.

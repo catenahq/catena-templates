@@ -3,12 +3,11 @@
 Single source of truth for the Catena template catalog: one directory
 per application holding its compose file and its README, one JSON file
 per application holding its metadata and prose, and the build pipeline
-that renders them into Portainer App Templates (`templates.json`, format
-v3) and the machine catalog (`catalog.json`). The catalog seeds a new
-install: catena-admin and the ops tooling read `catalog.json` from `main`,
-fetched raw, and Portainer itself can point its App Templates URL at
-`templates.json`. A merge reaches every new deploy; a deployed app keeps the
-compose, and the `x-catena` block in it, that it was deployed with.
+that renders them into the machine catalog (`catalog.json`), a static preview
+(`index.html`) and a Portainer-shaped index (`templates.json`, format v3). A
+host adds an app from `blueprints/<id>` at a tag (see "Who reads this
+repository"); a deployed app keeps the compose, and the `x-catena` block in
+it, that it was deployed with.
 
 **What this repo promises and how that is enforced:** [SPEC.md](SPEC.md)
 -- hand-written intent plus machine-checked invariants, each citing the
@@ -18,9 +17,9 @@ resolve.
 ## Layout
 
 ```
-blueprints/              # ONE directory per template -- what Portainer clones
+blueprints/              # ONE directory per template -- what a host fetches at a tag
   <id>/
-    docker-compose.yml   # HAND-EDITED; the type-2 stackfile, whose root
+    docker-compose.yml   # HAND-EDITED; the swarm stack file, whose root
                          # x-catena block declares the app's backup mode,
                          # update and restore commands, object-store check
                          # and managed env expressions
@@ -65,7 +64,7 @@ block.schema.json        # schema for the x-catena block of a compose
 Schema.json              # schema for the generated templates.json
 
 templates.json           # generated; the Portainer App Templates index (v3)
-catalog.json             # generated; the machine view catena-admin, ops/ and the bench read
+catalog.json             # generated; the machine view the ops tooling and the bench read
 index.html               # generated; static catalog preview
 
 Makefile                 # make render / validate / lint / test / verify
@@ -83,35 +82,26 @@ Three things are human-edited: `sources/<id>.json`, the compose in
 it. Everything else listed as generated is a committed build artifact; CI
 re-renders on every push and pull request and fails if the committed copies drift.
 
-## Two consumer paths
+## Who reads this repository
 
-### 1. Portainer App Templates (URL)
+- **A host** fetches `blueprints/<id>` at a tag by sparse clone
+  (catena-admin `payload/engines/apprepo`) and adds the compose it holds, byte
+  for byte. The folder name `blueprints` and the tag are the whole contract with
+  a host.
+- **Discovery** reads the generated files: `catalog.json` is one fetch with
+  every template and the fields a Portainer-shaped index has no slot for (the
+  compose block's quiesce, lifecycle, object-store check and object-store switch
+  included, lifted from each compose); the ops tooling and the bench read it.
+  `index.html` is its static preview, served by the image the `Dockerfile` builds.
+- **The app checker** (`catena-applint --catalog`, catena-admin
+  `payload/cmd/catena-applint`) reads the `blueprints/` folders in catena-admin's
+  CI.
 
-In any Portainer instance, point the App Templates URL at this repo's
-raw templates.json:
-
-```
-https://raw.githubusercontent.com/catenahq/catena-templates/main/templates.json
-```
-
-Each entry is a type-2 (swarm git-repo) stack: Portainer clones this
-repo and deploys `blueprints/<id>/docker-compose.yml` onto the host's
-swarm.
-
-### 2. The machine catalog (catalog.json)
-
-catena-admin (`shell/marketplace`, `payload/engines/catalog`) and the
-ops tooling read `catalog.json` -- one fetch,
-every template, with the fields Portainer's format has no slot for (the
-compose block's quiesce, lifecycle, object-store check and object-store switch included, lifted
-from each compose). A
-managed VPS reads it to render its OWN copy of `templates.json`, which is
-what its Portainer actually serves (see the sentinel section below).
-
-Why two artifacts rather than one: Portainer's format defines what it
-defines. Squeezing `sso_mode`, quiesce hooks, bench packs, sizing and
-bilingual prose into it would either be ignored by Portainer or break its
-parser. `catalog.json` carries them beside the same ids.
+`templates.json` carries the Portainer fields and the sentinel (next section)
+where a secret or a host value belongs. A Portainer cannot deploy the catalog:
+the composes join the external network `catena-network`, publish no web port,
+are routed by `vps.route.*` labels only Catena's edge reads, and run hooks only
+Catena runs.
 
 ## The env sentinel convention
 
@@ -137,18 +127,10 @@ render.
 
 **Nothing resolves the sentinel in THIS file, and nothing is meant to.**
 This repository is public: one `templates.json` serves every client, so
-it cannot hold a value that differs per host. A client's Portainer does
-not read this copy. It reads its own host's, which catena-admin renders
-from `catalog.json` with every expression resolved against that host --
-its zone, its Keycloak, its store, and per-deploy passwords minted on the
-box (`catena-admin shell/marketplace`). That render is why the values
-have to be correct BEFORE the client clicks Deploy: an app that boots
-against the wrong database password has already initialised its database
-with it.
-
-So deploying this file directly -- pointing a Portainer at the raw URL --
-gives an app the literal sentinel as its secret. It is the render's
-input, not a catalog to deploy from.
+it cannot hold a value that differs per host. A deploy from this file would
+give an app the literal sentinel as its secret; a host settles an app's env on the box from the compose's `x-catena`
+block (its zone, its Keycloak, its store, and per-deploy passwords minted
+there).
 
 ## How to add a template
 
@@ -319,6 +301,28 @@ A merge to `main` is live for every new deploy as soon as the consumers
 next fetch the catalog; there are no releases to cut. An app already
 deployed keeps the block it was deployed with.
 
+## Change classes
+
+A change of an app's files falls in one of three classes. The rule: if this
+changes, could an installed app behave differently, or Catena handle it
+differently? Yes is **runtime**. Changing what app-tests checks is
+**verification** (`test.yml`, the bench fields). Neither is **presentation**
+(name, descriptions, logo, README). The table that gives each file and each field
+of `app.json` its class is `FILE_CLASSES` and `FIELD_CLASSES` in
+`lib/versions.py`, the one place that says it; anything unlisted is runtime.
+`uv run build/versions.py classes <app> --ref <sha> --base <sha>` prints the
+classes of a change.
+
+| Class | Heavy app-ci steps | app-tests | Tag |
+|---|---|---|---|
+| runtime | run | the lifecycle | a new revision |
+| verification | skipped when the app's last runtime change passed app-ci | the lifecycle | none |
+| presentation | skipped when the app's last runtime change passed app-ci | the verdict is carried, no lifecycle | a new revision recording the carried run |
+
+A change in several classes takes the strongest entry of each column: runtime
+with presentation runs everything and gets a new revision; verification with
+presentation runs the lifecycle and gets a new revision.
+
 ## Checks on every pull request and every push to main
 
 `.github/workflows/app-ci.yml` runs on GitHub-hosted runners (the `runner`
@@ -365,6 +369,15 @@ Then one job per app the change touches (`blueprints/<id>/**` or
   listed in `.clamav-allow.sfp` (its SHA-256 and size, with the image, path and
   reason above it) passes; any other content of that path is scanned.
 
+The first step of the job reads the change's classes (see "Change classes"). The
+stack config and the released app checker always run. The image pulls,
+provenance, scanctl and ClamAV, the heavy steps, run when the change touches the
+runtime. A change of verification or presentation alone skips them when the
+app's last runtime change at or before the change's base has an `app-ci` status of
+success posted by github-actions[bot] for a run of this repository; with no
+such status, no runtime change to rely on, or a status that
+cannot be read, they run. The job summary names the path taken.
+
 A push to `main` (a repository admin's direct push or a merge) runs
 `.github/workflows/app-main.yml`, which calls `app-ci.yml` once per commit of
 the push with `sha` (the commit) and `base` (its parent), so each commit is
@@ -397,8 +410,8 @@ layout; `app-main.yml` serves this repository alone. Their inputs are `catalog`
 defaulting to empty. A caller of `app-ci.yml` grants `contents: read` and
 `statuses: read`: the `app` job reads the `app-ci` status of the app's last
 runtime change, and GitHub refuses a called workflow that asks for more than its
-caller grants. A status that is absent or unreadable, as in a repository that posts
-no `app-ci` status, runs the heavy steps. `app-dispatch.yml` and `app-tag.yml` take the
+caller grants. A repository that posts no `app-ci` status runs the heavy steps
+every time. `app-dispatch.yml` and `app-tag.yml` take the
 secrets `RENOVATE_APP_CLIENT_ID` and `RENOVATE_APP_PRIVATE_KEY`. With `catalog`
 false a called workflow checks out catena-templates at `tools-ref` into
 `.tools` and sets `TEMPLATES_ROOT` to the caller's tree. It runs the swarm lint
@@ -439,10 +452,12 @@ private runner this repository cannot reach):
   at the commit itself, then, on `main`, at the head of the merged pull
   request, on another branch at the head the branch had before the push, and
   then at the run that made the app's newest tag. A candidate counts when the
-  CI GitHub App posted its verdict, and the app's files, and the files its
-  change is judged from, are the same (`build/versions.py same`). A failure is
-  carried only on a branch other than `main`. A carried pass on `main` is
-  tagged with the address of the run that tested the change.
+  CI GitHub App posted its verdict, and the app's files differ from the
+  commit's, and the files each change is judged from differ, in presentation
+  alone (`build/versions.py same`). A change of presentation alone keeps the
+  verdict; a change of the runtime or of the tests (`test.yml`) runs the
+  lifecycle. A failure is carried only on a branch other than `main`. A carried
+  pass on `main` is tagged with the address of the run that tested the change.
 - ops runs install, checks, backup, restore, rollback, updates and the outbound
   check, then posts the commit status `app-tests` on the commit (success,
   failure, or error when the bench gave no verdict). A commit of a branch other
@@ -478,10 +493,13 @@ No file holds a version string: versions are git tags. A tested app is tagged
   version, then revision, as numbers.
 - **When.** `app-tag.yml` runs on the event `app-passed`, which the bench sends
   with the apps that passed on a commit of `main`. An app whose files
-  (`blueprints/<id>/`, `sources/<id>.json`) differ from its newest tag, or that
-  has none, gets a new tag on the commit, but only while `main` still holds the
-  commit's files of the app: a pass of a commit whose app `main` has since
-  changed tags nothing. It also tags only when the commit that last changed the
+  (`blueprints/<id>/`, `sources/<id>.json`) differ from its newest tag in the
+  runtime (or in verification together with presentation), or that has none,
+  gets a new tag on the commit; one that differs in presentation alone gets a
+  new tag recorded against the newest tag (`create TAG FROM`, below); one that
+  differs in verification alone keeps its tag. A tag is made only while `main`
+  still holds the commit's files of the app: a pass of a commit whose app
+  `main` has since changed tags nothing. It also tags only when the commit that last changed the
   app on `main` (`build/versions.py last-change`) has an `app-ci` status of
   success posted by `github-actions[bot]` for a run of this repository;
   otherwise the app is held with a warning until a later commit of it passes or
@@ -489,15 +507,24 @@ No file holds a version string: versions are git tags. A tested app is tagged
   again (see above).
   An app whose newest tag was made by
   hand and holds the same files has that tag annotated where it stands. The
-  tags are annotated `app-tests passed at <commit>: <run>` and written through
+  tags are annotated `app-tests passed at <commit>: <run>`, and a tag of a
+  change of presentation alone adds a line saying the runtime and tests are
+  those of the tag it was recorded against (`create TAG FROM`, FROM the newest
+  tag; `<run>` is the run that tested them). They are written through
   the API with the CI GitHub App's token (secrets `RENOVATE_APP_CLIENT_ID` and
   `RENOVATE_APP_PRIVATE_KEY`). A tag ruleset (catenahq/renovate
   `scripts/apply-rulesets.sh`) lets only that App create, move or delete a
   `*/*` tag.
-- **Tested.** An app is `tested` when a passing run made its newest tag and
-  that tag holds the files `main` holds, `changed` when the files differ from
-  its newest tag, `untested` when it has no tag or its newest was made by hand.
-  The nightly bench run takes the apps that are not `tested` first.
+- **Guarantee.** A tag stands when app-ci passed at the app's last change on
+  `main` and app-tests passed on a commit whose runtime and tests are the tagged
+  commit's: the commit itself or, for a change of presentation alone, the run
+  that tested the same runtime and tests.
+- **Tested.** An app is `tested` when a passing run made its newest tag and the
+  files `main` holds differ from that tag in verification alone or not at all,
+  `presentation` when they differ in presentation alone, `changed` otherwise,
+  and `untested` when it has no tag, or its newest was made by hand and the
+  files differ from it in verification alone or not at all. The nightly
+  bench run takes the apps that are neither `tested` nor `presentation` first.
 - **Scope.** The `scope` check fails a pull request or a commit of `main` that
   changes more than one app (distinct ids across `blueprints/<id>/**` and
   `sources/<id>.json`), so one change is one tag; the `one-app` pre-commit hook
@@ -506,17 +533,23 @@ No file holds a version string: versions are git tags. A tested app is tagged
   commit from `app-main.yml`.
 
 `uv run build/versions.py tested` lists each app's state and newest tag
-(`--needs-run`: the ids of the apps not `tested`); `uv run build/versions.py
-plan <app>` prints what a pass does to the app's tags;
+(`--needs-run`: the ids of the apps neither `tested` nor `presentation`);
+`uv run build/versions.py plan <app>` prints what a pass does to the app's tags;
+`uv run build/versions.py classes <app> --ref <sha> --base <sha>` prints the
+classes of the change from `--base` to `--ref`;
+`uv run build/versions.py runtime-change <app> --ref <rev>` prints the newest
+commit on the first-parent line whose change of the app holds the runtime, or
+that added the app;
 `uv run build/versions.py scope` checks changed paths on stdin;
 `uv run build/versions.py last-change <app> [--ref <rev>]` prints the newest
 commit on the first-parent line that changed the app's files;
 `uv run build/versions.py same <app> --ref <sha> --base <sha> --from <sha>`
 exits 0 when the `--from` commit holds the change `--ref` holds, judged from
-`--base`: the app's files are the same at both commits, and the same at the
-merge base of `--from` and `--base` and at `--base`;
+`--base`: the app's files differ in presentation alone between the two
+commits, and between the merge base of `--from` and `--base` and `--base`;
 `uv run build/versions.py tested-run <app> [--ref <rev>]` prints the address of
-the run that made the app's newest tag when the app is `tested` there. With
+the run that made the app's newest tag when the app differs from that tag there
+in presentation alone or not at all. With
 `TEMPLATES_ROOT` set, the tags and files read are those of that tree's git
 repository.
 
@@ -637,9 +670,8 @@ it means filling the stubs, settling `pending`, and deleting both
 ## What does NOT live here
 
 - Vault values, OIDC client secrets, any actual secret. Sentinels only.
-- The per-host render that resolves the sentinels, and the on-box minting
-  of per-deploy app passwords. Lives in catenahq/catena-admin
-  (`shell/marketplace`), served to that host's Portainer.
+- The on-box settling of an app's env and the minting of per-deploy app
+  passwords. Lives in catenahq/catena-admin.
 - The Keycloak clients apps sign in with: an app's own client comes from
   its sign-in labels through catenahq/catena-admin's settings sync
   (`payload/lib/oidc_clients.py`), the mail server's from
@@ -652,8 +684,7 @@ it means filling the stubs, settling `pending`, and deleting both
 
 ## Why this is its own repo
 
-Portainer's App Templates BASE URL field takes a public URL and clones
-the repository behind it, so the catalog has to be a public repository
-of its own. The per-template JSON layout matches the Portainer App
-Templates format documentation and the community layout used by
+A host fetches an app by sparse clone from a repository address, so the
+catalog is a public repository of its own. The per-template JSON layout
+follows the Portainer App Templates format and the community layout used by
 Lissy93/portainer-templates.
