@@ -23,7 +23,7 @@ x-catena:
 
 services:
   collabora:
-    image: collabora/code:26.04.5.1.1
+    image: collabora/code:26.04.5.2.1
     deploy:
       restart_policy:
         condition: any
