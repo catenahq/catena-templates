@@ -61,6 +61,12 @@ services:
       - "vps.route.port=8080"
     ports:
       - "9999:9999"
+      - "10010:10010/udp"
+      - "0.0.0.0:7000:7000"
+      - "[::]:7001:7001"
+      - "5000"
+      - "${PORT:-6000}:6000"
+      - {target: 53, published: 5353, protocol: udp}
     deploy:
       placement:
         constraints:
@@ -171,7 +177,10 @@ def _env_of(export):
 
 def test_compose_of_the_synthetic_app(tmp_path):
     doc = yaml.safe_load(plain.build(SYNTHETIC).files[plain.COMPOSE][0])
-    assert doc["services"]["web"]["ports"] == ["9999:9999", "127.0.0.1:8080:8080"]
+    assert doc["services"]["web"]["ports"] == [
+        "127.0.0.1:9999:9999", "127.0.0.1:10010:10010/udp", "127.0.0.1:7000:7000", "127.0.0.1:7001:7001",
+        "127.0.0.1::5000", "127.0.0.1:${PORT:-6000}:6000",
+        {"target": 53, "published": 5353, "protocol": "udp", "host_ip": "127.0.0.1"}, "127.0.0.1:8080:8080"]
     assert doc["services"]["web"]["networks"] == {"default": {}}
     assert "networks" not in doc["services"]["db"]
     assert "deploy" not in doc["services"]["web"]
@@ -313,3 +322,65 @@ def test_plain_check_refuses_before_it_starts_anything(tmp_path, monkeypatch):
     with pytest.raises(plain.PlainError, match="no web address"):
         plain.plain_check("clamav")
     assert not log.exists()
+
+
+# the review fixes
+
+@pytest.mark.parametrize("app", [a for a in APPS if a not in REFUSED])
+def test_every_published_port_is_on_loopback(tmp_path, app):
+    _, out = _export(tmp_path, app)
+    doc = yaml.safe_load((out / plain.COMPOSE).read_text())
+    for spec in doc["services"].values():
+        for entry in spec.get("ports") or []:
+            assert entry["host_ip"] == "127.0.0.1" if isinstance(entry, dict) else entry.startswith("127.0.0.1:")
+
+
+@pytest.mark.parametrize("old, new, match", [
+    ('managed: {expr: "web.{{ cloudflare_zone }}"}', 'managed: {expr: "{{ zone }}\\ntouch /tmp/PWN"}', "DOMAIN_HOST"),
+    ("    GREETING:", "    BAD KEY:", "not an env key"),
+    ("    GREETING:", "    $(touch_x):", "not an env key"),
+    ("  hooks:\n    service: web", "  hooks:\n    service: nope", "not a service"),
+    ("  lifecycle:\n    service: web", '  lifecycle:\n    service: "web\\nid"', "not a service"),
+    ("[web, users]", "[web, 7]", "list of strings"),
+])
+def test_a_block_that_could_inject_a_command_is_refused(old, new, match):
+    with pytest.raises(plain.PlainError, match=match):
+        plain.build(SYNTHETIC.replace(old, new))
+
+
+def test_a_service_is_quoted_in_the_not_running_message():
+    script = plain.build(SYNTHETIC).files["users.sh"][0]
+    assert "echo 'web is not running' >&2" in script
+
+
+def test_a_dollar_pair_of_a_one_line_command_is_one_dollar():
+    files = plain.build(SYNTHETIC.replace("- [web, scan]", '- [web, scan, "$$HOME"]')).files
+    assert "web scan '$HOME'" in files["scan.sh"][0]
+    assert "$$" not in files["migrate.sh"][0].replace("$(( $(date", "")
+
+
+def test_a_redirect_counts_as_an_answer():
+    class Redirect(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(302)
+            self.send_header("Location", "https:///")
+            self.end_headers()
+
+        def log_message(self, *args):
+            pass
+
+    port = _port()
+    server = http.server.HTTPServer(("127.0.0.1", port), Redirect)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        assert plain._answers(port)
+    finally:
+        server.shutdown()
+    assert not plain._answers(_port())
+
+
+def test_a_folder_in_any_work_tree_is_refused(tmp_path):
+    (tmp_path / "work" / ".git").mkdir(parents=True)
+    with pytest.raises(plain.PlainError, match="inside a repository"):
+        plain.export_app("actualbudget", tmp_path / "work" / "deeper" / "out")
+    assert not (tmp_path / "work" / "deeper").exists()

@@ -30,8 +30,6 @@ import subprocess
 import sys
 import tempfile
 import time
-import urllib.error
-import urllib.request
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable
@@ -50,6 +48,9 @@ NO_ENV_HOOKS = ("scan",)
 ALPHABETS = {"alnum": "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", "hex": "0123456789abcdef"}
 _PLAIN_VALUE = re.compile(r"[A-Za-z0-9_./:@%+=,-]*")
 _APP = re.compile(r"[a-z0-9][a-z0-9-]*")
+_ENV_KEY = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
+_COLON = re.compile(r":(?![^{]*\})")
+LOOPBACK = "127.0.0.1"
 READY_POLL_SECONDS = 3
 
 
@@ -65,10 +66,16 @@ class Export:
     to_fill: list[str] = field(default_factory=list)
 
 
+def _one_line(what: str, text: str) -> str:
+    if "\n" in text or "\r" in text:
+        raise PlainError(f"{what}: a line break cannot be written into a comment")
+    return text
+
+
 def _dotenv(key: str, value: str) -> str:
     if _PLAIN_VALUE.fullmatch(value):
         return value
-    if "'" in value or "\n" in value:
+    if "'" in value or "\n" in value or "\r" in value:
         raise PlainError(f"{key}: a value with a quote or a line break cannot be written to .env")
     return f"'{value}'"
 
@@ -76,6 +83,10 @@ def _dotenv(key: str, value: str) -> str:
 def _env_lines(block: dict[str, Any], ask: Callable[[str], str] | None) -> tuple[str, list[str]]:
     lines, to_fill = [], []
     for key, spec in (block.get("env") or {}).items():
+        if not _ENV_KEY.fullmatch(str(key)):
+            raise PlainError(f"{key!r} is not an env key")
+        if not isinstance(spec, dict) or len(spec) != 1 or next(iter(spec)) not in ("setting", "generated", "managed"):
+            raise PlainError(f"{key}: not a setting, a generated secret or a managed expression")
         kind, body = next(iter(spec.items()))
         if kind == "generated":
             alphabet = ALPHABETS[body["alphabet"]]
@@ -83,6 +94,7 @@ def _env_lines(block: dict[str, Any], ask: Callable[[str], str] | None) -> tuple
         else:
             value = str(body["default"] if kind == "setting" else body["expr"])
         if "{{" in value:
+            _one_line(key, value)
             lines.append(f"# {key}: Catena sets this from {value}")
             to_fill.append(key)
             value = ask(key) if ask else ""
@@ -120,9 +132,31 @@ def _compose_for_docker(doc: dict[str, Any], service: str | None, port: int | No
                 networks[name] = {}
         if not networks:
             del out["networks"]
+    for spec in out["services"].values():
+        if spec.get("ports"):
+            spec["ports"] = [_loopback(entry) for entry in spec["ports"]]
     if service:
-        out["services"][service].setdefault("ports", []).append(f"127.0.0.1:{port}:{port}")
+        main = f"{LOOPBACK}:{port}:{port}"
+        ports = out["services"][service].setdefault("ports", [])
+        if main not in ports:
+            ports.append(main)
     return out
+
+
+def _loopback(entry: Any) -> Any:
+    """A published port entry bound to 127.0.0.1 only."""
+    if isinstance(entry, dict):
+        return {**entry, "host_ip": LOOPBACK}
+    spec, slash, proto = str(entry).partition("/")
+    if spec.startswith("["):
+        parts = spec[spec.index("]") + 2:].split(":")
+    else:
+        parts = _COLON.split(spec)
+        if len(parts) == 3:
+            parts = parts[1:]
+    if len(parts) == 1:
+        parts = ["", parts[0]]
+    return f"{LOOPBACK}:{':'.join(parts)}{slash}{proto}"
 
 
 class _Scripts:
@@ -131,6 +165,10 @@ class _Scripts:
     def __init__(self, export: Export, env_keys: list[str]):
         self.export, self.env_keys = export, env_keys
 
+    @staticmethod
+    def _words(argv: list[str]) -> str:
+        return " ".join(shlex.quote(part.replace("$$", "$")) for part in argv)
+
     def _argv(self, hook: str, ordinal: list[int], argv: list[str]) -> str:
         if len(argv) == 3 and INTERPRETERS.get(argv[0]) and argv[1].startswith("-") and "\n" in argv[2]:
             ordinal[0] += 1
@@ -138,7 +176,7 @@ class _Scripts:
             name = f"{HOOKS_DIR}/{hook}{suffix}.{INTERPRETERS[argv[0]]}"
             self.export.files[name] = (argv[2].replace("$$", "$").rstrip("\n") + "\n", 0o644)
             return f'{shlex.quote(argv[0])} {shlex.quote(argv[1])} "$(cat {name})"'
-        return " ".join(shlex.quote(part) for part in argv)
+        return self._words(argv)
 
     def _exec(self, user: str | None, env: bool, stdin: bool) -> str:
         parts = ["docker exec"]
@@ -151,11 +189,11 @@ class _Scripts:
         return " ".join(parts) + ' "$cid"'
 
     def _head(self, what: str, service: str, env: bool, stdin: bool) -> list[str]:
-        head = ["#!/bin/sh", f"# {what}, run inside the {service} container.", "set -eu", 'cd "$(dirname "$0")"']
+        head = ["#!/bin/sh", f"# {what}, run inside the {_one_line('service', service)} container.", "set -eu", 'cd "$(dirname "$0")"']
         if env and self.env_keys:
             head += ["set -a", ". ./.env", "set +a"]
         head += [f"cid=$(docker compose ps -q {shlex.quote(service)})",
-                 f'[ -n "$cid" ] || {{ echo "{service} is not running" >&2; exit 1; }}']
+                 f'[ -n "$cid" ] || {{ echo {shlex.quote(service + " is not running")} >&2; exit 1; }}']
         if stdin:
             head += ['input=$(mktemp)', "trap 'rm -f \"$input\"' EXIT", 'cat > "$input"']
         return head
@@ -174,7 +212,7 @@ class _Scripts:
         lines = self._head("The schema migration", spec["service"], False, False)
         ordinal = [0]
         if spec.get("ready"):
-            ready = " ".join(shlex.quote(part) for part in spec["ready"])
+            ready = self._words(spec["ready"])
             lines += [f'deadline=$(( $(date +%s) + {int(spec["timeout_seconds"])} ))',
                       f"until {exec_} {ready} >/dev/null 2>&1; do",
                       '  if [ "$(date +%s)" -ge "$deadline" ]; then echo "not ready in time" >&2; exit 1; fi',
@@ -182,6 +220,18 @@ class _Scripts:
         for argv in spec["migrate"]:
             lines.append(f"{exec_} {self._argv('migrate', ordinal, argv)}")
         self.export.files["migrate.sh"] = ("\n".join(lines) + "\n", 0o755)
+
+
+def _check_exec(doc: dict[str, Any], where: str, service: Any, user: Any, lists: list[Any]) -> None:
+    """The service is one the compose defines, the user a string and each command a list of strings."""
+    if not isinstance(service, str) or service not in doc["services"]:
+        raise PlainError(f"{where}: {service!r} is not a service of the compose")
+    if user is not None and not isinstance(user, str):
+        raise PlainError(f"{where}: the user is not a string")
+    for commands in lists:
+        if not isinstance(commands, list) or not all(
+                isinstance(argv, list) and all(isinstance(part, str) for part in argv) for argv in commands):
+            raise PlainError(f"{where}: a command is not a list of strings")
 
 
 def build(text: str, ask: Callable[[str], str] | None = None) -> Export:
@@ -205,9 +255,16 @@ def build(text: str, ask: Callable[[str], str] | None = None) -> Export:
     hooks = block.get("hooks") or {}
     for name in HOOK_NAMES:
         if hooks.get(name):
+            _check_exec(doc, f"hooks.{name}", hooks.get("service"), hooks.get("user"), [hooks[name]])
             scripts.hook(name, hooks["service"], hooks.get("user"), hooks[name])
     lifecycle = block.get("lifecycle") or {}
     if lifecycle.get("migrate"):
+        _check_exec(doc, "lifecycle", lifecycle.get("service"), lifecycle.get("user"),
+                    [lifecycle["migrate"], [lifecycle["ready"]] if lifecycle.get("ready") else []])
+        try:
+            int(lifecycle.get("timeout_seconds", 0))
+        except (TypeError, ValueError) as exc:
+            raise PlainError("lifecycle: timeout_seconds is not a number") from exc
         scripts.migrate(lifecycle)
     return export
 
@@ -219,7 +276,8 @@ def _inside(path: Path, root: Path) -> bool:
 def write(out: Path, export: Export, roots: list[Path]) -> None:
     """Create `out` (it must not exist, nor lie inside a repository) and write the files."""
     target = out.resolve()
-    if any(_inside(target, root.resolve()) for root in roots):
+    if any(_inside(target, root.resolve()) for root in roots) or any(
+            (path / ".git").exists() for path in (target, *target.parents)):
         raise PlainError(f"{out} lies inside a repository; choose a folder outside it")
     if out.exists() or out.is_symlink():
         raise PlainError(f"{out} exists already")
@@ -263,12 +321,14 @@ def _docker(out: Path, *args: str) -> int:
 
 
 def _answers(port: int) -> bool:
+    connection = http.client.HTTPConnection(LOOPBACK, port, timeout=5)
     try:
-        urllib.request.urlopen(f"http://127.0.0.1:{port}/", timeout=5).close()
-    except urllib.error.HTTPError:
-        return True
+        connection.request("GET", "/")
+        connection.getresponse()
     except (OSError, http.client.HTTPException):
         return False
+    finally:
+        connection.close()
     return True
 
 
