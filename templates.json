@@ -1206,31 +1206,6 @@
     },
     {
       "categories": [
-        "Finance"
-      ],
-      "description": "Self-hosted personal finance + envelope budgeting. Replaces YNAB / Mint.",
-      "env": [
-        {
-          "default": "__CATENA_OPERATOR_WIRED__",
-          "description": "Placeholder. The copy of this catalog served by a Catena host carries the real value; deploying this file directly does not.",
-          "label": "Domain",
-          "name": "DOMAIN_HOST"
-        }
-      ],
-      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/actualbudget/logo.png",
-      "maintainer": "https://github.com/catenahq/catena-templates",
-      "name": "catena-actualbudget",
-      "note": "<p>Self-hosted personal finance. Envelope budgeting, bank account syncing via SimpleFIN or GoCardless, encrypted end-to-end.</p><p>Replaces YNAB, Mint, EveryDollar.</p><p><a href=\"https://github.com/catenahq/catena-templates/blob/main/blueprints/actualbudget/README.md\">https://github.com/catenahq/catena-templates/blob/main/blueprints/actualbudget/README.md</a></p>",
-      "platform": "linux",
-      "repository": {
-        "stackfile": "blueprints/actualbudget/docker-compose.yml",
-        "url": "https://github.com/catenahq/catena-templates"
-      },
-      "title": "Actual Budget",
-      "type": 2
-    },
-    {
-      "categories": [
         "Marketing",
         "Social"
       ],

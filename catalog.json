@@ -2219,6 +2219,7 @@
           "EveryDollar"
         ],
         "setup_steps": "1. Click **Deploy**. Wait ~30 s.\n2. Visit the Actual Budget domain. Set a server password on first visit (it's stored locally; remember it -- no recovery).\n3. Create a new budget or import an existing one (file menu -> Import from YNAB4 / YNAB5 / nYNAB).\n4. *(Optional)* Connect bank accounts via **Settings** -> **Connected Accounts** -> SimpleFIN (USD/CAD, paid) or GoCardless (EUR/GBP, free).\n",
+        "summary": "Personal budgeting with envelopes and bank account syncing.",
         "what_it_is": "Self-hosted personal finance. Envelope budgeting, bank account syncing via SimpleFIN or GoCardless, encrypted end-to-end."
       },
       "env": {
@@ -2244,6 +2245,7 @@
           "EveryDollar"
         ],
         "setup_steps": "1. Cliquez **Deploy**. Patientez ~30 s.\n2. Visitez le domaine Actual Budget. D\u00e9finissez un mot de passe serveur au premier acc\u00e8s (stock\u00e9 localement ; retenez-le -- pas de r\u00e9cup\u00e9ration).\n3. Cr\u00e9ez un nouveau budget ou importez-en un existant (menu fichier -> Importer depuis YNAB4 / YNAB5 / nYNAB).\n4. *(Optionnel)* Connectez des comptes bancaires via **Settings** -> **Connected Accounts** -> SimpleFIN (USD/CAD, payant) ou GoCardless (EUR/GBP, gratuit).\n",
+        "summary": "Budget personnel par enveloppes, avec synchronisation des comptes bancaires.",
         "what_it_is": "Finances personnelles auto-h\u00e9berg\u00e9es. Budg\u00e9tisation par enveloppes, synchro bancaire via SimpleFIN ou GoCardless, chiffr\u00e9 de bout en bout."
       },
       "hostname_baked": false,
@@ -2280,6 +2282,7 @@
         "service": "actual",
         "timeout_seconds": 10
       },
+      "requires_catena": "0.11.12",
       "sizing": {
         "disk_baseline_mb": 30,
         "idle_cpu_pct": 1,

@@ -1,5 +1,6 @@
 x-catena:
   schema: 2
+  requires_catena: 0.11.12
   env:
     DOMAIN_HOST:
       managed: {expr: "budget.{{ cloudflare_zone }}"}
@@ -73,9 +74,6 @@ services:
     volumes:
       - actual-data:/data
     labels:
-      - "vps.homepage.name=Actual Budget"
-      - "vps.homepage.description=Personal budgeting with envelopes and bank account syncing."
-      - "vps.homepage.description-fr=Budget personnel par enveloppes, avec synchronisation des comptes bancaires."
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=5006"
       - "vps.auth.mode=public"

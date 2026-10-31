@@ -1,0 +1,52 @@
+{
+  "schema": 1,
+  "app_name": "catena-actualbudget",
+  "upstream_url": "https://actualbudget.org/",
+  "categories": [
+    "Finance"
+  ],
+  "logo": {
+    "source": "https://cdn.jsdelivr.net/gh/selfhst/icons@02dd039d62a8e7132f4828e69162fca30bd43bb5/png/actual-budget.png",
+    "notice": "Icon: selfh.st icons, CC BY 4.0"
+  },
+  "sso_mode": "none",
+  "bench": {
+    "pack": "embedded",
+    "hostname_baked": false
+  },
+  "sizing": {
+    "idle_ram_mb": 80,
+    "peak_ram_mb": 180,
+    "idle_cpu_pct": 1,
+    "peak_cpu_pct": 15,
+    "disk_baseline_mb": 30,
+    "notes": "Single Node container, sqlite-backed. Negligible footprint;\neffectively free to add.",
+    "notes_fr": "Un seul conteneur Node, sqlite. Empreinte n\u00e9gligeable ; ajout\nquasi gratuit."
+  },
+  "en": {
+    "display_name": "Actual Budget",
+    "summary": "Personal budgeting with envelopes and bank account syncing.",
+    "what_it_is": "Self-hosted personal finance. Envelope budgeting, bank account syncing via SimpleFIN or GoCardless, encrypted end-to-end.",
+    "replaces": [
+      "YNAB",
+      "Mint",
+      "EveryDollar"
+    ],
+    "compose_description": "Self-hosted personal finance + envelope budgeting. Replaces YNAB / Mint.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/actualbudget/README.md\n",
+    "setup_steps": "1. Click **Deploy**. Wait ~30 s.\n2. Visit the Actual Budget domain. Set a server password on first visit (it's stored locally; remember it -- no recovery).\n3. Create a new budget or import an existing one (file menu -> Import from YNAB4 / YNAB5 / nYNAB).\n4. *(Optional)* Connect bank accounts via **Settings** -> **Connected Accounts** -> SimpleFIN (USD/CAD, paid) or GoCardless (EUR/GBP, free).\n",
+    "extra_notes": "**Note on sign-in.** Actual Budget uses a single shared server password to unlock the UI, not per-user logins. Multi-user is supported at the budget level (share the budget file) but the server auth is a single secret. This matches how the upstream project is designed: typically one household per server. OIDC/SSO isn't supported.\n"
+  },
+  "fr": {
+    "display_name": "Actual Budget",
+    "summary": "Budget personnel par enveloppes, avec synchronisation des comptes bancaires.",
+    "what_it_is": "Finances personnelles auto-h\u00e9berg\u00e9es. Budg\u00e9tisation par enveloppes, synchro bancaire via SimpleFIN ou GoCardless, chiffr\u00e9 de bout en bout.",
+    "replaces": [
+      "YNAB",
+      "Mint",
+      "EveryDollar"
+    ],
+    "compose_description": "Finances personnelles + budg\u00e9tisation par enveloppes auto-h\u00e9berg\u00e9es. Remplace YNAB / Mint.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/actualbudget/README.md\n",
+    "setup_steps": "1. Cliquez **Deploy**. Patientez ~30 s.\n2. Visitez le domaine Actual Budget. D\u00e9finissez un mot de passe serveur au premier acc\u00e8s (stock\u00e9 localement ; retenez-le -- pas de r\u00e9cup\u00e9ration).\n3. Cr\u00e9ez un nouveau budget ou importez-en un existant (menu fichier -> Importer depuis YNAB4 / YNAB5 / nYNAB).\n4. *(Optionnel)* Connectez des comptes bancaires via **Settings** -> **Connected Accounts** -> SimpleFIN (USD/CAD, payant) ou GoCardless (EUR/GBP, gratuit).\n",
+    "extra_notes": "**\u00c0 propos de la connexion.** Actual Budget utilise un mot de passe serveur partag\u00e9 pour d\u00e9verrouiller l'UI, pas des connexions par utilisateur. Le multi-utilisateurs fonctionne au niveau du budget (partage de fichier budget) mais l'auth serveur est un secret unique. C'est la conception upstream : typiquement un foyer par serveur. OIDC/SSO non support\u00e9.\n"
+  }
+}

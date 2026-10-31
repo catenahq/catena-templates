@@ -116,11 +116,14 @@ def test_catalog_json_carries_what_portainer_cannot():
         assert entry["sizing"]["peak_ram_mb"] > 0
 
 
-def test_catalog_json_and_templates_json_cover_the_same_ids():
+def test_templates_json_lists_the_apps_held_as_a_source_and_catalog_json_every_app():
     templates = json.loads((ROOT / "templates.json").read_text())["templates"]
     catalog = json.loads((ROOT / "catalog.json").read_text())["templates"]
-    assert {t["name"] for t in templates} == {e["app_name"] for e in catalog}
-    assert len(templates) == len(catalog)
+    entries = model.load_sources()
+    assert {t["name"] for t in templates} == {e.catena["app_name"] for e in entries if not e.card}
+    assert len(templates) == sum(not e.card for e in entries)
+    assert {e["id"] for e in catalog} == {e.slug for e in entries}
+    assert len(catalog) == len(entries)
 
 
 def test_the_blocks_managed_env_reaches_the_catalog_as_env_lines_and_keys():
@@ -234,6 +237,21 @@ def test_a_readme_has_no_root_relative_link():
         assert "](/" not in body, entry.slug
 
 
+def _sample_source() -> model.Entry:
+    """An app held as a source, whatever layout the catalog is in."""
+    prose = {"display_name": "Example", "what_it_is": "An example.", "replaces": ["Other"],
+             "setup_steps": "1. Open it.\n"}
+    cat = {"app_name": "catena-example", "upstream_url": "https://example.com/",
+           "sso_mode": "none", "bench": {"pack": "nodb"}, "sizing": {"peak_ram_mb": 256},
+           "domain": {"host": "x.example.com", "service": "app", "port": 8080},
+           "en": {**prose, "compose_description": "An example.\n"},
+           "fr": {**prose, "compose_description": "Un exemple.\n"}}
+    raw = {"id": "example", "type": 2, "title": "Example", "name": "catena-example",
+           "categories": ["Testing"], "platform": "linux", "x-catena": cat}
+    block = {"schema": 2, "env": {"DOMAIN_HOST": {"setting": {"default": "x.example.com"}}}}
+    return model.Entry(raw, block)
+
+
 def _requiring(entry: model.Entry, version: str | None) -> model.Entry:
     raw = copy.deepcopy(entry.raw)
     raw["x-catena"].pop("requires_catena", None)
@@ -246,7 +264,7 @@ def test_an_entry_needing_a_newer_catena_says_so_in_its_description_and_readme()
     """A server on an older release deploys such an entry in a shape its
     panel cannot serve. The templates.json description and the README in the
     blueprint both name the release."""
-    entry = model.load_sources()[0]
+    entry = _sample_source()
     needs = _requiring(entry, "0.11.0")
     description = render.render_portainer_template(needs, "logo.svg")["description"]
     assert description.startswith("Requires Catena 0.11.0 or later. ")
@@ -266,7 +284,7 @@ def test_an_entry_needing_a_newer_catena_says_so_in_its_description_and_readme()
 
 
 def test_a_readme_prints_the_logo_source_and_notice_in_both_languages():
-    entry = model.load_sources()[0]
+    entry = _sample_source()
     raw = copy.deepcopy(entry.raw)
     raw["x-catena"]["logo"] = {"source": "https://example.com/logo.svg",
                                "notice": "Example is a trademark of Example Inc."}
@@ -287,23 +305,28 @@ def test_the_published_readmes_name_each_logo_source():
     README prints the source; an entry with none keeps the placeholder."""
     templates = {t["name"]: t for t in json.loads((ROOT / "templates.json").read_text())["templates"]}
     for entry in model.load_sources():
-        logo = templates[entry.raw["name"]]["logo"]
+        logo = None if entry.card else templates[entry.raw["name"]]["logo"]
         body = (entry.app_dir / "README.md").read_text()
         if entry.logo_path.exists():
-            assert logo.endswith("/logo.png"), entry.slug
+            assert logo is None or logo.endswith("/logo.png"), entry.slug
             assert not (entry.app_dir / "logo.svg").exists(), entry.slug
             assert f"<{entry.catena['logo']['source']}>" in body, entry.slug
         else:
-            assert logo.endswith("/logo.svg"), entry.slug
+            assert logo is None or logo.endswith("/logo.svg"), entry.slug
+            assert (entry.app_dir / "logo.svg").is_file(), entry.slug
             assert "**Logo" not in body, entry.slug
 
 
 def test_the_required_release_is_a_full_version():
     schema = model._schema(model.SOURCE_SCHEMA)
-    entry = model.load_sources()[0]
+    block_schema = model._schema(model.BLOCK_SCHEMA)
+    entry = _sample_source()
     assert model._validate_schema(_requiring(entry, "0.11.0").raw, schema, "x") == []
+    assert model._validate_schema({"schema": 2, "requires_catena": "0.11.0"}, block_schema, "x") == []
     for version in ("0.11", "v0.11.0", "latest"):
         errors = model._validate_schema(_requiring(entry, version).raw, schema, "x")
+        assert errors and "requires_catena" in errors[0], version
+        errors = model._validate_schema({"schema": 2, "requires_catena": version}, block_schema, "x")
         assert errors and "requires_catena" in errors[0], version
 
 
@@ -316,7 +339,8 @@ def test_the_published_catalog_names_each_required_release():
             continue
         required += 1
         sentence = f"Requires Catena {entry.requires_catena} or later."
-        assert templates[entry.raw["name"]]["description"].startswith(sentence), entry.slug
+        if not entry.card:
+            assert templates[entry.raw["name"]]["description"].startswith(sentence), entry.slug
         assert f"**{sentence}**" in (entry.app_dir / "README.md").read_text(), entry.slug
     assert required > 0
 
