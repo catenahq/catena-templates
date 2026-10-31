@@ -1186,7 +1186,7 @@
           "name": "ERPNEXT_WEB_FORMS"
         }
       ],
-      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/erpnext-helpdesk/logo.svg",
+      "logo": "https://raw.githubusercontent.com/catenahq/catena-templates/main/blueprints/erpnext-helpdesk/logo.png",
       "maintainer": "https://github.com/catenahq/catena-templates",
       "name": "catena-erpnext-helpdesk",
       "note": "<p>Requires Catena 0.11.10 or later.</p><p>Full open-source ERP suite -- accounting, inventory, HR/payroll, CRM, manufacturing, projects, a built-in website/e-commerce module, and a helpdesk linked to its customers.</p><p>Replaces SAP Business One, Odoo, Oracle NetSuite.</p><p><a href=\"https://github.com/catenahq/catena-templates/blob/main/blueprints/erpnext-helpdesk/README.md\">https://github.com/catenahq/catena-templates/blob/main/blueprints/erpnext-helpdesk/README.md</a></p>",

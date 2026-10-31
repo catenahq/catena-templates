@@ -202,6 +202,9 @@ services:
       - sites:/home/frappe/frappe-bench/sites
       - logs:/home/frappe/frappe-bench/logs
     labels:
+      - "vps.homepage.name=ERPNext with Helpdesk"
+      - "vps.homepage.description=Business management with a customer support desk linked to the customer records."
+      - "vps.homepage.description-fr=Gestion d'entreprise avec un service d'assistance lié aux dossiers des clients."
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=8080"
       - "vps.auth.mode=public"

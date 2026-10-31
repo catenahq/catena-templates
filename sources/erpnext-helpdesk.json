@@ -12,6 +12,9 @@
   "x-catena": {
     "app_name": "catena-erpnext-helpdesk",
     "upstream_url": "https://erpnext.com/",
+    "logo": {
+      "source": "https://raw.githubusercontent.com/frappe/helpdesk/055639395d292e10b8ecdf8f43ea2daed2462a5a/.github/hd-logo.svg"
+    },
     "requires_catena": "0.11.10",
     "sso_mode": "pre-wired",
     "domain": {
