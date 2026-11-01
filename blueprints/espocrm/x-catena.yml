@@ -1,0 +1,30 @@
+schema: 2
+requires_catena: 0.11.12
+env:
+  DOMAIN_HOST:
+    setting: {default: "crm.{{ cloudflare_zone }}"}
+  ESPOCRM_HOSTNAME:
+    setting: {default: "crm.{{ cloudflare_zone }}"}
+  ESPOCRM_ADMIN_USERNAME:
+    setting: {default: "admin"}
+  ESPOCRM_ADMIN_PASSWORD:
+    generated: {length: 24, alphabet: alnum}
+  DB_PASSWORD:
+    generated: {length: 32, alphabet: alnum}
+  DB_ROOT_PASSWORD:
+    generated: {length: 32, alphabet: alnum}
+lifecycle:
+  service: "espocrm"
+  user: "www-data"
+  ready: ["php", "-r", "exit(@fsockopen('127.0.0.1', 80) ? 0 : 1);"]
+  migrate:
+    - ["php", "rebuild.php"]
+  versioned_volumes: ["custom"]
+  timeout_seconds: 900
+# verify asks Apache for the start page and for the REST API, which answers 401 to a request with no sign-in.
+hooks:
+  service: espocrm
+  user: www-data
+  timeout_seconds: 60
+  verify:
+    - hooks/verify.php

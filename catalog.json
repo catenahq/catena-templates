@@ -1224,7 +1224,7 @@
       "domain_port": 80,
       "domain_service": "espocrm",
       "en": {
-        "compose_description": "Open-source CRM (default). Replaces Salesforce / HubSpot / Zoho.\n\nhttps://github.com/catenahq/catena-templates/blob/HEAD/blueprints/espocrm/README.md\n",
+        "compose_description": "Open-source CRM (default). Replaces Salesforce / HubSpot / Zoho.\n",
         "display_name": "EspoCRM",
         "extra_notes": "### Why EspoCRM is the default\n\nIt is the only fully open-source CRM in this catalog with native OIDC in the community edition (no Pro tier upgrade), pre-built mobile apps, and an established record of stable upgrades. Twenty is the alternative for a modern Notion-like UI; both are kept in the catalog so the choice stays open.\n\n### Resource note\n\nEspoCRM runs as PHP-Apache + MariaDB + a cron sidecar. Plan for ~1 GB RAM at idle, ~2 GB under bulk-import or mass-email workloads.\n",
         "replaces": [
@@ -1281,7 +1281,7 @@
         "DB_ROOT_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
       ],
       "fr": {
-        "compose_description": "CRM open-source (par d\u00e9faut). Remplace Salesforce / HubSpot / Zoho.\n\nhttps://github.com/catenahq/catena-templates/blob/HEAD/blueprints/espocrm/README.md\n",
+        "compose_description": "CRM open-source (par d\u00e9faut). Remplace Salesforce / HubSpot / Zoho.\n",
         "display_name": "EspoCRM",
         "extra_notes": "### Pourquoi EspoCRM est le CRM par d\u00e9faut\n\nC'est le seul CRM enti\u00e8rement open-source du catalogue avec OIDC natif en \u00e9dition communautaire (sans palier Pro), des apps mobiles existantes et un historique stable de mises \u00e0 jour. Twenty est l'alternative pour une UI moderne fa\u00e7on Notion ; les deux restent au catalogue pour laisser le choix ouvert.\n\n### Ressources\n\nEspoCRM tourne en PHP-Apache + MariaDB + un cron sidecar. Pr\u00e9voyez ~1 GB RAM au repos, ~2 GB sous import en masse ou envoi mass-email.\n",
         "replaces": [
