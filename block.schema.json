@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://raw.githubusercontent.com/catenahq/catena-templates/main/block.schema.json",
   "title": "Catena app declaration block",
-  "description": "The x-catena block at the top level of blueprints/<id>/docker-compose.yml: what the host needs to update, back up and restore the deployed app without reading the catalog. Portainer stores the compose byte for byte, so the block travels with the app. catena-admin payload/engines/appdecl reads it. A block holds no $ (Docker interpolates it when it deploys the file), except in a hooks script body where each $ is written $$, and names no image of its file (an update rewrites those).",
+  "description": "The x-catena block at the top level of blueprints/<id>/docker-compose.yml: what the host needs to update, back up and restore the deployed app without reading the catalog. A host stores the compose byte for byte, so the block travels with the app. catena-admin payload/engines/appdecl reads it. A block holds no $ (Docker interpolates it when it deploys the file), except in a hooks script body where each $ is written $$, and names no image of its file (an update rewrites those).",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -225,7 +225,7 @@
             "type": "object",
             "additionalProperties": false,
             "required": ["expr"],
-            "description": "A key the host's dashboard-sync re-injects into a running stack whenever it drifts from what the panel renders (a rotated credential, a changed domain), with the expression its value is rendered from. In the public catalog it renders to the operator-wired sentinel, never to a real value.",
+            "description": "A key the host's dashboard-sync re-injects into a running stack whenever it drifts from what the panel renders (a rotated credential, a changed domain), with the expression its value is rendered from. The public catalog holds the expression, never a real value.",
             "properties": {
               "expr": { "type": "string", "minLength": 1 }
             }

@@ -5,11 +5,11 @@ the repository, and the checks.
 
 ## Edit rules
 
-- A template is TWO hand-edited files: `blueprints/<id>/app.json` and
-  `blueprints/<id>/docker-compose.yml`. The folder name is the app's id (an
-  `app.json` has no `id` field). The compose carries no `vps.homepage.*` label
-  (`make lint` refuses any) and the app's web address is derived from its
-  labels.
+- A template is one folder, `blueprints/<id>/`, whose hand-edited files are
+  `app.json`, `docker-compose.yml`, an optional `test.yml` and an optional
+  `logo.png`. The folder name is the app's id (an `app.json` has no `id`
+  field). The compose carries no `vps.homepage.*` label (`make lint` refuses
+  any) and the app's web address is derived from its labels.
 - Everything else is generated: the per-app `README.md` and placeholder
   `logo.svg`, plus `catalog.json` and `index.html`.
   Never hand-edit a generated file -- the change is overwritten on the
@@ -102,9 +102,9 @@ the repository, and the checks.
   app per pull request.
 - No emojis or em-dashes in any artifact. Plain hyphens + straight
   quotes only. `npm run check:unicode` enforces, and also scans for the
-  names of systems Catena stopped shipping.
-- Code comments describe the template pipeline as it stands, not what it
-  used to do. `npm run check:prose` enforces, over the Python and the
+  system names it lists.
+- Code comments describe the template pipeline as it stands.
+  `npm run check:prose` enforces, over the Python and the
   YAML comments alike. Both gates live in catenahq/contracts and run
   from the sibling checkout; this repo holds no copy. A debt entry in
   `.github/prose-debt.txt` that has become clean FAILS the gate and must
@@ -148,14 +148,13 @@ transforms each app's `app.json` and compose into:
 - `blueprints/<id>/logo.svg` -- a deterministic placeholder, unless a
   hand-placed `logo.png` sits beside it.
 
-`blueprints/<id>/docker-compose.yml` is NOT rendered: it is the
-hand-edited input, and a host fetches it from this public repo at a tag.
-Jinja stays in place; the env it reads is settled on the host, and routing is
-reconciled post-deploy by dashboard-sync. The render never writes into
-that file, except for an app held as neat files: the render packs that
-app's `docker-compose.yml` from its neat files (`lib/pack.py`), committed
-beside them. The render deletes a blueprint directory only when it holds no
-`app.json`.
+`blueprints/<id>/docker-compose.yml` is the hand-edited input, and a host
+fetches it from this public repo at a tag. Jinja stays in place; the env it
+reads is settled on the host, and routing is reconciled post-deploy by
+dashboard-sync. The render writes into that file only for an app held as neat
+files: it packs that app's `docker-compose.yml` from them (`lib/pack.py`),
+committed beside them. The render deletes a blueprint directory only when it
+holds no `app.json`.
 - `catalog.json` -- the browsable catalog, in one
   fetch: the flat per-template fields, `sizing`, the EN/FR prose, and the
   compose block lifted under the keys `env`, `lifecycle`, `quiesce`,

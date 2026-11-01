@@ -81,12 +81,13 @@ layout: the environment variable `TEMPLATES_ROOT` names the tree holding its
 schemas are always read from this checkout. The render writes into that tree and
 `build/versions.py` reads its git tags.
 
-Three things are human-edited: `blueprints/<id>/app.json` (the web address is
-derived from the compose labels and `requires_catena` is a field of the compose
-block), the compose in `blueprints/<id>/` with its `x-catena` block, and an
-optional logo beside it. The compose carries no `vps.homepage.*` label.
-Everything else listed as generated is a committed build artifact; CI
-re-renders on every push and pull request and fails if the committed copies drift.
+An app is hand-edited in its own folder: `blueprints/<id>/app.json` (the web address
+is derived from the compose labels and `requires_catena` is a field of the compose
+block), the compose with its `x-catena` block (or the neat files that stand for it),
+an optional `test.yml` and an optional `logo.png`. The compose carries no
+`vps.homepage.*` label. Everything else listed as generated is a committed build
+artifact; CI re-renders on every push and pull request and fails if the committed
+copies drift.
 
 ## An app held as neat files
 
@@ -429,6 +430,11 @@ app's last runtime change at or before the change's base has an `app-ci` status 
 success posted by github-actions[bot] for a run of this repository; with no
 such status, no runtime change to rely on, or a status that
 cannot be read, they run. The job summary names the path taken.
+
+An app whose `app.json` sets `bench.plain` is also exported for bare Docker and
+started (`build/pack.py plain-check`, see "Run an app on bare Docker"), on the
+runs of the heavy steps and on a change of verification; the job fails when the
+export does not answer.
 
 A push to `main` (a repository admin's direct push or a merge) runs
 `.github/workflows/app-main.yml`, which calls `app-ci.yml` once per commit of

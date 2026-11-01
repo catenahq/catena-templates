@@ -6,16 +6,18 @@ resolves each pointer on every change.
 
 ## Intent
 
-The canonical application catalog for Catena. A template is two
-hand-edited files -- its card at `blueprints/<id>/app.json` and its compose
-at `blueprints/<id>/docker-compose.yml` -- from which everything else is
-rendered: the per-app README and the machine catalog `catalog.json`.
+The canonical application catalog for Catena. A template is one folder,
+`blueprints/<id>/`, holding its hand-edited compose (`docker-compose.yml`),
+card (`app.json`), optional `test.yml` and optional `logo.png`; everything
+else is rendered from them: the per-app README, the machine catalog
+`catalog.json` and the static preview `index.html`.
 
 ## Boundaries
 
 - **Hand-edited vs rendered.** The hand-edited files are
-  `blueprints/<id>/app.json`, `blueprints/<id>/docker-compose.yml` and an
-  optional `blueprints/<id>/logo.png`. An app held as neat files
+  `blueprints/<id>/app.json`, `blueprints/<id>/docker-compose.yml`, an
+  optional `blueprints/<id>/test.yml` and an optional
+  `blueprints/<id>/logo.png`. An app held as neat files
   (`services.yml` in its folder) hand-edits `services.yml`, `settings.yml`,
   `access.yml`, `lifecycle.yml` and `hooks/` in place of the compose, and its
   `docker-compose.yml` is rendered from them. Everything else is a build
@@ -51,6 +53,7 @@ rendered: the per-app README and the machine catalog `catalog.json`.
 | A push to `main` sends only the commits that passed the app checks to the bench, and an app is tagged only when they passed at its last change | `workflow:app-main.yml`, `workflow:app-tag.yml` |
 | A change of an app's presentation alone keeps its last app-tests verdict and is tagged without a bench run; a change of what runs or of its tests runs the bench | `workflow:app-dispatch.yml`, `workflow:app-tag.yml` |
 | The compose a host deploys for an app held as neat files is the one the render packs from them, and a change whose compose differs from that render fails | `workflow:app-ci.yml` |
+| A catalog app that opts in exports to a folder plain Docker starts, and it answers on its published port on a machine without Catena | `workflow:app-ci.yml` |
 | Templates deploy and run end-to-end on real servers | `bench:ce_install_suite` |
 
 Gate pointer grammar: `workflow:<file>` = a CI workflow in this
