@@ -1,0 +1,18 @@
+schema: 2
+requires_catena: 0.11.12
+env:
+  DOMAIN_HOST:
+    setting: {default: "book.{{ cloudflare_zone }}"}
+  EASYAPPOINTMENTS_HOSTNAME:
+    setting: {default: "book.{{ cloudflare_zone }}"}
+  DB_PASSWORD:
+    generated: {length: 32, alphabet: alnum}
+  DB_ROOT_PASSWORD:
+    generated: {length: 32, alphabet: alnum}
+# verify asks Apache for the root page. Before its installation wizard has run, the application answers
+# with a redirect to /installation; after it, with the booking page, whose title names the product.
+hooks:
+  service: easyappointments
+  timeout_seconds: 60
+  verify:
+    - hooks/verify.sh
