@@ -9,6 +9,7 @@ three on catena-network.
 """
 from __future__ import annotations
 
+import json
 import re
 import sys
 from pathlib import Path
@@ -68,11 +69,39 @@ def test_the_hub_is_on_its_own_networks_beside_its_private_one():
     assert _networks(app) == {"default", BESZEL_NETWORK, GATE_NETWORK}
     for net in (BESZEL_NETWORK, GATE_NETWORK):
         assert app["networks"][net]["aliases"] == ["beszel-hub"]
-    assert _external(doc) == {BESZEL_NETWORK, GATE_NETWORK}
+    assert _external(doc) == {BESZEL_NETWORK, GATE_NETWORK, HC_NETWORK, "hostnet"}
 
 
-def test_the_helper_of_the_hub_is_on_no_shared_network():
-    assert _networks(_compose("beszel")["services"]["probe"]) == {"default"}
+def test_the_relay_is_on_the_apps_network_and_the_healthchecks_network_only():
+    doc = _compose("beszel")
+    relay = doc["services"]["relay"]
+    assert _networks(relay) == {"default", HC_NETWORK}
+    assert "ports" not in relay and "labels" not in relay
+    assert relay["volumes"] == ["agent-key:/key", "relay-state:/state"]
+    assert "environment" not in relay, "the relay holds no key or password in its service definition"
+
+
+def test_the_agent_is_on_the_host_network_with_the_socket_and_the_key_read_only():
+    doc = _compose("beszel")
+    agent = doc["services"]["agent"]
+    assert list(agent["networks"]) == ["hostnet"]
+    assert doc["networks"]["hostnet"] == {"external": True, "name": "host"}
+    assert "/var/run/docker.sock:/var/run/docker.sock:ro" in agent["volumes"]
+    assert {"type": "volume", "source": "agent-key", "target": "/key", "read_only": True} in agent["volumes"]
+    assert agent["environment"]["KEY_FILE"] == "/key/key.pub"
+    assert agent["environment"]["TOKEN_FILE"] == "/key/token"
+    assert "TOKEN" not in agent["environment"], "the token reaches the agent as a file"
+    assert agent["environment"]["DISABLE_SSH"] == "true", "the agent opens no listener"
+    assert agent["labels"] == ["vps.expose.none=true", "vps.auto-update=patch"]
+    assert agent["environment"]["HUB_URL"] == "http://127.0.0.1:18190"
+    assert agent["deploy"]["placement"]["constraints"] == ["node.labels.catena.role==data"]
+    assert _entry("beszel").block["privileges"] == ["host_network", "docker_socket"]
+
+
+def test_the_hooks_of_the_hub_run_in_the_relay_and_the_hub_image_is_not_asked_for_a_shell():
+    block = _entry("beszel").block
+    assert block["hooks"]["service"] == "relay"
+    assert "probe" not in _compose("beszel")["services"]
 
 
 def test_only_gatus_joins_catena_network():
@@ -97,7 +126,7 @@ def test_no_client_network_reaches_the_gate_network_or_the_healthchecks_network(
             if GATE_NETWORK in nets:
                 assert (slug, name) == ("beszel", "app")
             if HC_NETWORK in nets:
-                assert (slug, name) in {("healthchecks", "app"), ("gatus", "app")}
+                assert (slug, name) in {("healthchecks", "app"), ("gatus", "app"), ("beszel", "relay")}
             if BESZEL_NETWORK in nets:
                 assert (slug, name) in {("beszel", "app"), ("gatus", "app")}
 
@@ -166,14 +195,23 @@ def test_no_address_or_sign_in_label(slug):
     """The core sign-in gate fronts these apps; no vps.route, vps.auth or vps.health label is read."""
     for svc in _compose(slug)["services"].values():
         for label in svc.get("labels") or []:
-            assert re.match(r"vps\.auto-update=", label), f"{slug}: {label}"
+            assert re.match(r"vps\.(auto-update|expose\.none)=", label), f"{slug}: {label}"
+
+
+@pytest.mark.parametrize("slug", APPS)
+def test_no_service_of_the_monitoring_apps_opens_a_port_to_the_firewall(slug):
+    """A vps.expose.tcp or udp label opens the port to every source; these apps listen on loopback
+    or on private networks only."""
+    for name, svc in _compose(slug)["services"].items():
+        text = " ".join(str(label) for label in svc.get("labels") or [])
+        assert "vps.expose.tcp" not in text and "vps.expose.udp" not in text, f"{slug}.{name}"
 
 
 @pytest.mark.parametrize("slug", APPS)
 def test_no_environment_value_is_a_literal_credential(slug):
     for svc in _compose(slug)["services"].values():
         for key, value in (svc.get("environment") or {}).items():
-            if re.search(r"PASSWORD|SECRET|TOKEN|KEY", key):
+            if re.search(r"PASSWORD|SECRET|TOKEN|KEY", key) and not key.endswith("_FILE"):
                 assert str(value).startswith("${"), f"{slug}: {key} is a literal"
 
 
@@ -188,7 +226,7 @@ def test_the_block_names_its_version_service_and_asks_for_no_newer_release(slug)
 # provide each and who may read it (the provider may always read its own). Every blueprint of
 # the catalog is held to this table.
 PRIVATE_CAPABILITIES = {
-    "healthchecks": {"provider": "healthchecks", "readers": {"gatus"}},
+    "healthchecks": {"provider": "healthchecks", "readers": {"gatus", "beszel"}},
     "beszel": {"provider": "beszel", "readers": {"gatus"}},
     "beszelgate": {"provider": "beszel", "readers": set()},
 }
@@ -219,8 +257,83 @@ def test_the_private_network_capability_table_matches_the_apps_that_exist():
 
 
 def test_the_capabilities_the_apps_provide_name_a_key_of_their_env():
-    assert _entry("healthchecks").block["provides"] == {"healthchecks": {"url": "HC_URL"}}
+    assert _entry("healthchecks").block["provides"] == {"healthchecks": {"url": "HC_URL", "ping_key": "PING_KEY"}}
     assert _entry("beszel").block["provides"] == {"beszel": {"url": "HUB_URL"}, "beszelgate": {"url": "HUB_URL"}}
     gatus = _entry("gatus").managed_env
     assert gatus["HC_URL"] == "{{ provided.healthchecks.url }}"
+    assert gatus["HC_PING_KEY"] == "{{ provided.healthchecks.ping_key }}"
     assert gatus["HUB_URL"] == "{{ provided.beszel.url }}"
+
+
+# --- the wiring contract (contracts default-apps/wiring.json) ---
+
+WIRING = json.loads((ROOT.parent / "contracts" / "default-apps" / "wiring.json").read_text(encoding="utf-8"))
+
+
+def _wired(slug: str) -> dict:
+    return WIRING["apps"][slug]
+
+
+def _declared_networks(service: dict) -> dict[str, list[str]]:
+    """The networks of a compose service other than the stack's default, with their aliases."""
+    nets = service.get("networks") or {}
+    if isinstance(nets, list):
+        nets = {name: {} for name in nets}
+    return {name: list((decl or {}).get("aliases") or []) for name, decl in nets.items()
+            if name not in ("default", "hostnet")}
+
+
+def _ports(service: dict) -> list[dict]:
+    return [{"published": p["published"], "target": p["target"]} for p in service.get("ports") or []]
+
+
+@pytest.mark.parametrize("slug", APPS)
+def test_the_contract_names_the_stack_of_the_app(slug):
+    assert _wired(slug)["stack"] == _entry(slug).catena["app_name"]
+
+
+@pytest.mark.parametrize("slug", APPS)
+def test_the_contract_lists_the_services_networks_aliases_and_ports_of_the_compose(slug):
+    doc = _compose(slug)
+    wired = _wired(slug)["services"]
+    assert set(wired) == set(doc["services"])
+    for name, service in doc["services"].items():
+        want = wired[name]
+        assert _declared_networks(service) == (want.get("networks") or {}), f"{slug}.{name} networks"
+        assert _ports(service) == (want.get("ports") or []), f"{slug}.{name} ports"
+        assert ("hostnet" in (service.get("networks") or {})) == bool(want.get("host_network")), f"{slug}.{name}"
+        socket = any(str(v).startswith("/var/run/docker.sock") for v in service.get("volumes") or [])
+        assert socket == bool(want.get("docker_socket")), f"{slug}.{name} docker socket"
+
+
+@pytest.mark.parametrize("slug", APPS)
+def test_the_contract_lists_the_volumes_and_names_them_after_the_stack(slug):
+    wired = _wired(slug)
+    assert set(wired["volumes"]) == set(_compose(slug)["volumes"])
+    assert {key: f"{wired['stack']}_{key}" for key in wired["volumes"]} == wired["volumes"]
+    assert {s["volume"] for s in wired["sqlite"]} <= set(wired["volumes"])
+    assert wired.get("config_volume", next(iter(wired["volumes"]))) in wired["volumes"]
+
+
+@pytest.mark.parametrize("slug", APPS)
+def test_the_contract_lists_the_secrets_and_what_the_block_provides_and_reads(slug):
+    entry, wired = _entry(slug), _wired(slug)
+    assert sorted(entry.block.get("secrets") or []) == sorted(wired["secrets"])
+    assert {cap: sorted(names) for cap, names in (entry.block.get("provides") or {}).items()} == {
+        cap: sorted(names) for cap, names in wired["provides"].items()}
+    read = {cap for expr in entry.managed_env.values() for cap, _ in quiesce_lint.provided_reads(expr)}
+    assert read == set(wired["reads"])
+
+
+def test_the_reserved_capabilities_of_the_contract_are_the_table_this_file_holds():
+    held = {cap: {"provider": rule["provider"], "readers": sorted(rule["readers"])}
+            for cap, rule in PRIVATE_CAPABILITIES.items()}
+    assert held == {cap: {"provider": rule["provider"], "readers": sorted(rule["readers"])}
+                    for cap, rule in WIRING["reserved_capabilities"].items()}
+
+
+@pytest.mark.parametrize("slug", APPS)
+def test_core_writes_no_key_the_block_declares_and_the_block_declares_every_key_core_relies_on(slug):
+    entry, wired = _entry(slug), _wired(slug)
+    assert not set(wired["env_core_writes"]) & set(entry.env)
+    assert set(wired["env_declared"]) == set(entry.env)
