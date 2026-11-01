@@ -1,4 +1,14 @@
+schema: 2
 requires_catena: 0.11.12
+env:
+  DOMAIN_HOST:
+    setting: {default: "twenty.{{ cloudflare_zone }}"}
+  TWENTY_HOSTNAME:
+    setting: {default: "twenty.{{ cloudflare_zone }}"}
+  TWENTY_APP_SECRET:
+    generated: {length: 64, alphabet: alnum}
+  DB_PASSWORD:
+    generated: {length: 32, alphabet: alnum}
 images:
   db:
     rule: {kind: partial_line}
@@ -9,6 +19,4 @@ hooks:
   service: server
   timeout_seconds: 180
   verify:
-    - - sh
-      - -c
-      - {file: hooks/verify.sh}
+    - hooks/verify.sh

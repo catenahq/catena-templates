@@ -1,9 +1,0 @@
-env:
-  DOMAIN_HOST:
-    setting: {default: "twenty.{{ cloudflare_zone }}"}
-  TWENTY_HOSTNAME:
-    setting: {default: "twenty.{{ cloudflare_zone }}"}
-  TWENTY_APP_SECRET:
-    generated: {length: 64, alphabet: alnum}
-  DB_PASSWORD:
-    generated: {length: 32, alphabet: alnum}
