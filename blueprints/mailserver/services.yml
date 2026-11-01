@@ -1,0 +1,480 @@
+services:
+  dms:
+    image: ghcr.io/docker-mailserver/docker-mailserver:16.0.1
+    hostname: ${MAIL_HOSTNAME}
+    deploy:
+      restart_policy:
+        condition: any
+      placement:
+        constraints:
+          - node.labels.catena.role==data
+    # docker-mailserver shuts down after 120 s without a mailbox, and with
+    # SSL_TYPE=manual it needs the certificate of mail-certs at start. This
+    # script runs before the image's own start and leaves what it needs in the
+    # mail-config volume: the postmaster mailbox and the abuse alias, and the
+    # rspamd settings with the start hook
+    # that puts them in /etc/rspamd for each new container. The image starts
+    # dumb-init over supervisord.
+    entrypoint:
+      - /bin/bash
+      - -ec
+      - |
+        cfg=/tmp/docker-mailserver
+        mkdir -p "$$cfg/rspamd/local.d"
+        newline() { [ ! -s "$$1" ] || [ -z "$$(tail -c1 "$$1")" ] || echo >> "$$1"; }
+        accounts="$$cfg/postfix-accounts.cf"
+        if ! grep -qs "^postmaster@$${MAIL_DOMAIN}|" "$$accounts"; then
+          newline "$$accounts"
+          hash=$$(doveadm pw -s SHA512-CRYPT -p "$$(head -c 24 /dev/urandom | base64 | tr -dc 'A-Za-z0-9')")
+          printf 'postmaster@%s|%s\n' "$${MAIL_DOMAIN}" "$$hash" >> "$$accounts"
+        fi
+        virtual="$$cfg/postfix-virtual.cf"
+        if ! grep -qs "^abuse@$${MAIL_DOMAIN} " "$$virtual"; then
+          newline "$$virtual"
+          echo "abuse@$${MAIL_DOMAIN} postmaster@$${MAIL_DOMAIN}" >> "$$virtual"
+        fi
+        rspamd="$$cfg/rspamd/local.d"
+        rm -f "$$rspamd/rbl.conf"
+        rm -f "$$rspamd/antivirus.conf" "$$rspamd/force_actions.conf"
+        if [ -n "$${ANTIVIRUS_HOST:-}" ] && [ -n "$${ANTIVIRUS_PORT:-}" ]; then
+          cat > "$$rspamd/antivirus.conf" <<EOF
+        clamav {
+          type = "clamav";
+          servers = "$${ANTIVIRUS_HOST}:$${ANTIVIRUS_PORT}";
+          scan_mime_parts = true;
+          scan_text_mime = false;
+          scan_image_mime = false;
+          symbol = "CLAM_VIRUS";
+          action = "reject";
+        }
+        EOF
+          cat > "$$rspamd/force_actions.conf" <<'EOF'
+        rules {
+          CLAM_FAIL_SOFT_REJECT {
+            action = "soft reject";
+            expression = "CLAM_VIRUS_FAIL";
+            message = "Antivirus scan temporarily unavailable; please retry later";
+          }
+        }
+        EOF
+        fi
+        cat > "$$rspamd/actions.conf" <<'EOF'
+        greylist = 4;
+        add_header = 6;
+        reject = 15;
+        EOF
+        if [ -n "$${SPAMHAUS_DQS_KEY:-}" ]; then
+          cat > "$$rspamd/rbl.conf" <<'EOF'
+        rbls {
+            spamhaus {
+                rbl = "__DQS_KEY__.zen.dq.spamhaus.net";
+                from = false;
+            }
+            spamhaus_from {
+                from = true;
+                received = false;
+                rbl = "__DQS_KEY__.zen.dq.spamhaus.net";
+                returncodes {
+                    SPAMHAUS_ZEN = [ "127.0.0.2", "127.0.0.3", "127.0.0.4", "127.0.0.5", "127.0.0.6", "127.0.0.7", "127.0.0.9", "127.0.0.10", "127.0.0.11" ];
+                }
+            }
+            spamhaus_authbl_received {
+                rbl = "__DQS_KEY__.authbl.dq.spamhaus.net";
+                from = false;
+                received = true;
+                ipv6 = true;
+                returncodes {
+                    SH_AUTHBL_RECEIVED = "127.0.0.20"
+                }
+            }
+            spamhaus_dbl {
+                rbl = "__DQS_KEY__.dbl.dq.spamhaus.net";
+                helo = true;
+                rdns = true;
+                dkim = true;
+                disable_monitoring = true;
+                returncodes {
+                    RBL_DBL_SPAM = "127.0.1.2";
+                    RBL_DBL_PHISH = "127.0.1.4";
+                    RBL_DBL_MALWARE = "127.0.1.5";
+                    RBL_DBL_BOTNET = "127.0.1.6";
+                    RBL_DBL_ABUSED_SPAM = "127.0.1.102";
+                    RBL_DBL_ABUSED_PHISH = "127.0.1.104";
+                    RBL_DBL_ABUSED_MALWARE = "127.0.1.105";
+                    RBL_DBL_ABUSED_BOTNET = "127.0.1.106";
+                    RBL_DBL_DONT_QUERY_IPS = "127.0.1.255";
+                }
+            }
+            spamhaus_dbl_fullurls {
+                ignore_defaults = true;
+                no_ip = true;
+                rbl = "__DQS_KEY__.dbl.dq.spamhaus.net";
+                selector = 'urls:get_host'
+                disable_monitoring = true;
+                returncodes {
+                    DBLABUSED_SPAM_FULLURLS = "127.0.1.102";
+                    DBLABUSED_PHISH_FULLURLS = "127.0.1.104";
+                    DBLABUSED_MALWARE_FULLURLS = "127.0.1.105";
+                    DBLABUSED_BOTNET_FULLURLS = "127.0.1.106";
+                }
+            }
+            spamhaus_zrd {
+                rbl = "__DQS_KEY__.zrd.dq.spamhaus.net";
+                helo = true;
+                rdns = true;
+                dkim = true;
+                disable_monitoring = true;
+                returncodes {
+                    RBL_ZRD_VERY_FRESH_DOMAIN = ["127.0.2.2", "127.0.2.3", "127.0.2.4"];
+                    RBL_ZRD_FRESH_DOMAIN = [
+                        "127.0.2.5", "127.0.2.6", "127.0.2.7", "127.0.2.8", "127.0.2.9", "127.0.2.10", "127.0.2.11", "127.0.2.12", "127.0.2.13", "127.0.2.14", "127.0.2.15", "127.0.2.16", "127.0.2.17", "127.0.2.18", "127.0.2.19", "127.0.2.20", "127.0.2.21", "127.0.2.22", "127.0.2.23", "127.0.2.24"
+                    ];
+                    RBL_ZRD_DONT_QUERY_IPS = "127.0.2.255";
+                }
+            }
+            "SPAMHAUS_ZEN_URIBL" {
+                enabled = true;
+                rbl = "__DQS_KEY__.zen.dq.spamhaus.net";
+                resolve_ip = true;
+                checks = ['urls'];
+                replyto = true;
+                emails = true;
+                ipv4 = true;
+                ipv6 = true;
+                emails_domainonly = true;
+                returncodes {
+                    URIBL_SBL = "127.0.0.2";
+                    URIBL_SBL_CSS = "127.0.0.3";
+                    URIBL_XBL = ["127.0.0.4", "127.0.0.5", "127.0.0.6", "127.0.0.7"];
+                    URIBL_PBL = ["127.0.0.10", "127.0.0.11"];
+                    URIBL_DROP = "127.0.0.9";
+                }
+            }
+            SH_EMAIL_DBL {
+                ignore_defaults = true;
+                replyto = true;
+                emails_domainonly = true;
+                disable_monitoring = true;
+                rbl = "__DQS_KEY__.dbl.dq.spamhaus.net"
+                returncodes = {
+                    SH_EMAIL_DBL = [
+                        "127.0.1.2",
+                        "127.0.1.4",
+                        "127.0.1.5",
+                        "127.0.1.6"
+                    ];
+                    SH_EMAIL_DBL_ABUSED = [
+                        "127.0.1.102",
+                        "127.0.1.104",
+                        "127.0.1.105",
+                        "127.0.1.106"
+                    ];
+                    SH_EMAIL_DBL_DONT_QUERY_IPS = [ "127.0.1.255" ];
+                }
+            }
+            SH_EMAIL_ZRD {
+                ignore_defaults = true;
+                replyto = true;
+                emails_domainonly = true;
+                disable_monitoring = true;
+                rbl = "__DQS_KEY__.zrd.dq.spamhaus.net"
+                returncodes = {
+                    SH_EMAIL_ZRD_VERY_FRESH_DOMAIN = ["127.0.2.2", "127.0.2.3", "127.0.2.4"];
+                    SH_EMAIL_ZRD_FRESH_DOMAIN = [
+                        "127.0.2.5", "127.0.2.6", "127.0.2.7", "127.0.2.8", "127.0.2.9", "127.0.2.10", "127.0.2.11", "127.0.2.12", "127.0.2.13", "127.0.2.14", "127.0.2.15", "127.0.2.16", "127.0.2.17", "127.0.2.18", "127.0.2.19", "127.0.2.20", "127.0.2.21", "127.0.2.22", "127.0.2.23", "127.0.2.24"
+                    ];
+                    SH_EMAIL_ZRD_DONT_QUERY_IPS = [ "127.0.2.255" ];
+                }
+            }
+            "DBL" {
+                rbl = "__DQS_KEY__.dbl.dq.spamhaus.net";
+                disable_monitoring = true;
+            }
+            "ZRD" {
+                ignore_defaults = true;
+                rbl = "__DQS_KEY__.zrd.dq.spamhaus.net";
+                no_ip = true;
+                dkim = true;
+                emails = true;
+                emails_domainonly = true;
+                urls = true;
+                returncodes = {
+                    ZRD_VERY_FRESH_DOMAIN = ["127.0.2.2", "127.0.2.3", "127.0.2.4"];
+                    ZRD_FRESH_DOMAIN = ["127.0.2.5", "127.0.2.6", "127.0.2.7", "127.0.2.8", "127.0.2.9", "127.0.2.10", "127.0.2.11", "127.0.2.12", "127.0.2.13", "127.0.2.14", "127.0.2.15", "127.0.2.16", "127.0.2.17", "127.0.2.18", "127.0.2.19", "127.0.2.20", "127.0.2.21", "127.0.2.22", "127.0.2.23", "127.0.2.24"];
+                }
+            }
+            spamhaus_sbl_url {
+                ignore_defaults = true
+                rbl = "__DQS_KEY__.sbl.dq.spamhaus.net";
+                checks = ['urls'];
+                disable_monitoring = true;
+                returncodes {
+                    SPAMHAUS_SBL_URL = "127.0.0.2";
+                }
+            }
+            .include(try=true,priority=5) "$$LOCAL_CONFDIR/local.d/sh_rbl_hbl.conf"
+        }
+        EOF
+          sed -i "s/__DQS_KEY__/$${SPAMHAUS_DQS_KEY}/g" "$$rspamd/rbl.conf"
+        fi
+        cat > "$$cfg/user-patches.sh" <<'EOF'
+        #!/bin/bash
+        mkdir -p /etc/rspamd/local.d
+        cp /tmp/docker-mailserver/rspamd/local.d/*.conf /etc/rspamd/local.d/
+        i=0
+        while [ -n "$${ANTIVIRUS_HOST:-}" ] && ! getent hosts "$$ANTIVIRUS_HOST" >/dev/null; do
+          if [ "$$i" -ge 60 ]; then
+            echo "catena: $$ANTIVIRUS_HOST did not resolve within 120s; rspamd starts without its antivirus rule" >&2
+            break
+          fi
+          sleep 2
+          i=$$((i + 1))
+        done
+        EOF
+        chmod 0755 "$$cfg/user-patches.sh"
+        exec /usr/bin/dumb-init -- supervisord -c /etc/supervisor/supervisord.conf
+    environment:
+      POSTMASTER_ADDRESS: postmaster@${MAIL_DOMAIN}
+      MAIL_DOMAIN: ${MAIL_DOMAIN}
+      # The certificate comes from the mail-certs volume, which the host fills
+      # before each deploy (x-catena needs).
+      SSL_TYPE: manual
+      SSL_CERT_PATH: /certs/fullchain.pem
+      SSL_KEY_PATH: /certs/privkey.pem
+      # Spam via rspamd. The antivirus is the scanner another application of
+      # this server provides, reached over TCP by rspamd; the one bundled with
+      # the image stays off. Without a scanner rspamd runs without its antivirus
+      # rule.
+      ENABLE_RSPAMD: "1"
+      ENABLE_CLAMAV: "0"
+      ENABLE_FAIL2BAN: "1"
+      ANTIVIRUS_HOST: ${ANTIVIRUS_HOST:-}
+      ANTIVIRUS_PORT: ${ANTIVIRUS_PORT:-}
+      SPAMHAUS_DQS_KEY: ${SPAMHAUS_DQS_KEY:-}
+      # Keycloak sign-in: Dovecot checks an access token by a GET with the token
+      # to the realm's userinfo endpoint and takes the mailbox from its email.
+      ENABLE_OAUTH2: "1"
+      OAUTH2_INTROSPECTION_URL: ${OIDC_USERINFO_URL}
+      # Outbound smarthost (separate from transactional SMTP_*).
+      RELAY_HOST: ${RELAY_HOST}
+      RELAY_PORT: ${RELAY_PORT}
+      RELAY_USER: ${RELAY_USER}
+      RELAY_PASSWORD: ${RELAY_PASSWORD}
+    # Mail plane published directly on the host; opened via the registry.
+    #
+    # mode: host on every one of them, and it is load-bearing. The
+    # swarm default is the ingress routing mesh, which replaces the client
+    # address with a mesh address before the packet reaches the container.
+    # Everything this container does with a peer address then breaks at once:
+    # rspamd scores every message as if it came from the local network,
+    # fail2ban bans the mesh gateway instead of the attacker, and postfix's
+    # own network checks see one client for all of the internet.
+    ports:
+      - target: 25
+        published: 25
+        protocol: tcp
+        mode: host
+      - target: 465
+        published: 465
+        protocol: tcp
+        mode: host
+      - target: 587
+        published: 587
+        protocol: tcp
+        mode: host
+      - target: 993
+        published: 993
+        protocol: tcp
+        mode: host
+    volumes:
+      - mail-data:/var/mail
+      - mail-state:/var/mail-state
+      - mail-logs:/var/log/mail
+      - mail-config:/tmp/docker-mailserver
+      - mail-certs:/certs:ro
+    cap_add:
+      - NET_ADMIN  # fail2ban
+    healthcheck:
+      test: ["CMD-SHELL", "ss -lntp | grep -E ':(25|993)\\b' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    labels:
+      # Mail ports -> public-port registry (host reconciler applies ufw).
+      - "vps.expose.tcp=25,465,587,993"
+      - "vps.auto-update=patch"
+    networks:
+      default: {}
+      # rspamd reaches the antivirus scanner on its network.
+      antivirus: {}
+
+  roundcube:
+    image: roundcube/roundcubemail:1.7.5-apache
+    # docker-init runs as PID 1, so the backup mode (x-catena.quiesce at the
+    # top of this file) can stop apache's master: a PID namespace's
+    # first process ignores a SIGSTOP sent from inside it, and a running
+    # master can fork fresh children that serve, and write, while the held
+    # ones wait.
+    init: true
+    # The mail server is reached as dms but its certificate names the mail
+    # host, so peer verification stays on and checks that name. The image
+    # includes every php file of the config volume; these are rewritten at
+    # each start, then the image's own entrypoint runs. The sign-in file is
+    # written once the sign-in values are in the environment: Roundcube then
+    # signs in through Keycloak and uses the access token as the XOAUTH2
+    # password for Dovecot and Postfix, so no mail password exists.
+    entrypoint:
+      - /bin/sh
+      - -ec
+      - |
+        cat > /var/roundcube/config/catena-tls.inc.php <<'EOF'
+        <?php
+        $$tls = ['ssl' => ['verify_peer' => true, 'verify_peer_name' => true, 'peer_name' => '${MAIL_HOSTNAME}']];
+        $$config['imap_conn_options'] = $$tls;
+        $$config['smtp_conn_options'] = $$tls;
+        EOF
+        cat > /var/roundcube/config/oauth.inc.php <<'EOF'
+        <?php
+        $$issuer = rtrim((string) getenv('OIDC_ISSUER_URL'), '/');
+        if ($$issuer !== '' && getenv('OIDC_CLIENT_ID') && getenv('OIDC_CLIENT_SECRET')) {
+          $$config['oauth_provider'] = 'generic';
+          $$config['oauth_provider_name'] = 'Keycloak';
+          $$config['oauth_client_id'] = getenv('OIDC_CLIENT_ID');
+          $$config['oauth_client_secret'] = getenv('OIDC_CLIENT_SECRET');
+          $$config['oauth_auth_uri'] = $$issuer . '/protocol/openid-connect/auth';
+          $$config['oauth_token_uri'] = $$issuer . '/protocol/openid-connect/token';
+          $$config['oauth_identity_uri'] = $$issuer . '/protocol/openid-connect/userinfo';
+          $$config['oauth_scope'] = 'openid email profile';
+          $$config['oauth_auth_parameters'] = ['access_type' => 'offline'];
+          $$config['oauth_login_redirect'] = true;
+          // Every request reaches the webmail through the tunnel's TLS and then Traefik over
+          // plain HTTP, and Roundcube trusts a forwarded scheme only from a listed proxy, so
+          // it is told it serves https: the sign-in return address it sends Keycloak is the
+          // registered https one.
+          $$config['use_https'] = true;
+        }
+        EOF
+        exec /docker-entrypoint.sh apache2-foreground
+    deploy:
+      restart_policy:
+        condition: any
+      placement:
+        constraints:
+          - node.labels.catena.role==data
+    environment:
+      # IMAP/SMTP target = the dms service (implicit TLS).
+      ROUNDCUBEMAIL_DEFAULT_HOST: ssl://dms
+      ROUNDCUBEMAIL_DEFAULT_PORT: "993"
+      ROUNDCUBEMAIL_SMTP_SERVER: tls://dms
+      ROUNDCUBEMAIL_SMTP_PORT: "587"
+      # SQLite local store (per-mailbox prefs only; mail lives on dms).
+      ROUNDCUBEMAIL_DB_TYPE: sqlite
+      ROUNDCUBEMAIL_ASPELL_DICTS: en,fr
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-}
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-}
+      OIDC_ISSUER_URL: ${OIDC_ISSUER_URL:-}
+    volumes:
+      - roundcube-db:/var/roundcube/db
+      - roundcube-config:/var/roundcube/config
+    healthcheck:
+      # A master the backup mode stopped (state T) passes: swarm replaces a
+      # task that turns unhealthy, and the hold has to last the whole backup.
+      test: ["CMD-SHELL", "grep -qs '^State:[[:space:]]*T' /proc/$$(pgrep -o -x apache2)/status || curl -fsS http://localhost/ >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    labels:
+      - "vps.route.host=${DOMAIN_HOST}"
+      - "vps.route.port=80"
+      - "vps.route.main=true"
+      # Roundcube does its OWN Keycloak login (not behind oauth2-proxy);
+      # public at the proxy layer, OIDC enforced by the app.
+      - "vps.auth.mode=public"
+      - "vps.auth.oidc=true"
+      - "vps.auth.oidc.introspect=true"
+      - "vps.auth.groups=staff,client"
+      - "vps.auth.oidc.redirect_uris=https://${DOMAIN_HOST}/index.php/login/oauth"
+      - "vps.auto-update=patch"
+    cap_drop:
+      - NET_RAW
+    networks:
+      catena-network:
+        aliases:
+          - roundcube
+      default: {}
+
+  # MTA-STS policy host. docker-mailserver serves no HTTPS, so this tiny
+  # nginx serves the RFC 8461 policy for
+  # mta-sts.<zone>/.well-known/mta-sts.txt.
+  # The policy is baked from MAIL_HOSTNAME at container start.
+  mta-sts:
+    image: nginx:1.31.8-alpine
+    deploy:
+      restart_policy:
+        condition: any
+    entrypoint:
+      - /bin/sh
+      - -ec
+      - |
+        mkdir -p /usr/share/nginx/html/.well-known
+        cat > /usr/share/nginx/html/.well-known/mta-sts.txt <<EOF
+        version: STSv1
+        mode: enforce
+        mx: ${MAIL_HOSTNAME}
+        max_age: 604800
+        EOF
+        cat > /etc/nginx/conf.d/default.conf <<'EOF'
+        server {
+          listen 80;
+          root /usr/share/nginx/html;
+          location = /.well-known/mta-sts.txt {
+            default_type text/plain;
+            add_header Cache-Control "max-age=604800";
+          }
+          location / { return 404; }
+        }
+        EOF
+        exec nginx -g 'daemon off;'
+    healthcheck:
+      # Probe 127.0.0.1, NOT localhost: nginx `listen 80;` binds IPv4
+      # 0.0.0.0:80 only, but the container /etc/hosts maps localhost to
+      # BOTH 127.0.0.1 and ::1, and busybox wget resolves ::1 first ->
+      # "connection refused" -> the container flaps unhealthy forever.
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/.well-known/mta-sts.txt >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 10s
+    labels:
+      # Any sending mail server reads the policy, so the address is public.
+      - "vps.route.host=mta-sts.${MAIL_DOMAIN}"
+      - "vps.route.port=80"
+      - "vps.auth.mode=public"
+      - "vps.health.path=/.well-known/mta-sts.txt"
+      - "vps.health.expect=STSv1"
+      - "vps.auto-update=patch"
+    cap_drop:
+      - NET_RAW
+    networks:
+      catena-network:
+        aliases:
+          - mta-sts
+      default: {}
+
+volumes:
+  mail-data:
+  mail-state:
+  mail-logs:
+  mail-config:
+  mail-certs:
+  roundcube-db:
+  roundcube-config:
+
+networks:
+  catena-network:
+    external: true
+  antivirus:
+    external: true
+    name: catena-antivirus

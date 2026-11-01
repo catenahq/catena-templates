@@ -1,0 +1,25 @@
+env:
+  DOMAIN_HOST:
+    setting: {default: "webmail.{{ cloudflare_zone }}"}
+  MAIL_HOSTNAME:
+    setting: {default: "mail.{{ cloudflare_zone }}"}
+  MAIL_DOMAIN:
+    setting: {default: "{{ cloudflare_zone }}"}
+  WEBMAIL_HOSTNAME:
+    setting: {default: "webmail.{{ cloudflare_zone }}"}
+  OIDC_USERINFO_URL:
+    setting: {default: "https://{{ keycloak_hostname | default('auth.' ~ cloudflare_zone) }}/realms/{{ keycloak_realm | default('vps') }}/protocol/openid-connect/userinfo"}
+  RELAY_HOST:
+    setting: {default: ""}
+  RELAY_PORT:
+    setting: {default: "587"}
+  RELAY_USER:
+    setting: {default: ""}
+  RELAY_PASSWORD:
+    setting: {default: "", label: {en: "Relay password", fr: "Mot de passe du relais"}}
+  SPAMHAUS_DQS_KEY:
+    setting: {default: "", label: {en: "Spamhaus Data Query Service key", fr: "Clé Spamhaus Data Query Service"}}
+  ANTIVIRUS_HOST:
+    managed: {expr: "{{ provided.antivirus.host }}"}
+  ANTIVIRUS_PORT:
+    managed: {expr: "{{ provided.antivirus.port }}"}
