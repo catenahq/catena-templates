@@ -1,0 +1,73 @@
+schema: 2
+requires_catena: 0.11.12
+version_from: dms
+env:
+  DOMAIN_HOST:
+    setting: {default: "webmail.{{ cloudflare_zone }}"}
+  MAIL_HOSTNAME:
+    setting: {default: "mail.{{ cloudflare_zone }}"}
+  MAIL_DOMAIN:
+    setting: {default: "{{ cloudflare_zone }}"}
+  WEBMAIL_HOSTNAME:
+    setting: {default: "webmail.{{ cloudflare_zone }}"}
+  OIDC_USERINFO_URL:
+    setting: {default: "https://{{ keycloak_hostname | default('auth.' ~ cloudflare_zone) }}/realms/{{ keycloak_realm | default('vps') }}/protocol/openid-connect/userinfo"}
+  RELAY_HOST:
+    setting: {default: ""}
+  RELAY_PORT:
+    setting: {default: "587"}
+  RELAY_USER:
+    setting: {default: ""}
+  RELAY_PASSWORD:
+    setting: {default: "", label: {en: "Relay password", fr: "Mot de passe du relais"}}
+  SPAMHAUS_DQS_KEY:
+    setting: {default: "", label: {en: "Spamhaus Data Query Service key", fr: "Clé Spamhaus Data Query Service"}}
+  ANTIVIRUS_HOST:
+    managed: {expr: "{{ provided.antivirus.host }}"}
+  ANTIVIRUS_PORT:
+    managed: {expr: "{{ provided.antivirus.port }}"}
+capabilities: [NET_ADMIN]
+lifecycle:
+  service: "roundcube"
+  ready: ["php", "-r", "exit(@fsockopen('127.0.0.1', 80) ? 0 : 1);"]
+  versioned_volumes: ["roundcube-db"]
+  timeout_seconds: 300
+quiesce:
+  service: "roundcube"
+  pre:
+    - ["pkill", "-STOP", "-x", "apache2"]
+  post:
+    - ["pkill", "-CONT", "-x", "apache2"]
+  timeout_seconds: 10
+# The certificate of the mail host is issued into mail-certs before each
+# deploy and renewed there. The mail host's address and the MTA-STS and
+# TLS-RPT records are published in the zones of the mail host and the mail
+# domain; MX, SPF, DKIM, DMARC and reverse DNS belong to the domain's owner.
+needs:
+  certificate:
+    names: ["{{ mail_hostname }}"]
+    volume: mail-certs
+  dns:
+    - {type: A, name: "{{ mail_hostname }}", value: "{{ public_ip }}"}
+    - {type: TXT, name: "_mta-sts.{{ mail_domain }}", value: "v=STSv1; id={{ mail_hostname | hash('md5') }};"}
+    - {type: TXT, name: "_smtp._tls.{{ mail_domain }}", value: "v=TLSRPTv1; rua=mailto:{{ admin_email | default('hostmaster@' ~ cloudflare_zone) }}"}
+# The hooks run in dms. configure runs after every deploy and after a renewed
+# certificate: it reloads the mail daemons when the certificate file differs
+# from the one they last loaded. verify runs hourly and before an update: it
+# reads Postfix's banner and its EHLO answer on port 25 through bash's
+# /dev/tcp, and Dovecot's greeting on port 993 through openssl s_client, and
+# asks rspamd for a verdict on the EICAR test file while a virus scanner is
+# provided.
+# users keeps one mailbox for each member of staff and client whose email
+# address is on MAIL_DOMAIN; it removes only the mailboxes it created, those
+# outside MAIL_DOMAIN included, and never postmaster.
+hooks:
+  service: dms
+  timeout_seconds: 300
+  configure:
+    - hooks/configure.sh
+  verify:
+    - hooks/verify.bash
+  users:
+    - hooks/users.py
+  users_group: "staff,client"
