@@ -458,6 +458,22 @@ def test_a_commit_of_neat_files_that_packs_to_the_same_bytes_has_no_class(repo):
     assert versions.tested_run("web", neat) == "https://x"
 
 
+def test_a_commit_moving_the_section_files_into_x_catena_yml_that_packs_the_same_has_no_class(repo):
+    git, _ = repo
+    folder = versions.ROOT / "blueprints" / "web"
+    services = "services:\n  web:\n    image: web:1.2.0\n    labels:\n      - vps.route.host=x\n"
+    sections = "hooks:\n  service: web\n  verify:\n    - - sh\n      - -c\n      - {file: hooks/verify.sh}\n"
+    _put(git, {"blueprints/web/services.yml": services, "blueprints/web/lifecycle.yml": sections,
+               "blueprints/web/hooks/verify.sh": "echo ok\n"})
+    pack.pack_all(versions.ROOT)
+    packed = _put(git)
+    block = "schema: 2\nhooks:\n  service: web\n  verify:\n    - hooks/verify.sh\n"
+    after = _put(git, {"blueprints/web/x-catena.yml": block}, remove=["blueprints/web/lifecycle.yml"])
+    assert pack.pack_all(versions.ROOT) == []
+    assert (folder / "docker-compose.yml").read_text().count("echo ok") == 1
+    assert _classes(packed, after) == frozenset()
+
+
 def test_equal_objects_and_files_outside_the_app_change_nothing(repo):
     git, _ = repo
     before = _head()

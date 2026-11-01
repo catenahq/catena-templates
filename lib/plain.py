@@ -36,7 +36,7 @@ from typing import Any, Callable
 
 from .importers.pipeline import dump_compose, load_compose
 from .model import BLUEPRINTS, derive_domain
-from .pack import COMPOSE, HOOKS_DIR, INTERPRETERS
+from .pack import COMPOSE, EXTENSIONS, HOOKS_DIR
 
 ROOT = Path(__file__).resolve().parent.parent
 BLOCK_KEY = "x-catena"
@@ -170,10 +170,10 @@ class _Scripts:
         return " ".join(shlex.quote(part.replace("$$", "$")) for part in argv)
 
     def _argv(self, hook: str, ordinal: list[int], argv: list[str]) -> str:
-        if len(argv) == 3 and INTERPRETERS.get(argv[0]) and argv[1].startswith("-") and "\n" in argv[2]:
+        if len(argv) == 3 and (argv[0], argv[1]) in EXTENSIONS and "\n" in argv[2]:
             ordinal[0] += 1
             suffix = "" if ordinal[0] == 1 else f"-{ordinal[0]}"
-            name = f"{HOOKS_DIR}/{hook}{suffix}.{INTERPRETERS[argv[0]]}"
+            name = f"{HOOKS_DIR}/{hook}{suffix}.{EXTENSIONS[argv[0], argv[1]]}"
             self.export.files[name] = (argv[2].replace("$$", "$").rstrip("\n") + "\n", 0o644)
             return f'{shlex.quote(argv[0])} {shlex.quote(argv[1])} "$(cat {name})"'
         return self._words(argv)

@@ -18,7 +18,8 @@ decides what runs and how Catena operates it), VERIFICATION (what tests it) and
 PRESENTATION (name, descriptions, logo, README). FILE_CLASSES gives the class of
 each file of `blueprints/<id>/` and FIELD_CLASSES the class of each field of the
 card file (`blueprints/<id>/app.json`); anything unlisted is RUNTIME. The neat files of an
-app held as `services.yml` and its section files (lib/pack.py) are DERIVED: they
+app held as `services.yml` and `x-catena.yml` (lib/pack.py), the script files under
+`hooks/` among them, are DERIVED: they
 add no class, since the render packs `docker-compose.yml` from them and that file
 is judged byte for byte. `changed_classes` returns the classes of the difference
 between two commits.

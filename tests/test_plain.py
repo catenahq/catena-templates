@@ -204,6 +204,20 @@ def test_migrate_asks_ready_before_it_migrates(tmp_path):
     assert files["hooks/migrate.sh"][0] == 'echo "$HOME"\n'
 
 
+def test_a_bash_script_is_exported_as_a_bash_file():
+    files = plain.build(SYNTHETIC.replace("- - sh", "- - bash")).files
+    assert 'bash -c "$(cat hooks/migrate.bash)"' in files["migrate.sh"][0]
+    assert files["hooks/migrate.bash"][0] == 'echo "$HOME"\n'
+    assert "hooks/migrate.sh" not in files
+
+
+def test_erpnext_scripts_are_exported_with_the_extension_of_their_interpreter(tmp_path):
+    _, out = _export(tmp_path, "erpnext")
+    assert 'bash -c "$(cat hooks/users.bash)"' in (out / "users.sh").read_text()
+    assert 'bash -c "$(cat hooks/verify.bash)"' in (out / "verify.sh").read_text()
+    assert sorted(p.name for p in (out / "hooks").iterdir()) == ["users.bash", "verify.bash"]
+
+
 def test_users_and_scan_read_standard_input():
     files = plain.build(SYNTHETIC).files
     assert 'docker exec -i -e DOMAIN_HOST -e SECRET_A -e SECRET_B -e GREETING -u app "$cid" web users < "$input"' \

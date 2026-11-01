@@ -251,7 +251,8 @@ def test_an_imported_entry_is_held_as_neat_files_that_pack_to_its_compose(catalo
     for slug in ("web-stack", "notes"):
         folder = model.BLUEPRINTS / slug
         text = (folder / model.COMPOSE_NAME).read_text()
-        assert (folder / "services.yml").is_file() and (folder / "settings.yml").is_file()
+        assert (folder / "services.yml").is_file() and (folder / "x-catena.yml").is_file()
+        assert not (folder / "settings.yml").exists()
         assert text.startswith("x-catena:\n  schema: 2\n  env:\n")
         neat, hooks = pack._read_neat(folder)
         assert pack.pack_texts(neat, hooks) == text

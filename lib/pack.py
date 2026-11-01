@@ -4,36 +4,36 @@ An app is held as neat files when `blueprints/<id>/` holds `services.yml`:
 
   services.yml    every top-level key after the block (services, volumes, networks,
                   x-<name>), as written
-  settings.yml    block keys env, secrets
-  access.yml      block keys privileges, capabilities, host_paths, access, provides,
-                  needs, egress
-  lifecycle.yml   block keys requires_catena, version_from, lifecycle, quiesce, probe,
-                  object_store, write_hold, stops, images, hooks, data
-  hooks/<hook>[-<n>].<ext>
-                  one hook script per file, each `$` written once
+  x-catena.yml    every key of the block, `schema: 2` first, in `ORDER`, as written
+  hooks/<place>[-<n>].<ext>
+                  one multi-line script per file, each `$` written once
 
 and, shared by apps and belonging to none, at the root of the tree:
 
   snippets/<name>/<n>.<ext>
-                  a part of hook scripts, one file per version, each `$` written once
+                  a script several apps run, one file per version, each `$` written once
 
-`pack` writes `x-catena:` and `  schema: 2`, then the text of each block key in
-`ORDER`, every line indented two spaces, one empty line and `services.yml` as it is.
-A key's text runs from the blank and comment lines just above it to the next key, so
-a comment travels with the key below it. In `lifecycle.yml`'s `hooks`, an item
-`- {file: hooks/<name>}`, `- {include: [<snippet>/<n>, ...]}` or
-`- {file: hooks/<name>, include: [<snippet>/<n>, ...]}` becomes `- |` followed by the
-snippets' lines, then the file's, each indented two past the dash and each `$` written
-`$$`. An include names an existing snippet file with the script's extension. A snippet
-version no app includes is refused unless it is the newest of its snippet, and so are
-two versions of a snippet with the same text. The packed file is what hosts, the bench
-and every check read; the render commits it beside the neat files.
+`pack` writes `x-catena:`, then every line of `x-catena.yml` indented two spaces, one
+empty line and `services.yml` as it is. An item of a hook list or of the lifecycle
+`before_update`, `migrate` or `after_update` that is the plain path of a script file
+(`- hooks/verify.js`, `- snippets/frappe-verify/2.bash`) becomes
+`- - <interpreter>`, `  - <flag>`, `  - |` and the file's lines, each indented four past
+the dash and each `$` written `$$`; RUNS gives the interpreter and flag of an extension.
+A hook file is named after its hook or step and its ordinal in the list (`verify.js`,
+`verify-2.js`). A snippet version no app names is refused unless it is the newest of its
+snippet, and so are two versions of a snippet with one extension and one text. Everything
+else in a list, one-line commands included, stays argv as written. The packed file is
+what hosts, the bench and every check read; the render commits it beside the neat files.
 
-`unpack` cuts a packed compose into the neat files and writes them only when packing
-them gives the compose back byte for byte. A script body that begins with a snippet's
-text (`$$` read as `$`) is written as an include of it, the longest snippet first. A
-compose out of normal form is refused with the change to make. Pack reads text and
-PyYAML's node positions only.
+A folder without `x-catena.yml` holds the block in the section files `settings.yml`,
+`access.yml` and `lifecycle.yml` instead, with hook items written `- {file: hooks/<name>}`
+and `- {include: [<snippet>/<n>, ...]}`; pack reads that layout too.
+
+`unpack` cuts a packed compose into `services.yml`, `x-catena.yml` and the script files,
+and writes them only when packing them gives the compose back byte for byte. A script
+whose text and extension equal a snippet's is written as that snippet's path. A compose
+out of normal form, a script in another form and a block scalar elsewhere in the block
+are refused with the change to make. Pack reads text and PyYAML's node positions only.
 """
 from __future__ import annotations
 
@@ -63,9 +63,17 @@ SECTIONS = {
 ORDER = ("schema", "requires_catena", "version_from", "privileges", "env", "secrets", "access",
          "capabilities", "host_paths", "provides", "lifecycle", "quiesce", "probe", "object_store",
          "needs", "write_hold", "stops", "images", "hooks", "egress", "data")
+BLOCK_FILE = "x-catena.yml"
 # The files pack reads besides the files under HOOKS_DIR.
-NEAT_FILES = (SERVICES, *SECTIONS)
-# The extension of a hook script file, by the interpreter that runs it.
+NEAT_FILES = (SERVICES, BLOCK_FILE, *SECTIONS)
+# The interpreter and flag that run a script file, by its extension, and the reverse.
+RUNS = {"sh": ("sh", "-c"), "bash": ("bash", "-c"), "py": ("python3", "-c"), "js": ("node", "-e"),
+        "php": ("php", "-r")}
+EXTENSIONS = {run: ext for ext, run in RUNS.items()}
+# The lists of the block that hold scripts: hook lists, and lifecycle steps.
+HOOK_PLACES = ("configure", "verify", "users", "scan", "reconcile")
+STEP_PLACES = ("before_update", "migrate", "after_update")
+# The extension of a hook script file of a section-file layout, by the interpreter that runs it.
 INTERPRETERS = {"sh": "sh", "bash": "sh", "python3": "py", "python": "py", "node": "js", "php": "php"}
 
 _KEY = re.compile(r"[A-Za-z_][A-Za-z0-9_-]*(?=:(?: |$))")
@@ -74,6 +82,9 @@ _ITEM = re.compile(r"(?P<indent> *)- \{(?:file: (?P<file>hooks/[A-Za-z0-9._-]+)"
 _INCLUDE_FORM = re.compile(r"\s*- \{\s*(?:file|include)\s*:")
 _REF = re.compile(r"([a-z0-9][a-z0-9-]*)/([1-9][0-9]*)")
 _SNIPPET_PATH = re.compile(r"snippets/([a-z0-9][a-z0-9-]*)/([1-9][0-9]*)\.([a-z]+)")
+_PATH_TEXT = r"(?:hooks/[A-Za-z0-9._-]+|snippets/[a-z0-9][a-z0-9-]*/[1-9][0-9]*\.[a-z]+)"
+_PATH = re.compile(_PATH_TEXT)
+_PATH_ITEM = re.compile(r"(?P<indent> *)- (?P<path>" + _PATH_TEXT + ")")
 _HEADER = re.compile(r"( *)- \|")
 _ODD_DOLLARS = re.compile(r"(?<!\$)(?:\$\$)*\$(?!\$)")
 _APP = re.compile(r"[a-z0-9][a-z0-9-]*")
@@ -197,17 +208,17 @@ def _snippet_index(snippets: dict[str, str]) -> dict[str, _Snippet]:
     index, texts = {}, {}
     for path in sorted(snippets):
         match = _SNIPPET_PATH.fullmatch(path)
-        if not match or match[3] not in INTERPRETERS.values():
+        if not match or match[3] not in RUNS:
             raise PackError(f"{path}: not a snippet file; {SNIPPETS_DIR}/<name>/<n>.<ext> is expected, "
-                            f"<n> counting from 1 and <ext> one of {', '.join(sorted(set(INTERPRETERS.values())))}")
+                            f"<n> counting from 1 and <ext> one of {', '.join(RUNS)}")
         ref = f"{match[1]}/{match[2]}"
         if ref in index:
             raise PackError(f"{path}: {ref} is already held in {index[ref].path}")
         index[ref] = _Snippet(path, match[3], snippets[path])
-        if (match[1], snippets[path]) in texts:
-            raise PackError(f"{path}: holds the text of {texts[match[1], snippets[path]]}; "
-                            f"a snippet keeps one version per text")
-        texts[match[1], snippets[path]] = path
+        key = (match[1], match[3], snippets[path])
+        if key in texts:
+            raise PackError(f"{path}: holds the text of {texts[key]}; a snippet keeps one version per text")
+        texts[key] = path
     return index
 
 
@@ -283,6 +294,111 @@ def _expand_hooks(chunk: list[str], first: int, hooks: dict[str, str], where: st
     return out, used
 
 
+def _scalars(node: yaml.Node):
+    """Every scalar node under `node`, keys included."""
+    if isinstance(node, yaml.ScalarNode):
+        yield node
+    elif isinstance(node, yaml.SequenceNode):
+        for item in node.value:
+            yield from _scalars(item)
+    elif isinstance(node, yaml.MappingNode):
+        for key, value in node.value:
+            yield from _scalars(key)
+            yield from _scalars(value)
+
+
+def _step_lists(root: yaml.Node) -> list[tuple[str, yaml.SequenceNode]]:
+    """(place, list) for each hook list and each lifecycle step list of the block `root`."""
+    found = []
+    if not isinstance(root, yaml.MappingNode):
+        return found
+    for key, value in root.value:
+        places = {"hooks": HOOK_PLACES, "lifecycle": STEP_PLACES}.get(key.value, ())
+        if places and isinstance(value, yaml.MappingNode):
+            found += [(place.value, seq) for place, seq in value.value
+                      if place.value in places and isinstance(seq, yaml.SequenceNode)]
+    return found
+
+
+def _pack_block(text: str, services: list[str], files: dict[str, str], prefix: str,
+                index: dict[str, _Snippet], included: set[str]) -> str:
+    """The packed compose of the block file `text` and the `services` lines; the snippet
+    files used join `included`."""
+    where = prefix + BLOCK_FILE
+    lines = _lines(text, where)
+    if lines[0] != "schema: 2":
+        raise PackError(f"{where}:1: the first line must be `schema: 2`")
+    if lines[-1] == "":
+        raise PackError(f"{where}:{len(lines)}: ends with an empty line")
+    try:
+        root = yaml.compose(text)
+    except yaml.YAMLError as exc:
+        raise PackError(f"{where}: not YAML: {exc}") from exc
+    for node in _scalars(root):
+        if node.style in ("|", ">"):
+            raise PackError(f"{where}:{node.start_mark.line + 1}: a block scalar; a multi-line script is a "
+                            f"file under {HOOKS_DIR}/, named by its path alone")
+    previous, seen = -1, set()
+    for key, at, _, _ in _chunks(lines, where):
+        if key not in ORDER:
+            raise PackError(f"{where}:{at + 1}: {key} is not a key of the block")
+        if key in seen:
+            raise PackError(f"{where}:{at + 1}: {key} is written twice")
+        seen.add(key)
+        if ORDER.index(key) < previous:
+            raise PackError(f"{where}:{at + 1}: {key} is out of order; the order puts it before "
+                            f"{ORDER[previous]}: {', '.join(ORDER)}")
+        previous = ORDER.index(key)
+    by_path = {snippet.path: snippet for snippet in index.values()}
+    used, claimed, written = [], set(), {}
+    for place, seq in _step_lists(root):
+        ordinal = 0
+        for item in seq.value:
+            if isinstance(item, yaml.SequenceNode):
+                continue
+            at = item.start_mark.line
+            if not isinstance(item, yaml.ScalarNode) or item.style is not None or not _PATH.fullmatch(item.value):
+                raise PackError(f"{where}:{at + 1}: an item of {place} is a command list or the plain path "
+                                f"of a script file")
+            match = _PATH_ITEM.fullmatch(lines[at])
+            if not match:
+                raise PackError(f"{where}:{at + 1}: write the script path as `- {item.value}` on its own line")
+            path, claimed = item.value, claimed | {id(item)}
+            ordinal += 1
+            if path.startswith(f"{SNIPPETS_DIR}/"):
+                if path not in by_path:
+                    raise PackError(f"{where}:{at + 1}: the snippet {path} does not exist")
+                snippet = by_path[path]
+                ext, body = snippet.ext, snippet.lines
+                included.add(path)
+            else:
+                ext = path.rpartition(".")[2]
+                if ext not in RUNS:
+                    raise PackError(f"{where}:{at + 1}: {path} has no extension of {', '.join(RUNS)}")
+                if path != _hook_name(place, ordinal, ext):
+                    raise PackError(f"{where}:{at + 1}: {path} is not named after its place; "
+                                    f"this script of {place} is {_hook_name(place, ordinal, ext)}")
+                if path not in files:
+                    raise PackError(f"{where}:{at + 1}: {path} does not exist")
+                body = _hook_lines(path, files[path], f"{prefix}{path}")
+                used.append(path)
+            interpreter, flag = RUNS[ext]
+            indent = match["indent"]
+            written[at] = ([f"{indent}- - {interpreter}", f"{indent}  - {flag}", f"{indent}  - |"]
+                           + [f"{indent}    {line.replace('$', '$$')}" if line else "" for line in body])
+    for node in _scalars(root):
+        if _PATH.fullmatch(node.value) and id(node) not in claimed:
+            raise PackError(f"{where}:{node.start_mark.line + 1}: a script path belongs only in a hook list "
+                            f"or in lifecycle before_update, migrate or after_update")
+    for name in sorted(set(files) - set(used)):
+        raise PackError(f"{prefix}{name}: no item of {BLOCK_FILE} names this file")
+    block = []
+    for at, line in enumerate(lines):
+        block += written.get(at, [line])
+    out = ["x-catena:"] + [f"  {line}" if line else "" for line in block]
+    return "\n".join(out + [""] + services) + "\n"
+
+
 def pack_texts(neat: dict[str, str], hooks: dict[str, str], prefix: str = "",
                snippets: dict[str, str] | None = None, included: set[str] | None = None) -> str:
     """The packed compose of an app's neat files (`neat`: file name to text, `hooks`:
@@ -298,7 +414,12 @@ def pack_texts(neat: dict[str, str], hooks: dict[str, str], prefix: str = "",
     for found, at in _top_keys(neat[SERVICES], prefix + SERVICES):
         if found == BLOCK_KEY or any(found in keys for keys in SECTIONS.values()):
             raise PackError(f"{prefix}{SERVICES}:{at + 1}: {found} is a key of the block; "
-                            f"it belongs in a section file, not here")
+                            f"it belongs in {BLOCK_FILE} or a section file, not here")
+    if BLOCK_FILE in neat:
+        for name in SECTIONS:
+            if name in neat:
+                raise PackError(f"{prefix}{name}: the folder holds {BLOCK_FILE}, which holds the whole block")
+        return _pack_block(neat[BLOCK_FILE], services, hooks, prefix, index, included)
     home = {key: name for name, keys in SECTIONS.items() for key in keys}
     chunks, used = {}, []
     for name, keys in SECTIONS.items():
@@ -370,8 +491,8 @@ def _read_snippets(tree: Path) -> dict[str, str]:
 
 
 def pack_all(root: Path | None = None) -> list[Path]:
-    """Pack every folder holding `services.yml`; the compose files written. A section file
-    or a `hooks/` folder in a folder without `services.yml` is refused, and so is a snippet
+    """Pack every folder holding `services.yml`; the compose files written. `x-catena.yml`, a
+    section file or a `hooks/` folder in a folder without `services.yml` is refused, and so is a snippet
     version that no app includes while a newer one exists. Nothing is written on a refusal."""
     base = (root / "blueprints") if root else BLUEPRINTS
     snippets = _read_snippets(base.parent)
@@ -379,7 +500,7 @@ def pack_all(root: Path | None = None) -> list[Path]:
     packed = []
     for folder in sorted(p for p in base.glob("*") if p.is_dir()):
         if not (folder / SERVICES).is_file():
-            for name in (*SECTIONS, HOOKS_DIR):
+            for name in (BLOCK_FILE, *SECTIONS, HOOKS_DIR):
                 if (folder / name).exists() or (folder / name).is_symlink():
                     raise PackError(f"blueprints/{folder.name}/{name}: the folder has no {SERVICES}, "
                                     f"so nothing reads this")
@@ -409,10 +530,9 @@ def _cut(text: str, where: str, index: dict[str, _Snippet]) -> tuple[dict[str, s
         raise PackError(f"{where}:1: the block is not first; x-catena must open the file")
     if lines[1:2] != ["  schema: 2"] or block.value[0][0].value != "schema":
         raise PackError(f"{where}:2: `  schema: 2` must be the first line of the block")
-    rest = block.value[1:]
-    names = [key.value for key, _ in rest]
+    names = [key.value for key, _ in block.value[1:]]
     for n, name in enumerate(names):
-        at = rest[n][0].start_mark.line + 1
+        at = block.value[1:][n][0].start_mark.line + 1
         if name not in ORDER[1:]:
             raise PackError(f"{where}:{at}: {name} is not a key of the block")
         if n and ORDER.index(name) <= ORDER.index(names[n - 1]):
@@ -424,84 +544,78 @@ def _cut(text: str, where: str, index: dict[str, _Snippet]) -> tuple[dict[str, s
     if lines[gap] != "" or lines[gap - 1] == "":
         raise PackError(f"{where}:{after.start_mark.line + 1}: the block must be followed by exactly "
                         f"one empty line before {after.value}")
-    block_lines = lines[:gap]
-    for n, line in enumerate(block_lines):
-        if line and not line.startswith("  ") and n:
+    for n, line in enumerate(lines[1:gap], 1):
+        if line and not line.startswith("  "):
             raise PackError(f"{where}:{n + 1}: a line of the block must be indented by two spaces")
-    marks = [key.start_mark.line for key, _ in rest]
-    starts = []
-    for n, mark in enumerate(marks):
-        start, floor = mark, (marks[n - 1] if n else 1) + 1
-        while start > floor and (block_lines[start - 1] == "" or block_lines[start - 1].startswith("  #")):
-            start -= 1
-        starts.append(start)
-    ends = starts[1:] + [len(block_lines)]
-    sections: dict[str, list[str]] = {}
-    hooks: dict[str, str] = {}
-    for n, name in enumerate(names):
-        chunk = [line[2:] for line in block_lines[starts[n]:ends[n]]]
-        if name == "hooks":
-            chunk, hooks = _extract_hooks(chunk, starts[n], where, index)
-        home = next(file for file, keys in SECTIONS.items() if name in keys)
-        sections.setdefault(home, []).extend(chunk)
-    neat = {file: "\n".join(chunk) + "\n" for file, chunk in sections.items()}
-    neat[SERVICES] = "\n".join(lines[gap + 1:]) + "\n"
-    return neat, hooks
+    block_lines, files = _extract_scripts([line[2:] for line in lines[1:gap]], where, index)
+    return {BLOCK_FILE: "\n".join(block_lines) + "\n", SERVICES: "\n".join(lines[gap + 1:]) + "\n"}, files
 
 
-def _split_snippets(body: str, ext: str, index: dict[str, _Snippet]) -> tuple[list[str], str]:
-    """The snippets a script body begins with, longest first, and what follows them."""
-    found = sorted(((ref, s.text) for ref, s in index.items() if s.ext == ext), key=lambda p: -len(p[1]))
-    refs = []
-    while True:
-        for ref, text in found:
-            rest = body[len(text):]
-            if body.startswith(text) and (not rest or _valid_hook_text(rest)):
-                refs.append(ref)
-                body = rest
-                break
-        else:
-            return refs, body
-
-
-def _valid_hook_text(text: str) -> bool:
-    try:
-        _hook_lines("", text, "")
-    except PackError:
-        return False
-    return True
-
-
-def _extract_hooks(chunk: list[str], first: int, where: str,
-                   index: dict[str, _Snippet]) -> tuple[list[str], dict[str, str]]:
-    """The `hooks` text with each script written as a `- {file: ...}` and `- {include: ...}`
-    item, and the files."""
-    files, out = {}, list(chunk)
-    for hook, ordinal, ext, header in reversed(_scripts(chunk)):
-        indent = len(_HEADER.fullmatch(chunk[header]).group(1))
+def _extract_scripts(block: list[str], where: str, index: dict[str, _Snippet]) -> tuple[list[str], dict[str, str]]:
+    """The block lines (the compose's, two spaces removed) with each script of a hook or
+    lifecycle step list written as the path of its file or of the snippet holding its
+    text, and the script files. `block[0]` is line 2 of the compose."""
+    root = yaml.compose("\n".join(block) + "\n")
+    found, claimed = [], set()
+    for place, seq in _step_lists(root):
+        ordinal = 0
+        for item in seq.value:
+            if not isinstance(item, yaml.SequenceNode) or len(item.value) != 3 \
+                    or not all(isinstance(n, yaml.ScalarNode) for n in item.value):
+                continue
+            interpreter, flag, body = item.value
+            ext = EXTENSIONS.get((interpreter.value, flag.value))
+            if ext is None or body.style not in ("|", ">"):
+                if body.style in ("|", ">") and (interpreter.value, flag.value) == ("python", "-c"):
+                    raise PackError(f"{where}:{interpreter.start_mark.line + 2}: python -c has no script file; "
+                                    f"write python3")
+                continue
+            at = interpreter.start_mark.line
+            indent = max(block[at].find("- - "), 0)
+            plain = interpreter.style is None and flag.style is None
+            shaped = plain and body.style == "|" and block[at] == f"{' ' * indent}- - {interpreter.value}" \
+                and block[at + 1] == f"{' ' * indent}  - {flag.value}" \
+                and block[at + 2] == f"{' ' * indent}  - |" and body.start_mark.line == at + 2
+            if not shaped:
+                raise PackError(f"{where}:{at + 2}: the script of {place} is not written as `- - "
+                                f"{interpreter.value}`, `  - {flag.value}`, `  - |` on three lines")
+            ordinal += 1
+            found.append((place, ordinal, ext, at, indent))
+            claimed.add(id(body))
+    for node in _scalars(root):
+        if node.style in ("|", ">") and id(node) not in claimed:
+            raise PackError(f"{where}:{node.start_mark.line + 2}: a block scalar outside a script of a hook "
+                            f"or lifecycle step list; write it on one line or as a script of "
+                            f"{', '.join(f'{i} {f}' for i, f in EXTENSIONS)}")
+    by_text = {}
+    for _, snippet in sorted(index.items()):
+        by_text.setdefault((snippet.ext, snippet.text), snippet.path)
+    files, out = {}, list(block)
+    for place, ordinal, ext, at, indent in reversed(found):
+        header = at + 2
         end = header + 1
-        while end < len(chunk) and (chunk[end] == "" or chunk[end].startswith(" " * (indent + 2))):
+        while end < len(block) and (block[end] == "" or block[end].startswith(" " * (indent + 4))):
             end += 1
-        while end - 1 > header and chunk[end - 1] == "":
+        while end - 1 > header and block[end - 1] == "":
             end -= 1
-        name = _hook_name(hook, ordinal, ext)
         body = []
         for i in range(header + 1, end):
-            line = chunk[i][indent + 2:]
-            at = f"{where}:{first + i + 1}"
+            line = block[i][indent + 4:]
+            where_i = f"{where}:{i + 2}"
             if line and not line.strip():
-                raise PackError(f"{at}: a line of spaces only in the script of {hook}")
+                raise PackError(f"{where_i}: a line of spaces only in the script of {place}")
             if _ODD_DOLLARS.search(line):
-                raise PackError(f"{at}: an odd run of $ in the script of {hook}; each $ is written $$")
+                raise PackError(f"{where_i}: an odd run of $ in the script of {place}; each $ is written $$")
             body.append(line.replace("$$", "$"))
         opening = next((line for line in body if line), None)
         if opening is None or opening.startswith(" "):
-            raise PackError(f"{where}:{first + header + 1}: the script of {hook} is empty or starts with a space")
-        refs, rest = _split_snippets("\n".join(body) + "\n", ext, index)
-        parts = ([f"file: {name}"] if rest else []) + ([f"include: [{', '.join(refs)}]"] if refs else [])
-        if rest:
-            files[name] = rest
-        out[header:end] = [f"{' ' * indent}- {{{', '.join(parts)}}}"]
+            raise PackError(f"{where}:{header + 2}: the script of {place} is empty or starts with a space")
+        script = "\n".join(body) + "\n"
+        path = by_text.get((ext, script))
+        if path is None:
+            path = _hook_name(place, ordinal, ext)
+            files[path] = script
+        out[at:end] = [f"{' ' * indent}- {path}"]
     return out, files
 
 
@@ -510,15 +624,15 @@ def unpack(app: str, root: Path | None = None) -> list[Path]:
     written unless packing them gives the compose back byte for byte."""
     folder = ((root / "blueprints") if root else BLUEPRINTS) / app
     where = f"blueprints/{app}/{COMPOSE}"
-    if (folder / SERVICES).exists():
+    if (folder / SERVICES).exists() or (folder / BLOCK_FILE).exists():
         raise PackError(f"blueprints/{app}: already held as neat files")
     text = _read(folder / COMPOSE)
     snippets = _read_snippets(folder.parent.parent)
-    neat, hooks = _cut(text, where, _snippet_index(snippets))
-    if pack_texts(neat, hooks, f"blueprints/{app}/", snippets) != text:
+    neat, files = _cut(text, where, _snippet_index(snippets))
+    if pack_texts(neat, files, f"blueprints/{app}/", snippets) != text:
         raise PackError(f"{where}: does not pack back to the same bytes")
     written = []
-    for name, body in {**neat, **hooks}.items():
+    for name, body in {**neat, **files}.items():
         target = folder / name
         target.parent.mkdir(exist_ok=True)
         target.write_text(body, encoding="utf-8", newline="")

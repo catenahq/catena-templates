@@ -49,15 +49,15 @@
           "description": "User to exec as. Set it whenever a command writes into a volume the application later has to write itself, or the files come back owned by root."
         },
         "migrate": {
-          "$ref": "#/$defs/argv_list",
+          "$ref": "#/$defs/step_list",
           "description": "The schema migration. Run in order, stopping at the first failure; a failure after an update rolls the image AND the database back."
         },
         "before_update": {
-          "$ref": "#/$defs/argv_list",
+          "$ref": "#/$defs/step_list",
           "description": "Run in the RUNNING container just before the update lane deploys the new image (put the application into maintenance mode)."
         },
         "after_update": {
-          "$ref": "#/$defs/argv_list",
+          "$ref": "#/$defs/step_list",
           "description": "Run once the update settles, whether it was kept or rolled back (take the application out of maintenance mode)."
         },
         "ready": {
@@ -250,19 +250,19 @@
         { "required": ["scan"] },
         { "required": ["reconcile"] }
       ],
-      "description": "Scripts the host runs inside one service: configure after a deploy, verify that the application works, users to seed its accounts, scan to check one file, reconcile to count the objects its database indexes that its object store lacks. Each body is a list of argv; a $ in one is written $$, which Docker reads back as $.",
+      "description": "Scripts the host runs inside one service: configure after a deploy, verify that the application works, users to seed its accounts, scan to check one file, reconcile to count the objects its database indexes that its object store lacks. Each is a list of argv in the packed compose, where a $ is written $$, which Docker reads back as $; x-catena.yml may name a script file in its place.",
       "properties": {
         "service": { "type": "string", "minLength": 1 },
         "user": { "type": "string" },
-        "configure": { "$ref": "#/$defs/argv_list" },
-        "verify": { "$ref": "#/$defs/argv_list" },
-        "users": { "$ref": "#/$defs/argv_list" },
+        "configure": { "$ref": "#/$defs/step_list" },
+        "verify": { "$ref": "#/$defs/step_list" },
+        "users": { "$ref": "#/$defs/step_list" },
         "scan": {
-          "$ref": "#/$defs/argv_list",
+          "$ref": "#/$defs/step_list",
           "description": "Reads the file to check on its standard input. Exit 0 means clean. Exit 1 with an output line FLAGGED <signature> means flagged. Any other ending, docker's own exit 1 included, means the scanner could not answer and the file is refused. A block that provides antivirus declares it."
         },
         "reconcile": {
-          "$ref": "#/$defs/argv_list",
+          "$ref": "#/$defs/step_list",
           "description": "Runs after a restore, an application start, a bucket repair and the reconcile verb. Its last output line is missing=<n>, followed by optional <name>=<n> pairs. Exit 0 with that line answers: n objects are missing. Exit 0 without it observed nothing (an application in maintenance prints no count, never 0). A non-zero exit or a timeout did not complete. It reports and never deletes. The body waits for the application to be ready itself."
         },
         "users_group": {
@@ -477,6 +477,21 @@
       "minItems": 1,
       "items": {
         "$ref": "#/$defs/argv"
+      }
+    },
+    "script": {
+      "type": "string",
+      "pattern": "^(hooks/[A-Za-z0-9._-]+|snippets/[a-z0-9][a-z0-9-]*/[1-9][0-9]*)\\.(sh|bash|py|js|php)$",
+      "description": "The path of a script file, the form x-catena.yml holds: a file under hooks/ or a snippet. Its extension names the interpreter (sh and bash: sh -c and bash -c; py: python3 -c; js: node -e; php: php -r). The render writes the script into the packed compose as a command list, so a compose a host deploys never holds a path."
+    },
+    "step_list": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "oneOf": [
+          { "$ref": "#/$defs/argv" },
+          { "$ref": "#/$defs/script" }
+        ]
       }
     }
   }

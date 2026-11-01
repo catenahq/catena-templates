@@ -31,7 +31,7 @@ An adapter reads one registry format into Candidates. For each, in order:
             lint and Postgres pin rule refuse, is recorded on the entry.
 
 Each entry is written as blueprints/<id>/app.json and blueprints/<id>/docker-compose.yml, held
-as neat files beside it (services.yml, settings.yml), with
+as neat files beside it (services.yml, x-catena.yml), with
 status "imported", its origin and what a person still has to choose. An entry
 the catalog's order does not list follows the listed ones.
 """
