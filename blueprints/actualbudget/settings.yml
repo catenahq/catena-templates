@@ -1,0 +1,3 @@
+env:
+  DOMAIN_HOST:
+    managed: {expr: "budget.{{ cloudflare_zone }}"}

@@ -1,0 +1,32 @@
+services:
+  actual:
+    image: actualbudget/actual-server:26.9.0-alpine
+    deploy:
+      restart_policy:
+        condition: any
+      placement:
+        constraints:
+          - node.labels.catena.role==data
+    environment:
+      ACTUAL_HTTPS: "false"               # TLS terminated by Traefik
+      ACTUAL_TRUST_PROXY: "true"
+      ACTUAL_PORT: "5006"
+    volumes:
+      - actual-data:/data
+    labels:
+      - "vps.route.host=${DOMAIN_HOST}"
+      - "vps.route.port=5006"
+      - "vps.auth.mode=public"
+      - "vps.auto-update=patch"
+    cap_drop:
+      - NET_RAW
+    networks:
+      catena-network: {}
+      default: {}
+
+volumes:
+  actual-data:
+
+networks:
+  catena-network:
+    external: true
