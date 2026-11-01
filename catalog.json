@@ -3140,7 +3140,7 @@
       ],
       "compose_file": "blueprints/coturn/docker-compose.yml",
       "en": {
-        "compose_description": "Shared call relay (TURN and STUN). Nextcloud Talk and Element find it on their own.\n\nhttps://github.com/catenahq/catena-templates/blob/HEAD/blueprints/coturn/README.md\n",
+        "compose_description": "Shared call relay (TURN and STUN). Nextcloud Talk and Element find it on their own.\n",
         "display_name": "Call relay (TURN)",
         "extra_notes": "### Ports\n\n| Port | Protocol | Use |\n|---|---|---|\n| 3478 | UDP | STUN and TURN |\n| 5349 | TCP and UDP | TURN over TLS |\n| 50000 to 50100 | UDP | Relayed media |\n\nThe relay runs on the server's own network, so these ports are the server's. The firewall opens the ports the relay declares.\n\n### Hardening\n\nThe relay checks a shared secret for every call, caps each credential at 12 allocations and each session at 3 MB/s, refuses media to every private, loopback, link-local and special-purpose address, and accepts only modern TLS ciphers. Its administration interface is off.\n\n### Certificate\n\nThe certificate is renewed by the server. When a renewed certificate arrives the relay loads it without dropping calls.\n",
         "replaces": [
@@ -3192,7 +3192,7 @@
         "TURN_EXTERNAL_IP"
       ],
       "fr": {
-        "compose_description": "Relais d'appels partag\u00e9 (TURN et STUN). Nextcloud Talk et Element le trouvent d'eux-m\u00eames.\n\nhttps://github.com/catenahq/catena-templates/blob/HEAD/blueprints/coturn/README.md\n",
+        "compose_description": "Relais d'appels partag\u00e9 (TURN et STUN). Nextcloud Talk et Element le trouvent d'eux-m\u00eames.\n",
         "display_name": "Relais d'appels (TURN)",
         "extra_notes": "### Ports\n\n| Port | Protocole | Usage |\n|---|---|---|\n| 3478 | UDP | STUN et TURN |\n| 5349 | TCP et UDP | TURN sur TLS |\n| 50000 \u00e0 50100 | UDP | M\u00e9dias relay\u00e9s |\n\nLe relais fonctionne sur le r\u00e9seau du serveur lui-m\u00eame ; ces ports sont donc ceux du serveur. Le pare-feu ouvre les ports que le relais d\u00e9clare.\n\n### Durcissement\n\nLe relais v\u00e9rifie un secret partag\u00e9 pour chaque appel, plafonne chaque identifiant \u00e0 12 allocations et chaque session \u00e0 3 Mo/s, refuse les m\u00e9dias vers toute adresse priv\u00e9e, de bouclage, de lien local ou \u00e0 usage sp\u00e9cial, et n'accepte que des chiffrements TLS modernes. Son interface d'administration est d\u00e9sactiv\u00e9e.\n\n### Certificat\n\nLe certificat est renouvel\u00e9 par le serveur. Quand un certificat renouvel\u00e9 arrive, le relais le charge sans interrompre les appels.\n",
         "replaces": [
