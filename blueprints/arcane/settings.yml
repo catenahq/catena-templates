@@ -1,0 +1,5 @@
+env:
+  DOMAIN_HOST:
+    setting: {default: "arcane.{{ cloudflare_zone }}"}
+  ENCRYPTION_KEY:
+    generated: {length: 64, alphabet: hex}
