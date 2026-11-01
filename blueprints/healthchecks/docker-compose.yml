@@ -125,7 +125,7 @@ x-catena:
           # The admin's email is an alert channel while outgoing mail is on, notified on down
           # and on up; it carries a fixed code, so a deploy updates or removes that one row
           # and never a channel a person added. It is attached to every check when it is
-          # created and never again, so a check it was detached from stays detached. An email
+          # created and never again, so a check a person detaches it from stays detached. An email
           # channel is marked verified: Healthchecks sends nothing to an unverified one.
           code = uuid.uuid5(uuid.NAMESPACE_URL, "catena:healthchecks:admin-email")
           if mail_on:
