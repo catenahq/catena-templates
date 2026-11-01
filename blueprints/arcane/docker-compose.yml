@@ -17,7 +17,7 @@ x-catena:
 
 services:
   arcane:
-    image: ghcr.io/getarcaneapp/manager:v2.17.1
+    image: ghcr.io/getarcaneapp/manager:v2.17.2
     deploy:
       restart_policy:
         condition: any
