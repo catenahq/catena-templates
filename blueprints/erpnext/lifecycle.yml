@@ -60,6 +60,6 @@ hooks:
   verify:
     - - bash
       - -c
-      - {file: hooks/verify.sh}
+      - {include: [frappe-verify/1]}
 data:
   db: {volume: db-data, upgrade: dump_restore}
