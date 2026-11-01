@@ -1,0 +1,15 @@
+requires_catena: 0.11.12
+images:
+  db:
+    rule: {kind: pattern, tag_pattern: '(\d+)\.(\d+)\.(\d+)-pg18-trixie'}
+# verify asks the running Rails server for /api, which reports the version and answers for Redis
+# and Postgres. X-Forwarded-Proto keeps FORCE_SSL from redirecting the loopback request. The server
+# listens only once the database is prepared, so the ask is repeated every 4 seconds while the port
+# refuses, until 150 seconds after the hook started; the last answer is then judged.
+hooks:
+  service: rails
+  timeout_seconds: 180
+  verify:
+    - - sh
+      - -c
+      - {file: hooks/verify.sh}

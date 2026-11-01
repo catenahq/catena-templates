@@ -1,0 +1,117 @@
+services:
+  rails:
+    image: chatwoot/chatwoot:v4.17.1-ce
+    deploy:
+      restart_policy:
+        condition: any
+      placement:
+        constraints:
+          - node.labels.catena.role==data
+    entrypoint: docker/entrypoints/rails.sh
+    # db:chatwoot_prepare loads the schema into an empty database, else runs the pending migrations.
+    command:
+      - sh
+      - -c
+      - |
+        set -e
+        bundle exec rails db:chatwoot_prepare
+        exec bundle exec rails s -p 3000 -b 0.0.0.0
+    environment:
+      RAILS_ENV: production
+      NODE_ENV: production
+      SECRET_KEY_BASE: ${SECRET_KEY_BASE}
+      FRONTEND_URL: https://${CHATWOOT_HOSTNAME}
+      DEFAULT_LOCALE: en
+      FORCE_SSL: "true"
+      INSTALLATION_NAME: "Chatwoot"
+      POSTGRES_HOST: db
+      POSTGRES_DATABASE: chatwoot
+      POSTGRES_USERNAME: chatwoot
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      REDIS_URL: redis://redis:6379
+      RAILS_LOG_TO_STDOUT: "true"
+      ACTIVE_STORAGE_SERVICE: local
+    volumes:
+      - storage-data:/app/storage
+    labels:
+      - "vps.route.host=${DOMAIN_HOST}"
+      - "vps.route.port=3000"
+      - "vps.auth.mode=public"
+      - "vps.auto-update=patch"
+    cap_drop:
+      - NET_RAW
+    networks:
+      catena-network: {}
+      default: {}
+
+  sidekiq:
+    image: chatwoot/chatwoot:v4.17.1-ce
+    deploy:
+      restart_policy:
+        condition: any
+      placement:
+        constraints:
+          - node.labels.catena.role==data
+    command: ["bundle", "exec", "sidekiq", "-C", "config/sidekiq.yml"]
+    environment:
+      RAILS_ENV: production
+      NODE_ENV: production
+      SECRET_KEY_BASE: ${SECRET_KEY_BASE}
+      FRONTEND_URL: https://${CHATWOOT_HOSTNAME}
+      POSTGRES_HOST: db
+      POSTGRES_DATABASE: chatwoot
+      POSTGRES_USERNAME: chatwoot
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      REDIS_URL: redis://redis:6379
+      ACTIVE_STORAGE_SERVICE: local
+    volumes:
+      - storage-data:/app/storage
+    labels:
+      - "vps.auto-update=patch"
+    networks:
+      - default
+
+  # Chatwoot's schema enables the vector extension, which the pgvector build of Postgres carries.
+  db:
+    image: pgvector/pgvector:0.8.7-pg18-trixie
+    deploy:
+      restart_policy:
+        condition: any
+      placement:
+        constraints:
+          - node.labels.catena.role==data
+    environment:
+      POSTGRES_USER: chatwoot
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: chatwoot
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U chatwoot"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 10m
+    labels:
+      - "vps.auto-update=minor"
+    networks:
+      - default
+
+  redis:
+    image: redis:8.6.7-alpine3.23
+    deploy:
+      restart_policy:
+        condition: any
+    labels:
+      - "vps.auto-update=patch"
+    networks:
+      - default
+
+volumes:
+  storage-data:
+  db-data:
+
+networks:
+  catena-network:
+    external: true
