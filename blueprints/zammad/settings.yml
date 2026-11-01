@@ -1,0 +1,7 @@
+env:
+  DOMAIN_HOST:
+    setting: {default: "help.{{ cloudflare_zone }}"}
+  ZAMMAD_HOSTNAME:
+    setting: {default: "help.{{ cloudflare_zone }}"}
+  DB_PASSWORD:
+    generated: {length: 32, alphabet: alnum}

@@ -1,0 +1,25 @@
+requires_catena: 0.11.12
+images:
+  zammad-init:
+    rule: {kind: build_suffix, tag_pattern: '\d+\.\d+\.\d+-\d+'}
+  zammad-railsserver:
+    rule: {kind: build_suffix, tag_pattern: '\d+\.\d+\.\d+-\d+'}
+  zammad-websocket:
+    rule: {kind: build_suffix, tag_pattern: '\d+\.\d+\.\d+-\d+'}
+  zammad-scheduler:
+    rule: {kind: build_suffix, tag_pattern: '\d+\.\d+\.\d+-\d+'}
+  zammad-nginx:
+    rule: {kind: build_suffix, tag_pattern: '\d+\.\d+\.\d+-\d+'}
+  db:
+    rule: {kind: partial_line}
+  elasticsearch:
+    rule: {kind: semver, registry: docker.io, repo: library/elasticsearch, tag_pattern: '\d+\.\d+\.\d+'}
+# verify asks the nginx of the stack for the sign-in state, a public call that nginx hands to the Rails
+# server and that reads the database.
+hooks:
+  service: zammad-nginx
+  timeout_seconds: 60
+  verify:
+    - - sh
+      - -c
+      - {file: hooks/verify.sh}
