@@ -1,3 +1,5 @@
+schema: 2
+requires_catena: 0.11.12
 env:
   DOMAIN_HOST:
     setting: {default: "time.{{ cloudflare_zone }}"}
@@ -17,3 +19,9 @@ env:
     setting: {default: "time@{{ cloudflare_zone }}"}
   KIMAI_MAIL_URL:
     setting: {default: "null://localhost"}
+# verify asks Apache for the sign-in page, which is open to everyone, and looks for the product name.
+hooks:
+  service: kimai
+  timeout_seconds: 60
+  verify:
+    - hooks/verify.sh
