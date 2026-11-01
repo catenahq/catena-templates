@@ -482,7 +482,7 @@
       "domain_port": 9980,
       "domain_service": "collabora",
       "en": {
-        "compose_description": "LibreOffice-based collaborative editor. Embedded in Nextcloud. Lighter alternative to OnlyOffice; better ODF fidelity.\n\nhttps://github.com/catenahq/catena-templates/blob/HEAD/blueprints/collabora/README.md\n",
+        "compose_description": "LibreOffice-based collaborative editor. Embedded in Nextcloud. Lighter alternative to OnlyOffice; better ODF fidelity.\n",
         "display_name": "Collabora Online (CODE)",
         "replaces": [
           "Microsoft Office Online",
@@ -520,7 +520,7 @@
         "OFFICE_URL"
       ],
       "fr": {
-        "compose_description": "\u00c9diteur collaboratif bas\u00e9 sur LibreOffice. Embarqu\u00e9 dans Nextcloud. Alternative l\u00e9g\u00e8re \u00e0 OnlyOffice ; meilleure fid\u00e9lit\u00e9 ODF.\n\nhttps://github.com/catenahq/catena-templates/blob/HEAD/blueprints/collabora/README.md\n",
+        "compose_description": "\u00c9diteur collaboratif bas\u00e9 sur LibreOffice. Embarqu\u00e9 dans Nextcloud. Alternative l\u00e9g\u00e8re \u00e0 OnlyOffice ; meilleure fid\u00e9lit\u00e9 ODF.\n",
         "display_name": "Collabora Online (CODE)",
         "replaces": [
           "Microsoft Office Online",
