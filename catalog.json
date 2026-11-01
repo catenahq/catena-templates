@@ -3343,6 +3343,83 @@
       },
       "sso_mode": "none",
       "upstream_url": "https://getarcane.app/"
+    },
+    {
+      "app_name": "catena-healthchecks",
+      "bench_fixture": "required",
+      "bench_pack": "embedded",
+      "categories": [
+        "Monitoring",
+        "Infrastructure"
+      ],
+      "compose_file": "blueprints/healthchecks/docker-compose.yml",
+      "en": {
+        "compose_description": "Self-hosted heartbeat monitoring for scheduled jobs.\n",
+        "display_name": "Healthchecks",
+        "replaces": [
+          "Cronitor",
+          "Dead Man's Snitch",
+          "healthchecks.io"
+        ],
+        "setup_steps": "The server installs this application and signs you in to it through the server's own sign-in. Its address is the prefix below, followed by your domain.\n\n1. Open **Healthchecks** from the Apps page.\n2. Add a check for each job, copy its ping address and call it at the end of the job.\n3. Add alert channels under **Integrations**.\n\nOutgoing mail uses the mail relay chosen in Settings.",
+        "summary": "Dead-man monitoring: your scheduled jobs ping it, and it alerts you when one goes quiet.",
+        "what_it_is": "Heartbeat monitoring for cron jobs, backups and scheduled tasks. Each job pings a check address when it runs; Healthchecks sends an alert when a ping is late. Gatus, the Beszel alert relay and the server's own scheduled lanes report to it."
+      },
+      "env": {
+        "HC_URL": {
+          "managed": {
+            "expr": "http://healthchecks:8000"
+          }
+        },
+        "SECRET_KEY": {
+          "generated": {
+            "alphabet": "alnum",
+            "length": 50
+          }
+        },
+        "SUBDOMAIN": {
+          "setting": {
+            "default": "healthchecks",
+            "label": {
+              "en": "Address prefix (the address moves the next time the server applies its configuration)",
+              "fr": "Pr\u00e9fixe de l'adresse (l'adresse change \u00e0 la prochaine application de la configuration du serveur)"
+            }
+          }
+        }
+      },
+      "env_defaults": [
+        "SUBDOMAIN=healthchecks",
+        "SECRET_KEY={{ lookup('password', '/dev/null length=50 chars=ascii_letters,digits') }}",
+        "HC_URL=http://healthchecks:8000"
+      ],
+      "env_managed_keys": [
+        "HC_URL"
+      ],
+      "fr": {
+        "compose_description": "Surveillance de pouls auto-h\u00e9berg\u00e9e pour les t\u00e2ches planifi\u00e9es.\n",
+        "display_name": "Healthchecks",
+        "replaces": [
+          "Cronitor",
+          "Dead Man's Snitch",
+          "healthchecks.io"
+        ],
+        "setup_steps": "Le serveur installe cette application et vous y connecte par sa propre connexion. Son adresse est le pr\u00e9fixe ci-dessous suivi de votre domaine.\n\n1. Ouvrez **Healthchecks** depuis la page Apps.\n2. Ajoutez un contr\u00f4le par t\u00e2che, copiez son adresse d'appel et appelez-la \u00e0 la fin de la t\u00e2che.\n3. Ajoutez des canaux d'alerte sous **Integrations**.\n\nLe courriel sortant utilise le relais choisi dans Settings.",
+        "summary": "Surveillance de pouls : vos t\u00e2ches planifi\u00e9es le sonnent, et il vous alerte quand l'une se tait.",
+        "what_it_is": "Surveillance de pouls pour les t\u00e2ches cron, les sauvegardes et les t\u00e2ches planifi\u00e9es. Chaque t\u00e2che appelle l'adresse de son contr\u00f4le quand elle s'ex\u00e9cute ; Healthchecks envoie une alerte quand un appel est en retard. Gatus, le relais d'alertes de Beszel et les plages planifi\u00e9es du serveur lui font rapport."
+      },
+      "hostname_baked": false,
+      "id": "healthchecks",
+      "sizing": {
+        "disk_baseline_mb": 100,
+        "idle_cpu_pct": 1,
+        "idle_ram_mb": 120,
+        "notes": "One Python container on SQLite. The disk baseline is the image; the database grows with the checks and their ping history. Conservative estimate, not yet measured.",
+        "notes_fr": "Un seul conteneur Python sur SQLite. Le disque de base est l'image ; la base grossit avec les contr\u00f4les et leur historique de pings. Estimation prudente, pas encore mesur\u00e9e.",
+        "peak_cpu_pct": 20,
+        "peak_ram_mb": 250
+      },
+      "sso_mode": "none",
+      "upstream_url": "https://healthchecks.io/"
     }
   ],
   "version": 1

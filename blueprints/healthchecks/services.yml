@@ -1,0 +1,64 @@
+services:
+  app:
+    image: healthchecks/healthchecks:v5.0.3
+    deploy:
+      restart_policy:
+        condition: any
+        delay: 5s
+      # healthchecks-data is the SQLite database holding every check and its
+      # ping history. An empty one on another node is a monitoring plane that
+      # has forgotten what it watches.
+      placement:
+        constraints:
+          - node.labels.catena.role==data
+    environment:
+      # The values the server writes into the app's .env for its own address and
+      # mail; the defaults let a server with none of them start the app.
+      SITE_ROOT: ${SITE_ROOT:-http://localhost:8000}
+      SITE_NAME: ${SITE_NAME:-heartbeats}
+      # Django matches ALLOWED_HOSTS against the literal Host header, and the
+      # consumers on the server dial the loopback publish below by IP, so 127.0.0.1
+      # is listed beside the network alias.
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1,healthchecks}
+      # Minted by the server on the first deploy (the block's generated key);
+      # no value stands in for it.
+      SECRET_KEY: ${SECRET_KEY}
+      DEBUG: "False"
+      REGISTRATION_OPEN: "False"
+      DB: sqlite
+      DB_NAME: /data/hc.sqlite
+      EMAIL_HOST: ${EMAIL_HOST:-}
+      EMAIL_PORT: ${EMAIL_PORT:-587}
+      EMAIL_HOST_USER: ${EMAIL_HOST_USER:-}
+      EMAIL_HOST_PASSWORD: ${EMAIL_HOST_PASSWORD:-}
+      EMAIL_USE_TLS: ${EMAIL_USE_TLS:-True}
+      EMAIL_USE_SSL: ${EMAIL_USE_SSL:-False}
+      DEFAULT_FROM_EMAIL: ${DEFAULT_FROM_EMAIL:-}
+      # The server's sign-in gate sets X-Forwarded-Email on every request it
+      # passes and drops the browser's copy. Healthchecks takes the header as
+      # the signed-in user from whoever sends it, so the network decides who may
+      # call it: it is on catena-healthchecks alone, which the gate and the
+      # services that read or ping it join and no client app does.
+      REMOTE_USER_HEADER: HTTP_X_FORWARDED_EMAIL
+    labels:
+      - "vps.auto-update=patch"
+    volumes:
+      - healthchecks-data:/data
+    # Host mode with the long syntax: the short form publishes through the
+    # ingress mesh. The server's consumers on the host reach /api/v3/ here.
+    ports:
+      - target: 8000
+        published: 18000
+        protocol: tcp
+        mode: host
+    networks:
+      catena-healthchecks:
+        aliases:
+          - healthchecks
+
+volumes:
+  healthchecks-data:
+
+networks:
+  catena-healthchecks:
+    external: true

@@ -1,0 +1,24 @@
+schema: 2
+version_from: app
+env:
+  SUBDOMAIN:
+    setting:
+      default: healthchecks
+      label:
+        en: "Address prefix (the address moves the next time the server applies its configuration)"
+        fr: "Préfixe de l'adresse (l'adresse change à la prochaine application de la configuration du serveur)"
+  SECRET_KEY:
+    generated: {length: 50, alphabet: alnum}
+  HC_URL:
+    managed: {expr: "http://healthchecks:8000"}
+provides:
+  healthchecks: {url: HC_URL}
+# verify asks the status endpoint, which reads the database, with the Host the
+# app always allows.
+hooks:
+  service: app
+  timeout_seconds: 60
+  verify:
+    - hooks/verify.py
+data:
+  app: {volume: healthchecks-data, upgrade: in_place}

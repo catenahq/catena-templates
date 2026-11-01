@@ -28,7 +28,8 @@
     "clamav",
     "coturn",
     "portainer",
-    "arcane"
+    "arcane",
+    "healthchecks"
   ],
   "sizing": {
     "last_measured_at": "2026-04-29",

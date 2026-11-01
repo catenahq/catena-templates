@@ -1,0 +1,61 @@
+# Test for the healthchecks template: a user, a project, a check and two pings
+# are made through the app, and the project's API key reads them back, also
+# after a restore. The key is the first 32 hex characters of a hash of the run
+# id, so the seed and the assert make the same one. The ping and the API are
+# asked at 127.0.0.1 with the Host localhost that the app always allows.
+
+id: healthchecks
+description: >-
+  A check pinged twice is listed up with two pings by the API of its project,
+  before and after the backup, the restore and the updates.
+
+seed:
+  - name: user_project_check_and_pings
+    type: docker_exec
+    container: "{{ container_app }}"
+    command:
+      - python
+      - manage.py
+      - shell
+      - -c
+      - |
+        import hashlib
+        import urllib.request
+        from django.contrib.auth.models import User
+        from hc.accounts.models import Project
+        from hc.api.models import Check
+        user = User.objects.create_user(username="catena-test", email="catena-test@example.org")
+        api_key = hashlib.sha256(b"api-key-{{ run_id }}").hexdigest()[:32]
+        project = Project.objects.create(owner=user, name="catena-test", api_key_readonly=api_key)
+        check = Check.objects.create(project=project, name="catena-{{ run_id }}", slug="catena-test", tags="catena")
+        for _ in range(2):
+            request = urllib.request.Request("http://127.0.0.1:8000/ping/" + str(check.code), headers={"Host": "localhost"})
+            assert urllib.request.urlopen(request, timeout=20).read() == b"OK"
+        print("seeded " + str(check.code))
+    expect_stdout_contains: "seeded "
+    timeout_s: 120
+
+assert:
+  - name: api_lists_the_check_up_with_two_pings
+    type: docker_exec
+    container: "{{ container_app }}"
+    command:
+      - python
+      - -c
+      - |
+        import hashlib
+        import json
+        import sys
+        import urllib.request
+        api_key = hashlib.sha256(b"api-key-{{ run_id }}").hexdigest()[:32]
+        request = urllib.request.Request(
+            "http://127.0.0.1:8000/api/v3/checks/",
+            headers={"Host": "localhost", "X-Api-Key": api_key})
+        checks = json.load(urllib.request.urlopen(request, timeout=20))["checks"]
+        found = [c for c in checks if c["name"] == "catena-{{ run_id }}"]
+        if len(found) != 1 or found[0]["n_pings"] != 2 or found[0]["status"] != "up":
+            print("unexpected checks: " + json.dumps(checks)[:400])
+            sys.exit(1)
+        print("healthchecks api ok")
+    expect_stdout_contains: "healthchecks api ok"
+    timeout_s: 120

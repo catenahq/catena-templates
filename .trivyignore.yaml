@@ -13,3 +13,34 @@ secrets:
       - /var/www/html/var/tmp/twig/f8/f83a7b592602d081cc1bb24945f124af.php
     statement: mautic test fixtures compiled into the image's twig cache
     expired_at: 2027-04-19
+
+vulnerabilities:
+  # healthchecks/healthchecks v5.0.3 is the registry's newest tag and ships these
+  # Python packages unfixed. Each entry names the package and its installed
+  # version as a purl, so a rebuilt image that carries another version is judged
+  # again.
+  - id: CVE-2026-114613
+    purls:
+      - pkg:pypi/msgpack@1.1.2
+    statement: "no fixed upstream image: healthchecks/healthchecks v5.0.3 is the newest tag (2026-10-27) and carries msgpack 1.1.2 (fixed in 1.2.3); the engine bump takes the fix"
+    expired_at: 2026-12-01
+  - id: GHSA-6v7p-g79w-8964
+    purls:
+      - pkg:pypi/msgpack@1.1.2
+    statement: "no fixed upstream image: healthchecks/healthchecks v5.0.3 is the newest tag (2026-10-27) and carries msgpack 1.1.2 (fixed in 1.2.1); the engine bump takes the fix"
+    expired_at: 2026-12-01
+  - id: CVE-2025-47273
+    purls:
+      - pkg:pypi/setuptools@70.3.0
+    statement: "no fixed upstream image: healthchecks/healthchecks v5.0.3 is the newest tag (2026-10-27) and carries setuptools 70.3.0 (fixed in 78.1.1); the engine bump takes the fix"
+    expired_at: 2026-12-01
+  - id: CVE-2026-97687
+    purls:
+      - pkg:pypi/urllib3@2.7.0
+    statement: "no fixed upstream image: healthchecks/healthchecks v5.0.3 is the newest tag (2026-10-27) and carries urllib3 2.7.0 (fixed in 2.8.0); the engine bump takes the fix"
+    expired_at: 2026-12-01
+  - id: CVE-2026-97689
+    purls:
+      - pkg:pypi/urllib3@2.7.0
+    statement: "no fixed upstream image: healthchecks/healthchecks v5.0.3 is the newest tag (2026-10-27) and carries urllib3 2.7.0 (fixed in 2.8.0); the engine bump takes the fix"
+    expired_at: 2026-12-01
