@@ -1,5 +1,29 @@
+schema: 2
 requires_catena: 0.11.12
 version_from: wp
+env:
+  DOMAIN_HOST:
+    setting: {default: "www.{{ cloudflare_zone }}"}
+  WORDPRESS_HOSTNAME:
+    managed: {expr: "www.{{ cloudflare_zone }}"}
+  WPMS_SMTP_PASS:
+    managed: {expr: "{{ smtp_password | default('') }}"}
+  DB_PASSWORD:
+    generated: {length: 32, alphabet: alnum}
+  DB_ROOT_PASSWORD:
+    generated: {length: 32, alphabet: alnum}
+  SMTP_RELAY_HOST:
+    managed: {expr: "{{ smtp_relay_host | default('') }}"}
+  SMTP_RELAY_PORT:
+    managed: {expr: "{{ smtp_relay_port | default('') }}"}
+  SMTP_RELAY_USER:
+    managed: {expr: "{{ smtp_relay_user | default('') }}"}
+  SMTP_RELAY_TLS:
+    managed: {expr: "{{ smtp_relay_tls | default('') }}"}
+  SMTP_RELAY_SENDER:
+    managed: {expr: "{{ smtp_relay_sender | default('') }}"}
+
+secrets: [smtp_password]
 # configure runs after every deploy (add, settings, start, update, rollback,
 # restore) once the install wizard has been run: it installs and activates
 # the curated plugins that are missing, enables the Redis object cache, seeds
@@ -12,13 +36,9 @@ hooks:
   user: www-data
   timeout_seconds: 1800
   configure:
-    - - sh
-      - -c
-      - {file: hooks/configure.sh}
+    - hooks/configure.sh
   # verify asks nginx for the front page, which nginx hands to PHP, and looks for what WordPress sets: its
   # API link header, its redirect header (a site without its install wizard redirects to it) or its
   # content path.
   verify:
-    - - php
-      - -r
-      - {file: hooks/verify.php}
+    - hooks/verify.php
