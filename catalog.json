@@ -1118,7 +1118,7 @@
       "domain_port": 3000,
       "domain_service": "outline",
       "en": {
-        "compose_description": "Team wiki + knowledge base. Keycloak SSO pre-wired. Replaces Notion / Confluence.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/outline/README.md\n",
+        "compose_description": "Team wiki + knowledge base. Keycloak SSO pre-wired. Replaces Notion / Confluence.\n\nhttps://github.com/catenahq/catena-templates/blob/HEAD/blueprints/outline/README.md\n",
         "display_name": "Outline",
         "replaces": [
           "Notion",
@@ -1167,7 +1167,7 @@
         "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
       ],
       "fr": {
-        "compose_description": "Wiki d'\u00e9quipe + base de connaissances. Keycloak SSO pr\u00e9-c\u00e2bl\u00e9. Remplace Notion / Confluence.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/outline/README.md\n",
+        "compose_description": "Wiki d'\u00e9quipe + base de connaissances. Keycloak SSO pr\u00e9-c\u00e2bl\u00e9. Remplace Notion / Confluence.\n\nhttps://github.com/catenahq/catena-templates/blob/HEAD/blueprints/outline/README.md\n",
         "display_name": "Outline",
         "replaces": [
           "Notion",
