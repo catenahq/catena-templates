@@ -3644,6 +3644,11 @@
         "what_it_is": "Gatus probes the server's own services and the applications you run, shows their status on one page and sends its alerts to Healthchecks. The server adds an endpoint for each service and each application by itself."
       },
       "env": {
+        "HC_PING_KEY": {
+          "managed": {
+            "expr": "{{ provided.healthchecks.ping_key }}"
+          }
+        },
         "HC_URL": {
           "managed": {
             "expr": "{{ provided.healthchecks.url }}"
@@ -3672,11 +3677,13 @@
       "env_defaults": [
         "SUBDOMAIN=gatus",
         "HC_URL={{ provided.healthchecks.url }}",
+        "HC_PING_KEY={{ provided.healthchecks.ping_key }}",
         "HUB_URL={{ provided.beszel.url }}",
         "UI_TITLE={{ cloudflare_zone | default('') }}"
       ],
       "env_managed_keys": [
         "HC_URL",
+        "HC_PING_KEY",
         "HUB_URL",
         "UI_TITLE"
       ],

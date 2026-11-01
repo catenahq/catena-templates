@@ -9,6 +9,8 @@ env:
         fr: "Préfixe de l'adresse (l'adresse change à la prochaine application de la configuration du serveur)"
   HC_URL:
     managed: {expr: "{{ provided.healthchecks.url }}"}
+  HC_PING_KEY:
+    managed: {expr: "{{ provided.healthchecks.ping_key }}"}
   HUB_URL:
     managed: {expr: "{{ provided.beszel.url }}"}
   UI_TITLE:
