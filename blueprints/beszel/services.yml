@@ -114,7 +114,7 @@ services:
         # ?create=1 makes the check on its first ping.
         NON_SLUG = re.compile(r"[^a-z0-9]+")
         STATUS = re.compile(r"^connection to (?P<system>.+) is (?P<state>up|down)\b")
-        METRIC = re.compile(r"^(?P<body>.+) (?P<dir>above|below) threshold$")
+        METRIC = re.compile(r"^(?P<body>.+) (?P<dir>above|below) threshold$$")
         SLUG_MAX = 60
         PING_TIMEOUT = 10
         # The Healthchecks ping address up to the check name, which the configure hook
