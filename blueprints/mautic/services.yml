@@ -1,0 +1,141 @@
+services:
+  mautic_web:
+    image: mautic/mautic:7.2.2-apache
+    deploy:
+      restart_policy:
+        condition: any
+      placement:
+        constraints:
+          - node.labels.catena.role==data
+    environment:
+      MAUTIC_DB_HOST: db
+      MAUTIC_DB_PORT: "3306"
+      MAUTIC_DB_DATABASE: mautic
+      MAUTIC_DB_USER: mautic
+      MAUTIC_DB_PASSWORD: ${DB_PASSWORD}
+      DOCKER_MAUTIC_RUN_MIGRATIONS: "true"
+      # Doctrine-backed Messenger transport (no RabbitMQ dependency).
+      MAUTIC_MESSENGER_DSN_EMAIL: doctrine://default
+      MAUTIC_MESSENGER_DSN_HIT: doctrine://default
+      PHP_INI_VALUE_MEMORY_LIMIT: 512M
+      PHP_INI_VALUE_UPLOAD_MAX_FILESIZE: 64M
+      PHP_INI_VALUE_POST_MAX_SIZE: 64M
+      # Exposed for operator reference. Mautic persists SMTP settings
+      # in its DB-backed config once the admin saves them in the UI.
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_USERNAME: ${SMTP_USERNAME}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
+      SMTP_FROM_ADDRESS: ${SMTP_FROM_ADDRESS}
+    volumes:
+      - config-data:/var/www/html/config
+      - logs-data:/var/www/html/var/logs
+      - media-files:/var/www/html/docroot/media/files
+      - media-images:/var/www/html/docroot/media/images
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost/ >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+    labels:
+      - "vps.route.host=${DOMAIN_HOST}"
+      - "vps.route.port=80"
+      - "vps.auth.mode=public"
+      - "vps.auto-update=patch"
+    cap_drop:
+      - NET_RAW
+    networks:
+      catena-network: {}
+      default: {}
+
+  mautic_worker:
+    image: mautic/mautic:7.2.2-apache
+    deploy:
+      restart_policy:
+        condition: any
+      placement:
+        constraints:
+          - node.labels.catena.role==data
+    environment:
+      DOCKER_MAUTIC_ROLE: mautic_worker
+      MAUTIC_DB_HOST: db
+      MAUTIC_DB_PORT: "3306"
+      MAUTIC_DB_DATABASE: mautic
+      MAUTIC_DB_USER: mautic
+      MAUTIC_DB_PASSWORD: ${DB_PASSWORD}
+      MAUTIC_MESSENGER_DSN_EMAIL: doctrine://default
+      MAUTIC_MESSENGER_DSN_HIT: doctrine://default
+    volumes:
+      - config-data:/var/www/html/config
+      - logs-data:/var/www/html/var/logs
+      - media-files:/var/www/html/docroot/media/files
+      - media-images:/var/www/html/docroot/media/images
+    labels:
+      - "vps.auto-update=patch"
+    networks:
+      - default
+
+  mautic_cron:
+    image: mautic/mautic:7.2.2-apache
+    deploy:
+      restart_policy:
+        condition: any
+      placement:
+        constraints:
+          - node.labels.catena.role==data
+    environment:
+      DOCKER_MAUTIC_ROLE: mautic_cron
+      MAUTIC_DB_HOST: db
+      MAUTIC_DB_PORT: "3306"
+      MAUTIC_DB_DATABASE: mautic
+      MAUTIC_DB_USER: mautic
+      MAUTIC_DB_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - config-data:/var/www/html/config
+      - logs-data:/var/www/html/var/logs
+      - media-files:/var/www/html/docroot/media/files
+      - media-images:/var/www/html/docroot/media/images
+    labels:
+      - "vps.auto-update=patch"
+    networks:
+      - default
+
+  db:
+    image: mariadb:12.3.3
+    deploy:
+      restart_policy:
+        condition: any
+      placement:
+        constraints:
+          - node.labels.catena.role==data
+    environment:
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MARIADB_DATABASE: mautic
+      MARIADB_USER: mautic
+      MARIADB_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - db-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 10m
+    labels:
+      - "vps.auto-update=patch"
+    networks:
+      - default
+
+volumes:
+  config-data:
+  logs-data:
+  # The image declares docroot/media/files and docroot/media/images as volumes: each needs a named
+  # volume at that exact path, or every new container gets fresh anonymous ones and the uploads are lost.
+  media-files:
+  media-images:
+  db-data:
+
+networks:
+  catena-network:
+    external: true
