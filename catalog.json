@@ -3484,9 +3484,71 @@
         "what_it_is": "The Beszel hub keeps the resource history of the servers and containers it watches and alerts when a threshold is crossed. The server runs an agent for itself; alerts go to Healthchecks."
       },
       "env": {
+        "ADMIN_EMAIL": {
+          "managed": {
+            "expr": "{{ admin_email }}"
+          }
+        },
+        "HC_PING_KEY": {
+          "managed": {
+            "expr": "{{ provided.healthchecks.ping_key }}"
+          }
+        },
+        "HC_URL": {
+          "managed": {
+            "expr": "{{ provided.healthchecks.url }}"
+          }
+        },
+        "HUB_OIDC_SECRET": {
+          "managed": {
+            "expr": "{{ beszel_oidc_client_secret | default('') }}"
+          }
+        },
+        "HUB_PASSWORD": {
+          "generated": {
+            "alphabet": "alnum",
+            "length": 32
+          }
+        },
         "HUB_URL": {
           "managed": {
             "expr": "http://beszel-hub:8090"
+          }
+        },
+        "SMTP_PASSWORD": {
+          "managed": {
+            "expr": "{{ smtp_password | default('') }}"
+          }
+        },
+        "SMTP_RELAY_HOST": {
+          "managed": {
+            "expr": "{{ smtp_relay_host | default('') }}"
+          }
+        },
+        "SMTP_RELAY_PORT": {
+          "managed": {
+            "expr": "{{ smtp_relay_port | default('') }}"
+          }
+        },
+        "SMTP_RELAY_SENDER": {
+          "managed": {
+            "expr": "{{ smtp_relay_sender | default('') }}"
+          }
+        },
+        "SMTP_RELAY_TLS": {
+          "managed": {
+            "expr": "{{ smtp_relay_tls | default('') }}"
+          }
+        },
+        "SMTP_RELAY_USER": {
+          "managed": {
+            "expr": "{{ smtp_relay_user | default('') }}"
+          }
+        },
+        "STATE_KEY": {
+          "generated": {
+            "alphabet": "alnum",
+            "length": 32
           }
         },
         "SUBDOMAIN": {
@@ -3497,14 +3559,43 @@
               "fr": "Pr\u00e9fixe de l'adresse (l'adresse change \u00e0 la prochaine application de la configuration du serveur)"
             }
           }
+        },
+        "TOKEN": {
+          "generated": {
+            "alphabet": "alnum",
+            "length": 32
+          }
         }
       },
       "env_defaults": [
         "SUBDOMAIN=beszel",
-        "HUB_URL=http://beszel-hub:8090"
+        "HUB_URL=http://beszel-hub:8090",
+        "ADMIN_EMAIL={{ admin_email }}",
+        "HUB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
+        "TOKEN={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
+        "STATE_KEY={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
+        "HC_URL={{ provided.healthchecks.url }}",
+        "HC_PING_KEY={{ provided.healthchecks.ping_key }}",
+        "HUB_OIDC_SECRET={{ beszel_oidc_client_secret | default('') }}",
+        "SMTP_PASSWORD={{ smtp_password | default('') }}",
+        "SMTP_RELAY_HOST={{ smtp_relay_host | default('') }}",
+        "SMTP_RELAY_PORT={{ smtp_relay_port | default('') }}",
+        "SMTP_RELAY_USER={{ smtp_relay_user | default('') }}",
+        "SMTP_RELAY_TLS={{ smtp_relay_tls | default('') }}",
+        "SMTP_RELAY_SENDER={{ smtp_relay_sender | default('') }}"
       ],
       "env_managed_keys": [
-        "HUB_URL"
+        "HUB_URL",
+        "ADMIN_EMAIL",
+        "HC_URL",
+        "HC_PING_KEY",
+        "HUB_OIDC_SECRET",
+        "SMTP_PASSWORD",
+        "SMTP_RELAY_HOST",
+        "SMTP_RELAY_PORT",
+        "SMTP_RELAY_USER",
+        "SMTP_RELAY_TLS",
+        "SMTP_RELAY_SENDER"
       ],
       "fr": {
         "compose_description": "Concentrateur auto-h\u00e9berg\u00e9 de surveillance des serveurs et des conteneurs.\n",

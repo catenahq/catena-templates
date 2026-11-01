@@ -20,7 +20,7 @@ from lib import plain  # noqa: E402
 
 CATALOG = ROOT / "blueprints"
 APPS = sorted(p.parent.name for p in CATALOG.glob("*/docker-compose.yml"))
-REFUSED = {"coturn": "own network", "mailserver": "certificate"}
+REFUSED = {"coturn": "own network", "beszel": "own network", "mailserver": "certificate"}
 
 SYNTHETIC = """\
 x-catena:

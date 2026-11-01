@@ -169,7 +169,7 @@ hook bodies under `hooks/`.
   under a comment naming it. `--ask` asks for each empty value on a terminal and needs
   one. The command prints no value.
 - An app whose block asks for the `host_network` privilege or a certificate is refused
-  (`coturn`, `mailserver`): it needs what Catena does for it.
+  (`coturn`, `beszel`, `mailserver`): it needs what Catena does for it.
 - Backups, updates, sign-in, routing and monitoring stay Catena's.
 
 `uv run build/pack.py plain-check <id>` exports into a temporary folder, runs `docker

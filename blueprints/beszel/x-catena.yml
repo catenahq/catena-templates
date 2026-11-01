@@ -1,5 +1,6 @@
 schema: 2
 version_from: app
+privileges: [host_network, docker_socket]
 env:
   SUBDOMAIN:
     setting:
@@ -9,15 +10,50 @@ env:
         fr: "Préfixe de l'adresse (l'adresse change à la prochaine application de la configuration du serveur)"
   HUB_URL:
     managed: {expr: "http://beszel-hub:8090"}
+  ADMIN_EMAIL:
+    managed: {expr: "{{ admin_email }}"}
+  HUB_PASSWORD:
+    generated: {length: 32, alphabet: alnum}
+  TOKEN:
+    generated: {length: 32, alphabet: alnum}
+  STATE_KEY:
+    generated: {length: 32, alphabet: alnum}
+  HC_URL:
+    managed: {expr: "{{ provided.healthchecks.url }}"}
+  HC_PING_KEY:
+    managed: {expr: "{{ provided.healthchecks.ping_key }}"}
+  HUB_OIDC_SECRET:
+    managed: {expr: "{{ beszel_oidc_client_secret | default('') }}"}
+  SMTP_PASSWORD:
+    managed: {expr: "{{ smtp_password | default('') }}"}
+  SMTP_RELAY_HOST:
+    managed: {expr: "{{ smtp_relay_host | default('') }}"}
+  SMTP_RELAY_PORT:
+    managed: {expr: "{{ smtp_relay_port | default('') }}"}
+  SMTP_RELAY_USER:
+    managed: {expr: "{{ smtp_relay_user | default('') }}"}
+  SMTP_RELAY_TLS:
+    managed: {expr: "{{ smtp_relay_tls | default('') }}"}
+  SMTP_RELAY_SENDER:
+    managed: {expr: "{{ smtp_relay_sender | default('') }}"}
+secrets: [beszel_oidc_client_secret, smtp_password]
 provides:
   beszel: {url: HUB_URL}
   beszelgate: {url: HUB_URL}
-# The hub image holds only the binary: no shell, curl or wget. verify runs in the
-# busybox helper on the stack network and asks the hub's health endpoint.
+# configure runs after every deploy in the relay service: the hub image holds only
+# the binary. It makes the first user and the superuser, seeds the agent's universal
+# token, the hub's sign-in with Catena, the alert webhook to the relay, the outgoing
+# mail and the default alert rules, and writes the hub's public key for the agent. It
+# waits for the agent's system, so a deploy fails when the agent never connects. The
+# token and the key reach the agent as files, and the ping address reaches the relay
+# as a file, so neither service holds them in its environment.
+# verify asks the hub's health endpoint from the relay.
 hooks:
-  service: probe
-  timeout_seconds: 60
+  service: relay
+  timeout_seconds: 300
+  configure:
+    - hooks/configure.py
   verify:
-    - hooks/verify.sh
+    - hooks/verify.py
 data:
   app: {volume: beszel-hub-data, upgrade: in_place}

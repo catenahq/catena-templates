@@ -1,46 +1,91 @@
-# Test for the beszel template: the first user is made through the hub's API and
-# signs in again after the backup, the restore and the updates. The steps run in
-# the busybox helper on the stack network.
+# Test for the beszel template: the configure hook made the hub's superuser, and the
+# agent connected with the universal token and has its system listed with the default
+# alert rules. The superuser signs in with the password the app generated, also after
+# the backup, the restore and the updates. The steps run in the relay service, which
+# reaches the hub as app:8090; each step names the folder .env keys it is given
+# (env), the admin email and the generated password.
 
 id: beszel
 description: >-
-  The hub makes its first user through the first-run endpoint, and that user
-  signs in with the password, also after a restore.
+  The agent's system is listed by the hub with its alert rules, and the superuser
+  the configure hook made signs in with the generated password, also after a restore.
 
 seed:
-  - name: first_user_created
+  - name: agent_system_is_listed
     type: docker_exec
-    container: "{{ container_probe }}"
+    container: "{{ container_relay }}"
+    env: [ADMIN_EMAIL, HUB_PASSWORD]
     command:
-      - sh
+      - python3
       - -c
       - |
-        for i in $(seq 1 30); do
-          if out=$(wget -qO- --header 'Content-Type: application/json' --post-data '{"email":"catena-test@example.org","password":"catena-{{ run_id }}"}' http://app:8090/api/beszel/create-user); then
-            echo "$out"
-            exit 0
-          fi
-          sleep 5
-        done
-        exit 1
-    expect_stdout_contains: "User created"
-    timeout_s: 240
+        import json
+        import os
+        import sys
+        import time
+        import urllib.request
+
+        def call(path, body=None, token=None):
+            headers = {"Content-Type": "application/json"}
+            if token:
+                headers["Authorization"] = token
+            request = urllib.request.Request("http://app:8090" + path, headers=headers,
+                                             data=json.dumps(body).encode() if body is not None else None)
+            return json.load(urllib.request.urlopen(request, timeout=20))
+
+        auth = call("/api/collections/_superusers/auth-with-password",
+                    {"identity": os.environ["ADMIN_EMAIL"], "password": os.environ["HUB_PASSWORD"]})
+        for _ in range(48):
+            systems = call("/api/collections/systems/records", token=auth["token"])["items"]
+            if systems:
+                rules = call("/api/collections/alerts/records?perPage=200", token=auth["token"])["items"]
+                if len(rules) >= 4:
+                    print("systems " + str(len(systems)) + " rules " + str(len(rules)))
+                    sys.exit(0)
+            time.sleep(5)
+        print("no system with alert rules after 240 s")
+        sys.exit(1)
+    expect_stdout_contains: "systems "
+    timeout_s: 300
 
 assert:
-  - name: first_user_signs_in
+  - name: superuser_signs_in_and_the_system_is_still_listed
     type: docker_exec
-    container: "{{ container_probe }}"
+    container: "{{ container_relay }}"
+    env: [ADMIN_EMAIL, HUB_PASSWORD]
     command:
-      - sh
+      - python3
       - -c
       - |
-        for i in $(seq 1 30); do
-          if out=$(wget -qO- --header 'Content-Type: application/json' --post-data '{"identity":"catena-test@example.org","password":"catena-{{ run_id }}"}' http://app:8090/api/collections/users/auth-with-password); then
-            echo "$out"
-            exit 0
-          fi
-          sleep 5
-        done
-        exit 1
-    expect_stdout_contains: '"token"'
-    timeout_s: 240
+        import json
+        import os
+        import sys
+        import time
+        import urllib.request
+
+        def call(path, body=None, token=None):
+            headers = {"Content-Type": "application/json"}
+            if token:
+                headers["Authorization"] = token
+            request = urllib.request.Request("http://app:8090" + path, headers=headers,
+                                             data=json.dumps(body).encode() if body is not None else None)
+            return json.load(urllib.request.urlopen(request, timeout=20))
+
+        auth = None
+        for _ in range(48):
+            try:
+                auth = call("/api/collections/_superusers/auth-with-password",
+                            {"identity": os.environ["ADMIN_EMAIL"], "password": os.environ["HUB_PASSWORD"]})
+                break
+            except OSError:
+                time.sleep(5)
+        if auth is None:
+            print("the superuser cannot sign in")
+            sys.exit(1)
+        systems = call("/api/collections/systems/records", token=auth["token"])["items"]
+        if not systems:
+            print("the hub lists no system")
+            sys.exit(1)
+        print("signed in, systems " + str(len(systems)))
+    expect_stdout_contains: "signed in, systems "
+    timeout_s: 300
