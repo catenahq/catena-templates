@@ -10,6 +10,8 @@
                         GH_TOKEN reads it); any other answer, an unreadable one included, exits 1
   checker ID            the catena-admin image whose app checker reads the app: the release
                         its compose block names in requires_catena, else the newest
+  plain ID              true when the app's card sets bench.plain, else false: the app opts in
+                        to the plain export check (`build/pack.py plain-check`)
 
 Provenance reads the image's `org.opencontainers.image.source` label from
 `docker image inspect`, so the app's images are pulled first.
@@ -41,6 +43,12 @@ def requires_catena(app: str) -> str | None:
 def checker_image(app: str) -> str:
     release = requires_catena(app)
     return f"{CHECKER_IMAGE}:v{release}" if release else f"{CHECKER_IMAGE}:latest"
+
+
+def opts_into_plain(app: str) -> bool:
+    """Whether the app's card sets `bench.plain`."""
+    card = json.loads((ROOT / "blueprints" / app / "app.json").read_text(encoding="utf-8"))
+    return card.get("bench", {}).get("plain") is True
 
 
 def _compose(app: str) -> str:
@@ -89,7 +97,7 @@ def main(argv: list[str]) -> int:
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("changed")
     sub.add_parser("ci-passed").add_argument("sha")
-    for name in ("images", "provenance", "checker"):
+    for name in ("images", "provenance", "checker", "plain"):
         sub.add_parser(name).add_argument("app")
     args = parser.parse_args(argv)
 
@@ -120,6 +128,9 @@ def main(argv: list[str]) -> int:
         return 1 if unresolved else 0
     if args.command == "checker":
         print(checker_image(args.app))
+        return 0
+    if args.command == "plain":
+        print("true" if opts_into_plain(args.app) else "false")
         return 0
 
     errors = provenance_errors(args.app)

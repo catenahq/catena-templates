@@ -50,6 +50,16 @@ def test_the_scope_step_comes_first_and_the_heavy_steps_wait_for_it():
     assert len(light) == 2 and all("if" not in s for s in light)
 
 
+def test_the_plain_check_runs_after_the_image_pull_with_the_heavy_steps_or_a_verification_change():
+    steps = _steps()
+    names = [s.get("name", "") for s in steps]
+    step = steps[names.index("The plain export answers")]
+    assert names.index("The plain export answers") == names.index("Pull the app's images") + 1
+    assert step["if"] == "steps.scope.outputs.heavy == 'true' || steps.scope.outputs.verification == 'true'"
+    assert 'build/app_check.py" plain "$APP"' in step["run"]
+    assert 'build/pack.py" plain-check "$APP"' in step["run"]
+
+
 def test_the_app_job_reads_statuses():
     job = yaml.safe_load((ROOT / ".github/workflows/app-ci.yml").read_text())["jobs"]["app"]
     assert job["permissions"] == {"contents": "read", "statuses": "read"}
@@ -93,6 +103,7 @@ def scene(tmp_path):
                                   text=True, check=False)
         assert done.returncode == 0, done.stderr
         values = dict(line.split("=", 1) for line in out.read_text().splitlines() if "=" in line)
+        run.values = values
         return values["heavy"], summary.read_text(), paths
 
     return run, commit, runtime
@@ -134,6 +145,19 @@ def test_a_change_of_the_runtime_runs_the_heavy_steps_without_asking_for_a_statu
     assert heavy == "true"
     assert "touches the runtime" in summary
     assert paths == []
+
+
+@needs_uv
+@pytest.mark.parametrize("file,verification", [
+    ("blueprints/web/test.yml", "true"),
+    ("blueprints/web/README.md", "false"),
+    ("blueprints/web/docker-compose.yml", "false"),
+])
+def test_the_scope_step_says_whether_the_change_holds_verification(scene, file, verification):
+    run, commit, runtime = scene
+    commit(file)
+    run(runtime, _status())
+    assert run.values["verification"] == verification
 
 
 @needs_uv
@@ -208,6 +232,22 @@ def test_the_command_exits_by_the_answer_and_one_for_an_unreadable_page(monkeypa
 def test_the_command_refuses_a_bad_commit_or_repository(monkeypatch, sha, repo):
     monkeypatch.setenv("GITHUB_REPOSITORY", repo)
     assert app_checks.main(["ci-passed", sha]) == 1
+
+
+@pytest.mark.parametrize("bench,answer", [({"pack": "embedded", "plain": True}, "true"),
+                                          ({"pack": "embedded", "plain": False}, "false"),
+                                          ({"pack": "embedded"}, "false")])
+def test_the_plain_command_prints_whether_the_card_opts_in(tmp_path, monkeypatch, capsys, bench, answer):
+    (tmp_path / "blueprints" / "web").mkdir(parents=True)
+    (tmp_path / "blueprints" / "web" / "app.json").write_text(json.dumps({"bench": bench}))
+    monkeypatch.setattr(app_checks, "ROOT", tmp_path)
+    assert app_checks.main(["plain", "web"]) == 0
+    assert capsys.readouterr().out.strip() == answer
+
+
+def test_the_schema_admits_bench_plain_as_a_boolean():
+    bench = json.loads((ROOT / "app.schema.json").read_text())["properties"]["bench"]["properties"]
+    assert bench["plain"]["type"] == "boolean"
 
 
 def test_the_command_reads_a_token_from_gh_token(monkeypatch):

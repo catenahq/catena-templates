@@ -41,6 +41,9 @@ name: app-ci
 # lets read it). A change of the runtime, a runtime change without that status
 # and a status that cannot be read run them. The job summary says which path ran.
 #
+# The plain export check (`build/pack.py plain-check`) runs for an app that sets
+# `bench.plain`, on the same runs as the heavy steps and on a change of verification.
+#
 # An app held as neat files (`services.yml` in its folder) is judged by the
 # `docker-compose.yml` the render packs from them. `repo` re-renders and fails
 # when `git diff blueprints` shows that file, or any other generated one, out of
@@ -309,6 +312,9 @@ jobs:
             fi
           fi
           echo "heavy=$heavy" >> "$GITHUB_OUTPUT"
+          verification=false
+          if grep -qx verification <<< "$classes"; then verification=true; fi
+          echo "verification=$verification" >> "$GITHUB_OUTPUT"
           if [ "$heavy" = true ]; then
             echo "$APP: heavy steps run: $reason" | tee -a "$GITHUB_STEP_SUMMARY"
           else
@@ -353,6 +359,18 @@ jobs:
           set -euo pipefail
           uv run "$TOOLS/build/app_check.py" images "$APP" > "$RUNNER_TEMP/images.txt"
           while read -r image; do docker pull "$image"; done < "$RUNNER_TEMP/images.txt"
+      - name: The plain export answers
+        # An app whose card sets bench.plain starts as plain Docker Compose files
+        # from its export; the step fails when it gives no HTTP answer. It runs
+        # when the heavy steps do and when the change touches verification.
+        if: steps.scope.outputs.heavy == 'true' || steps.scope.outputs.verification == 'true'
+        run: |
+          set -euo pipefail
+          if [ "$(uv run "$TOOLS/build/app_check.py" plain "$APP")" != true ]; then
+            echo "$APP does not opt in to the plain export check"
+            exit 0
+          fi
+          uv run "$TOOLS/build/pack.py" plain-check "$APP"
       - name: Provenance (project age and releases)
         if: steps.scope.outputs.heavy == 'true'
         env:

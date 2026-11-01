@@ -190,6 +190,10 @@
         },
         "hostname_baked": {
           "type": "boolean"
+        },
+        "plain": {
+          "type": "boolean",
+          "description": "true: app-ci starts the app's plain export (build/pack.py plain-check) and fails when it does not answer."
         }
       }
     },
