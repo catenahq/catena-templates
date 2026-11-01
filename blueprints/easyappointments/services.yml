@@ -1,0 +1,68 @@
+services:
+  easyappointments:
+    image: alextselegidis/easyappointments:1.6.1
+    deploy:
+      restart_policy:
+        condition: any
+      placement:
+        constraints:
+          - node.labels.catena.role==data
+    environment:
+      BASE_URL: https://${EASYAPPOINTMENTS_HOSTNAME}
+      DB_HOST: db
+      DB_NAME: easyappointments
+      DB_USERNAME: easyappointments
+      DB_PASSWORD: ${DB_PASSWORD}
+      DEBUG_MODE: "FALSE"
+    volumes:
+      - server-data:/var/www/html/storage
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost/ >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    labels:
+      - "vps.route.host=${DOMAIN_HOST}"
+      - "vps.route.port=80"
+      - "vps.auth.mode=public"
+      - "vps.auto-update=patch"
+    cap_drop:
+      - NET_RAW
+    networks:
+      catena-network: {}
+      default: {}
+
+  db:
+    image: mariadb:13.0.2
+    deploy:
+      restart_policy:
+        condition: any
+      placement:
+        constraints:
+          - node.labels.catena.role==data
+    environment:
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MARIADB_DATABASE: easyappointments
+      MARIADB_USER: easyappointments
+      MARIADB_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - db-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 10m
+    labels:
+      - "vps.auto-update=patch"
+    networks:
+      - default
+
+volumes:
+  server-data:
+  db-data:
+
+networks:
+  catena-network:
+    external: true

@@ -1,0 +1,10 @@
+requires_catena: 0.11.12
+# verify asks Apache for the root page. Before its installation wizard has run, the application answers
+# with a redirect to /installation; after it, with the booking page, whose title names the product.
+hooks:
+  service: easyappointments
+  timeout_seconds: 60
+  verify:
+    - - sh
+      - -c
+      - {file: hooks/verify.sh}
