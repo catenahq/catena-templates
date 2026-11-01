@@ -3289,7 +3289,7 @@
       "domain_port": 3552,
       "domain_service": "arcane",
       "en": {
-        "compose_description": "Docker management console, reachable by administrators only.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/arcane/README.md\n",
+        "compose_description": "Docker management console, reachable by administrators only.\n\nhttps://github.com/catenahq/catena-templates/blob/HEAD/blueprints/arcane/README.md\n",
         "display_name": "Arcane",
         "extra_notes": "**Outside Catena.** Arcane holds the Docker socket of this server, which is full control of it. Only administrators reach its address. Applications deployed from Arcane are outside Catena: Catena does not deploy, update, back up or restore them. Their labels give Catena routes, sign-in, monitoring and backups of their data; keeping them up to date is Arcane's job, not Catena's. Arcane itself is updated by Catena.\n",
         "replaces": [
@@ -3318,7 +3318,7 @@
         "ENCRYPTION_KEY={{ lookup('password', '/dev/null length=64 chars=hexdigits') | lower }}"
       ],
       "fr": {
-        "compose_description": "Console de gestion Docker, r\u00e9serv\u00e9e aux administrateurs.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/arcane/README.md\n",
+        "compose_description": "Console de gestion Docker, r\u00e9serv\u00e9e aux administrateurs.\n\nhttps://github.com/catenahq/catena-templates/blob/HEAD/blueprints/arcane/README.md\n",
         "display_name": "Arcane",
         "extra_notes": "**Hors de Catena.** Arcane d\u00e9tient le socket Docker de ce serveur, soit le contr\u00f4le complet de celui-ci. Seuls les administrateurs atteignent son adresse. Les applications d\u00e9ploy\u00e9es depuis Arcane sont hors de Catena : Catena ne les d\u00e9ploie, ne les met \u00e0 jour, ne les sauvegarde et ne les restaure pas. Leurs \u00e9tiquettes donnent \u00e0 Catena les routes, la connexion, la surveillance et la sauvegarde de leurs donn\u00e9es ; les garder \u00e0 jour rel\u00e8ve d'Arcane, pas de Catena. Arcane lui-m\u00eame est mis \u00e0 jour par Catena.\n",
         "replaces": [
