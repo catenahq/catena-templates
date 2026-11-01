@@ -1,0 +1,363 @@
+x-common: &frappe-env
+  SITE_NAME: ${ERPNEXT_HOSTNAME}
+  DB_HOST: db
+  DB_PORT: "3306"
+  REDIS_CACHE: redis-cache:6379
+  REDIS_QUEUE: redis-queue:6379
+
+services:
+  # Sets the site up, then serves it. The image's entrypoint links its assets
+  # into the sites volume and runs this script, which ends in the image's own
+  # start.sh. Every start runs each step, and each is a no-op once done: the
+  # bench config is written once, the site is created on the first start, and
+  # install-app skips an app the site already has, so a redeploy with a longer
+  # FRAPPE_APPS adds the new ones. The site setting block_endpoints is written
+  # when the site has none: the helpdesk's own endpoint guard then leaves
+  # accounts without desk access and visitors the helpdesk's calls and a fixed
+  # list, and an administrator's 0 holds. A step that fails exits, and
+  # swarm starts the task again. The two setup secrets leave the environment
+  # before the app server starts. The image is built from catena-templates
+  # images/erpnext-helpdesk.
+  backend:
+    image: ghcr.io/catenahq/erpnext-helpdesk:v16.52.1-1
+    deploy:
+      restart_policy:
+        condition: any
+      placement:
+        constraints:
+          - node.labels.catena.role==data
+    command:
+      - bash
+      - -c
+      - |
+        set -e
+        ls -1 apps > sites/apps.txt
+        if [ -z "$$(jq -r '.db_host // empty' sites/common_site_config.json)" ]; then
+          bench set-config -g db_host "$$DB_HOST"
+          bench set-config -gp db_port "$$DB_PORT"
+          bench set-config -g redis_cache "redis://$$REDIS_CACHE"
+          bench set-config -g redis_queue "redis://$$REDIS_QUEUE"
+          bench set-config -g redis_socketio "redis://$$REDIS_QUEUE"
+          bench set-config -gp socketio_port 9000
+        fi
+        wait-for-it -t 120 "$$DB_HOST:$$DB_PORT"
+        wait-for-it -t 120 "$$REDIS_CACHE"
+        wait-for-it -t 120 "$$REDIS_QUEUE"
+        if [ ! -d "sites/$$SITE_NAME" ]; then
+          bench new-site --mariadb-user-host-login-scope='%' \
+            --admin-password="$$ERPNEXT_ADMIN_PASSWORD" \
+            --db-root-username=root --db-root-password="$$DB_ROOT_PASSWORD" \
+            --set-default "$$SITE_NAME"
+        fi
+        bench --site "$$SITE_NAME" install-app $${FRAPPE_APPS//,/ }
+        if ! jq -e 'has("block_endpoints")' "sites/$$SITE_NAME/site_config.json" > /dev/null; then
+          bench --site "$$SITE_NAME" set-config -p block_endpoints 1
+        fi
+        unset ERPNEXT_ADMIN_PASSWORD DB_ROOT_PASSWORD
+        exec start.sh
+    environment:
+      <<: *frappe-env
+      ERPNEXT_ADMIN_PASSWORD: ${ERPNEXT_ADMIN_PASSWORD}
+      DB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      FRAPPE_APPS: ${FRAPPE_APPS:-erpnext,telephony,helpdesk}
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+      - logs:/home/frappe/frappe-bench/logs
+    labels:
+      - "vps.auto-update=minor"
+    networks:
+      - default
+
+  frontend:
+    image: ghcr.io/catenahq/erpnext-helpdesk:v16.52.1-1
+    deploy:
+      restart_policy:
+        condition: any
+      placement:
+        constraints:
+          - node.labels.catena.role==data
+    command: ["nginx-entrypoint.sh"]
+    environment:
+      BACKEND: backend:8000
+      SOCKETIO: websocket:9000
+      FRAPPE_SITE_NAME_HEADER: ${ERPNEXT_HOSTNAME}
+      UPSTREAM_REAL_IP_ADDRESS: 0.0.0.0/0
+      UPSTREAM_REAL_IP_HEADER: X-Forwarded-For
+      UPSTREAM_REAL_IP_RECURSIVE: "On"
+      PROXY_READ_TIMEOUT: "120"
+      CLIENT_MAX_BODY_SIZE: 50m
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+      - logs:/home/frappe/frappe-bench/logs
+    labels:
+      - "vps.route.host=${DOMAIN_HOST}"
+      - "vps.route.port=8080"
+      - "vps.auth.mode=public"
+      - "vps.health.path=/api/method/ping"
+      - "vps.health.expect=pong"
+      - "vps.auth.oidc=true"
+      - "vps.auth.groups=staff,client"
+      - "vps.auth.oidc.redirect_uris=https://${ERPNEXT_HOSTNAME}/api/method/frappe.integrations.oauth2_logins.custom/keycloak"
+      - "vps.auto-update=minor"
+    cap_drop:
+      - NET_RAW
+    networks:
+      catena-network: {}
+      default: {}
+
+  websocket:
+    image: ghcr.io/catenahq/erpnext-helpdesk:v16.52.1-1
+    deploy:
+      restart_policy:
+        condition: any
+      placement:
+        constraints:
+          - node.labels.catena.role==data
+    command: ["node", "/home/frappe/frappe-bench/apps/frappe/socketio.js"]
+    environment: *frappe-env
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+      - logs:/home/frappe/frappe-bench/logs
+    labels:
+      - "vps.auto-update=minor"
+    networks:
+      - default
+
+  queue-default:
+    image: ghcr.io/catenahq/erpnext-helpdesk:v16.52.1-1
+    deploy:
+      restart_policy:
+        condition: any
+      placement:
+        constraints:
+          - node.labels.catena.role==data
+    command: ["bench", "worker", "--queue", "default"]
+    environment: *frappe-env
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+      - logs:/home/frappe/frappe-bench/logs
+    labels:
+      - "vps.auto-update=minor"
+    networks:
+      - default
+
+  queue-short:
+    image: ghcr.io/catenahq/erpnext-helpdesk:v16.52.1-1
+    deploy:
+      restart_policy:
+        condition: any
+      placement:
+        constraints:
+          - node.labels.catena.role==data
+    command: ["bench", "worker", "--queue", "short,default"]
+    environment: *frappe-env
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+      - logs:/home/frappe/frappe-bench/logs
+    labels:
+      - "vps.auto-update=minor"
+    networks:
+      - default
+
+  queue-long:
+    image: ghcr.io/catenahq/erpnext-helpdesk:v16.52.1-1
+    deploy:
+      restart_policy:
+        condition: any
+      placement:
+        constraints:
+          - node.labels.catena.role==data
+    command: ["bench", "worker", "--queue", "long,default,short"]
+    environment: *frappe-env
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+      - logs:/home/frappe/frappe-bench/logs
+    labels:
+      - "vps.auto-update=minor"
+    networks:
+      - default
+
+  # The start waits until the backend serves the site. With the sign-in values
+  # in the environment it puts the Keycloak entry of Social Login Keys in step
+  # with them (FRAPPE_SIGNIN_PY): it creates the entry when absent and corrects
+  # the client, the secret and Keycloak's addresses when they differ. While
+  # ERPNEXT_WEB_FORMS is off it unpublishes ERPNext's issue and task web forms
+  # (FRAPPE_FORMS_PY); every start does so, because an ERPNext update that
+  # ships a newer form file publishes it again. The client secret leaves the
+  # environment before the scheduler runs.
+  scheduler:
+    image: ghcr.io/catenahq/erpnext-helpdesk:v16.52.1-1
+    deploy:
+      restart_policy:
+        condition: any
+      placement:
+        constraints:
+          - node.labels.catena.role==data
+    command:
+      - bash
+      - -c
+      - |
+        set -e
+        echo "catena start: waiting for the backend to serve the site"
+        until (: > /dev/tcp/backend/8000) 2>/dev/null; do sleep 5; done
+        if [ -n "$${OIDC_CLIENT_ID:-}" ]; then
+          (cd sites && ../env/bin/python -c "$$FRAPPE_SIGNIN_PY")
+        fi
+        (cd sites && ../env/bin/python -c "$$FRAPPE_FORMS_PY")
+        unset OIDC_CLIENT_SECRET
+        exec bench schedule
+    environment:
+      <<: *frappe-env
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-}
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-}
+      OIDC_ISSUER_URL: ${OIDC_ISSUER_URL:-}
+      SIGNIN_SIGN_UPS: "Allow"
+      ERPNEXT_WEB_FORMS: ${ERPNEXT_WEB_FORMS:-off}
+      FRAPPE_FORMS_PY: |
+        import os
+
+        import frappe
+
+        forms = ("issues", "tasks")
+        if os.environ.get("ERPNEXT_WEB_FORMS", "off").strip().lower() != "on":
+            frappe.init(os.environ["SITE_NAME"])
+            frappe.connect()
+            try:
+                closed = []
+                for name in forms:
+                    if frappe.db.get_value("Web Form", name, "published"):
+                        form = frappe.get_doc("Web Form", name)
+                        form.published = 0
+                        form.save()
+                        closed.append(name)
+                frappe.db.commit()
+                if closed:
+                    print("catena start: ERPNext web forms closed: " + ", ".join(closed), flush=True)
+            finally:
+                frappe.destroy()
+      FRAPPE_SIGNIN_PY: |
+        import json
+        import os
+
+        import frappe
+
+        client_id = os.environ.get("OIDC_CLIENT_ID", "")
+        secret = os.environ.get("OIDC_CLIENT_SECRET", "")
+        issuer = os.environ.get("OIDC_ISSUER_URL", "").rstrip("/")
+        sign_ups = os.environ.get("SIGNIN_SIGN_UPS", "Deny")
+        site = os.environ["SITE_NAME"]
+
+
+        def say(message):
+            print("catena sign-in: " + message, flush=True)
+
+
+        if not (client_id and secret and issuer):
+            say("no sign-in values yet; Keycloak sign-in stays off")
+            raise SystemExit(0)
+        endpoint = issuer + "/protocol/openid-connect/"
+        owned = {
+            "client_id": client_id, "base_url": issuer, "custom_base_url": 0,
+            "authorize_url": endpoint + "auth", "access_token_url": endpoint + "token",
+            "api_endpoint": endpoint + "userinfo",
+            "redirect_url": "https://" + site + "/api/method/frappe.integrations.oauth2_logins.custom/keycloak",
+        }
+        frappe.init(site)
+        frappe.connect()
+        try:
+            if frappe.db.exists("Social Login Key", "keycloak"):
+                doc = frappe.get_doc("Social Login Key", "keycloak")
+                changed = sorted(key for key, value in owned.items() if doc.get(key) != value)
+                if doc.get_password("client_secret", raise_exception=False) != secret:
+                    changed.append("client_secret")
+                if changed:
+                    doc.update(owned)
+                    doc.client_secret = secret
+                    doc.save()
+                    say("Keycloak sign-in entry put back in step: " + ", ".join(changed))
+            else:
+                doc = frappe.new_doc("Social Login Key")
+                doc.update({"provider_name": "Keycloak", "social_login_provider": "Custom",
+                            "enable_social_login": 1, "sign_ups": sign_ups, "user_id_property": "sub",
+                            "show_in_resource_metadata": 0,
+                            "auth_url_data": json.dumps({"response_type": "code",
+                                                         "scope": "openid email profile"}),
+                            **owned})
+                doc.client_secret = secret
+                doc.insert()
+                # Set with the entry only: the site is not the company website.
+                frappe.db.set_single_value("Contact Us Settings", "is_disabled", 1)
+                say("Keycloak sign-in on; the public contact form off")
+            frappe.db.commit()
+        finally:
+            frappe.destroy()
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+      - logs:/home/frappe/frappe-bench/logs
+    labels:
+      - "vps.auto-update=minor"
+    networks:
+      - default
+
+  # The MariaDB line Frappe v16 is tested on; its patch label keeps it there.
+  db:
+    image: mariadb:11.8.9
+    deploy:
+      restart_policy:
+        condition: any
+      placement:
+        constraints:
+          - node.labels.catena.role==data
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --skip-character-set-client-handshake
+    environment:
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+    volumes:
+      - db-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mariadb-admin ping -h localhost -u root -p$${MARIADB_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 10m
+    labels:
+      - "vps.auto-update=patch"
+    networks:
+      - default
+
+  redis-cache:
+    image: redis:8.6.7-alpine3.23
+    deploy:
+      restart_policy:
+        condition: any
+    labels:
+      - "vps.auto-update=patch"
+    networks:
+      - default
+
+  redis-queue:
+    image: redis:8.6.7-alpine3.23
+    deploy:
+      restart_policy:
+        condition: any
+      placement:
+        constraints:
+          - node.labels.catena.role==data
+    volumes:
+      - redis-queue-data:/data
+    labels:
+      - "vps.auto-update=patch"
+    networks:
+      - default
+
+volumes:
+  sites:
+  logs:
+  db-data:
+  redis-queue-data:
+
+networks:
+  catena-network:
+    external: true
