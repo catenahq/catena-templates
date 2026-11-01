@@ -1623,7 +1623,7 @@
       "domain_port": 8080,
       "domain_service": "zammad-nginx",
       "en": {
-        "compose_description": "Ticket-first help desk. Replaces Zendesk / Freshdesk.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/zammad/README.md\n",
+        "compose_description": "Ticket-first help desk. Replaces Zendesk / Freshdesk.\n\nhttps://github.com/catenahq/catena-templates/blob/HEAD/blueprints/zammad/README.md\n",
         "display_name": "Zammad",
         "extra_notes": "**Resource note:** Zammad bundles Elasticsearch which reserves ~1.5 GB RAM. Zammad alongside other apps needs a \u22654 GB VPS.\n",
         "replaces": [
@@ -1659,7 +1659,7 @@
         "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
       ],
       "fr": {
-        "compose_description": "Helpdesk orient\u00e9 tickets. Remplace Zendesk / Freshdesk.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/zammad/README.md\n",
+        "compose_description": "Helpdesk orient\u00e9 tickets. Remplace Zendesk / Freshdesk.\n\nhttps://github.com/catenahq/catena-templates/blob/HEAD/blueprints/zammad/README.md\n",
         "display_name": "Zammad",
         "extra_notes": "**Ressources :** Zammad int\u00e8gre Elasticsearch qui r\u00e9serve ~1,5 GB de RAM. Zammad avec d'autres apps demande un VPS \u22654 GB.\n",
         "replaces": [
