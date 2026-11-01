@@ -1,4 +1,17 @@
+schema: 2
 requires_catena: 0.11.12
+env:
+  DOMAIN_HOST:
+    setting: {default: "erp.{{ cloudflare_zone }}"}
+  ERPNEXT_HOSTNAME:
+    setting: {default: "erp.{{ cloudflare_zone }}"}
+  ERPNEXT_ADMIN_PASSWORD:
+    generated: {length: 24, alphabet: alnum}
+  DB_ROOT_PASSWORD:
+    generated: {length: 32, alphabet: alnum}
+access:
+  customer:
+    label: {en: "Customer portal", fr: "Portail client"}
 lifecycle:
   service: "backend"
   ready: ["bash", "-c", ": > /dev/tcp/127.0.0.1/8000"]
@@ -12,33 +25,7 @@ lifecycle:
   # update's check runs.
   after_update:
     - ["bench", "set-maintenance-mode", "off"]
-    - - node
-      - -e
-      - |
-        const http = require("http");
-        const site = process.env.SITE_NAME;
-        const deadline = Date.now() + 120000;
-        let last = "no answer";
-        const ping = () => new Promise((resolve) => {
-          const request = http.get({host: "127.0.0.1", port: 8000, path: "/api/method/ping",
-                                    headers: {Host: site}, timeout: 10000}, (answer) => {
-            let body = "";
-            answer.on("data", (chunk) => { body += chunk; });
-            answer.on("end", () => resolve([answer.statusCode, body]));
-          });
-          request.on("timeout", () => request.destroy(new Error("timed out")));
-          request.on("error", (error) => resolve([0, String(error)]));
-        });
-        (async () => {
-          while (Date.now() < deadline) {
-            const [status, body] = await ping();
-            if (status === 200 && body.includes("pong")) process.exit(0);
-            last = status ? "HTTP " + status : body;
-            await new Promise((resolve) => setTimeout(resolve, 2000));
-          }
-          console.error("the site " + site + " does not answer its ping after 120 s: " + last);
-          process.exit(1);
-        })();
+    - snippets/frappe-wait-ping/1.js
   timeout_seconds: 3600
 # Once its start has finished, the scheduler's process is the container's first
 # process, so an exec into it proves it runs; while the start waits for the
@@ -54,12 +41,8 @@ hooks:
   service: scheduler
   timeout_seconds: 120
   users:
-    - - bash
-      - -c
-      - {file: hooks/users.sh}
+    - hooks/users.bash
   verify:
-    - - bash
-      - -c
-      - {include: [frappe-verify/1]}
+    - snippets/frappe-verify/2.bash
 data:
   db: {volume: db-data, upgrade: dump_restore}
