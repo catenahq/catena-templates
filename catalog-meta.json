@@ -29,7 +29,8 @@
     "coturn",
     "portainer",
     "arcane",
-    "healthchecks"
+    "healthchecks",
+    "beszel"
   ],
   "sizing": {
     "last_measured_at": "2026-04-29",

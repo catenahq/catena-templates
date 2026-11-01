@@ -1,0 +1,49 @@
+{
+  "schema": 1,
+  "app_name": "catena-beszel",
+  "upstream_url": "https://beszel.dev/",
+  "categories": [
+    "Monitoring",
+    "Infrastructure"
+  ],
+  "logo": {
+    "source": "https://raw.githubusercontent.com/henrygd/beszel/27af11c5e04f03c1fa6cc067a1251631e2e8996e/internal/site/public/static/icon.svg",
+    "notice": "Beszel logo, MIT"
+  },
+  "sso_mode": "none",
+  "bench": {
+    "pack": "embedded",
+    "hostname_baked": false
+  },
+  "sizing": {
+    "idle_ram_mb": 60,
+    "peak_ram_mb": 150,
+    "idle_cpu_pct": 1,
+    "peak_cpu_pct": 10,
+    "disk_baseline_mb": 60,
+    "notes": "One Go binary on SQLite. The metrics history grows with the systems it watches. Conservative estimate, not yet measured.",
+    "notes_fr": "Un seul binaire Go sur SQLite. L'historique des mesures grossit avec les syst\u00e8mes surveill\u00e9s. Estimation prudente, pas encore mesur\u00e9e."
+  },
+  "en": {
+    "display_name": "Beszel",
+    "summary": "Lightweight server monitoring: CPU, memory, disk and container history, with alerts.",
+    "what_it_is": "The Beszel hub keeps the resource history of the servers and containers it watches and alerts when a threshold is crossed. The server runs an agent for itself; alerts go to Healthchecks.",
+    "replaces": [
+      "Datadog",
+      "Grafana with Prometheus"
+    ],
+    "compose_description": "Self-hosted server and container monitoring hub.\n",
+    "setup_steps": "The server installs this application and signs you in to it through the server's own sign-in. Its address is the prefix below, followed by your domain.\n\n1. Open **Beszel** from the Apps page.\n2. The server's own agent is already registered. Add other machines with **Add system**.\n3. Set alert thresholds on each system."
+  },
+  "fr": {
+    "display_name": "Beszel",
+    "summary": "Surveillance l\u00e9g\u00e8re des serveurs : historique du processeur, de la m\u00e9moire, du disque et des conteneurs, avec alertes.",
+    "what_it_is": "Le concentrateur Beszel garde l'historique des ressources des serveurs et des conteneurs qu'il surveille et alerte quand un seuil est franchi. Le serveur ex\u00e9cute un agent pour lui-m\u00eame ; les alertes vont \u00e0 Healthchecks.",
+    "replaces": [
+      "Datadog",
+      "Grafana avec Prometheus"
+    ],
+    "compose_description": "Concentrateur auto-h\u00e9berg\u00e9 de surveillance des serveurs et des conteneurs.\n",
+    "setup_steps": "Le serveur installe cette application et vous y connecte par sa propre connexion. Son adresse est le pr\u00e9fixe ci-dessous suivi de votre domaine.\n\n1. Ouvrez **Beszel** depuis la page Apps.\n2. L'agent du serveur est d\u00e9j\u00e0 enregistr\u00e9. Ajoutez d'autres machines avec **Add system**.\n3. R\u00e9glez les seuils d'alerte de chaque syst\u00e8me."
+  }
+}

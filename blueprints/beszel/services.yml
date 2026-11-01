@@ -1,0 +1,74 @@
+services:
+  app:
+    image: henrygd/beszel:0.21.1
+    deploy:
+      restart_policy:
+        condition: any
+        delay: 5s
+      # beszel-hub-data holds the hub's databases and its SSH key. An empty one
+      # on another node is a hub that has forgotten every system it watches.
+      placement:
+        constraints:
+          - node.labels.catena.role==data
+    environment:
+      # The server writes these four into the app's .env. The hub treats an
+      # empty TRUSTED_AUTH_HEADER or TRUSTED_PROXY_IPS as unset; the header is
+      # trusted from every peer when only the proxy list is empty, so the server
+      # writes the two together or not at all. The hub writes APP_URL over its
+      # stored address each time it starts.
+      APP_URL: ${APP_URL:-http://localhost:8090}
+      USER_CREATION: ${USER_CREATION:-}
+      TRUSTED_AUTH_HEADER: ${TRUSTED_AUTH_HEADER:-}
+      TRUSTED_PROXY_IPS: ${TRUSTED_PROXY_IPS:-}
+    labels:
+      - "vps.auto-update=patch"
+    volumes:
+      - beszel-hub-data:/beszel_data
+    # Host mode with the long syntax: the short form publishes through the
+    # ingress mesh. The server's own seed and the host-network agent reach the
+    # hub here.
+    ports:
+      - target: 8090
+        published: 18190
+        protocol: tcp
+        mode: host
+    networks:
+      default: {}
+      # The alias is on both networks: Gatus and the alert relay reach the hub on
+      # catena-beszel, and the sign-in gate on catena-beszelgate, which only the
+      # gate and the hub join.
+      catena-beszel:
+        aliases:
+          - beszel-hub
+      catena-beszelgate:
+        aliases:
+          - beszel-hub
+
+  # Runs the verify hook and the test steps: the hub image holds only the binary.
+  probe:
+    image: busybox:1.38.0@sha256:fd7dc98638c8e305f4dc34e979f1c0fdfdcaeb0fbf8fcff77ae834b6da3d7e6e
+    command: ["sleep", "2147483647"]
+    deploy:
+      restart_policy:
+        condition: any
+      placement:
+        constraints:
+          - node.labels.catena.role==data
+      resources:
+        limits:
+          memory: 16M
+        reservations:
+          memory: 16M
+    cap_drop:
+      - ALL
+    networks:
+      - default
+
+volumes:
+  beszel-hub-data:
+
+networks:
+  catena-beszel:
+    external: true
+  catena-beszelgate:
+    external: true

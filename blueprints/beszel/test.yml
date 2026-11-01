@@ -1,0 +1,46 @@
+# Test for the beszel template: the first user is made through the hub's API and
+# signs in again after the backup, the restore and the updates. The steps run in
+# the busybox helper on the stack network.
+
+id: beszel
+description: >-
+  The hub makes its first user through the first-run endpoint, and that user
+  signs in with the password, also after a restore.
+
+seed:
+  - name: first_user_created
+    type: docker_exec
+    container: "{{ container_probe }}"
+    command:
+      - sh
+      - -c
+      - |
+        for i in $(seq 1 30); do
+          if out=$(wget -qO- --header 'Content-Type: application/json' --post-data '{"email":"catena-test@example.org","password":"catena-{{ run_id }}"}' http://app:8090/api/beszel/create-user); then
+            echo "$out"
+            exit 0
+          fi
+          sleep 5
+        done
+        exit 1
+    expect_stdout_contains: "User created"
+    timeout_s: 240
+
+assert:
+  - name: first_user_signs_in
+    type: docker_exec
+    container: "{{ container_probe }}"
+    command:
+      - sh
+      - -c
+      - |
+        for i in $(seq 1 30); do
+          if out=$(wget -qO- --header 'Content-Type: application/json' --post-data '{"identity":"catena-test@example.org","password":"catena-{{ run_id }}"}' http://app:8090/api/collections/users/auth-with-password); then
+            echo "$out"
+            exit 0
+          fi
+          sleep 5
+        done
+        exit 1
+    expect_stdout_contains: '"token"'
+    timeout_s: 240

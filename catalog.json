@@ -3420,6 +3420,74 @@
       },
       "sso_mode": "none",
       "upstream_url": "https://healthchecks.io/"
+    },
+    {
+      "app_name": "catena-beszel",
+      "bench_fixture": "required",
+      "bench_pack": "embedded",
+      "categories": [
+        "Monitoring",
+        "Infrastructure"
+      ],
+      "compose_file": "blueprints/beszel/docker-compose.yml",
+      "en": {
+        "compose_description": "Self-hosted server and container monitoring hub.\n",
+        "display_name": "Beszel",
+        "replaces": [
+          "Datadog",
+          "Grafana with Prometheus"
+        ],
+        "setup_steps": "The server installs this application and signs you in to it through the server's own sign-in. Its address is the prefix below, followed by your domain.\n\n1. Open **Beszel** from the Apps page.\n2. The server's own agent is already registered. Add other machines with **Add system**.\n3. Set alert thresholds on each system.",
+        "summary": "Lightweight server monitoring: CPU, memory, disk and container history, with alerts.",
+        "what_it_is": "The Beszel hub keeps the resource history of the servers and containers it watches and alerts when a threshold is crossed. The server runs an agent for itself; alerts go to Healthchecks."
+      },
+      "env": {
+        "HUB_URL": {
+          "managed": {
+            "expr": "http://beszel-hub:8090"
+          }
+        },
+        "SUBDOMAIN": {
+          "setting": {
+            "default": "beszel",
+            "label": {
+              "en": "Address prefix (the address moves the next time the server applies its configuration)",
+              "fr": "Pr\u00e9fixe de l'adresse (l'adresse change \u00e0 la prochaine application de la configuration du serveur)"
+            }
+          }
+        }
+      },
+      "env_defaults": [
+        "SUBDOMAIN=beszel",
+        "HUB_URL=http://beszel-hub:8090"
+      ],
+      "env_managed_keys": [
+        "HUB_URL"
+      ],
+      "fr": {
+        "compose_description": "Concentrateur auto-h\u00e9berg\u00e9 de surveillance des serveurs et des conteneurs.\n",
+        "display_name": "Beszel",
+        "replaces": [
+          "Datadog",
+          "Grafana avec Prometheus"
+        ],
+        "setup_steps": "Le serveur installe cette application et vous y connecte par sa propre connexion. Son adresse est le pr\u00e9fixe ci-dessous suivi de votre domaine.\n\n1. Ouvrez **Beszel** depuis la page Apps.\n2. L'agent du serveur est d\u00e9j\u00e0 enregistr\u00e9. Ajoutez d'autres machines avec **Add system**.\n3. R\u00e9glez les seuils d'alerte de chaque syst\u00e8me.",
+        "summary": "Surveillance l\u00e9g\u00e8re des serveurs : historique du processeur, de la m\u00e9moire, du disque et des conteneurs, avec alertes.",
+        "what_it_is": "Le concentrateur Beszel garde l'historique des ressources des serveurs et des conteneurs qu'il surveille et alerte quand un seuil est franchi. Le serveur ex\u00e9cute un agent pour lui-m\u00eame ; les alertes vont \u00e0 Healthchecks."
+      },
+      "hostname_baked": false,
+      "id": "beszel",
+      "sizing": {
+        "disk_baseline_mb": 60,
+        "idle_cpu_pct": 1,
+        "idle_ram_mb": 60,
+        "notes": "One Go binary on SQLite. The metrics history grows with the systems it watches. Conservative estimate, not yet measured.",
+        "notes_fr": "Un seul binaire Go sur SQLite. L'historique des mesures grossit avec les syst\u00e8mes surveill\u00e9s. Estimation prudente, pas encore mesur\u00e9e.",
+        "peak_cpu_pct": 10,
+        "peak_ram_mb": 150
+      },
+      "sso_mode": "none",
+      "upstream_url": "https://beszel.dev/"
     }
   ],
   "version": 1
