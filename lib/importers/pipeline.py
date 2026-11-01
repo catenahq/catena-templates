@@ -1036,7 +1036,7 @@ class Importer:
         to_choose = list(dict.fromkeys(to_choose))
 
         description = c.description or c.title or slug
-        readme = f"{render.REPO_GIT_URL}/blob/main/blueprints/{slug}/README.md"
+        readme = f"{render.REPO_GIT_URL}/blob/HEAD/blueprints/{slug}/README.md"
         french = f"Description du registre, non traduite : {description}"
         origin = {
             "registry": c.registry or self.registry,
