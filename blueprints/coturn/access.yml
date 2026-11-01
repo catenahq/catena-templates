@@ -1,0 +1,15 @@
+# The relay listens on the host's own network, so its ports are the ones the
+# service's vps.expose labels declare.
+privileges: [host_network]
+# Nextcloud Talk and Element read these as provided.turn.<name>.
+provides:
+  turn: {host: TURN_HOSTNAME, port: TURN_PORT, tls_port: TURN_TLS_PORT, secret: TURN_SECRET}
+# The certificate of the relay's name is issued into certs before each deploy
+# and renewed there. UDP does not pass through the Cloudflare tunnel, so the
+# name points straight at the server's address.
+needs:
+  certificate:
+    names: ["{{ turn_hostname }}"]
+    volume: certs
+  dns:
+    - {type: A, name: "{{ turn_hostname }}", value: "{{ public_ip }}"}

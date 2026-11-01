@@ -1,0 +1,24 @@
+requires_catena: 0.11.12
+version_from: coturn
+# The hooks run in coturn as the image's user. configure runs after every
+# deploy and after a renewed certificate: SIGUSR2 makes turnserver load the
+# certificate files again. verify runs hourly and before an update. It asks
+# turnserver for a TURN allocation with the REST secret, through the image's
+# turnutils_uclient: the client exits nonzero when the allocation fails, and
+# -n 0 sends no data, so the peer it names is only parsed (an address outside
+# denied-peer-ip). It reads the TLS listeners' sockets from /proc/net and the
+# end of the certificate's validity from the DER text of the first
+# certificate of the chain, with the tools the image has: its BusyBox grep
+# matches no time among the DER's binary bytes, so tr leaves only digits and
+# Z first.
+hooks:
+  service: coturn
+  timeout_seconds: 60
+  configure:
+    - - sh
+      - -c
+      - {file: hooks/configure.sh}
+  verify:
+    - - sh
+      - -c
+      - {file: hooks/verify.sh}

@@ -1,0 +1,112 @@
+services:
+  coturn:
+    image: coturn/coturn:4.18.0-alpine
+    # One relay per node that holds the certificates.
+    deploy:
+      mode: global
+      restart_policy:
+        condition: any
+      placement:
+        constraints:
+          - node.labels.catena.role==data
+    # The image runs turnserver as nobody. The script writes the configuration
+    # from the environment when the container starts, into a file only nobody
+    # reads: no value of the environment reaches the service's arguments, and
+    # the secret is in the file and the environment alone. The certificate is
+    # read from the volume the host fills.
+    entrypoint:
+      - /bin/bash
+      - -ec
+      - |
+        umask 077
+        conf=/tmp/turnserver.conf
+        cat > "$$conf" <<EOF
+        listening-port=$${TURN_PORT}
+        tls-listening-port=$${TURN_TLS_PORT}
+        external-ip=$${TURN_EXTERNAL_IP}
+        listening-ip=0.0.0.0
+        relay-ip=0.0.0.0
+        min-port=50000
+        max-port=50100
+        use-auth-secret
+        static-auth-secret=$${TURN_SECRET}
+        realm=$${TURN_HOSTNAME}
+        user-quota=12
+        total-quota=1200
+        max-bps=3000000
+        stale-nonce=600
+        cert=/certs/fullchain.pem
+        pkey=/certs/privkey.pem
+        dtls
+        cipher-list="ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256"
+        denied-peer-ip=0.0.0.0-0.255.255.255
+        denied-peer-ip=10.0.0.0-10.255.255.255
+        denied-peer-ip=100.64.0.0-100.127.255.255
+        denied-peer-ip=127.0.0.0-127.255.255.255
+        denied-peer-ip=169.254.0.0-169.254.255.255
+        denied-peer-ip=172.16.0.0-172.31.255.255
+        denied-peer-ip=192.0.0.0-192.0.0.255
+        denied-peer-ip=192.0.2.0-192.0.2.255
+        denied-peer-ip=192.88.99.0-192.88.99.255
+        denied-peer-ip=192.168.0.0-192.168.255.255
+        denied-peer-ip=198.18.0.0-198.19.255.255
+        denied-peer-ip=198.51.100.0-198.51.100.255
+        denied-peer-ip=203.0.113.0-203.0.113.255
+        denied-peer-ip=224.0.0.0-239.255.255.255
+        denied-peer-ip=240.0.0.0-255.255.255.255
+        denied-peer-ip=::1
+        denied-peer-ip=64:ff9b::-64:ff9b::ffff:ffff
+        denied-peer-ip=100::-100::ffff:ffff:ffff:ffff
+        denied-peer-ip=2001:db8::-2001:db8:ffff:ffff:ffff:ffff:ffff:ffff
+        denied-peer-ip=2002::-2002:ffff:ffff:ffff:ffff:ffff:ffff:ffff
+        denied-peer-ip=fc00::-fdff:ffff:ffff:ffff:ffff:ffff:ffff:ffff
+        denied-peer-ip=fe80::-febf:ffff:ffff:ffff:ffff:ffff:ffff:ffff
+        denied-peer-ip=::ffff:0.0.0.0-::ffff:255.255.255.255
+        no-multicast-peers
+        no-tcp-relay
+        verbose
+        simple-log
+        no-stdout-log
+        log-file=stdout
+        EOF
+        exec turnserver -c "$$conf"
+    environment:
+      TURN_HOSTNAME: ${TURN_HOSTNAME}
+      TURN_PORT: ${TURN_PORT}
+      TURN_TLS_PORT: ${TURN_TLS_PORT}
+      TURN_EXTERNAL_IP: ${TURN_EXTERNAL_IP}
+      TURN_SECRET: ${TURN_SECRET}
+    volumes:
+      - certs:/certs:ro
+      # turnserver's database folder, which the image declares as a volume. The
+      # shared secret keeps no users, so nothing in it needs keeping.
+      - type: tmpfs
+        target: /var/lib/coturn
+        tmpfs:
+          size: 16777216
+    # The host network is the swarm's external network named host:
+    # network_mode is not read by a stack deploy.
+    networks:
+      - hostnet
+    # The listening ports and the relay range, declared to the public-port
+    # registry. The range is the same as min-port and max-port above.
+    labels:
+      - "vps.expose.udp=3478,5349,50000-50100"
+      - "vps.expose.tcp=5349"
+      - "vps.auto-update=patch"
+    cap_drop:
+      - NET_RAW
+    healthcheck:
+      test: ["CMD-SHELL", "grep -q \":$$(printf '%04X' \"$${TURN_PORT}\") \" /proc/net/udp || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+volumes:
+  certs:
+
+networks:
+  hostnet:
+    external: true
+    name: host
