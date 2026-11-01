@@ -1,4 +1,12 @@
+schema: 2
 requires_catena: 0.11.12
+env:
+  DOMAIN_HOST:
+    setting: {default: "help.{{ cloudflare_zone }}"}
+  ZAMMAD_HOSTNAME:
+    setting: {default: "help.{{ cloudflare_zone }}"}
+  DB_PASSWORD:
+    generated: {length: 32, alphabet: alnum}
 images:
   zammad-init:
     rule: {kind: build_suffix, tag_pattern: '\d+\.\d+\.\d+-\d+'}
@@ -20,6 +28,4 @@ hooks:
   service: zammad-nginx
   timeout_seconds: 60
   verify:
-    - - sh
-      - -c
-      - {file: hooks/verify.sh}
+    - hooks/verify.sh
