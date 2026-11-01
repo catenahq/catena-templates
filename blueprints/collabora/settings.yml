@@ -1,0 +1,7 @@
+env:
+  DOMAIN_HOST:
+    managed: {expr: "office.{{ cloudflare_zone }}"}
+  OFFICE_EDITOR:
+    managed: {expr: "collabora"}
+  OFFICE_URL:
+    managed: {expr: "https://office.{{ cloudflare_zone }}"}

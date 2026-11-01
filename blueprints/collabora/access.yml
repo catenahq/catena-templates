@@ -1,0 +1,2 @@
+provides:
+  office: {editor: OFFICE_EDITOR, url: OFFICE_URL}

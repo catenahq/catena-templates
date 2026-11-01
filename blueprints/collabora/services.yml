@@ -1,0 +1,34 @@
+services:
+  collabora:
+    image: collabora/code:26.04.5.2.1
+    deploy:
+      restart_policy:
+        condition: any
+    environment:
+      # Regex of WOPI hosts allowed to use this CODE instance. The
+      # `nextcloud\..*` pattern matches any `nextcloud.<zone>` FQDN;
+      # one Nextcloud per VPS makes this precise enough.
+      domain: 'nextcloud\..*'
+      # Traefik (Cloudflare Tunnel upstream) terminates TLS; coolwsd
+      # speaks plain HTTP on 9980 inside the catena-network. The
+      # ssl.termination flag tells coolwsd to emit https:// URLs in
+      # its discovery XML even though it itself is listening on http.
+      extra_params: --o:ssl.enable=false --o:ssl.termination=true
+    labels:
+      - "vps.route.host=${DOMAIN_HOST}"
+      - "vps.route.port=9980"
+      # The WOPI allow-list above is what authenticates a caller, so the
+      # route carries no auth proxy: the editor loads in an iframe, and
+      # an auth redirect inside that iframe lands on the Keycloak login
+      # page instead of the document.
+      - "vps.auth.mode=public"
+      - "vps.auto-update=patch"
+    cap_drop:
+      - NET_RAW
+    networks:
+      catena-network: {}
+      default: {}
+
+networks:
+  catena-network:
+    external: true
