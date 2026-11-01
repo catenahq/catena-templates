@@ -1,4 +1,16 @@
+schema: 2
 requires_catena: 0.11.12
+env:
+  DOMAIN_HOST:
+    setting: {default: "wiki.{{ cloudflare_zone }}"}
+  OUTLINE_HOSTNAME:
+    setting: {default: "wiki.{{ cloudflare_zone }}"}
+  OUTLINE_SECRET_KEY:
+    generated: {length: 64, alphabet: hex}
+  OUTLINE_UTILS_SECRET:
+    generated: {length: 64, alphabet: hex}
+  DB_PASSWORD:
+    generated: {length: 32, alphabet: alnum}
 lifecycle:
   service: "outline"
   ready: ["node", "-e", "require('net').connect(3000, '127.0.0.1').on('connect', () => process.exit(0)).on('error', () => process.exit(1))"]
@@ -14,6 +26,4 @@ hooks:
   service: outline
   timeout_seconds: 60
   verify:
-    - - node
-      - -e
-      - {file: hooks/verify.js}
+    - hooks/verify.js
