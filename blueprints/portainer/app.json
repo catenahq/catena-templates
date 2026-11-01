@@ -31,7 +31,7 @@
       "Docker command line",
       "Docker Desktop"
     ],
-    "compose_description": "Docker management console, reachable by administrators only.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/portainer/README.md\n",
+    "compose_description": "Docker management console, reachable by administrators only.\n\nhttps://github.com/catenahq/catena-templates/blob/HEAD/blueprints/portainer/README.md\n",
     "setup_steps": "1. Click **Deploy**. Wait ~30 s.\n2. Visit the Portainer domain within 5 minutes and create the first administrator account. After 5 minutes Portainer locks its setup page; restart the application from the server's Apps page to open it again.\n3. Choose the **local** environment to manage this server.\n",
     "extra_notes": "**Outside Catena.** Portainer holds the Docker socket of this server, which is full control of it. Only administrators reach its address. Applications deployed from Portainer are outside Catena: Catena does not deploy, update, back up or restore them. Their labels give Catena routes, sign-in, monitoring and backups of their data; keeping them up to date is Portainer's job, not Catena's. Portainer itself is updated by Catena.\n"
   },
@@ -43,7 +43,7 @@
       "Ligne de commande Docker",
       "Docker Desktop"
     ],
-    "compose_description": "Console de gestion Docker, r\u00e9serv\u00e9e aux administrateurs.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/portainer/README.md\n",
+    "compose_description": "Console de gestion Docker, r\u00e9serv\u00e9e aux administrateurs.\n\nhttps://github.com/catenahq/catena-templates/blob/HEAD/blueprints/portainer/README.md\n",
     "setup_steps": "1. Cliquez **Deploy**. Patientez ~30 s.\n2. Visitez le domaine Portainer dans les 5 minutes et cr\u00e9ez le premier compte administrateur. Apr\u00e8s 5 minutes, Portainer verrouille sa page de configuration : red\u00e9marrez l'application depuis la page Apps du serveur pour la rouvrir.\n3. Choisissez l'environnement **local** pour g\u00e9rer ce serveur.\n",
     "extra_notes": "**Hors de Catena.** Portainer d\u00e9tient le socket Docker de ce serveur, soit le contr\u00f4le complet de celui-ci. Seuls les administrateurs atteignent son adresse. Les applications d\u00e9ploy\u00e9es depuis Portainer sont hors de Catena : Catena ne les d\u00e9ploie, ne les met \u00e0 jour, ne les sauvegarde et ne les restaure pas. Leurs \u00e9tiquettes donnent \u00e0 Catena les routes, la connexion, la surveillance et la sauvegarde de leurs donn\u00e9es ; les garder \u00e0 jour rel\u00e8ve de Portainer, pas de Catena. Portainer lui-m\u00eame est mis \u00e0 jour par Catena.\n"
   }

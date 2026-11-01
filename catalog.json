@@ -3229,7 +3229,7 @@
       "domain_port": 9000,
       "domain_service": "portainer",
       "en": {
-        "compose_description": "Docker management console, reachable by administrators only.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/portainer/README.md\n",
+        "compose_description": "Docker management console, reachable by administrators only.\n\nhttps://github.com/catenahq/catena-templates/blob/HEAD/blueprints/portainer/README.md\n",
         "display_name": "Portainer",
         "extra_notes": "**Outside Catena.** Portainer holds the Docker socket of this server, which is full control of it. Only administrators reach its address. Applications deployed from Portainer are outside Catena: Catena does not deploy, update, back up or restore them. Their labels give Catena routes, sign-in, monitoring and backups of their data; keeping them up to date is Portainer's job, not Catena's. Portainer itself is updated by Catena.\n",
         "replaces": [
@@ -3251,7 +3251,7 @@
         "DOMAIN_HOST=portainer.{{ cloudflare_zone }}"
       ],
       "fr": {
-        "compose_description": "Console de gestion Docker, r\u00e9serv\u00e9e aux administrateurs.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/portainer/README.md\n",
+        "compose_description": "Console de gestion Docker, r\u00e9serv\u00e9e aux administrateurs.\n\nhttps://github.com/catenahq/catena-templates/blob/HEAD/blueprints/portainer/README.md\n",
         "display_name": "Portainer",
         "extra_notes": "**Hors de Catena.** Portainer d\u00e9tient le socket Docker de ce serveur, soit le contr\u00f4le complet de celui-ci. Seuls les administrateurs atteignent son adresse. Les applications d\u00e9ploy\u00e9es depuis Portainer sont hors de Catena : Catena ne les d\u00e9ploie, ne les met \u00e0 jour, ne les sauvegarde et ne les restaure pas. Leurs \u00e9tiquettes donnent \u00e0 Catena les routes, la connexion, la surveillance et la sauvegarde de leurs donn\u00e9es ; les garder \u00e0 jour rel\u00e8ve de Portainer, pas de Catena. Portainer lui-m\u00eame est mis \u00e0 jour par Catena.\n",
         "replaces": [
