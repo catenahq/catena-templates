@@ -1,9 +1,0 @@
-env:
-  DOMAIN_HOST:
-    managed: {expr: "work.{{ cloudflare_zone }}"}
-  WINDSHIFT_HOSTNAME:
-    managed: {expr: "work.{{ cloudflare_zone }}"}
-  SSO_SECRET:
-    generated: {length: 64, alphabet: alnum}
-  DB_PASSWORD:
-    generated: {length: 32, alphabet: alnum}

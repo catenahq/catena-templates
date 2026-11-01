@@ -1534,7 +1534,7 @@
       "domain_port": 8080,
       "domain_service": "windshift",
       "en": {
-        "compose_description": "Work management with test runs, time tracking, and customer portals. Replaces Jira / Jira Service Management.\n\nhttps://github.com/catenahq/catena-templates/blob/HEAD/blueprints/windshift/README.md\n",
+        "compose_description": "Work management with test runs, time tracking, and customer portals. Replaces Jira / Jira Service Management.\n",
         "display_name": "Windshift",
         "extra_notes": "**Edition:** the self-hosted edition is AGPL-3.0 with no user or workspace cap. SAML 2.0, LDAP, and audit logging are announced for the paid Windshift Pro edition; OpenID Connect and passkeys are in this one.\n\n**Sign-in:** Windshift keeps the provider's values in its own database. When `OIDC_CLIENT_SECRET` changes in the Environment tab, paste it again into the `keycloak` provider.\n",
         "replaces": [
@@ -1582,7 +1582,7 @@
         "WINDSHIFT_HOSTNAME"
       ],
       "fr": {
-        "compose_description": "Gestion du travail avec suites de tests, feuilles de temps et portails clients. Remplace Jira / Jira Service Management.\n\nhttps://github.com/catenahq/catena-templates/blob/HEAD/blueprints/windshift/README.md\n",
+        "compose_description": "Gestion du travail avec suites de tests, feuilles de temps et portails clients. Remplace Jira / Jira Service Management.\n",
         "display_name": "Windshift",
         "extra_notes": "**\u00c9dition :** l'\u00e9dition auto-h\u00e9berg\u00e9e est sous AGPL-3.0, sans limite d'utilisateurs ni d'espaces de travail. SAML 2.0, LDAP et le journal d'audit sont annonc\u00e9s pour l'\u00e9dition payante Windshift Pro ; OpenID Connect et les cl\u00e9s d'acc\u00e8s sont inclus ici.\n\n**Connexion :** Windshift garde les valeurs du fournisseur dans sa propre base de donn\u00e9es. Quand `OIDC_CLIENT_SECRET` change dans l'onglet Environment, collez-le de nouveau dans le fournisseur `keycloak`.\n",
         "replaces": [
