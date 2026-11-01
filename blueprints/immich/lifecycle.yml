@@ -1,0 +1,12 @@
+requires_catena: 0.11.12
+images:
+  db:
+    rule: {kind: pattern, tag_pattern: '(\d+)-vectorchord(\d+)\.(\d+)\.(\d+)-pgvectors(\d+)\.(\d+)\.(\d+)', registry: ghcr.io, repo: immich-app/postgres, feed: compose, leader: ghcr.io/immich-app/immich-server, compose_url: 'https://raw.githubusercontent.com/immich-app/immich/{version}/docker/docker-compose.yml', compose_service: database}
+# verify asks the running server for /api/server/ping and /api/server/version.
+hooks:
+  service: immich-server
+  timeout_seconds: 60
+  verify:
+    - - node
+      - -e
+      - {file: hooks/verify.js}
