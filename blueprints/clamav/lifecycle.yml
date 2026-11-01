@@ -1,0 +1,18 @@
+requires_catena: 0.11.12
+version_from: clamav
+images:
+  clamav:
+    # The image that carries the signature database tags X.Y.Z; X.Y.Z_base,
+    # X.Y.Z-N and the debian variants are other tracks.
+    rule: {kind: pattern, tag_pattern: '(\d+)\.(\d+)\.(\d+)'}
+hooks:
+  service: clamav
+  verify:
+    - [sh, -c, clamdcheck.sh]
+  # scan reads one file on its standard input. clamdscan exits 0 for a clean
+  # file and 1 for a signature found, which it prints as "stream: <name> FOUND";
+  # the hook answers that as "FLAGGED <name>". Any other exit passes through.
+  scan:
+    - - sh
+      - -c
+      - {file: hooks/scan.sh}

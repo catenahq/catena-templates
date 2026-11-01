@@ -1,0 +1,54 @@
+services:
+  clamav:
+    image: clamav/clamav:1.5.4
+    deploy:
+      # A clamd that fails at start waits 30 s between tries.
+      restart_policy:
+        condition: any
+        delay: 30s
+      placement:
+        constraints:
+          - node.labels.catena.role==data
+    environment:
+      CLAMAV_NO_CLAMD: "false"
+      CLAMAV_NO_FRESHCLAMD: "false"
+      # Bounds clamd's first load of the signature database.
+      CLAMD_STARTUP_TIMEOUT: "1800"
+      FRESHCLAM_CHECKS: "24"
+      # The image's entrypoint writes each CLAMD_CONF_<option> into clamd.conf at
+      # container start.
+      CLAMD_CONF_StreamMaxLength: ${CLAMD_STREAM_MAX_LENGTH}
+      CLAMD_CONF_ConcurrentDatabaseReload: ${CLAMD_CONCURRENT_RELOAD}
+    volumes:
+      - clamav-db:/var/lib/clamav
+    # clamdcheck.sh is the image's PING against the local clamd socket;
+    # start_period covers clamd's first database load.
+    healthcheck:
+      test: ["CMD-SHELL", "clamdcheck.sh || exit 1"]
+      interval: 60s
+      timeout: 10s
+      retries: 5
+      start_period: 300s
+    labels:
+      - "vps.auto-update=patch"
+    cap_drop:
+      - NET_RAW
+    # clamd takes commands without signing in, so it is on its own network, which
+    # the applications that read the antivirus capability join.
+    networks:
+      antivirus:
+        aliases:
+          - ${CLAMD_HOST}
+      default: {}
+
+volumes:
+  # A new volume is filled from the image's signature database and freshclam
+  # brings it current several times a day, so a snapshot only adds cold storage.
+  clamav-db:
+    labels:
+      vps.backup.exclude: "true"
+
+networks:
+  antivirus:
+    external: true
+    name: catena-antivirus

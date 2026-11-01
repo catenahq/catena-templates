@@ -1,0 +1,4 @@
+provides:
+  antivirus: {host: CLAMD_HOST, port: CLAMD_PORT}
+# freshclam's signature mirror.
+egress: [database.clamav.net]
