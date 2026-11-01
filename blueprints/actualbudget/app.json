@@ -12,7 +12,8 @@
   "sso_mode": "none",
   "bench": {
     "pack": "embedded",
-    "hostname_baked": false
+    "hostname_baked": false,
+    "plain": true
   },
   "sizing": {
     "idle_ram_mb": 80,
