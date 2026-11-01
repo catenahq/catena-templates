@@ -1,0 +1,24 @@
+requires_catena: 0.11.12
+version_from: wp
+# configure runs after every deploy (add, settings, start, update, rollback,
+# restore) once the install wizard has been run: it installs and activates
+# the curated plugins that are missing, enables the Redis object cache, seeds
+# the cache-purge settings and WP Mail SMTP's sender once, and puts WP Mail
+# SMTP's relay back to the outgoing mail chosen in Settings. A plugin an
+# administrator deactivated stays so. It leaves with 0 when the wizard has not
+# been run or the plugin store does not answer, and the next deploy tries again.
+hooks:
+  service: wp
+  user: www-data
+  timeout_seconds: 1800
+  configure:
+    - - sh
+      - -c
+      - {file: hooks/configure.sh}
+  # verify asks nginx for the front page, which nginx hands to PHP, and looks for what WordPress sets: its
+  # API link header, its redirect header (a site without its install wizard redirects to it) or its
+  # content path.
+  verify:
+    - - php
+      - -r
+      - {file: hooks/verify.php}
