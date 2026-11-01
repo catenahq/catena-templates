@@ -3366,9 +3366,34 @@
         "what_it_is": "Heartbeat monitoring for cron jobs, backups and scheduled tasks. Each job pings a check address when it runs; Healthchecks sends an alert when a ping is late. Gatus, the Beszel alert relay and the server's own scheduled lanes report to it."
       },
       "env": {
+        "ADMIN_EMAIL": {
+          "managed": {
+            "expr": "{{ admin_email }}"
+          }
+        },
+        "API_KEY": {
+          "managed": {
+            "expr": "{{ healthchecks_api_key_readwrite | default('') }}"
+          }
+        },
+        "EMAIL_HOST_PASSWORD": {
+          "managed": {
+            "expr": "{{ smtp_password | default('') }}"
+          }
+        },
         "HC_URL": {
           "managed": {
             "expr": "http://healthchecks:8000"
+          }
+        },
+        "PING_KEY": {
+          "managed": {
+            "expr": "{{ healthchecks_ping_key | default('') }}"
+          }
+        },
+        "READ_KEY": {
+          "managed": {
+            "expr": "{{ healthchecks_api_key_readonly | default('') }}"
           }
         },
         "SECRET_KEY": {
@@ -3385,15 +3410,32 @@
               "fr": "Pr\u00e9fixe de l'adresse (l'adresse change \u00e0 la prochaine application de la configuration du serveur)"
             }
           }
+        },
+        "SUPERUSER_PASSWORD": {
+          "generated": {
+            "alphabet": "alnum",
+            "length": 32
+          }
         }
       },
       "env_defaults": [
         "SUBDOMAIN=healthchecks",
         "SECRET_KEY={{ lookup('password', '/dev/null length=50 chars=ascii_letters,digits') }}",
-        "HC_URL=http://healthchecks:8000"
+        "HC_URL=http://healthchecks:8000",
+        "ADMIN_EMAIL={{ admin_email }}",
+        "PING_KEY={{ healthchecks_ping_key | default('') }}",
+        "READ_KEY={{ healthchecks_api_key_readonly | default('') }}",
+        "API_KEY={{ healthchecks_api_key_readwrite | default('') }}",
+        "SUPERUSER_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
+        "EMAIL_HOST_PASSWORD={{ smtp_password | default('') }}"
       ],
       "env_managed_keys": [
-        "HC_URL"
+        "HC_URL",
+        "ADMIN_EMAIL",
+        "PING_KEY",
+        "READ_KEY",
+        "API_KEY",
+        "EMAIL_HOST_PASSWORD"
       ],
       "fr": {
         "compose_description": "Surveillance de pouls auto-h\u00e9berg\u00e9e pour les t\u00e2ches planifi\u00e9es.\n",

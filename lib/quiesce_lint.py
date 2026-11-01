@@ -27,7 +27,8 @@ run on every render. This module adds:
     or Python's compiler), as an inline script of a compose service is, and
     runs in a service the compose defines.
   - A managed env expression reads no store secret the block's `secrets` does
-    not list, and none on the deny list.
+    not list, and none on the deny list, except the denied ones PROVIDER_SECRETS
+    names for that blueprint.
   - A command allowlist per family on the first word of each argv, so a
     template cannot smuggle `curl evil.com` into a command that runs on
     every client host.
@@ -52,7 +53,8 @@ run on every render. This module adds:
     service of the compose, and its check starts with an allowlisted command
     (without a check, lifecycle.ready on the same service answers). A block
     that asks for host_network declares its ports in vps.expose labels, none
-    a range of more than 1024 ports.
+    a range of more than 1024 ports, or marks a service that listens on no
+    host port with vps.expose.none=true, never both on one service.
   - A vps.auto-update label holds a policy the update engine knows.
   - Sign-in labels sit on the main address's service, the only service
     the host reads them from: the one service carrying vps.route.host, or,
@@ -132,6 +134,17 @@ DENIED_SECRETS = frozenset({
     "oauth2_proxy_client_secret", "oauth2_proxy_cookie_secret", "storage_bulk_password",
     "storage_bulk_username", "tailscale_oauth_client_id", "tailscale_oauth_client_secret", "zap_api_key",
 })
+
+# The denied secrets a blueprint may still read in a managed expression, by blueprint id:
+# the keys of the app that sets itself up. A gate cookie secret and another app's secret
+# are in no entry. The same table is catena-admin payload/engines/applint/reserved.go
+# providerSecrets, and a test holds each entry equal to the secrets of the blueprint's
+# entry in contracts default-apps/wiring.json.
+PROVIDER_SECRETS = {
+    "healthchecks": frozenset({
+        "healthchecks_ping_key", "healthchecks_api_key_readonly", "healthchecks_api_key_readwrite"}),
+    "beszel": frozenset({"beszel_oidc_client_secret"}),
+}
 
 # Names that start like one of these are denied too: one cookie secret per
 # domain.
@@ -397,15 +410,18 @@ def lint_provided(entries) -> list[str]:
 
 def lint_managed_secrets(entry) -> list[str]:
     """A managed expression reads only the store secrets the block lists in
-    `secrets`, and never one on the deny list."""
+    `secrets`, and never one on the deny list, except the denied secrets
+    PROVIDER_SECRETS names for that blueprint."""
     allowed = set(entry.block.get("secrets") or [])
+    own = PROVIDER_SECRETS.get(entry.slug, frozenset())
     errors: list[str] = []
     for key, expr in entry.managed_env.items():
         label = f"{entry.slug}.x-catena.env.{key}.managed.expr"
         for name in sorted(expression_names(expr)):
-            if name in DENIED_SECRETS or name.startswith(DENIED_SECRET_PREFIXES):
+            denied = name in DENIED_SECRETS or name.startswith(DENIED_SECRET_PREFIXES)
+            if denied and name not in own:
                 errors.append(f"{label}: reads {name!r}, a secret no managed expression may read")
-            elif SECRET_NAME.search(name) and name not in allowed:
+            elif (denied or SECRET_NAME.search(name)) and name not in allowed:
                 errors.append(f"{label}: reads the store secret {name!r}, which the block's "
                               f"secrets does not list")
     return errors
@@ -471,14 +487,24 @@ def lint_probe(entry) -> list[str]:
 
 def lint_host_network_ports(entry) -> list[str]:
     """A block that asks for host_network declares the ports it opens in
-    vps.expose labels, none a range of more than MAX_EXPOSE_RANGE ports."""
+    vps.expose labels, none a range of more than MAX_EXPOSE_RANGE ports, or marks
+    a service that listens on no host port with vps.expose.none=true. A service
+    carries one of the two."""
     if "host_network" not in (entry.block.get("privileges") or []):
         return []
     doc = yaml.safe_load(entry.compose_path.read_text(encoding="utf-8")) or {}
     errors: list[str] = []
     declared = False
     for name, service in (doc.get("services") or {}).items():
-        for key, value in service_labels(service or {}).items():
+        labels = service_labels(service or {})
+        lowered = {key.lower(): value for key, value in labels.items()}
+        listens = bool(lowered.keys() & {"vps.expose.tcp", "vps.expose.udp"})
+        if lowered.get("vps.expose.none", "").strip().lower() in _TRUE:
+            declared = True
+            if listens:
+                errors.append(f"{entry.slug}:{name}: carries vps.expose.none and a vps.expose.tcp or "
+                              f"vps.expose.udp label; a service either listens on host ports or does not")
+        for key, value in labels.items():
             if key.lower() not in ("vps.expose.tcp", "vps.expose.udp"):
                 continue
             for token in (t.strip() for t in value.split(",")):
@@ -495,7 +521,8 @@ def lint_host_network_ports(entry) -> list[str]:
                     errors.append(f"{label} holds {token!r}, a range of more than {MAX_EXPOSE_RANGE} ports")
     if not declared:
         errors.append(f"{entry.slug}.x-catena.privileges: host_network is asked for, and no service "
-                      f"declares its ports in vps.expose.tcp or vps.expose.udp")
+                      f"declares its ports in vps.expose.tcp or vps.expose.udp or marks itself "
+                      f"vps.expose.none=true")
     return errors
 
 

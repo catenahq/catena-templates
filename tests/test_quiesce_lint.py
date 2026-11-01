@@ -649,6 +649,44 @@ def test_a_managed_expression_reading_a_denied_secret_is_refused(monkeypatch, tm
     assert "reads 'admin_password', a secret no managed expression may read" in capsys.readouterr().out
 
 
+def test_a_blueprint_reads_the_denied_secrets_its_table_entry_names_and_no_other(monkeypatch, tmp_path, capsys):
+    block = _managed("{{ turn_static_key | default('') }}", secrets=["turn_static_key"])
+    monkeypatch.setattr(L, "DENIED_SECRETS", L.DENIED_SECRETS | {"turn_static_key", "turn_other_key"})
+    monkeypatch.setattr(L, "PROVIDER_SECRETS", {"synthetic-bad": frozenset({"turn_static_key"})})
+    _synthetic_sources(monkeypatch, tmp_path, {}, block=block)
+    assert L.lint_all() == 0, capsys.readouterr().out
+    _synthetic_sources(monkeypatch, tmp_path / "unlisted", {}, block={**block, "secrets": []})
+    assert L.lint_all() == 1
+    assert "reads the store secret 'turn_static_key', which the block's secrets does not list" in (
+        capsys.readouterr().out)
+    monkeypatch.setattr(L, "PROVIDER_SECRETS", {"someone-else": frozenset({"turn_static_key"})})
+    _synthetic_sources(monkeypatch, tmp_path / "other", {}, block=block)
+    assert L.lint_all() == 1
+    assert "reads 'turn_static_key', a secret no managed expression may read" in capsys.readouterr().out
+    monkeypatch.setattr(L, "PROVIDER_SECRETS", {"synthetic-bad": frozenset({"turn_static_key"})})
+    _synthetic_sources(monkeypatch, tmp_path / "sibling", {}, block=_managed(
+        "{{ turn_other_key }}", secrets=["turn_other_key"]))
+    assert L.lint_all() == 1
+    assert "reads 'turn_other_key', a secret no managed expression may read" in capsys.readouterr().out
+
+
+def test_the_provider_table_never_holds_a_gate_cookie_secret_and_sits_inside_the_deny_list():
+    for slug, names in L.PROVIDER_SECRETS.items():
+        assert names <= L.DENIED_SECRETS, slug
+        assert not [n for n in names if "gate_cookie_secret" in n or n.startswith(L.DENIED_SECRET_PREFIXES)], slug
+
+
+def test_the_provider_table_is_the_denied_secrets_of_the_contract_wiring():
+    wiring = json.loads((ROOT.parent / "contracts" / "default-apps" / "wiring.json").read_text(encoding="utf-8"))
+    held = {app: frozenset(set(entry["secrets"]) & L.DENIED_SECRETS) for app, entry in wiring["apps"].items()}
+    assert L.PROVIDER_SECRETS == {app: names for app, names in held.items() if names}
+
+
+def test_the_blueprints_read_only_the_denied_secrets_the_table_gives_them():
+    for entry in model.load_sources():
+        assert L.lint_managed_secrets(entry) == [], entry.slug
+
+
 def test_a_managed_expression_reads_what_a_template_provides(monkeypatch, tmp_path, capsys):
     block = _managed("{{ provided.nowhere.jwt_secret }}")
     _synthetic_sources(monkeypatch, tmp_path, {}, block=block)
@@ -926,3 +964,28 @@ def test_a_host_network_block_whose_ports_are_not_declared_is_refused(
 def test_a_block_without_host_network_is_not_asked_for_ports(monkeypatch, tmp_path, capsys):
     _synthetic_sources(monkeypatch, tmp_path, {}, _HOST_NETWORK_COMPOSE.format(label="vps.expose.udp=1-65535"))
     assert L.lint_all() == 0, capsys.readouterr().out
+
+
+def _host_network_entry(tmp_path, labels_by_service):
+    from types import SimpleNamespace
+    compose = tmp_path / f"compose-{len(list(tmp_path.iterdir()))}.yml"
+    services = {name: {"labels": labels} for name, labels in labels_by_service.items()}
+    compose.write_text(yaml.safe_dump({"services": services}), encoding="utf-8")
+    return SimpleNamespace(compose_path=compose, slug="demo", block={"privileges": ["host_network"]})
+
+
+def test_a_host_network_service_declares_its_ports_or_marks_itself_as_listening_on_none(tmp_path):
+    assert L.lint_host_network_ports(_host_network_entry(tmp_path, {"a": ["vps.expose.tcp=45876"]})) == []
+    assert L.lint_host_network_ports(_host_network_entry(tmp_path, {"a": ["vps.expose.none=true"]})) == []
+
+
+def test_a_host_network_block_with_no_declaration_is_refused(tmp_path):
+    errors = L.lint_host_network_ports(_host_network_entry(tmp_path, {"a": ["vps.auto-update=patch"]}))
+    assert errors and "vps.expose.none=true" in errors[0]
+    assert L.lint_host_network_ports(_host_network_entry(tmp_path, {"a": ["vps.expose.none=false"]}))
+
+
+def test_a_service_cannot_declare_ports_and_listen_on_none(tmp_path):
+    errors = L.lint_host_network_ports(_host_network_entry(
+        tmp_path, {"a": ["vps.expose.none=true", "vps.expose.udp=3478"]}))
+    assert any("demo:a: carries vps.expose.none and a vps.expose.tcp or vps.expose.udp label" in e for e in errors)

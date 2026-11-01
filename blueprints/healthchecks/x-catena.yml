@@ -11,13 +11,33 @@ env:
     generated: {length: 50, alphabet: alnum}
   HC_URL:
     managed: {expr: "http://healthchecks:8000"}
+  ADMIN_EMAIL:
+    managed: {expr: "{{ admin_email }}"}
+  PING_KEY:
+    managed: {expr: "{{ healthchecks_ping_key | default('') }}"}
+  READ_KEY:
+    managed: {expr: "{{ healthchecks_api_key_readonly | default('') }}"}
+  API_KEY:
+    managed: {expr: "{{ healthchecks_api_key_readwrite | default('') }}"}
+  SUPERUSER_PASSWORD:
+    generated: {length: 32, alphabet: alnum}
+  EMAIL_HOST_PASSWORD:
+    managed: {expr: "{{ smtp_password | default('') }}"}
+# The three keys are the ones the server's own jobs and Gatus use; the configure hook
+# sets them on the project, and the ping key is what the other monitoring apps read
+# through provided.healthchecks.ping_key. smtp_password is the outgoing mail's password.
+secrets: [healthchecks_ping_key, healthchecks_api_key_readonly, healthchecks_api_key_readwrite, smtp_password]
 provides:
-  healthchecks: {url: HC_URL}
-# verify asks the status endpoint, which reads the database, with the Host the
-# app always allows.
+  healthchecks: {url: HC_URL, ping_key: PING_KEY}
+# configure runs after every deploy in the app's own container: it sets up the one
+# superuser and the project, pins the project's keys, and keeps the admin's email
+# channel while outgoing mail is on. verify asks the status endpoint, which reads
+# the database, with the Host the app always allows.
 hooks:
   service: app
-  timeout_seconds: 60
+  timeout_seconds: 300
+  configure:
+    - hooks/configure.py
   verify:
     - hooks/verify.py
 data:

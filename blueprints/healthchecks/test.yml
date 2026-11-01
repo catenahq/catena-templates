@@ -1,16 +1,17 @@
-# Test for the healthchecks template: a user, a project, a check and two pings
-# are made through the app, and the project's API key reads them back, also
-# after a restore. The key is the first 32 hex characters of a hash of the run
-# id, so the seed and the assert make the same one. The ping and the API are
-# asked at 127.0.0.1 with the Host localhost that the app always allows.
+# Test for the healthchecks template: the project the configure hook made gets a check
+# and two pings through the app, and the project's API key reads them back, also after
+# a restore. The assert sets the project's read-only key to the first 32 hex characters
+# of a hash of the run id before it asks the API, because every deploy's configure hook
+# puts the server's own key back. The ping and the API are asked at 127.0.0.1 with the
+# Host localhost that the app always allows.
 
 id: healthchecks
 description: >-
-  A check pinged twice is listed up with two pings by the API of its project,
-  before and after the backup, the restore and the updates.
+  A check pinged twice is listed up with two pings by the API of the project the
+  configure hook made, before and after the backup, the restore and the updates.
 
 seed:
-  - name: user_project_check_and_pings
+  - name: check_and_pings_in_the_hook_project
     type: docker_exec
     container: "{{ container_app }}"
     command:
@@ -19,14 +20,11 @@ seed:
       - shell
       - -c
       - |
-        import hashlib
         import urllib.request
-        from django.contrib.auth.models import User
         from hc.accounts.models import Project
         from hc.api.models import Check
-        user = User.objects.create_user(username="catena-test", email="catena-test@example.org")
-        api_key = hashlib.sha256(b"api-key-{{ run_id }}").hexdigest()[:32]
-        project = Project.objects.create(owner=user, name="catena-test", api_key_readonly=api_key)
+        project = Project.objects.order_by("id").first()
+        assert project is not None, "the configure hook made no project"
         check = Check.objects.create(project=project, name="catena-{{ run_id }}", slug="catena-test", tags="catena")
         for _ in range(2):
             request = urllib.request.Request("http://127.0.0.1:8000/ping/" + str(check.code), headers={"Host": "localhost"})
@@ -41,13 +39,19 @@ assert:
     container: "{{ container_app }}"
     command:
       - python
+      - manage.py
+      - shell
       - -c
       - |
         import hashlib
         import json
         import sys
         import urllib.request
+        from hc.accounts.models import Project
+        project = Project.objects.order_by("id").first()
         api_key = hashlib.sha256(b"api-key-{{ run_id }}").hexdigest()[:32]
+        project.api_key_readonly = api_key
+        project.save(update_fields=["api_key_readonly"])
         request = urllib.request.Request(
             "http://127.0.0.1:8000/api/v3/checks/",
             headers={"Host": "localhost", "X-Api-Key": api_key})
