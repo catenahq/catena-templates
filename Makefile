@@ -13,7 +13,7 @@
 ## all: validate, render, lint, test -- the pre-commit pass
 all: render lint test
 
-## render: per-blueprint README + logo, catalog.json, index.html
+## render: per-blueprint logo, catalog.json, index.html
 render:
 	uv run build/render.py
 

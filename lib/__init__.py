@@ -2,13 +2,12 @@
 
 An app's card file (`blueprints/<id>/app.json`) and its compose are
 canonical. The generated files (`catalog.json`,
-`index.html`, each blueprint's README and placeholder logo) come from them by
+`index.html` and each blueprint's placeholder logo) come from them by
 `lib.render` and are gated for drift in CI.
 
 Modules:
   model         -- load + validate the metadata files and composes, expose the entry model
   render        -- write blueprints/ + catalog.json + index.html
-  readme        -- one template's README from its prose
   quiesce_lint  -- security lint over the backup quiesce hooks
   postgres_pins -- Postgres pins the update engine can order
   swarm_lint    -- swarm stack file compatibility gate

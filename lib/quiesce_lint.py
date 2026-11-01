@@ -137,8 +137,7 @@ DENIED_SECRETS = frozenset({
 # domain.
 DENIED_SECRET_PREFIXES = ("oauth2_proxy_cookie_secret_",)
 
-# A name in an expression is a store secret when it ends like one (readme.py
-# recognises them the same way).
+# A name in an expression is a store secret when it ends like one.
 SECRET_NAME = re.compile(r"_(?:secret|password)$")
 EXPRESSION = re.compile(r"\{\{(.*?)\}\}", re.DOTALL)
 QUOTED = re.compile(r"'[^']*'")

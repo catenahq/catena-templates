@@ -1036,7 +1036,6 @@ class Importer:
         to_choose = list(dict.fromkeys(to_choose))
 
         description = c.description or c.title or slug
-        readme = f"{render.REPO_GIT_URL}/blob/HEAD/blueprints/{slug}/README.md"
         french = f"Description du registre, non traduite : {description}"
         origin = {
             "registry": c.registry or self.registry,
@@ -1066,7 +1065,7 @@ class Importer:
                 "summary": description.strip().splitlines()[0],
                 "what_it_is": description,
                 "replaces": [],
-                "compose_description": f"{description}\n\n{readme}\n",
+                "compose_description": f"{description}\n",
                 "setup_steps": "Not written yet: this entry is imported and untested.\n",
             },
             "fr": {
@@ -1074,7 +1073,7 @@ class Importer:
                 "summary": french,
                 "what_it_is": french,
                 "replaces": [],
-                "compose_description": f"{french}\n\n{readme}\n",
+                "compose_description": f"{french}\n",
                 "setup_steps": "Pas encore rédigées : ce modèle est importé et non testé.\n",
             },
         }

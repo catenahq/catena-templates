@@ -7,7 +7,7 @@ per-template. Everything else in the repo is rendered from these.
 
 The compose sits in the blueprint directory because that directory is
 what a host fetches at a tag and deploys byte for byte: one file, in the
-place that serves it, with the app's README and logo beside it. Its root `x-catena` block
+place that serves it, with the app's logo beside it. Its root `x-catena` block
 declares what the host needs to back up, update and restore the deployed
 app (env, lifecycle, quiesce, object_store, hooks and the rest of
 block.schema.json); the loader reads it beside the card file.
@@ -112,8 +112,8 @@ class Entry:
 
     @property
     def app_dir(self) -> Path:
-        """The directory a host fetches: the compose, the README and the
-        logo of this one template."""
+        """The directory a host fetches: the compose and the logo of this
+        one template."""
         return BLUEPRINTS / self.slug
 
     @property
@@ -179,7 +179,7 @@ class Entry:
     @property
     def requires_catena(self) -> str | None:
         """The oldest Catena release the entry works on, when it needs a newer
-        one than some servers run: named in its README. The block names it."""
+        one than some servers run. The block names it."""
         return self.block.get("requires_catena")
 
     def prose(self, lang: str) -> dict[str, Any]:

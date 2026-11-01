@@ -18,7 +18,7 @@ import yaml
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from lib import model, readme, render  # noqa: E402
+from lib import model, render  # noqa: E402
 from lib.importers import dokploy, pipeline  # noqa: E402
 
 ADAPTERS = {"dokploy": dokploy.read}
@@ -417,4 +417,4 @@ def test_the_imported_entry_validates_and_renders(catalog):
     assert set(entries) == {"webapp"}
     entry = entries["webapp"]
     assert render.render_catalog_entry(entry)["status"] == "imported"
-    assert "**Imported, untested.**" in readme.render_readme(entry)
+    assert "(imported, untested)" in render.render_index_html([entry], model.load_meta())

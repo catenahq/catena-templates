@@ -250,8 +250,7 @@ def lint_configs(doc: dict, *, label: str) -> list[str]:
 
     `file:` reads a path beside the compose, and neither deploy path has one.
     A host adds `blueprints/<id>/docker-compose.yml` byte for byte, and
-    `build/render.py` emits only the README and the logo beside it -- never a
-    sibling asset. A stack deployed from a posted string has no directory at
+    `build/render.py` emits only the logo beside it -- never a sibling asset. A stack deployed from a posted string has no directory at
     all.
 
     Neither failure is visible from here. `docker stack config` resolves the

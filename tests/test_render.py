@@ -6,7 +6,6 @@ from __future__ import annotations
 import copy
 import json
 import os
-import re
 import subprocess
 import sys
 from pathlib import Path
@@ -14,7 +13,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from lib import model, readme, render  # noqa: E402
+from lib import model, render  # noqa: E402
 
 
 def test_no_generated_file_is_a_portainer_index():
@@ -126,14 +125,10 @@ def test_lifecycle_reaches_the_catalog_unchanged():
     assert migrating > 0 and versioning > 0
 
 
-def test_every_blueprint_carries_its_compose_and_its_readme():
-    """The blueprint directory is the unit a host fetches. Whoever
-    opens it gets the stack file and the description of what it deploys
-    in the same place."""
+def test_every_blueprint_carries_its_compose():
+    """The blueprint directory is the unit a host fetches."""
     for entry in model.load_sources():
-        app_dir = ROOT / "blueprints" / entry.slug
-        assert (app_dir / "docker-compose.yml").is_file(), entry.slug
-        assert (app_dir / "README.md").is_file(), entry.slug
+        assert (ROOT / "blueprints" / entry.slug / "docker-compose.yml").is_file(), entry.slug
 
 
 def test_the_catalog_points_at_the_blueprint_compose():
@@ -141,29 +136,6 @@ def test_the_catalog_points_at_the_blueprint_compose():
     for e in catalog:
         assert e["compose_file"] == f"blueprints/{e['id']}/docker-compose.yml"
         assert (ROOT / e["compose_file"]).is_file(), e["id"]
-
-
-def test_a_readme_carries_both_languages_and_no_jinja():
-    """The README ships in a public repo. An unresolved expression there
-    reads as the literal value a client is meant to type.
-
-    Matched on `{{ ` with the space: the catalog's Jinja is spaced, and
-    the setup steps legitimately quote Go templates (`{{.Names}}`) in
-    the docker commands they tell a reader to run."""
-    jinja = re.compile(r"\{\{\s")
-    for entry in model.load_sources():
-        body = (ROOT / "blueprints" / entry.slug / "README.md").read_text()
-        assert "## English" in body, entry.slug
-        assert "## Français" in body, entry.slug
-        assert not jinja.search(body), entry.slug
-
-
-def test_a_readme_has_no_root_relative_link():
-    """GitHub resolves a root-relative link against github.com, not the
-    docs site, so every one of them has to leave here absolute."""
-    for entry in model.load_sources():
-        body = (ROOT / "blueprints" / entry.slug / "README.md").read_text()
-        assert "](/" not in body, entry.slug
 
 
 def _sample() -> model.Entry:
@@ -185,52 +157,25 @@ def _requiring(entry: model.Entry, version: str | None) -> model.Entry:
     return model.Entry(entry.raw, block, entry.domain)
 
 
-def test_an_entry_needing_a_newer_catena_says_so_in_its_index_row_and_readme():
+def test_an_entry_needing_a_newer_catena_says_so_in_its_index_row():
     """A server on an older release deploys such an entry in a shape its
-    panel cannot serve. The preview and the README in the blueprint both name
-    the release."""
+    panel cannot serve. The preview names the release."""
     needs = _requiring(_sample(), "0.11.0")
     assert render.render_catalog_entry(needs)["requires_catena"] == "0.11.0"
     assert "Requires Catena 0.11.0 or later. " in render.render_index_html([needs], model.load_meta())
-    body = readme.render_readme(needs)
-    assert "**Requires Catena 0.11.0 or later.**" in body
-    assert "**Requiert Catena 0.11.0 ou une version ultérieure.**" in body
 
     plain = _requiring(_sample(), None)
     assert "requires_catena" not in render.render_catalog_entry(plain)
-    assert "Catena 0.11.0" not in readme.render_readme(plain)
+    assert "Catena 0.11.0" not in render.render_index_html([plain], model.load_meta())
 
 
-def _with_logo(logo: dict | None) -> model.Entry:
-    entry = _sample()
-    raw = {k: v for k, v in entry.raw.items() if k != "logo"}
-    if logo is not None:
-        raw["logo"] = logo
-    return model.Entry(raw, entry.block, entry.domain)
-
-
-def test_a_readme_prints_the_logo_source_and_notice_in_both_languages():
-    logo = {"source": "https://example.com/logo.svg", "notice": "Example is a trademark of Example Inc."}
-    body = readme.render_readme(_with_logo(logo))
-    assert "- **Logo:** <https://example.com/logo.svg>. Example is a trademark of Example Inc." in body
-    assert "- **Logo :** <https://example.com/logo.svg>. Example is a trademark of Example Inc." in body
-
-    body = readme.render_readme(_with_logo({"source": logo["source"]}))
-    assert "- **Logo:** <https://example.com/logo.svg>.\n" in body
-
-    assert "**Logo" not in readme.render_readme(_with_logo(None))
-
-
-def test_the_published_readmes_name_each_logo_source():
-    """A placed logo's README prints the source; an entry with none keeps the placeholder."""
+def test_an_entry_without_a_placed_logo_keeps_the_placeholder():
+    """A placed logo.png replaces the placeholder; an entry with none keeps it."""
     for entry in model.load_sources():
-        body = (entry.app_dir / "README.md").read_text()
         if entry.logo_path.exists():
             assert not (entry.app_dir / "logo.svg").exists(), entry.slug
-            assert f"<{entry.catena['logo']['source']}>" in body, entry.slug
         else:
             assert (entry.app_dir / "logo.svg").is_file(), entry.slug
-            assert "**Logo" not in body, entry.slug
 
 
 def test_the_required_release_is_a_full_version():
@@ -241,15 +186,14 @@ def test_the_required_release_is_a_full_version():
         assert errors and "requires_catena" in errors[0], version
 
 
-def test_the_published_catalog_names_each_required_release():
-    """The committed READMEs carry what each block requires."""
+def test_the_index_row_names_each_required_release():
     required = 0
+    index = (ROOT / "index.html").read_text()
     for entry in model.load_sources():
         if not entry.requires_catena:
             continue
         required += 1
-        sentence = f"Requires Catena {entry.requires_catena} or later."
-        assert f"**{sentence}**" in (entry.app_dir / "README.md").read_text(), entry.slug
+        assert f"Requires Catena {entry.requires_catena} or later." in index, entry.slug
     assert required > 0
 
 
@@ -324,7 +268,7 @@ def _rendered(root: Path) -> subprocess.CompletedProcess:
                           capture_output=True, text=True, check=False)
 
 
-def test_an_app_renders_its_catalog_entry_readme_and_index_row(tmp_path):
+def test_an_app_renders_its_catalog_entry_and_index_row(tmp_path):
     _tree(tmp_path)
     done = _rendered(tmp_path)
     assert done.returncode == 0, done.stderr
@@ -335,9 +279,17 @@ def test_an_app_renders_its_catalog_entry_readme_and_index_row(tmp_path):
     assert (published["domain_service"], published["domain_port"]) == ("app", 8080)
     assert published["requires_catena"] == "0.11.5"
     assert CONSUMED_KEYS <= set(published)
-    first = (tmp_path / "blueprints" / "example" / "README.md").read_text().splitlines()[0]
-    assert "from blueprints/example/app.json." in first
     assert not (tmp_path / "templates.json").exists()
+
+
+def test_the_render_neither_writes_nor_requires_a_readme_and_leaves_one_alone(tmp_path):
+    _tree(tmp_path)
+    readme = tmp_path / "blueprints" / "example" / "README.md"
+    assert _rendered(tmp_path).returncode == 0
+    assert not readme.exists()
+    readme.write_text("kept\n")
+    assert _rendered(tmp_path).returncode == 0
+    assert readme.read_text() == "kept\n"
 
 
 def _validated(root: Path) -> subprocess.CompletedProcess:
@@ -366,7 +318,7 @@ def test_validate_names_a_card_that_breaks_its_schema(tmp_path):
 
 def test_rendering_a_tree_twice_gives_identical_artifacts(tmp_path):
     _tree(tmp_path)
-    names = ("catalog.json", "index.html", "blueprints/example/README.md")
+    names = ("catalog.json", "index.html")
     assert _rendered(tmp_path).returncode == 0
     first = {name: (tmp_path / name).read_bytes() for name in names}
     assert _rendered(tmp_path).returncode == 0
@@ -401,7 +353,7 @@ def test_the_render_packs_an_app_held_as_neat_files_before_it_reads_the_block(tm
 
 def test_rendering_an_app_held_as_neat_files_twice_gives_identical_artifacts(tmp_path):
     folder = _neat_tree(tmp_path)
-    names = ("catalog.json", "index.html", "blueprints/example/README.md", "blueprints/example/docker-compose.yml")
+    names = ("catalog.json", "index.html", "blueprints/example/docker-compose.yml")
     assert _rendered(tmp_path).returncode == 0
     first = {name: (tmp_path / name).read_bytes() for name in names}
     done = _rendered(tmp_path)

@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://raw.githubusercontent.com/catenahq/catena-templates/main/app.schema.json",
   "title": "Catena app card file",
-  "description": "blueprints/<id>/app.json: the hand-edited card, catalog and bench data of one app, beside its compose. The id is the folder name. The runtime declarations (env, backup, update and restore, hooks, requires_catena) live in the compose block (block.schema.json) and the web address is derived from the compose labels. catalog.json, index.html and the app's README are generated from this file and the compose. An entry the registry importer wrote carries status \"imported\": it publishes with stubs where a curated entry has hand-written parts, and the published catalog marks it untested.",
+  "description": "blueprints/<id>/app.json: the hand-edited card, catalog and bench data of one app, beside its compose. The id is the folder name. The runtime declarations (env, backup, update and restore, hooks, requires_catena) live in the compose block (block.schema.json) and the web address is derived from the compose labels. catalog.json and index.html are generated from this file and the compose. An entry the registry importer wrote carries status \"imported\": it publishes with stubs where a curated entry has hand-written parts, and the published catalog marks it untested.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -55,7 +55,7 @@
         "notice": {
           "type": "string",
           "minLength": 1,
-          "description": "The line the logo owner's terms ask for, printed in the README as written."
+          "description": "The line the logo owner's terms ask for, shown in the panel as written."
         }
       }
     },
@@ -311,7 +311,7 @@
         "display_name": {
           "type": "string",
           "minLength": 1,
-          "description": "The app's name on the card, the app page and the README."
+          "description": "The app's name on the card and the app page."
         },
         "summary": {
           "type": "string",

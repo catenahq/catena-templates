@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import base64
 import json
-import re
 import sys
 from datetime import date
 from pathlib import Path
@@ -21,7 +20,7 @@ import yaml
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from lib import changes, model, pack, provenance, quiesce_lint, readme, render  # noqa: E402
+from lib import changes, model, pack, provenance, quiesce_lint, render  # noqa: E402
 from lib.importers import (arcane, awesome_selfhosted, dedup, dokploy, pipeline,  # noqa: E402
                            portainer, publish, upstream)
 
@@ -440,10 +439,8 @@ def test_the_imported_tier_validates_and_renders(catalog):
         assert cat["origin"] == entry.origin
         assert cat["bench_pack"] is None and cat["bench_fixture"] == "skip"
         assert cat["sizing"] == {"peak_ram_mb": None}
-        body = readme.render_readme(entry)
-        assert "**Imported, untested.**" in body and "**Importé, non testé.**" in body
-        assert "**Template source:**" in body and "**Source du modèle :**" in body
-        assert not re.search(r"\{\{\s", body)
+        for lang in ("en", "fr"):
+            assert "README" not in entry.prose(lang)["compose_description"]
     assert "Notes (imported, untested)" in render.render_index_html(
         list(entries.values()), model.load_meta())
 
