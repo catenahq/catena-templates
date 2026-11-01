@@ -1,0 +1,14 @@
+requires_catena: 0.11.12
+images:
+  windshift:
+    rule: {kind: semver, registry: ghcr.io, repo: windshiftapp/windshift, stops: ['v0.8.5']}
+  db:
+    rule: {kind: partial_line}
+# The image is built from scratch: no shell, curl or wget. verify runs
+# Windshift's own health command, the one its healthcheck uses, which asks
+# the running server over the loopback.
+hooks:
+  service: windshift
+  timeout_seconds: 60
+  verify:
+    - ["/windshift", "healthcheck"]
