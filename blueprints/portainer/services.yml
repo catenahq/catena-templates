@@ -1,0 +1,50 @@
+services:
+  portainer:
+    image: portainer/portainer-ce:2.45.3
+    deploy:
+      restart_policy:
+        condition: any
+      placement:
+        constraints:
+          - node.role==manager
+          - node.labels.catena.role==data
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer-data:/data
+    labels:
+      - "vps.route.host=${DOMAIN_HOST}"
+      - "vps.route.port=9000"
+      - "vps.auth.mode=admin-only"
+      - "vps.auto-update=patch"
+    cap_drop:
+      - NET_RAW
+    networks:
+      catena-network: {}
+      default: {}
+
+  # Runs the verify hook: the Portainer image has no client of its own.
+  probe:
+    image: busybox:1.38.0@sha256:fd7dc98638c8e305f4dc34e979f1c0fdfdcaeb0fbf8fcff77ae834b6da3d7e6e
+    command: ["sleep", "2147483647"]
+    deploy:
+      restart_policy:
+        condition: any
+      placement:
+        constraints:
+          - node.labels.catena.role==data
+      resources:
+        limits:
+          memory: 16M
+        reservations:
+          memory: 16M
+    cap_drop:
+      - ALL
+    networks:
+      - default
+
+volumes:
+  portainer-data:
+
+networks:
+  catena-network:
+    external: true
