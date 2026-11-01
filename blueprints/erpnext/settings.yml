@@ -1,0 +1,9 @@
+env:
+  DOMAIN_HOST:
+    setting: {default: "erp.{{ cloudflare_zone }}"}
+  ERPNEXT_HOSTNAME:
+    setting: {default: "erp.{{ cloudflare_zone }}"}
+  ERPNEXT_ADMIN_PASSWORD:
+    generated: {length: 24, alphabet: alnum}
+  DB_ROOT_PASSWORD:
+    generated: {length: 32, alphabet: alnum}

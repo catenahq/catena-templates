@@ -1,0 +1,3 @@
+access:
+  customer:
+    label: {en: "Customer portal", fr: "Portail client"}
