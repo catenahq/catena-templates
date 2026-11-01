@@ -1,9 +1,0 @@
-env:
-  DOMAIN_HOST:
-    setting: {default: "support.{{ cloudflare_zone }}"}
-  CHATWOOT_HOSTNAME:
-    setting: {default: "support.{{ cloudflare_zone }}"}
-  SECRET_KEY_BASE:
-    generated: {length: 128, alphabet: hex}
-  DB_PASSWORD:
-    generated: {length: 32, alphabet: alnum}
