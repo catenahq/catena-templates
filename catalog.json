@@ -1699,7 +1699,7 @@
       "domain_port": 3000,
       "domain_service": "rails",
       "en": {
-        "compose_description": "Conversation-first omnichannel inbox. Replaces Intercom / Front.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/chatwoot/README.md\n",
+        "compose_description": "Conversation-first omnichannel inbox. Replaces Intercom / Front.\n\nhttps://github.com/catenahq/catena-templates/blob/HEAD/blueprints/chatwoot/README.md\n",
         "display_name": "Chatwoot",
         "extra_notes": "**Note on sign-in:** Chatwoot's community edition doesn't support OIDC/SSO -- agents keep per-app email/password logins. SAML/OIDC is enterprise-only. If SSO matters, consider Zammad instead (trade-off: ticket-first workflow vs Chatwoot's conversation-first inbox).\n",
         "replaces": [
@@ -1742,7 +1742,7 @@
         "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
       ],
       "fr": {
-        "compose_description": "Bo\u00eete omnicanale orient\u00e9e conversation. Remplace Intercom / Front.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/chatwoot/README.md\n",
+        "compose_description": "Bo\u00eete omnicanale orient\u00e9e conversation. Remplace Intercom / Front.\n\nhttps://github.com/catenahq/catena-templates/blob/HEAD/blueprints/chatwoot/README.md\n",
         "display_name": "Chatwoot",
         "extra_notes": "**\u00c0 propos de la connexion :** l'\u00e9dition communautaire de Chatwoot ne supporte pas OIDC/SSO -- chaque agent garde un email/mot de passe sp\u00e9cifique \u00e0 l'app. Le SSO SAML/OIDC est enterprise uniquement. Si le SSO est important, envisagez Zammad (compromis : flux orient\u00e9 ticket au lieu de l'inbox orient\u00e9 conversation de Chatwoot).\n",
         "replaces": [
