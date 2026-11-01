@@ -2357,7 +2357,7 @@
       "domain_port": 5000,
       "domain_service": "postiz",
       "en": {
-        "compose_description": "Social media scheduling (Twitter/X, LinkedIn, FB, IG, YouTube, TikTok). Replaces Buffer / Hootsuite.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/postiz/README.md\n",
+        "compose_description": "Social media scheduling (Twitter/X, LinkedIn, FB, IG, YouTube, TikTok). Replaces Buffer / Hootsuite.\n\nhttps://github.com/catenahq/catena-templates/blob/HEAD/blueprints/postiz/README.md\n",
         "display_name": "Postiz",
         "extra_notes": "**Note on sign-in:** Postiz uses local email/password login. No native OIDC in the current community release. The user count for this tool is typically 1-3 marketing people, so the SSO gap is less impactful than for chat / helpdesk tools.\n",
         "replaces": [
@@ -2400,7 +2400,7 @@
         "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
       ],
       "fr": {
-        "compose_description": "Planification de publications sociales (Twitter/X, LinkedIn, FB, IG, YouTube, TikTok). Remplace Buffer / Hootsuite.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/postiz/README.md\n",
+        "compose_description": "Planification de publications sociales (Twitter/X, LinkedIn, FB, IG, YouTube, TikTok). Remplace Buffer / Hootsuite.\n\nhttps://github.com/catenahq/catena-templates/blob/HEAD/blueprints/postiz/README.md\n",
         "display_name": "Postiz",
         "extra_notes": "**\u00c0 propos de la connexion :** Postiz utilise un email/mot de passe local. Pas d'OIDC natif dans la version communautaire actuelle. Le nombre d'utilisateurs pour cet outil est typiquement de 1 \u00e0 3 personnes en marketing, donc l'absence de SSO est moins impactante que pour les outils de chat / helpdesk.\n",
         "replaces": [
