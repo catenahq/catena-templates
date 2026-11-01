@@ -1,3 +1,5 @@
+schema: 2
+requires_catena: 0.11.12
 env:
   DOMAIN_HOST:
     setting: {default: "element.{{ cloudflare_zone }}"}
@@ -45,3 +47,23 @@ env:
     setting: {default: ""}
   JIGASI_SIP_SERVER:
     setting: {default: ""}
+images:
+  postgres:
+    rule: {kind: partial_line}
+  prosody:
+    rule: {kind: pattern, tag_pattern: 'stable-(\d+)(?:-(\d+))?', migrate_from: 'unstable-(\d{4})-(\d{2})-(\d{2})'}
+  jicofo:
+    rule: {kind: pattern, tag_pattern: 'stable-(\d+)(?:-(\d+))?', migrate_from: 'unstable-(\d{4})-(\d{2})-(\d{2})'}
+  jvb:
+    rule: {kind: pattern, tag_pattern: 'stable-(\d+)(?:-(\d+))?', migrate_from: 'unstable-(\d{4})-(\d{2})-(\d{2})'}
+  jitsi-web:
+    rule: {kind: pattern, tag_pattern: 'stable-(\d+)(?:-(\d+))?', migrate_from: 'unstable-(\d{4})-(\d{2})-(\d{2})'}
+  jigasi:
+    rule: {kind: pattern, tag_pattern: 'stable-(\d+)(?:-(\d+))?', migrate_from: 'unstable-(\d{4})-(\d{2})-(\d{2})'}
+# verify asks Synapse for /health and the Matrix client versions, and, with the call relay
+# provided, looks for its entries in the homeserver file the entrypoint wrote.
+hooks:
+  service: synapse
+  timeout_seconds: 60
+  verify:
+    - hooks/verify.py
