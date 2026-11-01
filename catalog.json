@@ -558,7 +558,7 @@
       "domain_port": 80,
       "domain_service": "documentserver",
       "en": {
-        "compose_description": "Collaborative DOCX/XLSX/PPTX editor. Embedded in Nextcloud. Replaces Office 365 / Google Docs as the embedded editor.\n\nhttps://github.com/catenahq/catena-templates/blob/HEAD/blueprints/onlyoffice/README.md\n",
+        "compose_description": "Collaborative DOCX/XLSX/PPTX editor. Embedded in Nextcloud. Replaces Office 365 / Google Docs as the embedded editor.\n",
         "display_name": "OnlyOffice",
         "replaces": [
           "Microsoft Office Online",
@@ -603,7 +603,7 @@
         "OFFICE_URL"
       ],
       "fr": {
-        "compose_description": "\u00c9diteur collaboratif DOCX/XLSX/PPTX. Embarqu\u00e9 dans Nextcloud. Remplace Office 365 / Google Docs comme \u00e9diteur.\n\nhttps://github.com/catenahq/catena-templates/blob/HEAD/blueprints/onlyoffice/README.md\n",
+        "compose_description": "\u00c9diteur collaboratif DOCX/XLSX/PPTX. Embarqu\u00e9 dans Nextcloud. Remplace Office 365 / Google Docs comme \u00e9diteur.\n",
         "display_name": "OnlyOffice",
         "replaces": [
           "Microsoft Office Online",
