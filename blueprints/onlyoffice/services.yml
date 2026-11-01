@@ -1,0 +1,51 @@
+services:
+  documentserver:
+    image: onlyoffice/documentserver:9.4.0.1
+    deploy:
+      restart_policy:
+        condition: any
+      placement:
+        constraints:
+          - node.labels.catena.role==data
+    environment:
+      # Nextcloud authenticates to the document server with a JWT, so
+      # the route carries no auth proxy (vps.auth.mode=public below):
+      # the editor loads in an iframe, and an auth redirect inside that
+      # iframe lands on the Keycloak login page instead of the document.
+      JWT_ENABLED: "true"
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_HEADER: Authorization
+      JWT_IN_BODY: "true"
+      USE_UNAUTHORIZED_STORAGE: "false"
+    volumes:
+      - ds-data:/var/www/onlyoffice/Data
+      - ds-log:/var/log/onlyoffice
+      - ds-cache:/var/lib/onlyoffice
+      - ds-postgresql:/var/lib/postgresql
+      - ds-rabbitmq:/var/lib/rabbitmq
+      - ds-redis:/var/lib/redis
+      # The image's VOLUME for fonts an administrator adds.
+      - ds-fonts:/usr/share/fonts/truetype/custom
+    labels:
+      - "vps.route.host=${DOMAIN_HOST}"
+      - "vps.route.port=80"
+      - "vps.auth.mode=public"
+      - "vps.auto-update=patch"
+    cap_drop:
+      - NET_RAW
+    networks:
+      catena-network: {}
+      default: {}
+
+volumes:
+  ds-data:
+  ds-log:
+  ds-cache:
+  ds-postgresql:
+  ds-rabbitmq:
+  ds-redis:
+  ds-fonts:
+
+networks:
+  catena-network:
+    external: true

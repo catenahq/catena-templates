@@ -1,0 +1,9 @@
+env:
+  DOMAIN_HOST:
+    managed: {expr: "office.{{ cloudflare_zone }}"}
+  JWT_SECRET:
+    generated: {length: 48, alphabet: alnum}
+  OFFICE_EDITOR:
+    managed: {expr: "onlyoffice"}
+  OFFICE_URL:
+    managed: {expr: "https://office.{{ cloudflare_zone }}"}
