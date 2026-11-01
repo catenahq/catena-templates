@@ -1,0 +1,235 @@
+services:
+  web:
+    image: makeplane/plane-frontend:v1.4.2
+    deploy:
+      restart_policy:
+        condition: any
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: ""
+    labels:
+      - "vps.auto-update=patch"
+    networks:
+      - default
+
+  space:
+    image: makeplane/plane-space:v1.4.2
+    deploy:
+      restart_policy:
+        condition: any
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: ""
+    labels:
+      - "vps.auto-update=patch"
+    networks:
+      - default
+
+  admin:
+    image: makeplane/plane-admin:v1.4.2
+    deploy:
+      restart_policy:
+        condition: any
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: ""
+    labels:
+      - "vps.auto-update=patch"
+    networks:
+      - default
+
+  api:
+    image: makeplane/plane-backend:v1.4.2
+    deploy:
+      restart_policy:
+        condition: any
+    # The migrator script waits for the database and runs the migrations; the api entrypoint only waits for
+    # them. Running both here keeps every service of the stack up, and the worker and beat-worker, which
+    # also wait for the migrations, start working once this one has migrated.
+    command:
+      - sh
+      - -c
+      - |
+        set -e
+        ./bin/docker-entrypoint-migrator.sh
+        exec ./bin/docker-entrypoint-api.sh
+    environment: &backend-env
+      DEBUG: "0"
+      SECRET_KEY: ${PLANE_SECRET_KEY}
+      LIVE_SERVER_SECRET_KEY: ${PLANE_LIVE_SECRET_KEY}
+      WEB_URL: https://${PLANE_HOSTNAME}
+      CORS_ALLOWED_ORIGINS: https://${PLANE_HOSTNAME}
+      DOCKERIZED: "1"
+      GUNICORN_WORKERS: "2"
+      POSTGRES_USER: plane
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: plane
+      POSTGRES_HOST: db
+      POSTGRES_PORT: "5432"
+      DATABASE_URL: postgresql://plane:${DB_PASSWORD}@db:5432/plane
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_URL: redis://redis:6379/
+      AMQP_URL: amqp://plane:${PLANE_MQ_PASSWORD}@mq:5672/plane
+      AWS_REGION: ""
+      AWS_ACCESS_KEY_ID: ${PLANE_MINIO_ACCESS_KEY}
+      AWS_SECRET_ACCESS_KEY: ${PLANE_MINIO_SECRET_KEY}
+      AWS_S3_ENDPOINT_URL: http://minio:9000
+      AWS_S3_BUCKET_NAME: uploads
+      USE_MINIO: "1"
+      FILE_SIZE_LIMIT: "5242880"
+    labels:
+      - "vps.auto-update=patch"
+    networks:
+      - default
+
+  worker:
+    image: makeplane/plane-backend:v1.4.2
+    deploy:
+      restart_policy:
+        condition: any
+    command: ./bin/docker-entrypoint-worker.sh
+    environment: *backend-env
+    labels:
+      - "vps.auto-update=patch"
+    networks:
+      - default
+
+  beat-worker:
+    image: makeplane/plane-backend:v1.4.2
+    deploy:
+      restart_policy:
+        condition: any
+    command: ./bin/docker-entrypoint-beat.sh
+    environment: *backend-env
+    labels:
+      - "vps.auto-update=patch"
+    networks:
+      - default
+
+  live:
+    image: makeplane/plane-live:v1.4.2
+    deploy:
+      restart_policy:
+        condition: any
+    environment:
+      API_BASE_URL: http://api:8000
+      LIVE_SERVER_SECRET_KEY: ${PLANE_LIVE_SECRET_KEY}
+      REDIS_URL: redis://redis:6379/
+    labels:
+      - "vps.auto-update=patch"
+    networks:
+      - default
+
+  proxy:
+    image: makeplane/plane-proxy:v1.4.2
+    deploy:
+      restart_policy:
+        condition: any
+    environment:
+      SITE_ADDRESS: ":80"
+      FILE_SIZE_LIMIT: "5242880"
+      BUCKET_NAME: uploads
+    labels:
+      - "vps.route.host=${DOMAIN_HOST}"
+      - "vps.route.port=80"
+      - "vps.auth.mode=public"
+      - "vps.auto-update=patch"
+    cap_drop:
+      - NET_RAW
+    networks:
+      catena-network: {}
+      default: {}
+
+  db:
+    image: postgres:18.6-alpine
+    deploy:
+      restart_policy:
+        condition: any
+      placement:
+        constraints:
+          - node.labels.catena.role==data
+    environment:
+      POSTGRES_USER: plane
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: plane
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U plane"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 10m
+    labels:
+      - "vps.auto-update=minor"
+    networks:
+      - default
+
+  redis:
+    image: redis:8.10.2-alpine3.23
+    deploy:
+      restart_policy:
+        condition: any
+      placement:
+        constraints:
+          - node.labels.catena.role==data
+    volumes:
+      - redis-data:/data
+    labels:
+      - "vps.auto-update=patch"
+    networks:
+      - default
+
+  # The Celery broker: the api queues background jobs here and the worker and beat-worker take them.
+  mq:
+    image: rabbitmq:4.3.7-alpine
+    deploy:
+      restart_policy:
+        condition: any
+      placement:
+        constraints:
+          - node.labels.catena.role==data
+    environment:
+      # The node name keys the stored state, and a task's hostname changes at every restart.
+      RABBITMQ_NODENAME: rabbit@localhost
+      RABBITMQ_DEFAULT_USER: plane
+      RABBITMQ_DEFAULT_PASS: ${PLANE_MQ_PASSWORD}
+      RABBITMQ_DEFAULT_VHOST: plane
+    volumes:
+      - mq-data:/var/lib/rabbitmq
+    labels:
+      - "vps.auto-update=patch"
+    networks:
+      - default
+
+  minio:
+    image: pgsty/silo:RELEASE.2026-09-16T00-00-00Z
+    deploy:
+      restart_policy:
+        condition: any
+      placement:
+        constraints:
+          - node.labels.catena.role==data
+    # The store is served from /data, the image's own VOLUME, so the named volume covers it.
+    command: server /data --console-address ":9090"
+    environment:
+      MINIO_ROOT_USER: ${PLANE_MINIO_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${PLANE_MINIO_SECRET_KEY}
+    volumes:
+      - minio-data:/data
+    labels:
+      - "vps.auto-update=off"
+    # The proxy's Caddyfile reaches the bucket by this name.
+    networks:
+      default:
+        aliases:
+          - plane-minio
+
+volumes:
+  db-data:
+  redis-data:
+  mq-data:
+  minio-data:
+
+networks:
+  catena-network:
+    external: true
