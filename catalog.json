@@ -1909,7 +1909,7 @@
       "domain_port": 5678,
       "domain_service": "n8n",
       "en": {
-        "compose_description": "Workflow automation (400+ integrations). Replaces Zapier / Make.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/n8n/README.md\n",
+        "compose_description": "Workflow automation (400+ integrations). Replaces Zapier / Make.\n\nhttps://github.com/catenahq/catena-templates/blob/HEAD/blueprints/n8n/README.md\n",
         "display_name": "n8n",
         "extra_notes": "**Note on sign-in.** n8n's community edition uses email/password user management with invite flows. OIDC and SAML are enterprise-gated, so SSO isn't available here -- each user maintains a per-app login. Fine for an automation team of 1-5 people.\n",
         "replaces": [
@@ -1965,7 +1965,7 @@
         "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
       ],
       "fr": {
-        "compose_description": "Automatisation de workflows (400+ int\u00e9grations). Remplace Zapier / Make.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/n8n/README.md\n",
+        "compose_description": "Automatisation de workflows (400+ int\u00e9grations). Remplace Zapier / Make.\n\nhttps://github.com/catenahq/catena-templates/blob/HEAD/blueprints/n8n/README.md\n",
         "display_name": "n8n",
         "extra_notes": "**\u00c0 propos de la connexion.** L'\u00e9dition communautaire de n8n utilise email/mot de passe avec des invitations. OIDC et SAML sont enterprise, donc le SSO n'est pas disponible ici -- chaque utilisateur garde une connexion sp\u00e9cifique. Convient \u00e0 une \u00e9quipe d'automatisation de 1-5 personnes.\n",
         "replaces": [
