@@ -1,0 +1,51 @@
+{
+  "schema": 1,
+  "app_name": "catena-gatus",
+  "upstream_url": "https://gatus.io/",
+  "categories": [
+    "Monitoring",
+    "Infrastructure"
+  ],
+  "logo": {
+    "source": "https://raw.githubusercontent.com/TwiN/gatus/d255d0cd4d69ce818574cfdb3a7e82407e6559d7/.github/assets/logo.svg",
+    "notice": "Gatus logo, Apache-2.0"
+  },
+  "sso_mode": "none",
+  "bench": {
+    "pack": "embedded",
+    "hostname_baked": false
+  },
+  "sizing": {
+    "idle_ram_mb": 40,
+    "peak_ram_mb": 120,
+    "idle_cpu_pct": 1,
+    "peak_cpu_pct": 10,
+    "disk_baseline_mb": 40,
+    "notes": "One Go binary on SQLite plus a 16 MB helper that writes the base configuration. The history grows with the endpoints it probes. Conservative estimate, not yet measured.",
+    "notes_fr": "Un seul binaire Go sur SQLite plus un assistant de 16 Mo qui \u00e9crit la configuration de base. L'historique grossit avec les points de terminaison sond\u00e9s. Estimation prudente, pas encore mesur\u00e9e."
+  },
+  "en": {
+    "display_name": "Gatus",
+    "summary": "A status page that probes your server's services and alerts when one fails.",
+    "what_it_is": "Gatus probes the server's own services and the applications you run, shows their status on one page and sends its alerts to Healthchecks. The server adds an endpoint for each service and each application by itself.",
+    "replaces": [
+      "Uptime Robot",
+      "Statuspage",
+      "Pingdom"
+    ],
+    "compose_description": "Self-hosted status page and uptime probes.\n",
+    "setup_steps": "The server installs this application and signs you in to it through the server's own sign-in. Its address is the prefix below, followed by your domain.\n\n1. Open **Gatus** from the Apps page.\n2. The server's services and your applications are listed by themselves.\n3. To probe something else, add a file whose name starts with 99- and ends in .yaml to the config volume; the server never rewrites it."
+  },
+  "fr": {
+    "display_name": "Gatus",
+    "summary": "Une page d'\u00e9tat qui sonde les services du serveur et alerte quand l'un \u00e9choue.",
+    "what_it_is": "Gatus sonde les services du serveur et les applications que vous ex\u00e9cutez, affiche leur \u00e9tat sur une seule page et envoie ses alertes \u00e0 Healthchecks. Le serveur ajoute lui-m\u00eame un point de terminaison pour chaque service et chaque application.",
+    "replaces": [
+      "Uptime Robot",
+      "Statuspage",
+      "Pingdom"
+    ],
+    "compose_description": "Page d'\u00e9tat et sondes de disponibilit\u00e9 auto-h\u00e9berg\u00e9es.\n",
+    "setup_steps": "Le serveur installe cette application et vous y connecte par sa propre connexion. Son adresse est le pr\u00e9fixe ci-dessous suivi de votre domaine.\n\n1. Ouvrez **Gatus** depuis la page Apps.\n2. Les services du serveur et vos applications sont list\u00e9s d'eux-m\u00eames.\n3. Pour sonder autre chose, ajoutez au volume config un fichier dont le nom commence par 99- et se termine par .yaml ; le serveur ne le r\u00e9\u00e9crit jamais."
+  }
+}

@@ -1,0 +1,25 @@
+schema: 2
+version_from: app
+env:
+  SUBDOMAIN:
+    setting:
+      default: gatus
+      label:
+        en: "Address prefix (the address moves the next time the server applies its configuration)"
+        fr: "Préfixe de l'adresse (l'adresse change à la prochaine application de la configuration du serveur)"
+  HC_URL:
+    managed: {expr: "{{ provided.healthchecks.url }}"}
+  HUB_URL:
+    managed: {expr: "{{ provided.beszel.url }}"}
+  UI_TITLE:
+    managed: {expr: "{{ cloudflare_zone | default('') }}"}
+# The Gatus image has no shell, wget or curl. verify runs in the busybox helper
+# that writes the base configuration, on the stack network, and asks Gatus's own
+# health endpoint.
+hooks:
+  service: base
+  timeout_seconds: 60
+  verify:
+    - hooks/verify.sh
+data:
+  app: {volume: gatus-data, upgrade: in_place}

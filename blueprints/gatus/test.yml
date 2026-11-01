@@ -1,0 +1,56 @@
+# Test for the gatus template: the self-check endpoint of the base configuration
+# has results in Gatus's own API, and still has them after a restore. The steps
+# run in the busybox helper on the stack network.
+
+id: gatus
+description: >-
+  Gatus reads the base configuration the helper wrote and lists the self-check
+  endpoint with results, before and after the backup, the restore and the updates.
+
+seed:
+  - name: self_check_has_results
+    type: docker_exec
+    container: "{{ container_base }}"
+    command:
+      - sh
+      - -c
+      - |
+        for i in $(seq 1 40); do
+          if out=$(wget -qO- http://app:8080/api/v1/endpoints/statuses); then
+            case "$out" in
+            *'"name":"Gatus self-check"'*'"results":[{'*)
+              echo "gatus self-check has results"
+              exit 0
+              ;;
+            esac
+          fi
+          sleep 5
+        done
+        echo "no result for the self-check: $out"
+        exit 1
+    expect_stdout_contains: "gatus self-check has results"
+    timeout_s: 300
+
+assert:
+  - name: self_check_has_results
+    type: docker_exec
+    container: "{{ container_base }}"
+    command:
+      - sh
+      - -c
+      - |
+        for i in $(seq 1 40); do
+          if out=$(wget -qO- http://app:8080/api/v1/endpoints/statuses); then
+            case "$out" in
+            *'"name":"Gatus self-check"'*'"results":[{'*)
+              echo "gatus self-check has results"
+              exit 0
+              ;;
+            esac
+          fi
+          sleep 5
+        done
+        echo "no result for the self-check: $out"
+        exit 1
+    expect_stdout_contains: "gatus self-check has results"
+    timeout_s: 300

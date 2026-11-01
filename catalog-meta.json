@@ -30,7 +30,8 @@
     "portainer",
     "arcane",
     "healthchecks",
-    "beszel"
+    "beszel",
+    "gatus"
   ],
   "sizing": {
     "last_measured_at": "2026-04-29",

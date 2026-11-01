@@ -1,0 +1,165 @@
+x-catena:
+  schema: 2
+  version_from: app
+  env:
+    SUBDOMAIN:
+      setting:
+        default: gatus
+        label:
+          en: "Address prefix (the address moves the next time the server applies its configuration)"
+          fr: "Préfixe de l'adresse (l'adresse change à la prochaine application de la configuration du serveur)"
+    HC_URL:
+      managed: {expr: "{{ provided.healthchecks.url }}"}
+    HUB_URL:
+      managed: {expr: "{{ provided.beszel.url }}"}
+    UI_TITLE:
+      managed: {expr: "{{ cloudflare_zone | default('') }}"}
+  # The Gatus image has no shell, wget or curl. verify runs in the busybox helper
+  # that writes the base configuration, on the stack network, and asks Gatus's own
+  # health endpoint.
+  hooks:
+    service: base
+    timeout_seconds: 60
+    verify:
+      - - sh
+        - -c
+        - |
+          body=$$(wget -q -T 20 -O - http://app:8080/health) || {
+            echo "Gatus does not answer on port 8080" >&2
+            exit 1
+          }
+          case "$$body" in
+            *UP*) echo "Gatus answers its health endpoint" ;;
+            *)
+              echo "port 8080 answers, but not with Gatus's health status" >&2
+              exit 1
+              ;;
+          esac
+  data:
+    app: {volume: gatus-data, upgrade: in_place}
+
+services:
+  app:
+    image: twinproduction/gatus:v5.38.0
+    deploy:
+      restart_policy:
+        condition: any
+        delay: 5s
+      # gatus-data holds the status history. An empty one on another node is a
+      # status page that has forgotten every past result.
+      placement:
+        constraints:
+          - node.labels.catena.role==data
+    environment:
+      # Gatus reads every .yaml file of this folder, in name order. The image
+      # holds a /config/config.yaml that probes outside sites, and Docker fills a
+      # new volume with what the image holds at its mount path, so the volume is
+      # mounted at a path the image does not hold.
+      GATUS_CONFIG_PATH: /catena
+      GATUS_WEB_PORT: "8080"
+    labels:
+      - "vps.auto-update=patch"
+    volumes:
+      - gatus-data:/data
+      - config:/catena:ro
+    # Host mode with the long syntax: the short form publishes through the
+    # ingress mesh. The server's sync of the endpoints reads
+    # /api/v1/endpoints/statuses here.
+    ports:
+      - target: 8080
+        published: 18080
+        protocol: tcp
+        mode: host
+    cap_drop:
+      - NET_RAW
+    # The image has no wget or curl, so there is no Docker health check: the
+    # self-check endpoint of 00-base.yaml is the signal.
+    networks:
+      default: {}
+      catena-network:
+        aliases:
+          - gatus
+      # Its alerts reach Healthchecks on the first network and its probe reaches
+      # the Beszel hub on the second, each on no other network.
+      catena-healthchecks: {}
+      catena-beszel: {}
+
+  # Writes 00-base.yaml whole into the config volume: the storage, the title, the
+  # self-check endpoint that Gatus needs to start, and the alert to Healthchecks
+  # when it has the address and the ping key. The sync of the endpoints writes the
+  # 40- and 50- files beside it, and 99- files belong to the person who adds them.
+  base:
+    image: busybox:1.38.0@sha256:fd7dc98638c8e305f4dc34e979f1c0fdfdcaeb0fbf8fcff77ae834b6da3d7e6e
+    environment:
+      UI_TITLE: ${UI_TITLE:-}
+      HC_URL: ${HC_URL:-}
+      HC_PING_KEY: ${HC_PING_KEY:-}
+      STATUS_HOST: ${STATUS_HOST:-}
+      # The address of the Beszel hub; reading it joins the app to its network.
+      HUB_URL: ${HUB_URL:-}
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        dir=/catena
+        tmp=$$dir/.00-base.tmp
+        {
+          printf 'storage:\n  type: sqlite\n  path: /data/gatus.db\n\nui:\n'
+          if [ -n "$$UI_TITLE" ]; then
+            printf '  title: "%s -- service status"\n  header: "%s"\n' "$$UI_TITLE" "$$UI_TITLE"
+          else
+            printf '  title: "Service status"\n'
+          fi
+          printf '  description: "Live status of the Catena server"\n  default-sort-by: group\n'
+          printf '  dashboard-subheading: "Click on any service for more details."\n\n'
+          if [ -n "$$HC_URL" ] && [ -n "$$HC_PING_KEY" ]; then
+            printf 'alerting:\n  custom:\n'
+            printf '    url: "%s/ping/%s/gatus-[ALERT_DESCRIPTION][ALERT_TRIGGERED_OR_RESOLVED]?create=1"\n' "$$HC_URL" "$$HC_PING_KEY"
+            printf '    method: "POST"\n    body: |\n'
+            printf '      [ENDPOINT_GROUP] / [ENDPOINT_NAME]\n      Conditions: [CONDITION_RESULTS]\n'
+            if [ -n "$$STATUS_HOST" ]; then
+              printf '      Status page: https://%s\n' "$$STATUS_HOST"
+            fi
+            printf '    placeholders:\n      ALERT_TRIGGERED_OR_RESOLVED:\n        TRIGGERED: "/fail"\n        RESOLVED: ""\n'
+            printf '    default-alert:\n      failure-threshold: 3\n      success-threshold: 2\n      send-on-resolved: true\n\n'
+          fi
+          printf 'endpoints:\n  - name: "Gatus self-check"\n    group: "Infrastructure"\n'
+          printf '    url: "http://localhost:8080/health"\n    interval: 60s\n    conditions:\n      - "[STATUS] == 200"\n'
+        } > "$$tmp"
+        if cmp -s "$$tmp" "$$dir/00-base.yaml"; then
+          rm -f "$$tmp"
+        else
+          mv "$$tmp" "$$dir/00-base.yaml"
+        fi
+        exec sleep 2147483647
+    deploy:
+      restart_policy:
+        condition: any
+        delay: 5s
+      placement:
+        constraints:
+          - node.labels.catena.role==data
+      resources:
+        limits:
+          memory: 16M
+        reservations:
+          memory: 16M
+    cap_drop:
+      - ALL
+    volumes:
+      - config:/catena
+    networks:
+      - default
+
+volumes:
+  gatus-data:
+  config:
+
+networks:
+  catena-network:
+    external: true
+  catena-healthchecks:
+    external: true
+  catena-beszel:
+    external: true

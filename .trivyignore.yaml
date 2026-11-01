@@ -44,3 +44,31 @@ vulnerabilities:
       - pkg:pypi/urllib3@2.7.0
     statement: "no fixed upstream image: healthchecks/healthchecks v5.0.3 is the newest tag (2026-10-27) and carries urllib3 2.7.0 (fixed in 2.8.0); the engine bump takes the fix"
     expired_at: 2026-12-01
+  # twinproduction/gatus v5.38.0 is the registry's newest tag and its Go binary
+  # carries these modules unfixed. Each entry names the module and its version as
+  # a purl, so a rebuilt image that carries another version is judged again.
+  - id: CVE-2026-116587
+    purls:
+      - pkg:golang/github.com/go-jose/go-jose/v4@v4.1.4
+    statement: "no fixed upstream image: twinproduction/gatus v5.38.0 is the newest tag (2026-10-28) and carries go-jose v4.1.4 (fixed in 4.1.6); the engine bump takes the fix"
+    expired_at: 2026-12-01
+  - id: CVE-2026-63209
+    purls:
+      - pkg:golang/github.com/klauspost/compress@v1.18.6
+    statement: "no fixed upstream image: twinproduction/gatus v5.38.0 is the newest tag (2026-10-28) and carries klauspost/compress v1.18.6 (fixed in 1.18.7); the engine bump takes the fix"
+    expired_at: 2026-12-01
+  - id: CVE-2026-46602
+    purls:
+      - pkg:golang/golang.org/x/image@v0.40.0
+    statement: "no fixed upstream image: twinproduction/gatus v5.38.0 is the newest tag (2026-10-28) and carries golang.org/x/image v0.40.0 (fixed in 0.43.0); the engine bump takes the fix"
+    expired_at: 2026-12-01
+  - id: CVE-2026-46603
+    purls:
+      - pkg:golang/golang.org/x/image@v0.40.0
+    statement: "no fixed upstream image: twinproduction/gatus v5.38.0 is the newest tag (2026-10-28) and carries golang.org/x/image v0.40.0 (fixed in 0.45.0); the engine bump takes the fix"
+    expired_at: 2026-12-01
+  - id: CVE-2026-78669
+    purls:
+      - pkg:golang/golang.org/x/net@v0.58.0
+    statement: "no fixed upstream image: twinproduction/gatus v5.38.0 is the newest tag (2026-10-28) and carries golang.org/x/net v0.58.0 (fixed in 0.60.0); the engine bump takes the fix"
+    expired_at: 2026-12-01

@@ -3488,6 +3488,90 @@
       },
       "sso_mode": "none",
       "upstream_url": "https://beszel.dev/"
+    },
+    {
+      "app_name": "catena-gatus",
+      "bench_fixture": "required",
+      "bench_pack": "embedded",
+      "categories": [
+        "Monitoring",
+        "Infrastructure"
+      ],
+      "compose_file": "blueprints/gatus/docker-compose.yml",
+      "en": {
+        "compose_description": "Self-hosted status page and uptime probes.\n",
+        "display_name": "Gatus",
+        "replaces": [
+          "Uptime Robot",
+          "Statuspage",
+          "Pingdom"
+        ],
+        "setup_steps": "The server installs this application and signs you in to it through the server's own sign-in. Its address is the prefix below, followed by your domain.\n\n1. Open **Gatus** from the Apps page.\n2. The server's services and your applications are listed by themselves.\n3. To probe something else, add a file whose name starts with 99- and ends in .yaml to the config volume; the server never rewrites it.",
+        "summary": "A status page that probes your server's services and alerts when one fails.",
+        "what_it_is": "Gatus probes the server's own services and the applications you run, shows their status on one page and sends its alerts to Healthchecks. The server adds an endpoint for each service and each application by itself."
+      },
+      "env": {
+        "HC_URL": {
+          "managed": {
+            "expr": "{{ provided.healthchecks.url }}"
+          }
+        },
+        "HUB_URL": {
+          "managed": {
+            "expr": "{{ provided.beszel.url }}"
+          }
+        },
+        "SUBDOMAIN": {
+          "setting": {
+            "default": "gatus",
+            "label": {
+              "en": "Address prefix (the address moves the next time the server applies its configuration)",
+              "fr": "Pr\u00e9fixe de l'adresse (l'adresse change \u00e0 la prochaine application de la configuration du serveur)"
+            }
+          }
+        },
+        "UI_TITLE": {
+          "managed": {
+            "expr": "{{ cloudflare_zone | default('') }}"
+          }
+        }
+      },
+      "env_defaults": [
+        "SUBDOMAIN=gatus",
+        "HC_URL={{ provided.healthchecks.url }}",
+        "HUB_URL={{ provided.beszel.url }}",
+        "UI_TITLE={{ cloudflare_zone | default('') }}"
+      ],
+      "env_managed_keys": [
+        "HC_URL",
+        "HUB_URL",
+        "UI_TITLE"
+      ],
+      "fr": {
+        "compose_description": "Page d'\u00e9tat et sondes de disponibilit\u00e9 auto-h\u00e9berg\u00e9es.\n",
+        "display_name": "Gatus",
+        "replaces": [
+          "Uptime Robot",
+          "Statuspage",
+          "Pingdom"
+        ],
+        "setup_steps": "Le serveur installe cette application et vous y connecte par sa propre connexion. Son adresse est le pr\u00e9fixe ci-dessous suivi de votre domaine.\n\n1. Ouvrez **Gatus** depuis la page Apps.\n2. Les services du serveur et vos applications sont list\u00e9s d'eux-m\u00eames.\n3. Pour sonder autre chose, ajoutez au volume config un fichier dont le nom commence par 99- et se termine par .yaml ; le serveur ne le r\u00e9\u00e9crit jamais.",
+        "summary": "Une page d'\u00e9tat qui sonde les services du serveur et alerte quand l'un \u00e9choue.",
+        "what_it_is": "Gatus sonde les services du serveur et les applications que vous ex\u00e9cutez, affiche leur \u00e9tat sur une seule page et envoie ses alertes \u00e0 Healthchecks. Le serveur ajoute lui-m\u00eame un point de terminaison pour chaque service et chaque application."
+      },
+      "hostname_baked": false,
+      "id": "gatus",
+      "sizing": {
+        "disk_baseline_mb": 40,
+        "idle_cpu_pct": 1,
+        "idle_ram_mb": 40,
+        "notes": "One Go binary on SQLite plus a 16 MB helper that writes the base configuration. The history grows with the endpoints it probes. Conservative estimate, not yet measured.",
+        "notes_fr": "Un seul binaire Go sur SQLite plus un assistant de 16 Mo qui \u00e9crit la configuration de base. L'historique grossit avec les points de terminaison sond\u00e9s. Estimation prudente, pas encore mesur\u00e9e.",
+        "peak_cpu_pct": 10,
+        "peak_ram_mb": 120
+      },
+      "sso_mode": "none",
+      "upstream_url": "https://gatus.io/"
     }
   ],
   "version": 1
