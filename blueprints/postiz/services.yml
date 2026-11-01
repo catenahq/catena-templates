@@ -1,0 +1,161 @@
+services:
+  postiz:
+    image: ghcr.io/gitroomhq/postiz-app:v2.24.0
+    # The orchestrator starts its Temporal workers only if Temporal answers when it boots and otherwise runs
+    # without them, so the image's start runs once Temporal's default namespace answers. It is the image's
+    # pm2-run script with the schema push run by the image's own prisma (a devDependency the image installs),
+    # where the script fetches prisma from the npm registry at every start.
+    command:
+      - sh
+      - -c
+      - |
+        echo "postiz waits for the default namespace of Temporal"
+        until node -e "setTimeout(() => process.exit(1), 15000); require('@temporalio/client').Connection.connect({ address: process.env.TEMPORAL_ADDRESS }).then((c) => c.workflowService.describeNamespace({ namespace: 'default' })).then(() => process.exit(0), () => process.exit(1))"; do
+          sleep 3
+        done
+        nginx && { pm2 delete all || true; } &&
+          pnpm exec prisma db push --accept-data-loss --schema ./libraries/nestjs-libraries/src/database/prisma/schema.prisma &&
+          pnpm run --parallel pm2 && pm2 logs
+    deploy:
+      restart_policy:
+        condition: any
+      placement:
+        constraints:
+          - node.labels.catena.role==data
+    environment:
+      NOT_SECURED: "false"
+      IS_GENERAL: "true"
+      STORAGE_PROVIDER: local
+      UPLOAD_DIRECTORY: /uploads
+      NEXT_PUBLIC_UPLOAD_DIRECTORY: /uploads
+      MAIN_URL: https://${POSTIZ_HOSTNAME}
+      FRONTEND_URL: https://${POSTIZ_HOSTNAME}
+      NEXT_PUBLIC_BACKEND_URL: https://${POSTIZ_HOSTNAME}/api
+      BACKEND_INTERNAL_URL: http://localhost:3000
+      DATABASE_URL: postgres://postiz:${DB_PASSWORD}@db:5432/postiz
+      REDIS_URL: redis://redis:6379
+      TEMPORAL_ADDRESS: temporal:7233
+      RUN_CRON: "true"
+      JWT_SECRET: ${JWT_SECRET}
+      DISABLE_REGISTRATION: "false"
+    volumes:
+      - postiz-uploads:/uploads
+      - postiz-config:/config
+    labels:
+      - "vps.route.host=${DOMAIN_HOST}"
+      - "vps.route.port=5000"
+      - "vps.auth.mode=public"
+      - "vps.auto-update=patch"
+    cap_drop:
+      - NET_RAW
+    networks:
+      catena-network: {}
+      default: {}
+
+  db:
+    image: postgres:18.6-alpine
+    deploy:
+      restart_policy:
+        condition: any
+      placement:
+        constraints:
+          - node.labels.catena.role==data
+    environment:
+      POSTGRES_USER: postiz
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: postiz
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postiz"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 10m
+    labels:
+      - "vps.auto-update=minor"
+    networks:
+      - default
+
+  redis:
+    image: redis:8.10.2-alpine3.23
+    deploy:
+      restart_policy:
+        condition: any
+    labels:
+      - "vps.auto-update=patch"
+    networks:
+      - default
+
+  temporal:
+    image: temporalio/server:1.31.4
+    deploy:
+      restart_policy:
+        condition: any
+    environment:
+      DB: postgres12
+      DB_PORT: "5432"
+      POSTGRES_SEEDS: db
+      POSTGRES_USER: postiz
+      POSTGRES_PWD: ${DB_PASSWORD}
+      BIND_ON_IP: 0.0.0.0
+      # The server reads a dynamic config file and its image ships none: /dev/null is an empty one, so every
+      # setting keeps its default.
+      DYNAMIC_CONFIG_FILE_PATH: /dev/null
+      # Without it the server reports its cluster to version-info.temporal.io every day.
+      TEMPORAL_VERSION_CHECK_DISABLED: "1"
+      # Smaller pools than Temporal's defaults (20 and 10 connections), so Temporal and Postiz share db's limit.
+      SQL_MAX_CONNS: "10"
+      SQL_MAX_IDLE_CONNS: "10"
+      SQL_VIS_MAX_CONNS: "5"
+      SQL_VIS_MAX_IDLE_CONNS: "5"
+    labels:
+      - "vps.auto-update=patch"
+    networks:
+      - default
+
+  # Creates Temporal's two databases in db and brings their schema to this image's version, creates the default
+  # namespace once the server answers, then stays up so swarm keeps it at its replica count. Each step leaves what
+  # is already done as it is; a step that fails exits and swarm starts the task again; TERM ends the wait at once.
+  temporal-setup:
+    image: temporalio/admin-tools:1.31.4
+    deploy:
+      restart_policy:
+        condition: any
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        temporal-sql-tool --db temporal create
+        temporal-sql-tool --db temporal setup-schema -v 0.0
+        temporal-sql-tool --db temporal update-schema -d /etc/temporal/schema/postgresql/v12/temporal/versioned
+        temporal-sql-tool --db temporal_visibility create
+        temporal-sql-tool --db temporal_visibility setup-schema -v 0.0
+        temporal-sql-tool --db temporal_visibility update-schema -d /etc/temporal/schema/postgresql/v12/visibility/versioned
+        until temporal operator cluster health --address temporal:7233; do sleep 5; done
+        temporal operator namespace describe -n default --address temporal:7233 > /dev/null 2>&1 ||
+          temporal operator namespace create -n default --address temporal:7233
+        trap 'exit 0' TERM
+        sleep infinity &
+        wait
+    environment:
+      SQL_PLUGIN: postgres12
+      SQL_HOST: db
+      SQL_PORT: "5432"
+      SQL_USER: postiz
+      SQL_PASSWORD: ${DB_PASSWORD}
+    labels:
+      - "vps.auto-update=patch"
+    networks:
+      - default
+
+volumes:
+  postiz-uploads:
+  postiz-config:
+  db-data:
+
+networks:
+  catena-network:
+    external: true
