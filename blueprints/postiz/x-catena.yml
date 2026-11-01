@@ -1,4 +1,14 @@
+schema: 2
 requires_catena: 0.11.12
+env:
+  DOMAIN_HOST:
+    setting: {default: "social.{{ cloudflare_zone }}"}
+  POSTIZ_HOSTNAME:
+    setting: {default: "social.{{ cloudflare_zone }}"}
+  JWT_SECRET:
+    generated: {length: 64, alphabet: alnum}
+  DB_PASSWORD:
+    generated: {length: 32, alphabet: alnum}
 images:
   db:
     rule: {kind: partial_line}
@@ -16,6 +26,4 @@ hooks:
   service: postiz
   timeout_seconds: 360
   verify:
-    - - node
-      - -e
-      - {file: hooks/verify.js}
+    - hooks/verify.js
