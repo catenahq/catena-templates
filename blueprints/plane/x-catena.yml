@@ -1,4 +1,22 @@
+schema: 2
 requires_catena: 0.11.12
+env:
+  DOMAIN_HOST:
+    setting: {default: "projects.{{ cloudflare_zone }}"}
+  PLANE_HOSTNAME:
+    setting: {default: "projects.{{ cloudflare_zone }}"}
+  PLANE_SECRET_KEY:
+    generated: {length: 64, alphabet: alnum}
+  PLANE_LIVE_SECRET_KEY:
+    generated: {length: 64, alphabet: alnum}
+  DB_PASSWORD:
+    generated: {length: 32, alphabet: alnum}
+  PLANE_MQ_PASSWORD:
+    generated: {length: 32, alphabet: alnum}
+  PLANE_MINIO_ACCESS_KEY:
+    generated: {length: 20, alphabet: alnum}
+  PLANE_MINIO_SECRET_KEY:
+    generated: {length: 40, alphabet: alnum}
 images:
   db:
     rule: {kind: partial_line}
@@ -12,6 +30,4 @@ hooks:
   service: api
   timeout_seconds: 360
   verify:
-    - - python3
-      - -c
-      - {file: hooks/verify.py}
+    - hooks/verify.py

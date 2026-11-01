@@ -1423,7 +1423,7 @@
       "domain_port": 80,
       "domain_service": "proxy",
       "en": {
-        "compose_description": "Open-source project management. Replaces Jira / Linear / Asana.\n\nhttps://github.com/catenahq/catena-templates/blob/HEAD/blueprints/plane/README.md\n",
+        "compose_description": "Open-source project management. Replaces Jira / Linear / Asana.\n",
         "display_name": "Plane",
         "replaces": [
           "Jira",
@@ -1494,7 +1494,7 @@
         "PLANE_MINIO_SECRET_KEY={{ lookup('password', '/dev/null length=40 chars=ascii_letters,digits') }}"
       ],
       "fr": {
-        "compose_description": "Gestion de projet open-source. Remplace Jira / Linear / Asana.\n\nhttps://github.com/catenahq/catena-templates/blob/HEAD/blueprints/plane/README.md\n",
+        "compose_description": "Gestion de projet open-source. Remplace Jira / Linear / Asana.\n",
         "display_name": "Plane",
         "replaces": [
           "Jira",
