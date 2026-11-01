@@ -997,7 +997,7 @@
       "domain_port": 3000,
       "domain_service": "docuseal",
       "en": {
-        "compose_description": "Open-source document signing (default). Replaces DocuSign / HelloSign.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/docuseal/README.md\n",
+        "compose_description": "Open-source document signing (default). Replaces DocuSign / HelloSign.\n\nhttps://github.com/catenahq/catena-templates/blob/HEAD/blueprints/docuseal/README.md\n",
         "display_name": "DocuSeal",
         "extra_notes": "### Signing certificate\n\nDocuSeal generates signed PDFs out of the box without a separate signing-cert mint step. Adobe Acrobat shows the signature as cryptographically valid but with a \"self-signed root\" warning by default. Legally-binding signatures need a CA-issued cert, installed on request via DocuSeal's admin UI (Settings -> Signature -> Certificates).\n\n### SMTP\n\nWithout SMTP configured, signature-request emails are not delivered. Recipients still see pending requests in their dashboard. To enable email, fill the `SMTP_*` env vars in the Environment tab.\n",
         "replaces": [
@@ -1077,7 +1077,7 @@
         "SMTP_AUTH=plain"
       ],
       "fr": {
-        "compose_description": "Signature \u00e9lectronique open-source (par d\u00e9faut). Remplace DocuSign / HelloSign.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/docuseal/README.md\n",
+        "compose_description": "Signature \u00e9lectronique open-source (par d\u00e9faut). Remplace DocuSign / HelloSign.\n\nhttps://github.com/catenahq/catena-templates/blob/HEAD/blueprints/docuseal/README.md\n",
         "display_name": "DocuSeal",
         "extra_notes": "### Certificat de signature\n\nDocuSeal g\u00e9n\u00e8re des PDF sign\u00e9s d'embl\u00e9e sans \u00e9tape de g\u00e9n\u00e9ration de certificat. Adobe Acrobat affiche la signature comme cryptographiquement valide mais avec un avertissement \"racine auto-sign\u00e9e\" par d\u00e9faut. Les signatures \u00e0 valeur l\u00e9gale demandent un certificat \u00e9mis par une AC, install\u00e9 sur demande via l'UI admin DocuSeal (Settings -> Signature -> Certificates).\n\n### SMTP\n\nSans SMTP configur\u00e9, les e-mails de demande de signature ne sont pas envoy\u00e9s. Les destinataires voient les demandes en attente dans leur tableau de bord. Pour activer les e-mails, renseignez les variables `SMTP_*` dans l'onglet Environment.\n",
         "replaces": [
