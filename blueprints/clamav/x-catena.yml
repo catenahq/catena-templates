@@ -1,5 +1,20 @@
+schema: 2
 requires_catena: 0.11.12
 version_from: clamav
+env:
+  CLAMD_HOST:
+    managed: {expr: "clamav"}
+  CLAMD_PORT:
+    managed: {expr: "3310"}
+  CLAMD_STREAM_MAX_LENGTH:
+    setting: {default: "104857600"}
+  # A reload that keeps scanning holds the old and the new signature database
+  # in memory together, about 1 GB more. "no" pauses scans for the length of
+  # the load instead.
+  CLAMD_CONCURRENT_RELOAD:
+    setting: {default: "no"}
+provides:
+  antivirus: {host: CLAMD_HOST, port: CLAMD_PORT}
 images:
   clamav:
     # The image that carries the signature database tags X.Y.Z; X.Y.Z_base,
@@ -13,6 +28,6 @@ hooks:
   # file and 1 for a signature found, which it prints as "stream: <name> FOUND";
   # the hook answers that as "FLAGGED <name>". Any other exit passes through.
   scan:
-    - - sh
-      - -c
-      - {file: hooks/scan.sh}
+    - hooks/scan.sh
+# freshclam's signature mirror.
+egress: [database.clamav.net]

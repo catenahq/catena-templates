@@ -31,7 +31,7 @@
     "replaces": [
       "A scanner per application"
     ],
-    "compose_description": "Shared antivirus scanner (clamd). Other applications on this server find it on their own.\n\nhttps://github.com/catenahq/catena-templates/blob/HEAD/blueprints/clamav/README.md\n",
+    "compose_description": "Shared antivirus scanner (clamd). Other applications on this server find it on their own.\n",
     "setup_steps": "1. Click **Deploy**. The scanner starts with the signature database its image carries and keeps it current.\n2. Applications that scan through it (Nextcloud, the mail server) are set up by themselves: each one is redeployed once with the scanner's address. Removing the scanner sets them back.\n\nThe scanner has no web address and no sign-in. The Apps page reports it as unhealthy while it cannot answer a PING.\n"
   },
   "fr": {
@@ -41,7 +41,7 @@
     "replaces": [
       "Un analyseur par application"
     ],
-    "compose_description": "Analyseur antivirus partag\u00e9 (clamd). Les autres applications de ce serveur le trouvent d'elles-m\u00eames.\n\nhttps://github.com/catenahq/catena-templates/blob/HEAD/blueprints/clamav/README.md\n",
+    "compose_description": "Analyseur antivirus partag\u00e9 (clamd). Les autres applications de ce serveur le trouvent d'elles-m\u00eames.\n",
     "setup_steps": "1. Cliquez **Deploy**. L'analyseur d\u00e9marre avec la base de signatures que porte son image et la tient \u00e0 jour.\n2. Les applications qui analysent par son entremise (Nextcloud, le serveur de courriel) se configurent d'elles-m\u00eames : chacune est red\u00e9ploy\u00e9e une fois avec l'adresse de l'analyseur. Le retirer les remet comme avant.\n\nL'analyseur n'a ni adresse web ni connexion. La page Apps le signale en mauvaise sant\u00e9 tant qu'il ne r\u00e9pond pas \u00e0 un PING.\n"
   }
 }

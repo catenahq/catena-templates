@@ -3064,7 +3064,7 @@
       ],
       "compose_file": "blueprints/clamav/docker-compose.yml",
       "en": {
-        "compose_description": "Shared antivirus scanner (clamd). Other applications on this server find it on their own.\n\nhttps://github.com/catenahq/catena-templates/blob/HEAD/blueprints/clamav/README.md\n",
+        "compose_description": "Shared antivirus scanner (clamd). Other applications on this server find it on their own.\n",
         "display_name": "ClamAV antivirus",
         "replaces": [
           "A scanner per application"
@@ -3106,7 +3106,7 @@
         "CLAMD_PORT"
       ],
       "fr": {
-        "compose_description": "Analyseur antivirus partag\u00e9 (clamd). Les autres applications de ce serveur le trouvent d'elles-m\u00eames.\n\nhttps://github.com/catenahq/catena-templates/blob/HEAD/blueprints/clamav/README.md\n",
+        "compose_description": "Analyseur antivirus partag\u00e9 (clamd). Les autres applications de ce serveur le trouvent d'elles-m\u00eames.\n",
         "display_name": "Antivirus ClamAV",
         "replaces": [
           "Un analyseur par application"
