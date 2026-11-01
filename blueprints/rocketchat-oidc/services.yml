@@ -1,0 +1,310 @@
+services:
+  mongodb:
+    image: mongo:8.3.13
+    deploy:
+      restart_policy:
+        condition: any
+      placement:
+        constraints:
+          - node.labels.catena.role==data
+    # Rocket.Chat tails the oplog, which requires a replica set. Starting
+    # mongod with --replSet enables the rs; the healthcheck calls
+    # rs.initiate() on first boot (idempotent: subsequent runs hit the
+    # catch branch and just report status). Single-node rs is fine for
+    # small SMB deployments. The member host is mongodb:27017, and swarm
+    # registers the service name only once the task is healthy, so the
+    # container's own hostname is mongodb to let the healthcheck resolve it.
+    hostname: mongodb
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all", "--oplogSize", "128"]
+    healthcheck:
+      test: |
+        mongosh --quiet --eval "
+          try { rs.status().ok }
+          catch (e) {
+            rs.initiate({_id: 'rs0', members: [{_id: 0, host: 'mongodb:27017'}]}).ok
+          }
+        "
+      interval: 10s
+      start_period: 10m
+      timeout: 10s
+      retries: 5
+    volumes:
+      - mongodb-data:/data/db
+      - mongodb-config:/data/configdb
+    labels:
+      - "vps.auto-update=patch"
+    networks:
+      default:
+        aliases:
+          - mongodb
+
+  rocketchat:
+    image: docker.io/rocketchat/rocket.chat:8.8.1
+    deploy:
+      restart_policy:
+        condition: any
+      placement:
+        constraints:
+          - node.labels.catena.role==data
+    # Uploaded files go to the database unless an administrator picks file-system
+    # storage, which this image keeps here.
+    volumes:
+      - rocketchat-uploads:/app/uploads
+    environment:
+      ROOT_URL: https://${ROCKETCHAT_HOSTNAME}
+      PORT: "3000"
+      MONGO_URL: mongodb://mongodb:27017/rocketchat?replicaSet=rs0
+      MONGO_OPLOG_URL: mongodb://mongodb:27017/local?replicaSet=rs0
+      DEPLOY_METHOD: docker
+
+      # The first administrator, made on the first start. It carries the
+      # server's admin email, so that person's Keycloak sign-in merges into it.
+      ADMIN_USERNAME: ${ADMIN_USERNAME}
+      ADMIN_PASS: ${ADMIN_PASS}
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      ADMIN_EMAIL_VERIFIED: "true"
+
+      # Keycloak sign-in through this app's own entry, whose OIDC_* values
+      # the settings sync writes from the sign-in labels below. Rocket.Chat
+      # registers a custom OAuth service at start only from
+      # Accounts_OAuth_Custom_<Name>=true, and the other
+      # Accounts_OAuth_Custom_<Name>_* values seed its settings once. The
+      # settings are named Accounts_OAuth_Custom-Keycloak-* (the name
+      # lowercased, then capitalized), and an OVERWRITE_SETTING_ for one is
+      # applied on every start: it keeps the address, id and secret in step
+      # with the entry, and the userinfo call's token in the Authorization
+      # header: Keycloak reads a userinfo GET's token from that header only,
+      # and Rocket.Chat's default puts it in the URL. Merging by email across
+      # services is what joins a Keycloak sign-in to an account made with a
+      # password, the first administrator's included.
+      Accounts_OAuth_Custom_Keycloak: "true"
+      Accounts_OAuth_Custom_Keycloak_authorize_path: /protocol/openid-connect/auth
+      Accounts_OAuth_Custom_Keycloak_token_path: /protocol/openid-connect/token
+      Accounts_OAuth_Custom_Keycloak_identity_path: /protocol/openid-connect/userinfo
+      Accounts_OAuth_Custom_Keycloak_scope: openid email profile
+      Accounts_OAuth_Custom_Keycloak_login_style: redirect
+      Accounts_OAuth_Custom_Keycloak_button_label_text: Sign in with Keycloak
+      Accounts_OAuth_Custom_Keycloak_key_field: email
+      Accounts_OAuth_Custom_Keycloak_username_field: preferred_username
+      Accounts_OAuth_Custom_Keycloak_email_field: email
+      Accounts_OAuth_Custom_Keycloak_name_field: name
+      Accounts_OAuth_Custom_Keycloak_merge_users: "true"
+      Accounts_OAuth_Custom_Keycloak_merge_users_distinct_services: "true"
+      Accounts_OAuth_Custom_Keycloak_identity_token_sent_via: header
+      OVERWRITE_SETTING_Accounts_OAuth_Custom-Keycloak-url: ${OIDC_ISSUER_URL:-}
+      OVERWRITE_SETTING_Accounts_OAuth_Custom-Keycloak-id: ${OIDC_CLIENT_ID:-}
+      OVERWRITE_SETTING_Accounts_OAuth_Custom-Keycloak-secret: ${OIDC_CLIENT_SECRET:-}
+      OVERWRITE_SETTING_Accounts_OAuth_Custom-Keycloak-identity_token_sent_via: header
+
+      # An account that has signed in with Keycloak gets no emailed code from
+      # Rocket.Chat: Keycloak's sign-in and its second factor are the check.
+      # An account that never has keeps Rocket.Chat's emailed code. A
+      # setting named bare is its value when Rocket.Chat first creates it,
+      # so an administrator who turns emailed codes back on keeps that.
+      Accounts_twoFactorAuthentication_email_available_for_OAuth_users: "false"
+
+      # Calls open on the bundled Jitsi, whose address is the host jitsi-web's
+      # PUBLIC_URL names, over TLS: that is kept on every start. The other
+      # Jitsi settings take these values when Rocket.Chat first creates them
+      # and are the administrator's from then on. A call is joined by its
+      # link, and every channel can start one.
+      OVERWRITE_SETTING_Jitsi_Domain: meet.${ROCKETCHAT_HOSTNAME_BASE}
+      OVERWRITE_SETTING_Jitsi_SSL: "true"
+      Jitsi_Enabled: "true"
+      Jitsi_URL_Room_Prefix: Catena
+      Jitsi_URL_Room_Hash: "false"
+      Jitsi_Enable_Channels: "true"
+    labels:
+      - "vps.route.host=${DOMAIN_HOST}"
+      - "vps.route.port=3000"
+      - "vps.route.main=true"
+      - "vps.auth.mode=public"
+      - "vps.auth.oidc=true"
+      - "vps.auth.groups=staff"
+      - "vps.auth.oidc.redirect_uris=https://${ROCKETCHAT_HOSTNAME}/_oauth/keycloak"
+      - "vps.auto-update=patch"
+    cap_drop:
+      - NET_RAW
+    networks:
+      catena-network: {}
+      default: {}
+
+  # === JITSI BEGIN -- bundled on-server video conferencing ================
+  # Always-on. The catena.run product story requires sovereign video --
+  # no calls leave the server, no fallback to public meet.jit.si.
+  # JVB advertises ${VPS_PUBLIC_IP} in its ICE candidates, so a call reaches
+  # it directly over UDP. The rocketchat service's Jitsi_* settings point
+  # Rocket.Chat at jitsi-web. Each Jitsi image declares its configuration
+  # folders as volumes and rewrites them from the environment at every start, so
+  # they live in memory and are never kept.
+
+  prosody:
+    image: jitsi/prosody:stable-11031
+    deploy:
+      restart_policy:
+        condition: any
+    volumes:
+      - type: tmpfs
+        target: /config
+        tmpfs:
+          size: 16777216
+      - type: tmpfs
+        target: /prosody-plugins-custom
+        tmpfs:
+          size: 16777216
+    environment:
+      AUTH_TYPE: internal
+      ENABLE_AUTH: "1"
+      ENABLE_GUESTS: "1"
+      GLOBAL_MODULES: ""
+      GLOBAL_CONFIG: ""
+      LDAP_URL: ""
+      LDAP_BASE: ""
+      XMPP_DOMAIN: meet.jitsi
+      XMPP_AUTH_DOMAIN: auth.meet.jitsi
+      XMPP_GUEST_DOMAIN: guest.meet.jitsi
+      XMPP_MUC_DOMAIN: muc.meet.jitsi
+      XMPP_INTERNAL_MUC_DOMAIN: internal-muc.meet.jitsi
+      XMPP_MODULES: ""
+      XMPP_MUC_MODULES: ""
+      XMPP_INTERNAL_MUC_MODULES: ""
+      XMPP_RECORDER_DOMAIN: recorder.meet.jitsi
+      JICOFO_AUTH_USER: focus
+      JICOFO_AUTH_PASSWORD: ${JITSI_JICOFO_AUTH_PASSWORD}
+      JICOFO_COMPONENT_SECRET: ${JITSI_JICOFO_COMPONENT_SECRET}
+      JVB_AUTH_USER: jvb
+      JVB_AUTH_PASSWORD: ${JITSI_JVB_AUTH_PASSWORD}
+      TZ: Etc/UTC
+    labels:
+      - "vps.auto-update=patch"
+    networks:
+      default:
+        aliases:
+          # The jicofo + jvb compose images expect to resolve these
+          # XMPP virtual hosts via DNS to a single host that runs
+          # prosody. Aliasing the prosody container under all the
+          # XMPP_*_DOMAIN names lets the bundled config defaults
+          # work without further wiring.
+          - meet.jitsi
+          - auth.meet.jitsi
+          - guest.meet.jitsi
+          - muc.meet.jitsi
+          - internal-muc.meet.jitsi
+          - recorder.meet.jitsi
+
+  jicofo:
+    image: jitsi/jicofo:stable-11031
+    deploy:
+      restart_policy:
+        condition: any
+    volumes:
+      - type: tmpfs
+        target: /config
+        tmpfs:
+          size: 16777216
+    environment:
+      XMPP_DOMAIN: meet.jitsi
+      XMPP_AUTH_DOMAIN: auth.meet.jitsi
+      XMPP_INTERNAL_MUC_DOMAIN: internal-muc.meet.jitsi
+      XMPP_MUC_DOMAIN: muc.meet.jitsi
+      XMPP_SERVER: prosody
+      JICOFO_COMPONENT_SECRET: ${JITSI_JICOFO_COMPONENT_SECRET}
+      JICOFO_AUTH_USER: focus
+      JICOFO_AUTH_PASSWORD: ${JITSI_JICOFO_AUTH_PASSWORD}
+      TZ: Etc/UTC
+    labels:
+      - "vps.auto-update=patch"
+    networks:
+      - default
+
+  jvb:
+    image: jitsi/jvb:stable-11031
+    deploy:
+      restart_policy:
+        condition: any
+    volumes:
+      - type: tmpfs
+        target: /config
+        tmpfs:
+          size: 16777216
+    # Media UDP MUST be host-published. mode: host bypasses Swarm's
+    # routing mesh so packets carry the real public source IP and
+    # JVB's ICE candidates point at a routable address.
+    #
+    # A swarm host-mode publish is DNAT'd past ufw's INPUT chain, so
+    # this port is open because Docker opened it and closes when the
+    # service stops. The vps.expose.udp label below does not open it:
+    # it DECLARES it, so the host's public-port registry lists it in
+    # /etc/catena/public-ports.effective.json and validation can see
+    # the port rather than discovering it with a scanner.
+    ports:
+      - target: 10000
+        published: 10000
+        protocol: udp
+        mode: host
+    environment:
+      XMPP_AUTH_DOMAIN: auth.meet.jitsi
+      XMPP_INTERNAL_MUC_DOMAIN: internal-muc.meet.jitsi
+      XMPP_SERVER: prosody
+      JVB_AUTH_USER: jvb
+      JVB_AUTH_PASSWORD: ${JITSI_JVB_AUTH_PASSWORD}
+      JVB_BREWERY_MUC: jvbbrewery
+      JVB_PORT: "10000"
+      JVB_ADVERTISE_IPS: ${VPS_PUBLIC_IP}
+      TZ: Etc/UTC
+    labels:
+      - "vps.expose.udp=10000"
+      - "vps.auto-update=patch"
+    networks:
+      - default
+
+  jitsi-web:
+    image: jitsi/web:stable-11031
+    deploy:
+      restart_policy:
+        condition: any
+    volumes:
+      - type: tmpfs
+        target: /config
+        tmpfs:
+          size: 16777216
+      - type: tmpfs
+        target: /usr/share/jitsi-meet/transcripts
+        tmpfs:
+          size: 16777216
+    environment:
+      ENABLE_LETSENCRYPT: "0"
+      ENABLE_HTTP_REDIRECT: "0"
+      ENABLE_HSTS: "0"
+      DISABLE_HTTPS: "1"
+      PUBLIC_URL: https://meet.${ROCKETCHAT_HOSTNAME_BASE}
+      XMPP_DOMAIN: meet.jitsi
+      XMPP_AUTH_DOMAIN: auth.meet.jitsi
+      XMPP_BOSH_URL_BASE: http://prosody:5280
+      XMPP_GUEST_DOMAIN: guest.meet.jitsi
+      XMPP_MUC_DOMAIN: muc.meet.jitsi
+      XMPP_RECORDER_DOMAIN: recorder.meet.jitsi
+      TZ: Etc/UTC
+    labels:
+      # The host PUBLIC_URL names and the rocketchat service's JITSI_HOSTNAME.
+      - "vps.route.host=meet.${ROCKETCHAT_HOSTNAME_BASE}"
+      - "vps.route.port=80"
+      - "vps.auth.mode=public"
+      - "vps.auto-update=patch"
+    cap_drop:
+      - NET_RAW
+    networks:
+      catena-network:
+        aliases:
+          - jitsi-web
+      default: {}
+  # === JITSI END ============================================================
+
+volumes:
+  mongodb-data:
+  mongodb-config:
+  rocketchat-uploads:
+
+networks:
+  catena-network:
+    external: true

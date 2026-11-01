@@ -1,0 +1,32 @@
+requires_catena: 0.11.12
+quiesce:
+  service: "mongodb"
+  pre:
+    - ["mongosh", "--quiet", "--eval", "db.fsyncLock()"]
+  post:
+    - ["mongosh", "--quiet", "--eval", "while (db.adminCommand({currentOp:1}).fsyncLock) { db.fsyncUnlock() }"]
+  timeout_seconds: 60
+images:
+  prosody:
+    rule: {kind: pattern, tag_pattern: 'stable-(\d+)(?:-(\d+))?', migrate_from: 'unstable-(\d{4})-(\d{2})-(\d{2})'}
+  jicofo:
+    rule: {kind: pattern, tag_pattern: 'stable-(\d+)(?:-(\d+))?', migrate_from: 'unstable-(\d{4})-(\d{2})-(\d{2})'}
+  jvb:
+    rule: {kind: pattern, tag_pattern: 'stable-(\d+)(?:-(\d+))?', migrate_from: 'unstable-(\d{4})-(\d{2})-(\d{2})'}
+  jitsi-web:
+    rule: {kind: pattern, tag_pattern: 'stable-(\d+)(?:-(\d+))?', migrate_from: 'unstable-(\d{4})-(\d{2})-(\d{2})'}
+# verify asks the running server in the rocketchat service, with the node of
+# its image, for /api/info (the answer names the version) and the bundled
+# Jitsi web server for its front page, the host the Jitsi_Domain setting
+# points calls at. The MongoDB lock of the backup mode stops writes only, and
+# both requests are reads. Both servers start some time after a deploy, so
+# each request is repeated every 4 seconds while the port refuses or the
+# answer is 502/503, until 150 seconds after the hook started; the last
+# answer is then judged.
+hooks:
+  service: rocketchat
+  timeout_seconds: 180
+  verify:
+    - - node
+      - -e
+      - {file: hooks/verify.js}

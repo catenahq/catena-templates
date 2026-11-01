@@ -1,0 +1,21 @@
+env:
+  DOMAIN_HOST:
+    setting: {default: "chat.{{ cloudflare_zone }}"}
+  ROCKETCHAT_HOSTNAME:
+    setting: {default: "chat.{{ cloudflare_zone }}"}
+  ROCKETCHAT_HOSTNAME_BASE:
+    setting: {default: "{{ cloudflare_zone }}"}
+  ADMIN_USERNAME:
+    setting: {default: "admin"}
+  ADMIN_PASS:
+    generated: {length: 32, alphabet: alnum}
+  ADMIN_EMAIL:
+    setting: {default: "{{ admin_email }}"}
+  VPS_PUBLIC_IP:
+    managed: {expr: "{{ public_ip }}"}
+  JITSI_JICOFO_AUTH_PASSWORD:
+    generated: {length: 64, alphabet: alnum}
+  JITSI_JICOFO_COMPONENT_SECRET:
+    generated: {length: 64, alphabet: alnum}
+  JITSI_JVB_AUTH_PASSWORD:
+    generated: {length: 64, alphabet: alnum}
