@@ -21,9 +21,9 @@ def _f(name, status="added", **kw):
 
 
 def test_a_change_inside_one_app_is_planned():
-    p = adopt.plan([_f("blueprints/x/docker-compose.yml"), _f("sources/x.json", "modified"),
+    p = adopt.plan([_f("blueprints/x/docker-compose.yml"), _f("blueprints/x/app.json", "modified"),
                     _f("blueprints/x/old.md", "removed"), _f("catalog.json", "modified")])
-    assert p == {"app": "x", "copy": ["blueprints/x/docker-compose.yml", "sources/x.json"],
+    assert p == {"app": "x", "copy": ["blueprints/x/app.json", "blueprints/x/docker-compose.yml"],
                  "delete": ["blueprints/x/old.md"], "ignored": ["catalog.json"]}
 
 
@@ -40,7 +40,7 @@ def test_a_rename_copies_the_new_path_and_deletes_the_old():
     ([_f("/blueprints/x/a")], "unsafe path"),
     ([_f("blueprints/X/a")], "not a plain app id"),
     ([_f("blueprints/x/a", "renamed", previous_filename="blueprints/y/a")], "more than one app"),
-    ([_f("templates.json")], "changes no app"),
+    ([_f("catalog.json")], "changes no app"),
 ])
 def test_a_change_outside_one_app_is_refused(files, why):
     with pytest.raises(adopt.AdoptError, match=why):
@@ -132,18 +132,17 @@ def test_the_pull_request_is_the_open_one_at_that_head_on_that_fork():
         adopt.find_pr(lambda *a, **k: prs, "o/r", "fork/y", HEAD)
 
 
-def test_a_moved_app_is_planned_by_its_card_file_and_its_removed_source():
+def test_an_apps_card_file_is_planned_like_any_file_of_the_app():
     p = adopt.plan([_f("blueprints/x/app.json"), _f("blueprints/x/logo.png"),
                     _f("blueprints/x/docker-compose.yml", "modified"),
-                    _f("sources/x.json", "removed"), _f("catalog.json", "modified")])
+                    _f("blueprints/x/old.md", "removed"), _f("catalog.json", "modified")])
     assert p == {"app": "x",
                  "copy": ["blueprints/x/app.json", "blueprints/x/docker-compose.yml",
                           "blueprints/x/logo.png"],
-                 "delete": ["sources/x.json"], "ignored": ["catalog.json"]}
+                 "delete": ["blueprints/x/old.md"], "ignored": ["catalog.json"]}
 
 
-@pytest.mark.parametrize("name", ["catalog-meta.json", "catalog-aliases.json",
-                                  "sources/_meta.json", "sources/_aliases.json"])
+@pytest.mark.parametrize("name", ["catalog-meta.json", "catalog-aliases.json"])
 def test_the_catalogs_own_files_are_no_apps_to_adopt(name):
     with pytest.raises(adopt.AdoptError, match="belongs to no app"):
         adopt.plan([_f("blueprints/x/app.json"), _f(name, "modified")])

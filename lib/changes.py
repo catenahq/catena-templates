@@ -1,10 +1,8 @@
 """Which apps a set of changed paths touches.
 
-An app is `blueprints/<id>/**` (its `app.json` among them) plus `sources/<id>.json`.
-Anything else in the repo (the generated catalog files, `catalog-meta.json`,
-`catalog-aliases.json`, the workflows, the library) belongs to no app, and a
-`sources/` file whose name starts with an underscore (`_meta.json`,
-`_aliases.json`) is the catalog's, not an app's.
+An app is `blueprints/<id>/**` (its `app.json` among them). Anything else in the
+repo (the generated catalog files, `catalog-meta.json`, `catalog-aliases.json`,
+the workflows, the library) belongs to no app.
 """
 from __future__ import annotations
 
@@ -13,7 +11,6 @@ from typing import Iterable
 
 SLUG = re.compile(r"[a-z0-9][a-z0-9-]*")
 BLUEPRINTS_PREFIX = "blueprints/"
-SOURCES_PREFIX = "sources/"
 
 
 def app_id(path: str) -> str | None:
@@ -21,11 +18,6 @@ def app_id(path: str) -> str | None:
     if path.startswith(BLUEPRINTS_PREFIX):
         head, sep, _ = path[len(BLUEPRINTS_PREFIX):].partition("/")
         return head if sep and head else None
-    if path.startswith(SOURCES_PREFIX):
-        name = path[len(SOURCES_PREFIX):]
-        if "/" in name or not name.endswith(".json") or name.startswith("_"):
-            return None
-        return name[: -len(".json")]
     return None
 
 
@@ -35,7 +27,7 @@ def app_ids(paths: Iterable[str]) -> list[str]:
 
 
 def slug_errors(ids: Iterable[str]) -> list[str]:
-    """Ids that are not the plain slug app.schema.json and sources.schema.json require. A pull
+    """Ids that are not the plain slug app.schema.json requires. A pull
     request names its files, so an id is untrusted until it passes."""
     return [f"{i!r} is not a plain app id (lowercase letters, digits, hyphens)"
             for i in ids if not SLUG.fullmatch(i)]

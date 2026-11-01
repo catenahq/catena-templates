@@ -35,32 +35,30 @@ def test_an_image_without_a_numeric_tag_has_no_version(ref):
         versions.version_of_image(ref)
 
 
-def _source(service="app"):
-    return {"x-catena": {"domain": {"host": "x", "service": service, "port": 80}}}
-
-
-def _compose(block=None):
+def _compose(block=None, routed="app"):
+    """A compose whose service `routed` carries the main address's labels."""
     doc = {"services": {
         "app": {"image": "nextcloud:31.0.8-apache"},
         "db": {"image": "postgres:18.6-alpine"},
     }}
+    doc["services"].setdefault(routed, {})["labels"] = ["vps.route.host=x", "vps.route.port=80"]
     if block:
         doc["x-catena"] = block
     return doc
 
 
 def test_the_version_comes_from_the_main_address_service():
-    assert versions.app_version(_source("app"), _compose()) == "31.0.8"
-    assert versions.app_version(_source("db"), _compose()) == "18.6"
+    assert versions.app_version(_compose(routed="app")) == "31.0.8"
+    assert versions.app_version(_compose(routed="db")) == "18.6"
 
 
 def test_version_from_names_the_service_when_the_block_has_one():
-    assert versions.app_version(_source("app"), _compose({"version_from": "db"})) == "18.6"
+    assert versions.app_version(_compose({"version_from": "db"})) == "18.6"
 
 
 def test_a_service_without_an_image_has_no_version():
     with pytest.raises(versions.VersionError):
-        versions.app_version(_source("worker"), _compose())
+        versions.app_version(_compose(routed="worker"))
 
 
 def test_the_revision_is_one_plus_the_highest_revision_at_that_version():
@@ -94,24 +92,23 @@ def test_tags_order_by_version_then_revision_not_as_text():
         "app/1.9.0-1", "app/1.9.0-2", "app/1.9.0-10", "app/1.10.0-1", "app/2.0.0-1"]
 
 
-def test_an_app_is_one_app_across_its_blueprint_and_its_source():
+def test_an_app_is_one_app_across_its_folder_files():
     assert versions.scope_errors([
         "blueprints/outline/docker-compose.yml",
         "blueprints/outline/README.md",
-        "sources/outline.json",
-        "templates.json",
+        "blueprints/outline/app.json",
         "catalog.json",
     ]) == []
 
 
 def test_a_change_to_two_apps_fails_the_scope_check():
-    errors = versions.scope_errors(["blueprints/outline/docker-compose.yml", "sources/kimai.json"])
+    errors = versions.scope_errors(["blueprints/outline/docker-compose.yml", "blueprints/kimai/app.json"])
     assert errors == ["the change touches 2 apps (kimai, outline); "
                       "a commit or pull request changes one app"]
 
 
 def test_a_change_to_no_app_passes_the_scope_check():
-    assert versions.scope_errors(["lib/model.py", "sources/_meta.json"]) == []
+    assert versions.scope_errors(["lib/model.py", "catalog-meta.json"]) == []
 
 
 @pytest.fixture
@@ -129,9 +126,8 @@ def repo(tmp_path, monkeypatch):
     def commit(image):
         (tmp_path / "blueprints" / "web").mkdir(parents=True, exist_ok=True)
         (tmp_path / "blueprints" / "web" / "docker-compose.yml").write_text(
-            f"services:\n  web:\n    image: {image}\n")
-        (tmp_path / "sources").mkdir(exist_ok=True)
-        (tmp_path / "sources" / "web.json").write_text(json.dumps(_source("web")))
+            f"services:\n  web:\n    image: {image}\n    labels:\n      - vps.route.host=x\n")
+        (tmp_path / "blueprints" / "web" / "app.json").write_text(_card({"upstream_url": "https://fixture.test"}))
         git("add", "-A")
         git("commit", "-qm", image)
 
@@ -344,19 +340,17 @@ def test_tested_lists_the_apps_that_need_a_run(repo, capsys):
 
 
 def test_every_app_in_the_catalog_has_a_readable_version():
-    for path in sorted((ROOT / "sources").glob("*.json")):
-        if path.name == "_meta.json":
-            continue
-        app = path.stem
+    for path in sorted((ROOT / "blueprints").glob("*/app.json")):
+        app = path.parent.name
         tag = versions.next_tag(app, [])
         assert versions.parse_tag(app, tag) is not None, tag
 
 
 def test_scope_command_exit_codes(monkeypatch, capsys):
-    monkeypatch.setattr(sys, "stdin", io.StringIO("sources/a.json\nsources/b.json\n"))
+    monkeypatch.setattr(sys, "stdin", io.StringIO("blueprints/a/app.json\nblueprints/b/app.json\n"))
     assert versions.main(["scope"]) == 1
     assert "touches 2 apps" in capsys.readouterr().err
-    monkeypatch.setattr(sys, "stdin", io.StringIO("sources/a.json\n"))
+    monkeypatch.setattr(sys, "stdin", io.StringIO("blueprints/a/app.json\n"))
     assert versions.main(["scope"]) == 0
 
 
@@ -364,7 +358,6 @@ def test_scope_command_exit_codes(monkeypatch, capsys):
 
 RUNTIME, VERIFICATION, PRESENTATION = versions.RUNTIME, versions.VERIFICATION, versions.PRESENTATION
 COMPOSE = "blueprints/web/docker-compose.yml"
-SOURCE = "sources/web.json"
 CARD = "blueprints/web/app.json"
 
 
@@ -381,36 +374,20 @@ def _put(git, files=None, remove=()):
     return _head()
 
 
-def _card(block=None, **top):
-    doc = {"id": "web", "title": "Web", **top}
-    doc["x-catena"] = {"domain": {"host": "x", "service": "web", "port": 80},
-                       "en": {"display_name": "Web"}, "bench": {"pack": "a"}, **(block or {})}
-    return json.dumps(doc)
-
-
-def _flat_card(**fields):
-    return json.dumps({"schema": 1, "en": {"display_name": "Web"}, "bench": {"pack": "a"}, **fields})
+def _card(fields=None):
+    """A card file's text: the fields of `fields` over a small valid card."""
+    return json.dumps({"schema": 1, "en": {"display_name": "Web"}, "bench": {"pack": "a"}, **(fields or {})})
 
 
 def _classes(a, b):
     return versions.changed_classes("web", a, b)
 
 
-def _only(git, path, text):
-    """A commit where `path` is the app's only card file, holding `text`."""
-    other = SOURCE if path == CARD else CARD
-    return _put(git, {path: text}, remove=[other] if (versions.ROOT / other).exists() else ())
-
-
 def test_every_schema_property_has_a_class():
-    names = set()
-    for name in ("sources.schema.json", "app.schema.json"):
-        path = ROOT / name
-        if path.exists():
-            props = json.loads(path.read_text())["properties"]
-            names |= (set(props) - {"x-catena"}) | set(props.get("x-catena", {}).get("properties", {}))
+    names = set(json.loads((ROOT / "app.schema.json").read_text())["properties"])
     assert names
     assert names <= versions.FIELD_CLASSES.keys(), sorted(names - versions.FIELD_CLASSES.keys())
+    assert versions.FIELD_CLASSES.keys() <= names, sorted(versions.FIELD_CLASSES.keys() - names)
     assert set(versions.FIELD_CLASSES.values()) <= {RUNTIME, VERIFICATION, PRESENTATION}
     assert set(versions.FILE_CLASSES.values()) <= {RUNTIME, VERIFICATION, PRESENTATION, versions.DERIVED}
 
@@ -484,7 +461,7 @@ def test_a_commit_of_neat_files_that_packs_to_the_same_bytes_has_no_class(repo):
 def test_equal_objects_and_files_outside_the_app_change_nothing(repo):
     git, _ = repo
     before = _head()
-    after = _put(git, {"notes.txt": "x", "sources/other.json": "{}"})
+    after = _put(git, {"notes.txt": "x", "blueprints/other/app.json": "{}"})
     assert _classes(before, after) == frozenset()
     assert _classes(before, before) == frozenset()
 
@@ -498,97 +475,54 @@ def test_a_mode_change_of_the_compose_is_runtime(repo):
     assert _classes(before, _head()) == {RUNTIME}
 
 
-@pytest.mark.parametrize("block,top,expected", [
-    ({"en": {"display_name": "Webby"}}, {}, PRESENTATION),
-    ({"fr": {"display_name": "Toile"}}, {}, PRESENTATION),
-    ({"sizing": {"peak_ram_mb": 5}}, {}, PRESENTATION),
-    ({"upstream_url": "https://x"}, {}, PRESENTATION),
-    ({}, {"title": "Webby"}, PRESENTATION),
-    ({"bench": {"pack": "b"}}, {}, VERIFICATION),
-    ({"app_name": "catena-web"}, {}, VERIFICATION),
-    ({"domain": {"host": "y", "service": "web", "port": 80}}, {}, RUNTIME),
-    ({"requires_catena": "0.11.0"}, {}, RUNTIME),
-    ({"env_required_when": {}}, {}, RUNTIME),
-    ({"field_nobody_listed": 1}, {}, RUNTIME),
-    ({}, {"id": "other"}, RUNTIME),
+@pytest.mark.parametrize("fields,expected", [
+    ({"en": {"display_name": "Webby"}}, PRESENTATION),
+    ({"fr": {"display_name": "Toile"}}, PRESENTATION),
+    ({"sizing": {"peak_ram_mb": 5}}, PRESENTATION),
+    ({"upstream_url": "https://x"}, PRESENTATION),
+    ({"categories": ["B"]}, PRESENTATION),
+    ({"bench": {"pack": "b"}}, VERIFICATION),
+    ({"app_name": "catena-web"}, VERIFICATION),
+    ({"schema": 2}, RUNTIME),
+    ({"field_nobody_listed": 1}, RUNTIME),
+    ({"requires_catena": "0.11.0"}, RUNTIME),
 ])
-def test_a_source_field_takes_its_class(repo, block, top, expected):
+def test_an_app_json_field_takes_its_class(repo, fields, expected):
     git, _ = repo
-    start = _put(git, {SOURCE: _card()})
-    changed = _put(git, {SOURCE: _card(block, **top)})
+    start = _put(git, {CARD: _card()})
+    changed = _put(git, {CARD: _card(fields)})
     assert _classes(start, changed) == {expected}
 
 
 def test_a_change_of_several_fields_holds_each_class(repo):
     git, _ = repo
-    start = _put(git, {SOURCE: _card()})
-    changed = _put(git, {SOURCE: _card({"en": {"display_name": "B"}, "bench": {"pack": "b"}})})
+    start = _put(git, {CARD: _card()})
+    changed = _put(git, {CARD: _card({"en": {"display_name": "B"}, "bench": {"pack": "b"}})})
     assert _classes(start, changed) == {PRESENTATION, VERIFICATION}
 
 
 def test_a_card_file_changed_in_form_alone_is_presentation(repo):
     git, _ = repo
-    start = _only(git, CARD, _flat_card())
-    changed = _only(git, CARD, json.dumps(json.loads(_flat_card()), indent=2))
+    start = _put(git, {CARD: _card()})
+    changed = _put(git, {CARD: json.dumps(json.loads(_card()), indent=2)})
     assert _classes(start, changed) == {PRESENTATION}
 
 
-def test_an_app_json_field_takes_its_class(repo):
-    git, _ = repo
-    start = _only(git, CARD, _flat_card())
-    assert _classes(start, _put(git, {CARD: _flat_card(en={"display_name": "B"})})) == {PRESENTATION}
-    start = _head()
-    kept = {"en": {"display_name": "B"}}
-    assert _classes(start, _put(git, {CARD: _flat_card(bench={"pack": "z"}, **kept)})) == {VERIFICATION}
-    start = _head()
-    assert _classes(start, _put(git, {CARD: _flat_card(bench={"pack": "z"}, requires_catena="1", **kept)})) == {RUNTIME}
-
-
-@pytest.mark.parametrize("text", ["{not json", "[1, 2]", '{"x-catena": 3}', '{"en": 1, "x-catena": {"en": 2}}'])
+@pytest.mark.parametrize("text", ["{not json", "[1, 2]", "3"])
 def test_a_card_file_that_does_not_parse_to_fields_is_runtime(repo, text):
     git, _ = repo
-    for path in (SOURCE, CARD):
-        start = _only(git, path, _card() if path == SOURCE else _flat_card())
-        assert _classes(start, _only(git, path, text)) == {RUNTIME}
-        assert _classes(_head(), start) == {RUNTIME}
+    start = _put(git, {CARD: _card()})
+    assert _classes(start, _put(git, {CARD: text})) == {RUNTIME}
+    assert _classes(_head(), start) == {RUNTIME}
 
 
 def test_a_card_that_appears_or_goes_is_compared_with_no_fields(repo):
     git, _ = repo
-    before = _put(git, remove=[SOURCE])
-    added = _put(git, {CARD: _flat_card()})
+    before = _put(git, remove=[CARD])
+    added = _put(git, {CARD: _card()})
     everything = {PRESENTATION, VERIFICATION, RUNTIME}
     assert _classes(before, added) == everything
     assert _classes(added, _put(git, remove=[CARD])) == everything
-
-
-def test_both_names_at_one_commit_are_runtime_unless_neither_changed(repo):
-    git, _ = repo
-    start = _put(git, {SOURCE: _card()})
-    both = _put(git, {CARD: _flat_card()})
-    assert _classes(start, both) == {RUNTIME}
-    more = _put(git, {"blueprints/web/README.md": "r"})
-    assert _classes(both, more) == {PRESENTATION}
-
-
-def test_a_source_moved_to_app_json_is_compared_field_by_field(repo):
-    git, _ = repo
-    block = {"en": {"display_name": "Web"}, "bench": {"pack": "a"}}
-    start = _put(git, {SOURCE: _card()})
-    moved = {"id": "web", "title": "Web", "en": block["en"], "bench": block["bench"]}
-
-    def move(card):
-        return _put(git, {CARD: json.dumps(card)}, remove=[SOURCE])
-
-    assert _classes(start, move({**moved, "domain": {"host": "x", "service": "web", "port": 80}})) == {PRESENTATION}
-    back = _put(git, {SOURCE: _card()}, remove=[CARD])
-    assert _classes(back, move({**moved, "en": {"display_name": "B"},
-                                "domain": {"host": "x", "service": "web", "port": 80}})) == {PRESENTATION}
-    back = _put(git, {SOURCE: _card()}, remove=[CARD])
-    assert _classes(back, move(moved)) == {RUNTIME}
-    back = _put(git, {SOURCE: _card()}, remove=[CARD])
-    assert _classes(back, move({**moved, "bench": {"pack": "q"},
-                                "domain": {"host": "x", "service": "web", "port": 80}})) == {VERIFICATION}
 
 
 def test_the_classes_command_prints_one_per_line(repo, capsys):
@@ -757,10 +691,10 @@ def test_runtime_change_is_the_newest_commit_that_added_the_app_or_changed_its_r
 
 def test_runtime_change_counts_a_change_of_a_runtime_card_field(repo):
     git, _ = repo
-    _put(git, {SOURCE: _card()})
-    _put(git, {SOURCE: _card({"en": {"display_name": "B"}})})
-    runtime = _put(git, {SOURCE: _card({"requires_catena": "0.11.0"})})
-    _put(git, {SOURCE: _card({"requires_catena": "0.11.0", "bench": {"pack": "z"}})})
+    _put(git, {CARD: _card()})
+    _put(git, {CARD: _card({"en": {"display_name": "B"}})})
+    runtime = _put(git, {CARD: _card({"schema": 2})})
+    _put(git, {CARD: _card({"schema": 2, "bench": {"pack": "z"}})})
     assert versions.runtime_change("web") == runtime
 
 
@@ -780,13 +714,13 @@ def _labelled(**labels):
 
 def test_the_version_service_is_the_only_service_that_carries_a_route_host():
     compose = _labelled(app=["vps.route.host=${DOMAIN_HOST}"], db=["a=b"])
-    assert versions.version_service(None, compose) == "app"
-    assert versions.app_version(None, compose) == "1.0"
+    assert versions.version_service(compose) == "app"
+    assert versions.app_version(compose) == "1.0"
 
 
 def test_the_version_service_is_the_marked_one_among_several_hosts():
     compose = _labelled(admin={"vps.route.host": "a"}, app={"vps.route.host": "b", "vps.route.main": "true"})
-    assert versions.version_service({"x-catena": {}}, compose) == "app"
+    assert versions.version_service(compose) == "app"
 
 
 @pytest.mark.parametrize("compose", [
@@ -796,19 +730,17 @@ def test_the_version_service_is_the_marked_one_among_several_hosts():
 ])
 def test_an_app_with_no_single_main_address_has_no_version_service(compose):
     with pytest.raises(versions.VersionError):
-        versions.version_service(None, compose)
+        versions.version_service(compose)
 
 
-def test_version_from_and_the_source_come_before_the_labels():
+def test_version_from_comes_before_the_labels():
     compose = _labelled(app=["vps.route.host=a"], db=["a=b"])
-    assert versions.version_service(None, {**compose, "x-catena": {"version_from": "db"}}) == "db"
-    assert versions.version_service(_source("db"), compose) == "db"
+    assert versions.version_service({**compose, "x-catena": {"version_from": "db"}}) == "db"
 
 
-def test_the_next_tag_of_an_app_without_a_source_reads_the_labels(repo):
+def test_the_next_tag_of_an_app_reads_the_labels(repo):
     git, _ = repo
-    _put(git, {COMPOSE: "services:\n  web:\n    image: web:2.0.1\n    labels:\n      - vps.route.host=x\n"},
-         remove=[SOURCE])
+    _put(git, {COMPOSE: "services:\n  web:\n    image: web:2.0.1\n    labels:\n      - vps.route.host=x\n"})
     assert versions.next_tag("web", []) == "web/2.0.1-1"
 
 
@@ -835,7 +767,7 @@ def _replace_with_submodule(git, path):
 def test_a_light_file_turned_into_a_link_or_a_submodule_is_runtime(repo, name, swap):
     git, _ = repo
     path = f"blueprints/web/{name}"
-    start = _put(git, {path: _flat_card() if name == "app.json" else "one"}, remove=())
+    start = _put(git, {path: _card() if name == "app.json" else "one"}, remove=())
     swapped = swap(git, path)
     assert _classes(start, swapped) == {RUNTIME}
     assert _classes(swapped, start) == {RUNTIME}
@@ -854,17 +786,17 @@ def test_an_executable_bit_on_a_light_file_keeps_its_class(repo):
 
 def test_a_number_written_as_a_float_is_another_value(repo):
     git, _ = repo
-    port = lambda value: _card({"domain": {"host": "x", "service": "web", "port": value}})  # noqa: E731
-    start = _put(git, {SOURCE: port(8080)})
-    assert _classes(start, _put(git, {SOURCE: port(8080.0)})) == {RUNTIME}
+    field = lambda value: _card({"field_nobody_listed": {"port": value}})  # noqa: E731
+    start = _put(git, {CARD: field(8080)})
+    assert _classes(start, _put(git, {CARD: field(8080.0)})) == {RUNTIME}
     start = _head()
-    assert _classes(start, _put(git, {SOURCE: port(True)})) == {RUNTIME}
+    assert _classes(start, _put(git, {CARD: field(True)})) == {RUNTIME}
 
 
 def test_the_order_of_keys_inside_a_field_is_not_a_difference(repo):
     git, _ = repo
-    start = _put(git, {SOURCE: _card({"domain": {"host": "x", "service": "web", "port": 80}})})
-    reordered = _put(git, {SOURCE: _card({"domain": {"port": 80, "service": "web", "host": "x"}})})
+    start = _put(git, {CARD: _card({"sizing": {"peak_ram_mb": 1, "idle_ram_mb": 2}})})
+    reordered = _put(git, {CARD: _card({"sizing": {"idle_ram_mb": 2, "peak_ram_mb": 1}})})
     assert _classes(start, reordered) == {PRESENTATION}
 
 
@@ -883,19 +815,19 @@ def _routed(**marks):
 
 @pytest.mark.parametrize("value", ["true", "TRUE", "yes", "1", " true "])
 def test_the_last_service_marked_main_is_the_main_address(value):
-    assert versions.version_service(None, _routed(a=value, b=value)) == "b"
-    assert versions.app_version(None, _routed(a=value, b=value)) == "2.0"
+    assert versions.version_service(_routed(a=value, b=value)) == "b"
+    assert versions.app_version(_routed(a=value, b=value)) == "2.0"
 
 
 def test_a_label_catena_admin_does_not_read_as_true_marks_nothing():
     for value in ("on", "false", "0", ""):
         with pytest.raises(versions.VersionError):
-            versions.version_service(None, _routed(b=value))
+            versions.version_service(_routed(b=value))
 
 
 def test_the_only_address_needs_no_mark():
     compose = _routed()
     del compose["services"]["b"], compose["services"]["c"]
-    assert versions.version_service(None, compose) == "a"
+    assert versions.version_service(compose) == "a"
     with pytest.raises(versions.VersionError):
-        versions.version_service(None, _routed())
+        versions.version_service(_routed())

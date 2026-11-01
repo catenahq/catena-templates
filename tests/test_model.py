@@ -21,51 +21,38 @@ from lib import model  # noqa: E402
 
 
 def _valid_doc(slug: str = "example") -> dict:
+    """An app.json as written (the folder name is the id)."""
+    prose = {
+        "display_name": "Example",
+        "summary": "test",
+        "what_it_is": "test",
+        "replaces": [],
+        "compose_description": "test",
+        "setup_steps": "1. none",
+    }
     return {
-        "id": slug,
-        "type": 2,
-        "title": "Example",
-        "name": slug,
+        "schema": 1,
+        "app_name": slug,
+        "upstream_url": "https://example.com",
         "categories": ["Testing"],
-        "platform": "linux",
-        "x-catena": {
-            "app_name": slug,
-            "upstream_url": "https://example.com",
-            "sso_mode": "none",
-            "domain": {"host": "x.example.com", "service": "app", "port": 80},
-            "bench": {"pack": "nodb"},
-            "sizing": {"peak_ram_mb": 256},
-            "en": {
-                "display_name": "Example",
-                "what_it_is": "test",
-                "replaces": [],
-                "compose_description": "test",
-                "setup_steps": "1. none",
-            },
-            "fr": {
-                "display_name": "Example",
-                "what_it_is": "test",
-                "replaces": [],
-                "compose_description": "test",
-                "setup_steps": "1. aucune",
-            },
-        },
+        "sso_mode": "none",
+        "bench": {"pack": "nodb"},
+        "sizing": {"peak_ram_mb": 256},
+        "en": dict(prose),
+        "fr": {**prose, "setup_steps": "1. aucune"},
     }
 
 
 @pytest.fixture
-def sources(tmp_path, monkeypatch):
-    """A sources/ tree plus the blueprint tree beside it. A template is
+def catalog(tmp_path, monkeypatch):
+    """A blueprint tree with its catalog-meta.json beside it. A template is
     two hand-edited files and the loader reads both, so a fixture that
     redirects only one of them tests a layout that cannot exist."""
-    src = tmp_path / "sources"
-    src.mkdir()
     blueprints = tmp_path / "blueprints"
-    _blueprint(blueprints, "example")
-    _meta(src, ["example"])
-    monkeypatch.setattr(model, "SOURCES", src)
     monkeypatch.setattr(model, "BLUEPRINTS", blueprints)
-    return src
+    _blueprint(blueprints, "example")
+    _meta(tmp_path, ["example"])
+    return tmp_path
 
 
 ENV = {
@@ -89,18 +76,18 @@ def _block(block: dict, slug: str = "example") -> None:
     path.write_text(yaml.safe_dump({model.BLOCK_KEY: block, "services": {}}, sort_keys=False))
 
 
-def _meta(sources: Path, order: list[str]) -> None:
-    (sources / model.META_NAME).write_text(
-        json.dumps({"order": order})
-    )
+def _meta(root: Path, order: list[str]) -> None:
+    (root / model.CATALOG_META).write_text(json.dumps({"order": order}))
 
 
-def _write(sources: Path, doc: dict, name: str | None = None) -> None:
-    (sources / f"{name or doc['id']}.json").write_text(json.dumps(doc))
+def _write(doc: dict | None = None, slug: str = "example") -> None:
+    app_dir = model.BLUEPRINTS / slug
+    app_dir.mkdir(parents=True, exist_ok=True)
+    (app_dir / model.CARD_NAME).write_text(json.dumps(doc or _valid_doc(slug)))
 
 
-def test_valid_source_loads(sources):
-    _write(sources, _valid_doc())
+def test_valid_card_loads(catalog):
+    _write()
     entries = model.load_sources()
     assert [e.slug for e in entries] == ["example"]
     assert entries[0].sizing["peak_ram_mb"] == 256
@@ -109,73 +96,60 @@ def test_valid_source_loads(sources):
     assert entries[0].managed_env == {}
 
 
-def test_meta_prefixed_files_are_not_templates(sources):
-    """_meta.json sits in the same directory and must not be loaded as a
-    template."""
-    _write(sources, _valid_doc())
-    assert [e.slug for e in model.load_sources()] == ["example"]
-
-
-def test_id_must_match_filename(sources):
-    _write(sources, _valid_doc("example"), name="something-else")
-    with pytest.raises(model.SourceError, match="does not match the filename stem"):
-        model.load_sources()
-
-
-def test_order_drives_the_returned_sequence(sources):
+def test_order_drives_the_returned_sequence(catalog):
     """The order is curated (hubs first), not alphabetical: it is what
-    the Portainer gallery and the generated docs index show."""
+    the generated catalog and its preview show."""
     for slug in ("alpha", "omega", "middle"):
-        _write(sources, _valid_doc(slug))
+        _write(slug=slug)
         _blueprint(model.BLUEPRINTS, slug)
-    _meta(sources, ["omega", "alpha", "middle"])
+    _meta(catalog, ["omega", "alpha", "middle"])
     assert [e.slug for e in model.load_sources()] == ["omega", "alpha", "middle"]
 
 
-def test_template_missing_from_order_is_an_error(sources):
-    _write(sources, _valid_doc("example"))
-    _write(sources, _valid_doc("unlisted"))
+def test_template_missing_from_order_is_an_error(catalog):
+    _write()
+    _write(slug="unlisted")
     _blueprint(model.BLUEPRINTS, "unlisted")
-    with pytest.raises(model.SourceError, match="not listed in _meta.json order"):
+    with pytest.raises(model.SourceError, match="not listed in catalog-meta.json order"):
         model.load_sources()
 
 
-def test_order_naming_an_absent_template_is_an_error(sources):
-    _write(sources, _valid_doc("example"))
-    _meta(sources, ["example", "deleted-template"])
-    with pytest.raises(model.SourceError, match="has no source file"):
+def test_order_naming_an_absent_template_is_an_error(catalog):
+    _write()
+    _meta(catalog, ["example", "deleted-template"])
+    with pytest.raises(model.SourceError, match="has no app.json"):
         model.load_sources()
 
 
-def test_a_template_without_a_compose_in_its_blueprint_is_an_error(sources):
+def test_a_template_without_a_compose_in_its_blueprint_is_an_error(catalog):
     """A template's compose is found at blueprints/<id>/docker-compose.yml;
     a template without that file has none, which is an error."""
     (model.BLUEPRINTS / "example" / model.COMPOSE_NAME).unlink()
-    _write(sources, _valid_doc())
+    _write()
     with pytest.raises(model.SourceError, match="does not exist"):
         model.load_sources()
 
 
-def test_compose_file_is_derived_from_the_id(sources):
-    _write(sources, _valid_doc())
+def test_compose_file_is_derived_from_the_id(catalog):
+    _write()
     entry = model.load_sources()[0]
     assert entry.compose_file == "blueprints/example/docker-compose.yml"
     assert entry.compose_path == model.BLUEPRINTS / "example" / "docker-compose.yml"
 
 
-def test_a_compose_without_an_env_is_an_error(sources):
+def test_a_compose_without_an_env_is_an_error(catalog):
     """The deploy form lists the keys of the block's env; a template with
     none lists nothing."""
-    _write(sources, _valid_doc())
+    _write()
     (model.BLUEPRINTS / "example" / model.COMPOSE_NAME).write_text("services: {}\n")
     with pytest.raises(model.SourceError, match="declares no x-catena env"):
         model.load_sources()
 
 
-def test_env_defaults_are_the_env_as_key_value_lines(sources):
+def test_env_defaults_are_the_env_as_key_value_lines(catalog):
     """A setting gives its default, a generated secret the lookup expression
     that mints it, a managed key its expression; the order is the block's."""
-    _write(sources, _valid_doc())
+    _write()
     _block({"schema": 2, "env": {
         "DOMAIN_HOST": {"managed": {"expr": "x.{{ cloudflare_zone }}"}},
         "NAME": {"setting": {"default": "auto, 7", "label": {"en": "Name", "fr": "Nom"}}},
@@ -190,8 +164,6 @@ def test_env_defaults_are_the_env_as_key_value_lines(sources):
         "KEY={{ lookup('password', '/dev/null length=64 chars=hexdigits') | lower }}",
     ]
     assert entry.managed_env == {"DOMAIN_HOST": "x.{{ cloudflare_zone }}"}
-    assert entry.env_label("NAME") == "Name"
-    assert entry.env_label("DB_PASSWORD") is None
 
 
 @pytest.mark.parametrize("env,needle", [
@@ -207,15 +179,15 @@ def test_env_defaults_are_the_env_as_key_value_lines(sources):
     ({"LD_PRELOAD": {"setting": {"default": "x"}}}, "LD_PRELOAD"),
     ({"https_proxy": {"setting": {"default": "x"}}}, "https_proxy"),
 ])
-def test_an_env_the_format_refuses_is_reported(sources, env, needle):
-    _write(sources, _valid_doc())
+def test_an_env_the_format_refuses_is_reported(catalog, env, needle):
+    _write()
     _block({"schema": 2, "env": env})
     with pytest.raises(model.SourceError, match=needle):
         model.load_sources()
 
 
-def test_the_other_schema_2_fields_are_checked(sources):
-    _write(sources, _valid_doc())
+def test_the_other_schema_2_fields_are_checked(catalog):
+    _write()
     good = {
         "version_from": "app",
         "hooks": {"service": "app", "configure": [["sh", "-c", "true"]], "timeout_seconds": 60},
@@ -253,8 +225,8 @@ def test_the_other_schema_2_fields_are_checked(sources):
             model.load_sources()
 
 
-def test_a_block_names_its_format(sources):
-    _write(sources, _valid_doc())
+def test_a_block_names_its_format(catalog):
+    _write()
     path = model.BLUEPRINTS / "example" / model.COMPOSE_NAME
     path.write_text(yaml.safe_dump({model.BLOCK_KEY: {"env": ENV}, "services": {}}))
     with pytest.raises(model.SourceError, match="'schema' is a required property"):
@@ -264,8 +236,8 @@ def test_a_block_names_its_format(sources):
         model.load_sources()
 
 
-def test_a_block_holds_no_field_the_format_lacks(sources):
-    _write(sources, _valid_doc())
+def test_a_block_holds_no_field_the_format_lacks(catalog):
+    _write()
     _block({"schema": 2, "pause_during_migrate_cutover": True})
     with pytest.raises(model.SourceError, match="pause_during_migrate_cutover"):
         model.load_sources()
@@ -280,46 +252,56 @@ def test_a_block_holds_no_field_the_format_lacks(sources):
     ({"env": {"bucket": "B", "access_key": "A", "secret_key": "S"},
       "switch": {"service": "app"}}, "commands"),
 ])
-def test_an_object_store_the_format_refuses_is_reported(sources, object_store, needle):
-    _write(sources, _valid_doc())
+def test_an_object_store_the_format_refuses_is_reported(catalog, object_store, needle):
+    _write()
     _block({"schema": 2, "object_store": object_store})
     with pytest.raises(model.SourceError, match=needle):
         model.load_sources()
 
 
-def test_a_source_holds_none_of_the_blocks_fields(sources):
+def test_a_card_holds_none_of_the_blocks_fields(catalog):
     """The block in the compose is the one home of these fields."""
-    for name, value in (("quiesce", {}), ("lifecycle", {}),
-                        ("object_store", {}), ("env_managed_keys", ["DOMAIN_HOST"])):
+    for name, value in (("quiesce", {}), ("lifecycle", {}), ("domain", {}),
+                        ("requires_catena", "0.11.0"), ("type", 2), ("title", "T"),
+                        ("env_managed_keys", ["DOMAIN_HOST"])):
         doc = _valid_doc()
-        doc["x-catena"][name] = value
-        _write(sources, doc)
-        with pytest.raises(model.SourceError, match=name):
+        doc[name] = value
+        _write(doc)
+        with pytest.raises(model.SourceError, match=f"app.json: .*{name}"):
             model.load_sources()
 
 
-def test_schema_violation_is_reported(sources):
+def test_schema_violation_is_reported(catalog):
     doc = _valid_doc()
-    doc["x-catena"]["sso_mode"] = "invented-mode"
-    _write(sources, doc)
+    doc["sso_mode"] = "invented-mode"
+    _write(doc)
     with pytest.raises(model.SourceError, match="sso_mode"):
         model.load_sources()
 
 
-def test_sizing_requires_peak_ram(sources):
+def test_sizing_requires_peak_ram(catalog):
     """The bench scheduler reads peak_ram_mb to size parallel slots; a
     template without it cannot be scheduled at all."""
     doc = _valid_doc()
-    del doc["x-catena"]["sizing"]["peak_ram_mb"]
-    _write(sources, doc)
+    del doc["sizing"]["peak_ram_mb"]
+    _write(doc)
     with pytest.raises(model.SourceError, match="peak_ram_mb"):
         model.load_sources()
 
 
-def test_quiesce_commands_are_argv_lists(sources):
+@pytest.mark.parametrize("lang", ["en", "fr"])
+def test_the_card_line_is_required(catalog, lang):
+    doc = _valid_doc()
+    del doc[lang]["summary"]
+    _write(doc)
+    with pytest.raises(model.SourceError, match="summary"):
+        model.load_sources()
+
+
+def test_quiesce_commands_are_argv_lists(catalog):
     """The host runs each command through docker exec with no shell, so a
     shell line is refused at load. post is optional."""
-    _write(sources, _valid_doc())
+    _write()
     quiesce = {
         "service": "app",
         "pre": "php occ maintenance:mode --on",
@@ -334,25 +316,25 @@ def test_quiesce_commands_are_argv_lists(sources):
         ["php", "occ", "maintenance:mode", "--on"]]
 
 
-def test_quiesce_names_its_service(sources):
-    _write(sources, _valid_doc())
+def test_quiesce_names_its_service(catalog):
+    _write()
     _block({"schema": 2, "quiesce": {"pre": [["php", "occ", "status"]], "timeout_seconds": 10}})
     with pytest.raises(model.SourceError, match="'service' is a required property"):
         model.load_sources()
 
 
-def test_quiesce_timeout_cap(sources):
-    _write(sources, _valid_doc())
+def test_quiesce_timeout_cap(catalog):
+    _write()
     _block({"schema": 2, "quiesce": {
         "service": "app", "pre": [["php", "occ", "status"]], "timeout_seconds": 600}})
     with pytest.raises(model.SourceError, match="timeout_seconds"):
         model.load_sources()
 
 
-def test_lifecycle_ready_is_one_argv(sources):
+def test_lifecycle_ready_is_one_argv(catalog):
     """ready is one command: the update lane asks it until it answers, and
     a list of commands has no single answer to wait for."""
-    _write(sources, _valid_doc())
+    _write()
     lifecycle = {
         "service": "app",
         "ready": [["php", "occ", "status"]],
@@ -368,10 +350,10 @@ def test_lifecycle_ready_is_one_argv(sources):
 
 
 @pytest.mark.parametrize("volumes", [[], ["code", "code"], ["code/../etc"], "code"])
-def test_lifecycle_versioned_volumes_are_distinct_volume_names(sources, volumes):
+def test_lifecycle_versioned_volumes_are_distinct_volume_names(catalog, volumes):
     """The host copies `<stack>_<name>` before an update and puts the copy
     back on a rollback, so each entry is one volume name, listed once."""
-    _write(sources, _valid_doc())
+    _write()
     lifecycle = {
         "service": "app",
         "migrate": [["php", "occ", "db:add-missing-indices"]],
@@ -386,11 +368,11 @@ def test_lifecycle_versioned_volumes_are_distinct_volume_names(sources, volumes)
     assert model.load_sources()[0].lifecycle["versioned_volumes"] == ["code", "conf.d"]
 
 
-def test_a_lifecycle_declares_a_migration_or_versioned_volumes(sources):
+def test_a_lifecycle_declares_a_migration_or_versioned_volumes(catalog):
     """An application whose new version upgrades a volume as it starts has
     no migration to declare, only the volumes a rollback puts back. A block
     with neither gives the host nothing to do."""
-    _write(sources, _valid_doc())
+    _write()
     lifecycle = {"service": "app", "versioned_volumes": ["data"], "timeout_seconds": 300}
     _block({"schema": 2, "lifecycle": lifecycle})
     assert model.load_sources()[0].lifecycle == lifecycle
@@ -400,8 +382,8 @@ def test_a_lifecycle_declares_a_migration_or_versioned_volumes(sources):
         model.load_sources()
 
 
-def test_empty_sources_directory_is_an_error(sources):
-    with pytest.raises(model.SourceError, match="no template files"):
+def test_a_catalog_whose_order_names_no_app_is_an_error(catalog):
+    with pytest.raises(model.SourceError, match="order names 'example', which has no app.json"):
         model.load_sources()
 
 
@@ -412,13 +394,13 @@ def test_real_sources_load():
     assert len({e.slug for e in entries}) == len(entries)
 
 
-def test_the_cross_file_invariants_still_run_without_jsonschema(sources, monkeypatch,
+def test_the_cross_file_invariants_still_run_without_jsonschema(catalog, monkeypatch,
                                                                capsys):
     """build/render-ci.sh may run with a python3 and no pip, so the render has
     to work without jsonschema. Layer 1 is skipped and SAYS so; layer 2 is
     not."""
     monkeypatch.setattr(model, "jsonschema", None)
-    _write(sources, _valid_doc())
+    _write()
     (model.BLUEPRINTS / "example" / model.COMPOSE_NAME).write_text("services: {}\n")
     with pytest.raises(model.SourceError, match="declares no x-catena env"):
         model.load_sources()
@@ -426,19 +408,20 @@ def test_the_cross_file_invariants_still_run_without_jsonschema(sources, monkeyp
 
 
 def test_the_real_catalog_renders_without_jsonschema(monkeypatch):
-    """The no-pip render end to end: no monkeypatched sources, no jsonschema."""
+    """The no-pip render end to end: no monkeypatched tree, no jsonschema."""
     monkeypatch.setattr(model, "jsonschema", None)
     assert len(model.load_sources()) >= 20
 
 
 def _fixture_tree(root: Path) -> None:
     """A one-app tree in another repository's layout."""
-    (root / "sources").mkdir()
-    (root / "sources" / "example.json").write_text(json.dumps(_valid_doc()))
-    (root / "sources" / model.META_NAME).write_text(json.dumps({
+    _write(slug="example", doc=None) if False else None
+    app_dir = root / "blueprints" / "example"
+    _blueprint(root / "blueprints", "example")
+    (app_dir / model.CARD_NAME).write_text(json.dumps(_valid_doc()))
+    (root / model.CATALOG_META).write_text(json.dumps({
         "order": ["example"],
         "sizing": {"measurement_host": "host", "last_measured_at": "2026-01-01"}}))
-    _blueprint(root / "blueprints", "example")
 
 
 def _tools(root: Path, *args: str) -> subprocess.CompletedProcess:
@@ -458,15 +441,14 @@ def test_the_data_root_defaults_to_the_tools_checkout():
 def test_templates_root_moves_the_data_but_not_the_schemas(tmp_path):
     _fixture_tree(tmp_path)
     code = ("from lib import model; "
-            "print(model.ROOT, model.SOURCES, model.BLUEPRINTS, model.SOURCE_SCHEMA, "
+            "print(model.ROOT, model.BLUEPRINTS, model.CARD_SCHEMA, "
             "[e.slug for e in model.load_sources()], sep='\\n')")
     done = _tools(tmp_path, "-c", code)
     assert done.returncode == 0, done.stderr
-    root, sources, blueprints, schema, slugs = done.stdout.splitlines()
+    root, blueprints, schema, slugs = done.stdout.splitlines()
     assert Path(root) == tmp_path.resolve()
-    assert Path(sources) == tmp_path.resolve() / "sources"
     assert Path(blueprints) == tmp_path.resolve() / "blueprints"
-    assert Path(schema) == ROOT / "sources.schema.json"
+    assert Path(schema) == ROOT / "app.schema.json"
     assert slugs == "['example']"
 
 
@@ -474,11 +456,12 @@ def test_the_render_writes_into_the_tree_templates_root_names(tmp_path):
     _fixture_tree(tmp_path)
     done = _tools(tmp_path, str(ROOT / "build" / "render.py"))
     assert done.returncode == 0, done.stderr
-    for name in ("templates.json", "catalog.json", "index.html"):
+    for name in ("catalog.json", "index.html"):
         assert (tmp_path / name).is_file(), name
+    assert not (tmp_path / "templates.json").exists()
     assert (tmp_path / "blueprints" / "example" / "README.md").is_file()
-    templates = json.loads((tmp_path / "templates.json").read_text())["templates"]
-    assert [t["name"] for t in templates] == ["example"]
+    catalog = json.loads((tmp_path / "catalog.json").read_text())["templates"]
+    assert [t["id"] for t in catalog] == ["example"]
 
 
 def _png(width: int = 256, height: int | None = None, depth: int = 8, colour: int = 6,
@@ -496,11 +479,11 @@ def _logo(png: bytes, source: dict | None = None) -> None:
     (model.BLUEPRINTS / "example" / model.LOGO_NAME).write_bytes(png)
     doc = _valid_doc()
     if source is not None:
-        doc["x-catena"]["logo"] = source
-    _write(model.SOURCES, doc)
+        doc["logo"] = source
+    _write(doc)
 
 
-def test_a_logo_with_its_source_loads(sources):
+def test_a_logo_with_its_source_loads(catalog):
     _logo(_png(), {"source": "https://example.com/logo.svg", "notice": "Example is a mark."})
     assert model.load_sources()[0].catena["logo"]["notice"] == "Example is a mark."
     _logo(_png(128), {"source": "https://example.com/logo.svg"})
@@ -516,24 +499,24 @@ def test_a_logo_with_its_source_loads(sources):
     (_png(513), "each side must be 128 to 512"),
     (_png(padding=model.LOGO_MAX_BYTES), "the control panel keeps at most"),
 ])
-def test_a_logo_the_panel_would_refuse_is_reported(sources, png, needle):
+def test_a_logo_the_panel_would_refuse_is_reported(catalog, png, needle):
     _logo(png, {"source": "https://example.com/logo.svg"})
     with pytest.raises(model.SourceError, match=needle):
         model.load_sources()
 
 
-def test_a_logo_and_its_source_field_come_together(sources):
+def test_a_logo_and_its_source_field_come_together(catalog):
     _logo(_png())
-    with pytest.raises(model.SourceError, match="has no x-catena.logo"):
+    with pytest.raises(model.SourceError, match="has no logo naming its source"):
         model.load_sources()
     (model.BLUEPRINTS / "example" / model.LOGO_NAME).unlink()
     _logo(_png(), {"source": "https://example.com/logo.svg"})
     (model.BLUEPRINTS / "example" / model.LOGO_NAME).unlink()
-    with pytest.raises(model.SourceError, match="x-catena.logo is set but"):
+    with pytest.raises(model.SourceError, match="logo is set but"):
         model.load_sources()
 
 
-def test_a_logo_source_holds_no_other_field(sources):
+def test_a_logo_source_holds_no_other_field(catalog):
     _logo(_png(), {"source": "https://example.com/logo.svg", "licence": "MIT"})
     with pytest.raises(model.SourceError, match="licence"):
         model.load_sources()
@@ -544,49 +527,6 @@ def _service_labels(labels) -> None:
     path.write_text(yaml.safe_dump({
         model.BLOCK_KEY: {"schema": 2, "env": ENV},
         "services": {"app": {"labels": labels}}}))
-
-
-@pytest.mark.parametrize("labels", [
-    ["vps.homepage.name=Example"],
-    {"vps.homepage.name": "Example"},
-    ["vps.route.port=80"],
-])
-def test_a_name_label_equal_to_the_display_name_or_absent_passes(sources, labels):
-    _write(sources, _valid_doc())
-    _service_labels(labels)
-    assert [e.slug for e in model.load_sources()] == ["example"]
-
-
-@pytest.mark.parametrize("labels", [
-    ["vps.homepage.name=Other"],
-    {"vps.homepage.name": "Other"},
-])
-def test_a_name_label_different_from_the_display_name_fails(sources, labels):
-    _write(sources, _valid_doc())
-    _service_labels(labels)
-    with pytest.raises(model.SourceError, match="vps.homepage.name='Other'"):
-        model.load_sources()
-
-
-def test_a_name_label_on_another_service_is_not_read(sources):
-    _write(sources, _valid_doc())
-    path = model.BLUEPRINTS / "example" / model.COMPOSE_NAME
-    path.write_text(yaml.safe_dump({
-        model.BLOCK_KEY: {"schema": 2, "env": ENV},
-        "services": {"app": {}, "db": {"labels": ["vps.homepage.name=Other"]}}}))
-    assert [e.slug for e in model.load_sources()] == ["example"]
-
-
-def _card_doc() -> dict:
-    cat = _valid_doc()["x-catena"]
-    return {"schema": 1, **{k: v for k, v in cat.items() if k != "domain"},
-            "categories": ["Testing"]}
-
-
-def _write_card(slug: str = "example", doc: dict | None = None) -> None:
-    app_dir = model.BLUEPRINTS / slug
-    app_dir.mkdir(parents=True, exist_ok=True)
-    (app_dir / model.CARD_NAME).write_text(json.dumps(doc or _card_doc()))
 
 
 def _routed(labels, block: dict | None = None, slug: str = "example") -> None:
@@ -600,11 +540,10 @@ def _routed(labels, block: dict | None = None, slug: str = "example") -> None:
 ROUTE = ["vps.route.host=${DOMAIN_HOST}", "vps.route.port=80"]
 
 
-def test_a_card_file_loads_with_its_web_address_derived_from_the_compose(sources):
-    _write_card()
+def test_a_card_file_loads_with_its_web_address_derived_from_the_compose(catalog):
+    _write()
     _routed(ROUTE)
     entry = model.load_sources()[0]
-    assert entry.card
     assert (entry.slug, entry.title) == ("example", "Example")
     assert entry.domain == {"host": "x.example.com", "service": "app", "port": 80}
     assert entry.catena["domain"] == entry.domain
@@ -613,114 +552,92 @@ def test_a_card_file_loads_with_its_web_address_derived_from_the_compose(sources
     assert entry.catena["app_name"] == "example"
 
 
-def test_a_card_over_the_size_the_panel_reads_is_reported(sources):
-    doc = _card_doc()
+def test_a_card_over_the_size_the_panel_reads_is_reported(catalog):
+    doc = _valid_doc()
     doc["en"]["extra_notes"] = "x" * model.CARD_MAX_BYTES
-    _write_card(doc=doc)
+    _write(doc)
     _routed(ROUTE)
     with pytest.raises(model.SourceError, match=rf"app\.json is \d+ bytes.*at most {model.CARD_MAX_BYTES}"):
         model.load_sources()
 
 
-def test_a_card_missing_its_long_description_is_reported(sources):
-    doc = _card_doc()
+def test_a_card_missing_its_long_description_is_reported(catalog):
+    doc = _valid_doc()
     del doc["fr"]["compose_description"]
-    _write_card(doc=doc)
+    _write(doc)
     _routed(ROUTE)
     with pytest.raises(model.SourceError, match="compose_description"):
         model.load_sources()
 
 
-def test_a_card_loads_with_no_sources_directory(tmp_path, monkeypatch):
-    monkeypatch.setattr(model, "SOURCES", tmp_path / "sources")
-    monkeypatch.setattr(model, "BLUEPRINTS", tmp_path / "blueprints")
-    _blueprint(model.BLUEPRINTS, "example")
-    _write_card()
-    (tmp_path / model.CATALOG_META).write_text(json.dumps({"order": ["example"]}))
-    assert [e.slug for e in model.load_sources()] == ["example"]
-
-
-def test_catalog_meta_json_is_the_order_when_it_exists(sources):
-    _write_card()
-    _write(sources, _valid_doc("other"))
-    _blueprint(model.BLUEPRINTS, "other")
-    _meta(sources, ["other", "example"])
-    assert [e.slug for e in model.load_sources()] == ["other", "example"]
-    (sources.parent / model.CATALOG_META).write_text(json.dumps({"order": ["example"]}))
-    assert model.meta_path() == sources.parent / model.CATALOG_META
-    with pytest.raises(model.SourceError, match="sources/other.json: not listed in catalog-meta.json order"):
-        model.load_sources()
-
-
-def test_an_app_holds_a_card_or_a_source_never_both(sources):
-    _write(sources, _valid_doc())
-    _write_card()
-    with pytest.raises(model.SourceError, match="duplicate id 'example'.*never both"):
-        model.load_sources()
-
-
-def test_a_card_file_is_checked_against_its_schema(sources):
+def test_a_card_file_is_checked_against_its_schema(catalog):
     for field, value in (("x-catena", {}), ("domain", {"host": "h", "service": "a", "port": 1}),
                          ("requires_catena", "0.11.0"), ("title", "T"), ("schema", 2),
                          ("sso_mode", "invented-mode")):
-        doc = _card_doc()
+        doc = _valid_doc()
         doc[field] = value
-        _write_card(doc=doc)
+        _write(doc)
         with pytest.raises(model.SourceError, match=f"app.json: .*{field}"):
             model.load_sources()
 
 
-def test_a_card_folder_name_is_a_plain_app_id(sources):
-    _write_card("Bad_Name")
+def test_a_card_folder_name_is_a_plain_app_id(catalog):
+    _write({**_valid_doc(), "app_name": "bad-name"}, slug="Bad_Name")
     _blueprint(model.BLUEPRINTS, "Bad_Name")
     with pytest.raises(model.SourceError, match="not a plain app id"):
         model.load_sources()
 
 
-def test_a_moved_apps_compose_carries_no_homepage_label(sources):
-    _write_card()
-    _routed(ROUTE + ["vps.homepage.name=Example", "vps.homepage.description=x"])
+@pytest.mark.parametrize("label", ["vps.homepage.name=Example", "vps.homepage.icon=x.png",
+                                   "vps.homepage.hidden=true"])
+def test_a_compose_carries_no_homepage_label(catalog, label):
+    _write()
+    _routed(ROUTE + [label, "vps.homepage.description=x"])
     with pytest.raises(model.SourceError) as err:
         model.load_sources()
     text = str(err.value)
-    assert "app labels vps.homepage.name; the card data lives in blueprints/example/app.json" in text
+    key = label.split("=")[0]
+    assert f"app labels {key}; the card data lives in blueprints/example/app.json" in text
     assert "vps.homepage.description" in text
     _routed(ROUTE + ["vps.display-name=Example"])
-    assert model.load_sources()[0].card
+    assert [e.slug for e in model.load_sources()] == ["example"]
 
 
-def test_a_cards_logo_field_and_file_come_together(sources):
-    _write_card()
+def test_a_homepage_label_on_any_service_is_refused(catalog):
+    _write()
+    path = model.BLUEPRINTS / "example" / model.COMPOSE_NAME
+    path.write_text(yaml.safe_dump({
+        model.BLOCK_KEY: {"schema": 2, "env": ENV},
+        "services": {"app": {}, "db": {"labels": {"vps.homepage.name": "Other"}}}}))
+    with pytest.raises(model.SourceError, match="db labels vps.homepage.name"):
+        model.load_sources()
+
+
+def test_a_cards_logo_field_and_file_come_together(catalog):
+    _write()
     (model.BLUEPRINTS / "example" / model.LOGO_NAME).write_bytes(_png())
     with pytest.raises(model.SourceError, match="has no logo naming its source"):
         model.load_sources()
-    doc = _card_doc()
+    doc = _valid_doc()
     doc["logo"] = {"source": "https://example.com/logo.svg", "notice": "Example is a mark."}
-    _write_card(doc=doc)
+    _write(doc)
     assert model.load_sources()[0].catena["logo"]["notice"] == "Example is a mark."
     (model.BLUEPRINTS / "example" / model.LOGO_NAME).unlink()
     with pytest.raises(model.SourceError, match="logo is set but"):
         model.load_sources()
 
 
-def test_requires_catena_comes_from_the_block_or_the_source(sources):
-    _write(sources, _valid_doc())
+def test_requires_catena_comes_from_the_block(catalog):
+    _write()
     assert model.load_sources()[0].requires_catena is None
-    doc = _valid_doc()
-    doc["x-catena"]["requires_catena"] = "0.10.0"
-    _write(sources, doc)
-    assert model.load_sources()[0].requires_catena == "0.10.0"
     _block({"schema": 2, "requires_catena": "0.11.5"})
-    assert model.load_sources()[0].requires_catena == "0.11.5"
-    (sources / "example.json").unlink()
-    _write_card()
     assert model.load_sources()[0].requires_catena == "0.11.5"
     _block({"schema": 2})
     assert model.load_sources()[0].requires_catena is None
 
 
-def test_the_block_refuses_a_malformed_requires_catena(sources):
-    _write_card()
+def test_the_block_refuses_a_malformed_requires_catena(catalog):
+    _write()
     _block({"schema": 2, "requires_catena": "v0.11"})
     with pytest.raises(model.SourceError, match="requires_catena"):
         model.load_sources()
@@ -767,17 +684,15 @@ def test_the_main_address_of_several_is_the_last_one_marked():
 
 
 @pytest.mark.parametrize("port", ["", "http", "0", "70000"])
-def test_a_main_service_without_a_port_number_is_reported(sources, port):
-    _write_card()
+def test_a_main_service_without_a_port_number_is_reported(catalog, port):
+    _write()
     _routed(["vps.route.host=${DOMAIN_HOST}", f"vps.route.port={port}"])
     with pytest.raises(model.SourceError, match="not a port number"):
         model.load_sources()
 
 
-def test_the_web_address_derived_from_every_real_compose_is_the_one_its_source_holds():
-    """`domain` repeats the compose, so an app held as app.json loses the field and
-    nothing changes for its readers."""
+def test_every_real_compose_gives_a_web_address_or_names_version_from():
     for entry in model.load_sources():
         derived, errors = model.derive_domain(model.compose_doc(entry.compose_path))
         assert errors == []
-        assert derived == entry.catena.get("domain"), entry.slug
+        assert derived is not None or entry.block.get("version_from"), entry.slug

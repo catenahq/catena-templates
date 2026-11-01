@@ -213,27 +213,11 @@ def test_the_app_check_script_runs_in_its_own_uv_environment():
     """build/app_check.py declares its own dependencies: run it where only they exist."""
     done = subprocess.run(
         ["uv", "run", "--quiet", str(ROOT / "build" / "app_check.py"), "changed"],
-        input="blueprints/foo/docker-compose.yml\nsources/foo.json\n",
+        input="blueprints/foo/docker-compose.yml\nblueprints/foo/app.json\n",
         cwd=ROOT.parent, capture_output=True, text=True, check=False,
         env={k: v for k, v in os.environ.items() if k != "PYTHONPATH"})
     assert done.returncode == 0, done.stderr
     assert done.stdout.strip() == "foo"
-
-
-def _source(tmp_path, monkeypatch, body: str):
-    (tmp_path / "sources").mkdir()
-    (tmp_path / "sources" / "demo.json").write_text(body)
-    monkeypatch.setattr(app_checks, "SOURCES", tmp_path / "sources")
-
-
-def test_checker_names_the_release_the_entry_requires(tmp_path, monkeypatch):
-    _source(tmp_path, monkeypatch, '{"x-catena": {"requires_catena": "0.11.10"}}')
-    assert app_checks.checker_image("demo") == "ghcr.io/catenahq/catena-admin:v0.11.10"
-
-
-def test_checker_without_a_required_release_is_the_newest(tmp_path, monkeypatch):
-    _source(tmp_path, monkeypatch, '{"x-catena": {"app_name": "catena-demo"}}')
-    assert app_checks.checker_image("demo") == "ghcr.io/catenahq/catena-admin:latest"
 
 
 def _compose(tmp_path, monkeypatch, body: str):
@@ -243,22 +227,14 @@ def _compose(tmp_path, monkeypatch, body: str):
 
 
 def test_checker_names_the_release_the_block_requires(tmp_path, monkeypatch):
-    """An app held as app.json has no source: the compose block names the release."""
-    monkeypatch.setattr(app_checks, "SOURCES", tmp_path / "sources")
     _compose(tmp_path, monkeypatch, "x-catena:\n  schema: 2\n  requires_catena: 0.11.12\nservices: {}\n")
     assert app_checks.checker_image("demo") == "ghcr.io/catenahq/catena-admin:v0.11.12"
     _compose(tmp_path, monkeypatch, "x-catena:\n  schema: 2\nservices: {}\n")
     assert app_checks.checker_image("demo") == "ghcr.io/catenahq/catena-admin:latest"
 
 
-def test_the_block_outranks_the_source_for_the_required_release(tmp_path, monkeypatch):
-    _source(tmp_path, monkeypatch, '{"x-catena": {"requires_catena": "0.11.10"}}')
-    _compose(tmp_path, monkeypatch, "x-catena:\n  schema: 2\n  requires_catena: 0.11.12\nservices: {}\n")
-    assert app_checks.checker_image("demo") == "ghcr.io/catenahq/catena-admin:v0.11.12"
-
-
 def test_the_checker_command_prints_the_image(tmp_path, monkeypatch, capsys):
-    _source(tmp_path, monkeypatch, '{"x-catena": {"requires_catena": "0.12.0"}}')
+    _compose(tmp_path, monkeypatch, "x-catena:\n  schema: 2\n  requires_catena: 0.12.0\nservices: {}\n")
     assert app_checks.main(["checker", "demo"]) == 0
     assert capsys.readouterr().out.strip() == "ghcr.io/catenahq/catena-admin:v0.12.0"
 
@@ -320,9 +296,8 @@ def test_changed_paths_reduce_to_app_ids():
     paths = [
         "blueprints/nextcloud-s3-oidc/docker-compose.yml",
         "blueprints/nextcloud-s3-oidc/README.md",
-        "sources/nextcloud-s3-oidc.json",
-        "sources/_meta.json",
-        "templates.json",
+        "blueprints/nextcloud-s3-oidc/app.json",
+        "catalog-meta.json",
         "lib/model.py",
         "blueprints/outline/logo.png",
         "blueprints/stray.txt",
@@ -335,13 +310,12 @@ def test_a_card_file_belongs_to_its_app_and_the_catalogs_root_files_to_none():
     assert changes.app_ids([
         "blueprints/outline/app.json", "blueprints/outline/docker-compose.yml",
         "catalog-meta.json", "catalog-aliases.json", "app.schema.json"]) == ["outline"]
-    assert changes.app_ids(["catalog-meta.json", "catalog-aliases.json", "app.schema.json",
-                            "sources/_aliases.json"]) == []
-    assert changes.app_ids(["blueprints/outline/app.json", "sources/kimai.json"]) == ["kimai", "outline"]
+    assert changes.app_ids(["catalog-meta.json", "catalog-aliases.json", "app.schema.json"]) == []
+    assert changes.app_ids(["blueprints/outline/app.json", "blueprints/kimai/app.json"]) == ["kimai", "outline"]
 
 
 def test_an_id_that_is_not_a_plain_slug_is_refused(monkeypatch, capsys):
-    ids = changes.app_ids(["blueprints/a b$(x)/docker-compose.yml", "sources/ok-app.json"])
+    ids = changes.app_ids(["blueprints/a b$(x)/docker-compose.yml", "blueprints/ok-app/app.json"])
     assert changes.slug_errors(ids) == [
         "'a b$(x)' is not a plain app id (lowercase letters, digits, hyphens)"]
     import io

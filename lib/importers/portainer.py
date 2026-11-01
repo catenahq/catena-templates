@@ -1,4 +1,4 @@
-"""Portainer App Templates lists, versions 2 and 3: the format Catena serves.
+"""Portainer App Templates lists, versions 2 and 3.
 
 A list is {"version": "2" or "3", "templates": [...]}; version 3 gives each
 entry a numeric id. The fields read are those of Portainer's Template type

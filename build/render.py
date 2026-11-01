@@ -3,10 +3,10 @@
 # requires-python = ">=3.11"
 # dependencies = ["jsonschema>=4.23", "pyyaml>=6.0"]
 # ///
-"""Render sources/ and blueprints/*/app.json into blueprints/ + templates.json + catalog.json + index.html.
+"""Render blueprints/*/app.json and the composes into READMEs, logos, catalog.json and index.html.
 
 Thin entrypoint; the work lives in lib/render.py. Run it after every
-sources/ or app.json edit and commit the generated diff -- CI re-runs it and fails
+app.json or compose edit and commit the generated diff -- CI re-runs it and fails
 the PR if the committed artifacts drift.
 """
 from __future__ import annotations
@@ -23,5 +23,5 @@ if __name__ == "__main__":
     try:
         sys.exit(render_all())
     except SourceError as exc:
-        print(f"sources are not valid:\n{exc}", file=sys.stderr)
+        print(f"the catalog is not valid:\n{exc}", file=sys.stderr)
         sys.exit(1)

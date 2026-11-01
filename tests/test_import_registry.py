@@ -143,17 +143,14 @@ sys.exit(1)
 def catalog(tmp_path, monkeypatch):
     """An empty catalog tree the importer writes into and the loader reads
     back, the fixture banned-word list, and the fixture network."""
-    sources = tmp_path / "sources"
-    sources.mkdir()
     blueprints = tmp_path / "blueprints"
     blueprints.mkdir()
-    (sources / model.META_NAME).write_text(json.dumps({
+    (tmp_path / model.CATALOG_META).write_text(json.dumps({
         "order": [],
         "sizing": {"last_measured_at": "x", "measurement_host": "x", "measurement_method": "x"},
     }, indent=2) + "\n")
     banned = tmp_path / "banned-words.json"
     banned.write_text(json.dumps(BANNED))
-    monkeypatch.setattr(model, "SOURCES", sources)
     monkeypatch.setattr(model, "BLUEPRINTS", blueprints)
     monkeypatch.setattr(pipeline, "BANNED_WORDS", banned)
     monkeypatch.delenv(pipeline.APPLINT_ENV, raising=False)
@@ -179,8 +176,8 @@ def _run(*args: str) -> int:
     return pipeline.main([REGISTRY, *args], ALL)
 
 
-def _source(slug: str) -> dict:
-    return json.loads((model.SOURCES / f"{slug}.json").read_text())
+def _card(slug: str) -> dict:
+    return json.loads((model.BLUEPRINTS / slug / model.CARD_NAME).read_text())
 
 
 def _compose(slug: str) -> dict:
@@ -196,7 +193,7 @@ def _stub_checker(tmp_path: Path) -> Path:
 
 def test_a_stack_entry_is_imported_from_its_repository(catalog):
     assert _run() == 0
-    cat = _source("web-stack")["x-catena"]
+    cat = _card("web-stack")
     assert cat["status"] == "imported"
     assert cat["origin"] == {
         "registry": REGISTRY,
@@ -209,7 +206,8 @@ def test_a_stack_entry_is_imported_from_its_repository(catalog):
         "path": "web/docker-compose.yml",
         "project": "https://github.com/upstream/web",
     }
-    assert cat["domain"] == {"host": "web-stack.{{ cloudflare_zone }}", "service": "web", "port": 80}
+    assert model.derive_domain(_compose("web-stack"))[0] == {
+        "host": "web-stack.{{ cloudflare_zone }}", "service": "web", "port": 80}
     assert cat["en"]["what_it_is"] == "A web app -- with its database"
 
     compose = _compose("web-stack")
@@ -245,7 +243,7 @@ def test_the_imported_compose_starts_with_a_block_that_holds_its_env(catalog):
     assert block["schema"] == 2
     assert block["env"]["ADMIN_PASSWORD"] == {"generated": {"length": 32, "alphabet": "alnum"}}
     assert block["env"]["TZ"] == {"setting": {"default": "UTC"}}
-    assert "env_defaults" not in _source("notes")["x-catena"]
+    assert "env_defaults" not in _card("notes")
 
 
 def test_an_imported_entry_is_held_as_neat_files_that_pack_to_its_compose(catalog):
@@ -276,7 +274,7 @@ def test_a_single_container_entry_becomes_a_one_service_compose(catalog):
     assert notes["ports"] == ["53/udp"]
     assert notes["deploy"]["restart_policy"]["condition"] == "any"
 
-    cat = _source("notes")["x-catena"]
+    cat = _card("notes")
     assert cat["upstream_url"] == "https://hub.docker.com/r/example/notes"
     assert cat["origin"]["source"] == REGISTRY
     assert cat["origin"]["licence"] == "MIT"
@@ -299,17 +297,17 @@ def test_a_copied_files_licence_is_recorded_whatever_it_is(catalog, capsys, monk
     _copied_from(monkeypatch, "example/gpl")
     _copied_from(monkeypatch, "example/bare")
     assert _run() == 0
-    origin = _source("copyleft")["x-catena"]["origin"]
+    origin = _card("copyleft")["origin"]
     assert origin["licence"] == "GPL-3.0"
     assert origin["attribution"] == "https://github.com/example/gpl/blob/main/LICENSE"
-    origin = _source("no-licence")["x-catena"]["origin"]
+    origin = _card("no-licence")["origin"]
     assert origin["licence"] == "NOASSERTION" and origin["attribution"] == "https://github.com/example/bare"
     assert "skipped, licence not permitted: 0" in capsys.readouterr().out
 
 
 def test_a_source_on_no_forge_the_importer_pins_is_skipped(catalog, capsys):
     assert _run() == 0
-    assert not (model.SOURCES / "elsewhere.json").exists()
+    assert not (model.BLUEPRINTS / "elsewhere").exists()
     out = capsys.readouterr().out
     assert "skipped, licence unknown: 1" in out
     assert "Elsewhere: the repository https://gitlab.com/example/app is not on GitHub" in out
@@ -326,9 +324,8 @@ def test_settings_named_like_a_password_secret_or_key_are_minted(catalog):
     web = _env("web-stack")
     assert web["SITE_TITLE"] == "Hello"
     assert web["APP_PORT"] == "80"
-    # The value is one the public catalog collapses to its sentinel, and the
-    # host's catalog render mints.
-    assert render.strip_jinja_for_portainer(web["DB_PASSWORD"]) == render.SENTINEL_MANAGED
+    # The host mints a generated value.
+    assert render.LOOKUP_PASSWORD_RE.search(web["DB_PASSWORD"])
 
     assert pipeline.secret_like("API_KEY") and pipeline.secret_like("DBPASSWORD")
     for name in ("POSTGRES_PASSWORD_FILE", "MONKEY", "KEYCLOAK_URL", "TZ"):
@@ -342,7 +339,7 @@ def test_the_checkers_corrections_are_applied_and_what_it_leaves_is_recorded(cat
     assert [c[:6] for c in calls] == [["--fix", "--json", "--nodes", "2", "--name", "catena-web-stack"],
                                       ["--fix", "--json", "--nodes", "2", "--name", "catena-notes"]]
     assert "container_name" not in _compose("web-stack")["services"]["web"]
-    pending = _source("web-stack")["x-catena"]["pending"]
+    pending = _card("web-stack")["pending"]
     assert "X6 error web: Service web mounts the Docker socket" in pending["findings"]
     assert not any("container_name goes" in f for f in pending["findings"])
     assert not any("checker not run" in f for f in pending["findings"])
@@ -354,7 +351,7 @@ def test_without_the_checker_the_import_warns_and_records_it(catalog, capsys):
     assert _run("--applint", str(tmp_path / "absent")) == 0
     err = capsys.readouterr().err
     assert "is not an executable" in err and "WARN: no catena-applint" in err
-    findings = _source("notes")["x-catena"]["pending"]["findings"]
+    findings = _card("notes")["pending"]["findings"]
     assert any(f.startswith("checker not run") for f in findings)
 
 
@@ -370,9 +367,9 @@ def test_make_lint_refuses_an_error_the_checker_leaves_until_it_is_settled(catal
             "an app checker error") in out
     assert "did not run" not in out
     for slug in ("web-stack", "notes"):
-        path = model.SOURCES / f"{slug}.json"
+        path = model.BLUEPRINTS / slug / model.CARD_NAME
         doc = json.loads(path.read_text())
-        pending = doc["x-catena"]["pending"]
+        pending = doc["pending"]
         pending["findings"] = [f for f in pending["findings"] if not f.startswith("X6 error")]
         path.write_text(json.dumps(doc))
     assert quiesce_lint.lint_all() == 0, capsys.readouterr().out
@@ -398,7 +395,7 @@ def test_an_entry_whose_title_or_id_holds_a_banned_word_is_skipped(catalog, caps
     assert ("skipped, other reasons: 2\n  Forbiddenware Notes: its title 'Forbiddenware Notes' "
             "holds forbiddenware, a word on the banned-word list check:unicode refuses\n"
             "  Jotter: its id 'jotter-forbiddenware' holds forbiddenware") in out
-    assert sorted(p.name for p in model.SOURCES.iterdir()) == [model.META_NAME, "forbiddenwares.json"]
+    assert sorted(p.name for p in model.BLUEPRINTS.iterdir()) == ["forbiddenwares"]
 
 
 @pytest.mark.parametrize("text,words", [
@@ -435,7 +432,6 @@ def test_the_imported_tier_validates_and_renders(catalog):
     assert _run() == 0
     entries = {e.slug: e for e in model.load_sources()}
     assert set(entries) == {"web-stack", "notes"}
-    templates = []
     for entry in entries.values():
         assert entry.imported
         cat = render.render_catalog_entry(entry)
@@ -443,16 +439,10 @@ def test_the_imported_tier_validates_and_renders(catalog):
         assert cat["origin"] == entry.origin
         assert cat["bench_pack"] is None and cat["bench_fixture"] == "skip"
         assert cat["sizing"] == {"peak_ram_mb": None}
-        template = render.render_portainer_template(entry, "logo.svg")
-        assert template["description"].startswith("Imported, untested: ")
-        assert "Imported, untested: not yet tested" in template["note"]
-        assert "Template source:" in template["note"]
-        templates.append(template)
         body = readme.render_readme(entry)
         assert "**Imported, untested.**" in body and "**Importé, non testé.**" in body
         assert "**Template source:**" in body and "**Source du modèle :**" in body
         assert not re.search(r"\{\{\s", body)
-    assert model.validate_output({"version": "3", "templates": templates}) == []
     assert "Notes (imported, untested)" in render.render_index_html(
         list(entries.values()), model.load_meta())
 
@@ -462,64 +452,63 @@ def test_a_curated_entry_carries_no_import_stubs(catalog):
     for everything a curated entry has: no pending list, a bench pack and a
     measured peak. The origin may stay."""
     assert _run() == 0
-    path = model.SOURCES / "notes.json"
+    path = model.BLUEPRINTS / "notes" / model.CARD_NAME
     doc = json.loads(path.read_text())
-    cat = doc["x-catena"]
-    del cat["status"]
+    del doc["status"]
     path.write_text(json.dumps(doc))
     with pytest.raises(model.SourceError) as err:
         model.load_sources()
-    for where in ("x-catena: 'status' is a dependency of 'pending'",
-                  "x-catena/bench/pack: None is not of type 'string'",
-                  "x-catena/sizing/peak_ram_mb: None is not of type 'integer'"):
-        assert f"sources/notes.json: {where}" in str(err.value)
-    del cat["pending"]
-    cat["bench"]["pack"] = "nodb"
-    cat["sizing"]["peak_ram_mb"] = 256
+    for where in ("<root>: 'status' is a dependency of 'pending'",
+                  "bench/pack: None is not of type 'string'",
+                  "sizing/peak_ram_mb: None is not of type 'integer'"):
+        assert f"blueprints/notes/app.json: {where}" in str(err.value)
+    del doc["pending"]
+    doc["bench"]["pack"] = "nodb"
+    doc["sizing"]["peak_ram_mb"] = 256
     path.write_text(json.dumps(doc))
     # A curated entry takes its place in the deployment order.
-    with pytest.raises(model.SourceError, match="notes.json: not listed in _meta.json order"):
+    with pytest.raises(model.SourceError, match="notes/app.json: not listed in catalog-meta.json order"):
         model.load_sources()
     meta = model.load_meta()
     meta["order"] = ["notes"]
-    (model.SOURCES / model.META_NAME).write_text(json.dumps(meta))
+    model.meta_path().write_text(json.dumps(meta))
     assert "notes" in {e.slug for e in model.load_sources()}
 
 
 def test_an_imported_entry_names_its_origin_and_any_licence_it_has(catalog):
     assert _run() == 0
-    path = model.SOURCES / "notes.json"
+    path = model.BLUEPRINTS / "notes" / model.CARD_NAME
     doc = json.loads(path.read_text())
-    doc["x-catena"]["origin"]["licence"] = "GPL-3.0"
+    doc["origin"]["licence"] = "GPL-3.0"
     path.write_text(json.dumps(doc))
     assert "notes" in {e.slug for e in model.load_sources()}
-    doc["x-catena"]["origin"]["licence"] = ""
+    doc["origin"]["licence"] = ""
     path.write_text(json.dumps(doc))
     with pytest.raises(model.SourceError, match="origin/licence"):
         model.load_sources()
-    del doc["x-catena"]["origin"]
+    del doc["origin"]
     path.write_text(json.dumps(doc))
     with pytest.raises(model.SourceError, match="'origin' is a required property"):
         model.load_sources()
 
 
 def test_an_id_already_in_the_catalog_is_left_alone(catalog, capsys):
-    curated = model.SOURCES / "notes.json"
+    curated = model.BLUEPRINTS / "notes" / model.CARD_NAME
+    curated.parent.mkdir()
     curated.write_text("{}\n")
     assert _run() == 0
     assert curated.read_text() == "{}\n"
-    assert not (model.BLUEPRINTS / "notes").exists()
+    assert [p.name for p in curated.parent.iterdir()] == [model.CARD_NAME]
     assert "Notes: the id notes is already in the catalog" in capsys.readouterr().out
     assert model.load_meta()["order"] == []
 
 
 def test_a_dry_run_writes_nothing(catalog, capsys):
-    meta = (model.SOURCES / model.META_NAME).read_text()
+    meta = model.meta_path().read_text()
     assert _run("--dry-run") == 0
     assert "would import: 2" in capsys.readouterr().out
-    assert [p.name for p in model.SOURCES.iterdir()] == [model.META_NAME]
     assert list(model.BLUEPRINTS.iterdir()) == []
-    assert (model.SOURCES / model.META_NAME).read_text() == meta
+    assert model.meta_path().read_text() == meta
 
 
 def test_a_document_that_is_not_a_portainer_list_is_refused(catalog, capsys, monkeypatch):
@@ -829,7 +818,7 @@ def _main(*args: str, runner=None) -> int:
 
 def test_the_portainer_adapter_reads_lissy93s_list_at_its_commit(feed):
     assert _main(LISSY) == 0
-    origin = _source("actual-budget")["x-catena"]["origin"]
+    origin = _card("actual-budget")["origin"]
     assert origin["registry"] == LISSY and origin["source"] == LISSY
     assert origin["commit"] == LISSY_COMMIT and origin["path"] == "templates.json"
     assert origin["licence"] == "MIT" and origin["attribution"] == "Copyright (c) 2021 Lissy93"
@@ -837,7 +826,7 @@ def test_the_portainer_adapter_reads_lissy93s_list_at_its_commit(feed):
 
 def test_the_arcane_adapter_reads_a_template_from_the_repository_at_a_pinned_commit(feed):
     assert _main(ARCANE, "--format", "arcane") == 0
-    cat = _source("actual")["x-catena"]
+    cat = _card("actual")
     assert cat["origin"] == {
         "registry": ARCANE, "entry": "Actual",
         "source": "https://github.com/getarcaneapp/templates", "licence": "Apache-2.0",
@@ -849,14 +838,14 @@ def test_the_arcane_adapter_reads_a_template_from_the_repository_at_a_pinned_com
     service = _compose("actual")["services"]["actual"]
     assert service["labels"] == ["vps.route.host=${DOMAIN_HOST}", "vps.route.port=5006"]
     assert "ports" not in service
-    assert _source("actual")["categories"] == ["Finance"]
+    assert _card("actual")["categories"] == ["Finance"]
 
 
 def test_an_unpinnable_repository_skips_its_entries(feed, capsys, monkeypatch):
     monkeypatch.delitem(WEB, f"{API}/repos/getarcaneapp/templates/commits/HEAD")
     assert _main(ARCANE, "--format", "arcane") == 0
     assert "Actual: cannot pin getarcaneapp/templates to a commit" in capsys.readouterr().out
-    assert not (model.SOURCES / "actual.json").exists()
+    assert not (model.BLUEPRINTS / "actual").exists()
 
 
 def test_a_document_that_is_no_arcane_registry_is_refused(feed, capsys, monkeypatch):
@@ -870,8 +859,8 @@ def test_entries_sharing_an_image_are_one_app_and_the_richest_seeds_it(feed, cap
     out = capsys.readouterr().out
     assert "imported: 1\n  actual (Actual)" in out
     assert "Actual Budget: alias of actual" in out
-    assert not (model.SOURCES / "actual-budget.json").exists()
-    origin = _source("actual")["x-catena"]["origin"]
+    assert not (model.BLUEPRINTS / "actual-budget").exists()
+    origin = _card("actual")["origin"]
     assert origin["aliases"] == [{"registry": LISSY, "entry": "Actual Budget", "source": LISSY,
                                   "commit": LISSY_COMMIT, "path": "templates.json"}]
     assert model.load_sources()
@@ -880,43 +869,42 @@ def test_entries_sharing_an_image_are_one_app_and_the_richest_seeds_it(feed, cap
 def test_entries_naming_one_source_repository_are_one_app(feed, capsys):
     assert _main(DOK_REGISTRY, "--format", "dokploy") == 0
     assert "imported: 1\n  one (One)" in capsys.readouterr().out
-    cat = _source("one")["x-catena"]
+    cat = _card("one")
     assert cat["origin"]["project"] == "https://github.com/example/shared"
     assert [a["entry"] for a in cat["origin"]["aliases"]] == ["Two"]
-    assert not (model.SOURCES / "two.json").exists()
+    assert not (model.BLUEPRINTS / "two").exists()
+
+
+def _curated(slug: str = "curated", image: str = "docker.io/example/notes:2.0.0") -> None:
+    """An app of the catalog: a card file and a compose with a main address."""
+    folder = model.BLUEPRINTS / slug
+    folder.mkdir()
+    (folder / model.CARD_NAME).write_text(json.dumps({"schema": 1}))
+    (folder / model.COMPOSE_NAME).write_text(
+        f"services:\n  app:\n    image: {image}\n"
+        "    labels:\n      - vps.route.host=h\n      - vps.route.port=80\n")
 
 
 def test_an_entry_of_an_app_already_in_the_catalog_is_recorded_as_an_alias(feed, capsys):
-    (model.SOURCES / "curated.json").write_text(json.dumps({
-        "id": "curated", "x-catena": {"domain": {"host": "h", "service": "app", "port": 80}}}))
-    (model.BLUEPRINTS / "curated").mkdir()
-    (model.BLUEPRINTS / "curated" / model.COMPOSE_NAME).write_text(
-        "services:\n  app:\n    image: docker.io/example/notes:2.0.0\n")
+    root = model.BLUEPRINTS.parent
+    _curated()
     assert _run() == 0
     out = capsys.readouterr().out
     assert "Notes: alias of curated (in the catalog)" in out
-    assert not (model.SOURCES / "notes.json").exists()
-    records = json.loads((model.SOURCES / model.ALIASES_NAME).read_text())["aliases"]
+    assert not (model.BLUEPRINTS / "notes").exists()
+    records = json.loads((root / model.CATALOG_ALIASES).read_text())["aliases"]
     assert records == [{"app": "curated", "registry": REGISTRY, "entry": "Notes", "source": REGISTRY}]
+    assert model.aliases_path() == root / model.CATALOG_ALIASES
     # The next run knows the entry and weighs nothing again.
     assert _run() == 0
     assert "Notes: already recorded as an alias of curated" in capsys.readouterr().out
-    assert changes.app_ids([f"sources/{model.ALIASES_NAME}", "sources/_meta.json",
-                            model.CATALOG_ALIASES, model.CATALOG_META]) == []
+    assert changes.app_ids([model.CATALOG_ALIASES, model.CATALOG_META]) == []
 
 
-def _card_layout(root: Path) -> None:
-    """The catalog's order moves to catalog-meta.json: the layout whose new entries are card files."""
-    (root / model.CATALOG_META).write_text((model.SOURCES / model.META_NAME).read_text())
-    (model.SOURCES / model.META_NAME).unlink()
-
-
-def test_the_card_layout_writes_an_app_json_and_no_source(catalog):
-    root, _ = catalog
-    _card_layout(root)
+def test_an_entry_is_written_as_an_app_json(catalog):
     assert _run() == 0
-    assert list(model.SOURCES.glob("*.json")) == []
-    card = json.loads((model.BLUEPRINTS / "web-stack" / model.CARD_NAME).read_text())
+    assert not (model.BLUEPRINTS.parent / "sources").exists()
+    card = _card("web-stack")
     assert card["schema"] == 1
     assert card["status"] == "imported"
     assert card["origin"]["entry"] == "Web Stack"
@@ -928,33 +916,12 @@ def test_the_card_layout_writes_an_app_json_and_no_source(catalog):
     assert card["fr"]["compose_description"].strip()
     assert card["fr"]["summary"].startswith("Description du registre, non traduite : ")
     entry = next(e for e in model.load_sources() if e.slug == "web-stack")
-    assert entry.card
     assert entry.domain == {"host": "web-stack.{{ cloudflare_zone }}", "service": "web", "port": 80}
     assert entry.title == "Web Stack"
 
 
-def test_the_card_layout_lists_the_paths_an_entry_commits(catalog):
-    root, _ = catalog
-    assert pipeline.entry_paths("x") == ["blueprints/x", "sources/x.json"]
-    _card_layout(root)
+def test_the_paths_an_entry_commits_are_its_folder(catalog):
     assert pipeline.entry_paths("x") == ["blueprints/x"]
-
-
-def test_the_card_layout_reads_card_apps_and_records_aliases_in_catalog_aliases(catalog, capsys):
-    root, _ = catalog
-    _card_layout(root)
-    (model.BLUEPRINTS / "curated").mkdir()
-    (model.BLUEPRINTS / "curated" / model.CARD_NAME).write_text(json.dumps({"schema": 1}))
-    (model.BLUEPRINTS / "curated" / model.COMPOSE_NAME).write_text(
-        "services:\n  app:\n    image: docker.io/example/notes:2.0.0\n"
-        "    labels:\n      - vps.route.host=h\n      - vps.route.port=80\n")
-    assert _run() == 0
-    assert "Notes: alias of curated (in the catalog)" in capsys.readouterr().out
-    assert not (model.BLUEPRINTS / "notes").exists()
-    records = json.loads((root / model.CATALOG_ALIASES).read_text())["aliases"]
-    assert records == [{"app": "curated", "registry": REGISTRY, "entry": "Notes", "source": REGISTRY}]
-    assert not (model.SOURCES / model.ALIASES_NAME).exists()
-    assert model.aliases_path() == root / model.CATALOG_ALIASES
 
 
 def test_the_richness_counts_settings_a_health_check_and_sign_in_labels():
@@ -984,10 +951,10 @@ def test_an_awesome_selfhosted_project_gives_an_entry_its_upstream_repository(fe
     assert _run("--also", f"awesome-selfhosted={AWESOME}") == 0
     out = capsys.readouterr().out
     assert "listed with no compose file to import: 1" in out
-    cat = _source("notes")["x-catena"]
+    cat = _card("notes")
     assert cat["origin"]["project"] == "https://github.com/example/notes-app"
     assert any("matched by name: confirm it is this app" in c for c in cat["pending"]["to_choose"])
-    assert not (model.SOURCES / "native.json").exists()
+    assert not (model.BLUEPRINTS / "native").exists()
 
 
 def test_the_upstream_projects_licence_is_checked_too(feed, capsys, monkeypatch):
@@ -998,7 +965,7 @@ def test_the_upstream_projects_licence_is_checked_too(feed, capsys, monkeypatch)
     assert _run("--also", f"awesome-selfhosted={AWESOME}") == 0
     out = capsys.readouterr().out
     assert "skipped, licence not permitted: 1\n  Notes: upstream project SSPL-1.0 (example/notes-sspl)" in out
-    assert not (model.SOURCES / "notes.json").exists()
+    assert not (model.BLUEPRINTS / "notes").exists()
 
 
 def test_an_upstream_project_may_carry_a_copyleft_licence(feed, capsys, monkeypatch):
@@ -1006,7 +973,7 @@ def test_an_upstream_project_may_carry_a_copyleft_licence(feed, capsys, monkeypa
         "Notes", "https://github.com/example/notes-gpl", ["Docker"]))
     assert _run("--also", f"awesome-selfhosted={AWESOME}") == 0
     assert "skipped, licence not permitted: 0" in capsys.readouterr().out
-    origin = _source("notes")["x-catena"]["origin"]
+    origin = _card("notes")["origin"]
     assert origin["project"] == "https://github.com/example/notes-gpl" and origin["licence"] == "MIT"
 
 
@@ -1023,19 +990,19 @@ def test_the_entry_option_reads_only_the_entries_it_names(catalog, capsys):
     assert _run("--entry", "notes") == 0
     out = capsys.readouterr().out
     assert "entries: 1\n" in out and "imported: 1\n  notes (Notes)" in out
-    assert not (model.SOURCES / "web-stack.json").exists()
+    assert not (model.BLUEPRINTS / "web-stack").exists()
 
 
 def test_entries_named_together_are_one_app_and_its_aliases(feed, capsys):
     assert _main(LISSY, "--also", f"arcane={ARCANE}", "--entry", "Actual", "--entry", "actual budget") == 0
     assert "imported: 1\n  actual (Actual)" in capsys.readouterr().out
-    assert [a["entry"] for a in _source("actual")["x-catena"]["origin"]["aliases"]] == ["Actual Budget"]
+    assert [a["entry"] for a in _card("actual")["origin"]["aliases"]] == ["Actual Budget"]
 
 
 def test_an_entry_title_the_registry_lacks_stops_the_run(catalog, capsys):
     assert _run("--entry", "Notes", "--entry", "Gone") == 1
     assert "no entry titled 'Gone'" in capsys.readouterr().err
-    assert not (model.SOURCES / "notes.json").exists()
+    assert not (model.BLUEPRINTS / "notes").exists()
 
 
 def test_imported_entries_not_in_the_order_follow_the_listed_ones_by_id(catalog):
@@ -1092,12 +1059,11 @@ def test_a_wave_opens_one_branch_and_one_pull_request_per_app(feed, capsys):
     assert "imported: 1\n  web-stack (Web Stack)" in out
     assert "left for a later wave: 1" in out
     assert "pull requests opened: 1\n  https://github.com/o/r/pull/1" in out
-    assert not (model.SOURCES / "notes.json").exists()
+    assert not (model.BLUEPRINTS / "notes").exists()
     steps = [c for c in git.writes()]
     assert steps[0] == ["git", "switch", "--create", "import/web-stack", "origin/main"]
     add = next(c for c in steps if c[:2] == ["git", "add"])
-    assert add[add.index("--") + 1:] == ["blueprints/web-stack", "sources/web-stack.json",
-                                         "templates.json", "catalog.json", "index.html"]
+    assert add[add.index("--") + 1:] == ["blueprints/web-stack", "catalog.json", "index.html"]
     create = next(c for c in steps if c[:3] == ["gh", "pr", "create"])
     assert create[create.index("--head") + 1] == "import/web-stack"
     assert create[create.index("--title") + 1] == "feat(import): web-stack from raw.githubusercontent.com"
@@ -1136,22 +1102,17 @@ def test_a_wave_dry_run_prints_the_plan_and_changes_nothing(feed, capsys):
     out = capsys.readouterr().out
     assert "wave: 2 of 2" in out and "would import: 2" in out
     assert git.writes() == []
-    assert [p.name for p in model.SOURCES.iterdir()] == [model.META_NAME]
     assert list(model.BLUEPRINTS.iterdir()) == []
 
 
 def test_aliases_of_catalog_apps_go_in_their_own_pull_request(feed):
-    (model.SOURCES / "curated.json").write_text(json.dumps({
-        "id": "curated", "x-catena": {"domain": {"host": "h", "service": "app", "port": 80}}}))
-    (model.BLUEPRINTS / "curated").mkdir()
-    (model.BLUEPRINTS / "curated" / model.COMPOSE_NAME).write_text(
-        "services:\n  app:\n    image: example/notes:2.0.0\n")
+    _curated(image="example/notes:2.0.0")
     git = FakeGit()
     assert _main(REGISTRY, "--wave", "5", runner=git) == 0
     switches = [c[3] for c in git.writes() if c[:3] == ["git", "switch", "--create"]]
     assert switches == ["import/web-stack", "import/aliases"]
     add = [c for c in git.writes() if c[:2] == ["git", "add"]][-1]
-    assert add[add.index("--") + 1:] == ["sources/_aliases.json"]
+    assert add[add.index("--") + 1:] == ["catalog-aliases.json"]
 
 
 REG = "https://registry-1.docker.io/v2/example/lab"
@@ -1207,8 +1168,8 @@ def test_an_entry_whose_upstream_repository_cannot_be_found_is_skipped(catalog, 
     out = capsys.readouterr().out
     assert ("Notes: the upstream repository is unknown: example/notes:1.2.3 names no source label "
             "and no linked source on Docker Hub") in out
-    assert not (model.SOURCES / "notes.json").exists()
-    assert (model.SOURCES / "web-stack.json").exists()
+    assert not (model.BLUEPRINTS / "notes").exists()
+    assert (model.BLUEPRINTS / "web-stack").exists()
 
 
 def test_a_found_upstream_repository_is_licence_checked_and_recorded(catalog, capsys, monkeypatch):
@@ -1218,7 +1179,7 @@ def test_a_found_upstream_repository_is_licence_checked_and_recorded(catalog, ca
             "example/notes-sspl", "SSPL-1.0", "Server Side Public License\n")})
     assert _run() == 0
     assert "Notes: upstream project SSPL-1.0 (example/notes-sspl)" in capsys.readouterr().out
-    cat = _source("web-stack")["x-catena"]
+    cat = _card("web-stack")
     assert cat["origin"]["project"] == "https://github.com/upstream/web"
     assert any("comes from the Docker Hub repository's linked source of example/web:2.1.0"
                in c for c in cat["pending"]["to_choose"])

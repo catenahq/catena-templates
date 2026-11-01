@@ -51,7 +51,7 @@ concurrency:
 env:
   TEMPLATES_ROOT: ${{ format('{0}', inputs.catalog) == 'false' && github.workspace || '' }}
   TOOLS: ${{ format('{0}', inputs.catalog) == 'false' && '.tools' || '.' }}
-  DRIFT_PATHS: ${{ format('{0}', inputs.catalog) == 'false' && 'blueprints' || 'blueprints templates.json catalog.json index.html' }}
+  DRIFT_PATHS: ${{ format('{0}', inputs.catalog) == 'false' && 'blueprints' || 'blueprints catalog.json index.html' }}
 
 jobs:
   render-idempotency:
@@ -69,7 +69,7 @@ jobs:
           ref: ${{ inputs.tools-ref }}
           path: .tools
           persist-credentials: false
-      - name: Render and verify no drift between sources/ and the generated artifacts
+      - name: Render and verify no drift between the inputs and the generated artifacts
         uses: catenahq/contracts/.github/actions/new-failures-only@main
         with:
           working-directory: ${{ github.workspace }}
@@ -98,10 +98,7 @@ jobs:
           ref: ${{ inputs.tools-ref }}
           path: .tools
           persist-credentials: false
-      - name: Render the generated files the validator reads
-        if: env.TEMPLATES_ROOT != ''
-        run: uv run "$TOOLS/build/render.py"
-      - name: Validate sources/ and templates.json against their schemas
+      - name: Validate the app.json files and the compose blocks against their schemas
         run: uv run "$TOOLS/build/validate.py"
 
   # The hygiene gates live in catenahq/contracts and are run from there,

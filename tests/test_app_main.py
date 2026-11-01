@@ -172,7 +172,7 @@ def _again(scratch, apps, ref="refs/heads/main"):
 
 
 def _app_files(app):
-    return (f"blueprints/{app}/docker-compose.yml", f"sources/{app}.json")
+    return (f"blueprints/{app}/docker-compose.yml", f"blueprints/{app}/README.md")
 
 
 def _two_apps(scratch):
@@ -654,7 +654,7 @@ def _gate(scratch, plan, status, sha=None, code=200):
 def _app_commit(scratch):
     _, git, commit, _ = scratch
     commit("README.md")
-    last = commit("blueprints/web/docker-compose.yml", "sources/web.json")
+    last = commit("blueprints/web/docker-compose.yml")
     commit("notes.txt")
     return last
 

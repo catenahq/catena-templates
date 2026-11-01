@@ -2,12 +2,12 @@
   "name": "@catenahq/templates",
   "version": "0.2.0",
   "private": true,
-  "description": "Catena template catalog: one metadata file per template plus its compose file, rendered into the machine catalog (catalog.json), a static preview (index.html) and a Portainer-shaped index (templates.json v3). A host takes an app from a tag.",
+  "description": "Catena template catalog: one metadata file per template plus its compose file, rendered into the machine catalog (catalog.json) and a static preview (index.html). A host takes an app from a tag.",
   "type": "module",
   "scripts": {
     "render": "uv run build/render.py",
     "validate": "uv run build/validate.py",
-    "verify": "uv run build/render.py && git diff --exit-code blueprints templates.json catalog.json index.html",
+    "verify": "uv run build/render.py && git diff --exit-code blueprints catalog.json index.html",
     "check:unicode": "node ../contracts/scripts/check-unicode.mjs",
     "check:prose": "node ../contracts/scripts/check-prose.mjs"
   },

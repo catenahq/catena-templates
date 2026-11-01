@@ -297,6 +297,7 @@
       "additionalProperties": false,
       "required": [
         "display_name",
+        "summary",
         "what_it_is",
         "replaces",
         "compose_description",

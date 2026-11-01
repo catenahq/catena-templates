@@ -196,17 +196,14 @@ for _ident, (_name, _github, _website) in {**BLUEPRINTS, **FORGE_BLUEPRINTS}.ite
 def catalog(tmp_path, monkeypatch):
     """An empty catalog tree the importer writes into and the loader reads
     back, a banned-word list, and the fixture network."""
-    sources = tmp_path / "sources"
-    sources.mkdir()
     blueprints = tmp_path / "blueprints"
     blueprints.mkdir()
-    (sources / model.META_NAME).write_text(json.dumps({
+    (tmp_path / model.CATALOG_META).write_text(json.dumps({
         "order": [],
         "sizing": {"last_measured_at": "x", "measurement_host": "x", "measurement_method": "x"},
     }, indent=2) + "\n")
     banned = tmp_path / "banned-words.json"
     banned.write_text(json.dumps({"tokens": [{"token": "forbiddenware", "stem": False}]}))
-    monkeypatch.setattr(model, "SOURCES", sources)
     monkeypatch.setattr(model, "BLUEPRINTS", blueprints)
     monkeypatch.setattr(pipeline, "BANNED_WORDS", banned)
     monkeypatch.delenv(pipeline.APPLINT_ENV, raising=False)
@@ -232,7 +229,7 @@ def _env(slug: str) -> dict[str, str]:
 
 
 def _cat(slug: str) -> dict:
-    return json.loads((model.SOURCES / f"{slug}.json").read_text())["x-catena"]
+    return json.loads((model.BLUEPRINTS / slug / model.CARD_NAME).read_text())
 
 
 def _compose(slug: str) -> dict:
@@ -254,8 +251,6 @@ def test_generators_become_minted_settings(catalog):
     assert env["APP_HOST"] == f"webapp.{ZONE}"
     assert env["APP_URL"] == f"http://webapp.{ZONE}"
     assert env["API_URL"] == f"https://webapp-api.{ZONE}"
-    # A generated value the public catalog collapses to its sentinel.
-    assert render.strip_jinja_for_portainer(env["DB_PASSWORD"]) == render.SENTINEL_MANAGED
     to_choose = _cat("webapp")["pending"]["to_choose"]
     assert any(c.startswith("minted on the host: DB_PASSWORD, SECRET_KEY, VAULT_KEY, "
                             "SESSION_TOKEN, ADMIN_USER, COOKIE") for c in to_choose)
@@ -310,7 +305,8 @@ def test_a_shared_value_no_line_holds_alone_gets_a_setting_of_its_own():
 def test_domains_become_the_route_and_further_ones_a_choice(catalog):
     assert _run() == 0
     cat = _cat("webapp")
-    assert cat["domain"] == {"host": f"webapp.{ZONE}", "service": "web", "port": 3000}
+    domain = model.derive_domain(_compose("webapp"))[0]
+    assert domain == {"host": f"webapp.{ZONE}", "service": "web", "port": 3000}
     assert cat["upstream_url"] == "https://webapp.example.org"
     assert cat["en"]["what_it_is"] == "Web App -- for tests"
     web = _compose("webapp")["services"]["web"]
@@ -363,7 +359,7 @@ def test_the_apps_licence_admits_an_entry_and_the_registrys_notice_joins_it(cata
     # The compose file of an entry whose own licence is unknown is never fetched.
     for slug in ("offsite", "bare"):
         assert f"{RAW}/{slug}/docker-compose.yml" not in calls
-        assert not (model.SOURCES / f"{slug}.json").exists()
+        assert not (model.BLUEPRINTS / slug).exists()
 
 
 def test_an_upstream_on_another_forge_or_an_owners_page_has_its_licence_read(
@@ -407,13 +403,12 @@ def test_a_document_that_is_not_a_tree_listing_is_refused(catalog, capsys, monke
 
 
 def test_a_dry_run_writes_nothing(catalog, capsys):
-    meta = (model.SOURCES / model.META_NAME).read_text()
+    meta = model.meta_path().read_text()
     assert _run("--dry-run") == 0
     out = capsys.readouterr().out
     assert "entries: 6" in out and "would import: 1\n  webapp (Web App)" in out
-    assert [p.name for p in model.SOURCES.iterdir()] == [model.META_NAME]
     assert list(model.BLUEPRINTS.iterdir()) == []
-    assert (model.SOURCES / model.META_NAME).read_text() == meta
+    assert model.meta_path().read_text() == meta
 
 
 def test_the_imported_entry_validates_and_renders(catalog):
@@ -422,7 +417,4 @@ def test_the_imported_entry_validates_and_renders(catalog):
     assert set(entries) == {"webapp"}
     entry = entries["webapp"]
     assert render.render_catalog_entry(entry)["status"] == "imported"
-    template = render.render_portainer_template(entry, "logo.svg")
-    assert model.validate_output({"version": "3", "templates": [template]}) == []
-    assert all("{{" not in field["default"] for field in template["env"])
     assert "**Imported, untested.**" in readme.render_readme(entry)

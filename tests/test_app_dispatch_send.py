@@ -46,8 +46,8 @@ def scene(tmp_path):
     git("init", "-q", "-b", "main")
     git("remote", "add", "origin", str(origin))
     shas = {"root": commit("README.md")}
-    shas["web"] = commit("blueprints/web/docker-compose.yml", "sources/web.json")
-    shas["mail"] = commit("blueprints/mail/docker-compose.yml", "sources/mail.json")
+    shas["web"] = commit("blueprints/web/docker-compose.yml")
+    shas["mail"] = commit("blueprints/mail/docker-compose.yml")
     git("push", "-q", "origin", "main")
     git("fetch", "-q", "origin")
     calls = runner / "calls.txt"

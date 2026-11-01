@@ -3,7 +3,7 @@ marked imported and untested.
 
 An adapter reads one registry format into Candidates. For each, in order:
 
-  id        the adapter's slug, refused when a source file or a blueprint
+  id        the adapter's slug, refused when a blueprint
             directory (its app.json among its files) already holds it: the
             importer never overwrites. An
             entry whose title or id holds a word on the banned-word list
@@ -30,8 +30,7 @@ An adapter reads one registry format into Candidates. For each, in order:
             corrects the file. What it leaves, and what the catalog's swarm
             lint and Postgres pin rule refuse, is recorded on the entry.
 
-Each entry is written as blueprints/<id>/app.json (sources/<id>.json while the
-catalog has no catalog-meta.json) and blueprints/<id>/docker-compose.yml, held
+Each entry is written as blueprints/<id>/app.json and blueprints/<id>/docker-compose.yml, held
 as neat files beside it (services.yml, settings.yml), with
 status "imported", its origin and what a person still has to choose. An entry
 the catalog's order does not list follows the listed ones.
@@ -773,42 +772,19 @@ class Report:
         return out
 
 
-def card_of(source: dict[str, Any]) -> dict[str, Any]:
-    """The entry as an app.json: the source without its Portainer fields and its web
-    address (the compose holds it), each language gaining the card's one-line
-    `summary` (the first line of the long description it keeps)."""
-    cat = source["x-catena"]
-    card: dict[str, Any] = {"schema": 1}
-    for key in ("app_name", "upstream_url"):
-        card[key] = cat[key]
-    card["categories"] = source["categories"]
-    for key in ("logo", "sso_mode", "status", "origin", "pending", "bench", "sizing"):
-        if key in cat:
-            card[key] = cat[key]
-    for lang in ("en", "fr"):
-        prose = dict(cat[lang])
-        card[lang] = {"display_name": prose.pop("display_name"),
-                      "summary": prose["compose_description"].strip().splitlines()[0], **prose}
-    return card
-
-
 def entry_paths(slug: str) -> list[str]:
     """The repo-relative paths an entry writes."""
-    paths = [f"{model.BLUEPRINTS.name}/{slug}"]
-    return paths if model.card_layout() else [*paths, f"{model.SOURCES.name}/{slug}.json"]
+    return [f"{model.BLUEPRINTS.name}/{slug}"]
 
 
-def write_entry(slug: str, source: dict[str, Any], compose: str) -> None:
+def write_entry(slug: str, card: dict[str, Any], compose: str) -> None:
     """The entry's files: its compose, held as neat files beside it (pack.unpack),
-    and its card file (or, when the catalog has no catalog-meta.json, its source)."""
+    and its card file."""
     app_dir = model.BLUEPRINTS / slug
     app_dir.mkdir(parents=True)
     (app_dir / model.COMPOSE_NAME).write_text(compose)
     pack.unpack(slug, model.BLUEPRINTS.parent)
-    if model.card_layout():
-        (app_dir / model.CARD_NAME).write_text(json.dumps(card_of(source), indent=2) + "\n")
-    else:
-        (model.SOURCES / f"{slug}.json").write_text(json.dumps(source, indent=2) + "\n")
+    (app_dir / model.CARD_NAME).write_text(json.dumps(card, indent=2) + "\n")
 
 
 @dataclass
@@ -838,7 +814,7 @@ class Importer:
         self.dry_run = dry_run
         self.banned = banned
         self.limit = limit
-        self.emit = emit or (lambda slug, source, compose: write_entry(slug, source, compose))
+        self.emit = emit or (write_entry)
         self.licences: dict[tuple[str, str], Licence] = {}
         self.pins: dict[str, str] = {}
         self.found: dict[str, tuple[Repo | None, str]] = {}
@@ -880,18 +856,18 @@ class Importer:
                 continue
             for p in group:
                 try:
-                    slug, source, compose = self._finish(p)
+                    slug, card, compose = self._finish(p)
                 except Skip as exc:
                     report.skipped[exc.kind].append(f"{p.c.entry}: {exc}")
                     continue
                 rest = [q for q in group if q is not p]
                 if rest:
-                    source["x-catena"]["origin"]["aliases"] = [dedup.reference(q) for q in rest]
+                    card["origin"]["aliases"] = [dedup.reference(q) for q in rest]
                     report.aliases += [f"{q.c.entry}: alias of {slug}" for q in rest]
                 self.taken.add(slug)
                 report.imported.append(f"{slug} ({p.c.entry})")
                 if not self.dry_run:
-                    url = self.emit(slug, source, compose)
+                    url = self.emit(slug, card, compose)
                     if url:
                         report.pull_requests.append(url)
                 break
@@ -992,8 +968,7 @@ class Importer:
             if word:
                 raise Skip(f"its {what} {text!r} holds {word}, a word on the banned-word list "
                            f"check:unicode refuses")
-        if (slug in self.taken or (model.SOURCES / f"{slug}.json").exists()
-                or (model.BLUEPRINTS / slug).exists()):
+        if slug in self.taken or (model.BLUEPRINTS / slug).exists():
             raise Skip(f"the id {slug} is already in the catalog")
         licence, licence_checks = self._licence(c.licence_repo, slug, c.licence_problem)
         self._project_licence(c)
@@ -1075,40 +1050,35 @@ class Importer:
                             if c.project else "")):
             if value:
                 origin[key] = value
-        source = {
-            "id": slug,
-            "type": 2,
-            "title": c.title or slug,
-            "name": app_name,
+        card = {
+            "schema": 1,
+            "app_name": app_name,
+            "upstream_url": c.upstream_url,
             "categories": c.categories or ["Other"],
-            "platform": "linux",
-            "x-catena": {
-                "app_name": app_name,
-                "status": "imported",
-                "upstream_url": c.upstream_url,
-                "sso_mode": "none",
-                "domain": {"host": host, "service": stack.service, "port": stack.port},
-                "origin": origin,
-                "pending": {"findings": findings, "to_choose": to_choose},
-                "bench": {"pack": None, "fixture": "skip"},
-                "sizing": {"peak_ram_mb": None},
-                "en": {
-                    "display_name": c.title or slug,
-                    "what_it_is": description,
-                    "replaces": [],
-                    "compose_description": f"{description}\n\n{readme}\n",
-                    "setup_steps": "Not written yet: this entry is imported and untested.\n",
-                },
-                "fr": {
-                    "display_name": c.title or slug,
-                    "what_it_is": french,
-                    "replaces": [],
-                    "compose_description": f"{french}\n\n{readme}\n",
-                    "setup_steps": "Pas encore rédigées : ce modèle est importé et non testé.\n",
-                },
+            "status": "imported",
+            "sso_mode": "none",
+            "origin": origin,
+            "pending": {"findings": findings, "to_choose": to_choose},
+            "bench": {"pack": None, "fixture": "skip"},
+            "sizing": {"peak_ram_mb": None},
+            "en": {
+                "display_name": c.title or slug,
+                "summary": description.strip().splitlines()[0],
+                "what_it_is": description,
+                "replaces": [],
+                "compose_description": f"{description}\n\n{readme}\n",
+                "setup_steps": "Not written yet: this entry is imported and untested.\n",
+            },
+            "fr": {
+                "display_name": c.title or slug,
+                "summary": french,
+                "what_it_is": french,
+                "replaces": [],
+                "compose_description": f"{french}\n\n{readme}\n",
+                "setup_steps": "Pas encore rédigées : ce modèle est importé et non testé.\n",
             },
         }
-        return slug, source, block_head(env) + compose
+        return slug, card, block_head(env) + compose
 
 
 def main(argv: list[str], adapters: dict[str, Callable[[Any, str], list[Candidate]]],
@@ -1116,8 +1086,7 @@ def main(argv: list[str], adapters: dict[str, Callable[[Any, str], list[Candidat
          render_fn: Callable[[], int] | None = None, today: date | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="import_registry.py",
-        description="Import a template registry into blueprints/ (and sources/ for a "
-                    "catalog that holds its apps as sources) as entries "
+        description="Import a template registry into blueprints/ as entries "
                     "marked imported and untested.")
     parser.add_argument("registry", help="address of the registry document (https:// or file://)")
     parser.add_argument("--format", choices=sorted(adapters), default=next(iter(adapters)),
@@ -1207,10 +1176,10 @@ def main(argv: list[str], adapters: dict[str, Callable[[Any, str], list[Candidat
 
     emit = None
     if publisher:
-        def emit(slug: str, source: dict[str, Any], compose: str) -> str | None:
+        def emit(slug: str, card: dict[str, Any], compose: str) -> str | None:
             return publisher.publish(
-                slug, publish.pull_request_title(source), publish.pull_request_body(source),
-                lambda: write_entry(slug, source, compose),
+                slug, publish.pull_request_title(slug, card), publish.pull_request_body(card),
+                lambda: write_entry(slug, card, compose),
                 entry_paths(slug))
     try:
         if publisher:
@@ -1233,7 +1202,7 @@ def main(argv: list[str], adapters: dict[str, Callable[[Any, str], list[Candidat
     for line in report.lines(args.dry_run):
         print(line)
     if report.imported and not args.dry_run and not publisher:
-        print("next: run make, then settle each entry's x-catena.pending")
+        print("next: run make, then settle each entry's app.json pending")
     return 0
 
 

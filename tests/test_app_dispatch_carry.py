@@ -35,9 +35,8 @@ def scene(tmp_path):
 
     git("init", "-q", "-b", "main")
     (repo / "blueprints" / "web").mkdir(parents=True)
-    (repo / "sources").mkdir()
     (repo / "blueprints" / "web" / "docker-compose.yml").write_text("a")
-    (repo / "sources" / "web.json").write_text("{}")
+    (repo / "blueprints" / "web" / "app.json").write_text("{}")
     git("add", "-A")
     git("commit", "-qm", "one")
     base = git("rev-parse", "HEAD")

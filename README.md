@@ -1,12 +1,10 @@
 # catenahq/catena-templates
 
 Single source of truth for the Catena template catalog: one directory
-per application holding its compose file and its README, one JSON file
-per application holding its metadata and prose, and the build pipeline
-that renders them into the machine catalog (`catalog.json`), a static preview
-(`index.html`) and a Portainer-shaped index (`templates.json`, format v3) that
-nothing in Catena reads. A host fetches `blueprints/<id>/` at a tag
-`<app>/<ver>-<rev>` and deploys its `docker-compose.yml` with `docker stack
+per application holding its compose file, its card file `app.json` (metadata
+and prose) and its README, and the build pipeline that renders them into the
+machine catalog (`catalog.json`) and a static preview (`index.html`). A host
+fetches `blueprints/<id>/` at a tag `<app>/<ver>-<rev>` and deploys its `docker-compose.yml` with `docker stack
 deploy` (see "Who reads this repository"); a deployed app keeps the compose, and
 the `x-catena` block in it, that it was deployed with.
 
@@ -24,10 +22,8 @@ blueprints/              # ONE directory per template -- what a host fetches at 
                          # x-catena block declares the app's backup mode,
                          # update and restore commands, object-store check
                          # and managed env expressions
-    app.json             # HAND-EDITED; an app held as a card file: the metadata
-                         # sources/<id>.json holds, minus the Portainer fields
-                         # (app.schema.json), at most 64 KiB; an app holds this
-                         # or its source, never both
+    app.json             # HAND-EDITED; the app's card, catalog and bench data
+                         # (app.schema.json), at most 64 KiB
     services.yml         # HAND-EDITED; optional; an app held as neat files: every
     settings.yml         # top-level key after the block, and the block's keys by
     access.yml           # section (env + secrets; access and needs; lifecycle,
@@ -36,18 +32,11 @@ blueprints/              # ONE directory per template -- what a host fetches at 
     test.yml             # HAND-EDITED; optional; the state the CI harness
                          # seeds after a deploy and checks after a restore
     logo.png             # HAND-PLACED; optional
-    README.md            # generated from the source prose, EN then FR
+    README.md            # generated from the app.json prose, EN then FR
     logo.svg             # generated placeholder, absent a logo.png
 
 snippets/                # hand-edited; optional; hook script parts apps share:
   <name>/<n>.<ext>       # one file per version, belonging to no app
-
-sources/                 # hand-edited metadata
-  _meta.json             # template order + sizing measurement header
-  <id>.json              # ONE file per template: the Portainer fields a human
-                         # owns, plus x-catena for everything that format
-                         # cannot carry (SSO mode, bench membership,
-                         # sizing, EN/FR prose)
 
 lib/                     # the build library
   model.py               # load + validate the hand-edited inputs
@@ -73,17 +62,12 @@ build/                   # thin entrypoints
   render.py  validate.py  lint_quiesce.py  lint_postgres_pins.py
   lint_swarm.py  import_registry.py  app_check.py  versions.py  adopt.py  pack.py
 
-catalog-meta.json        # optional; the template order + sizing header, read in
-                         # place of sources/_meta.json when it exists
-catalog-aliases.json     # optional; the importer's aliases, in place of
-                         # sources/_aliases.json once catalog-meta.json exists
+catalog-meta.json        # hand-edited; the template order + sizing header
+catalog-aliases.json     # optional; the importer's aliases
 
-sources.schema.json      # schema for a sources/<id>.json
 app.schema.json          # schema for a blueprints/<id>/app.json
 block.schema.json        # schema for the x-catena block of a compose
-Schema.json              # schema for the generated templates.json
 
-templates.json           # generated; the Portainer App Templates index (v3)
 catalog.json             # generated; the machine view the ops tooling and the bench read
 index.html               # generated; static catalog preview
 
@@ -93,16 +77,15 @@ Dockerfile               # nginx image serving the generated catalog
 
 The tools (`build/`, `lib/`) also run on another repository's tree of the same
 layout: the environment variable `TEMPLATES_ROOT` names the tree holding its
-`sources/`, `blueprints/` and generated files (default: this checkout), while the
+`blueprints/` and generated files (default: this checkout), while the
 schemas are always read from this checkout. The render writes into that tree and
 `build/versions.py` reads its git tags.
 
-Three things are human-edited: `sources/<id>.json` (or `blueprints/<id>/app.json`,
-where the web address `domain` is derived from the compose labels and
-`requires_catena` is a field of the compose block), the compose in
-`blueprints/<id>/` with its `x-catena` block, and an optional logo beside
-it. A card file's app has no Portainer fields, so `templates.json` lists the
-apps held as sources alone, and its compose carries no `vps.homepage.*` label. Everything else listed as generated is a committed build artifact; CI
+Three things are human-edited: `blueprints/<id>/app.json` (the web address is
+derived from the compose labels and `requires_catena` is a field of the compose
+block), the compose in `blueprints/<id>/` with its `x-catena` block, and an
+optional logo beside it. The compose carries no `vps.homepage.*` label.
+Everything else listed as generated is a committed build artifact; CI
 re-renders on every push and pull request and fails if the committed copies drift.
 
 ## An app held as neat files
@@ -170,7 +153,7 @@ exits 0 when the app answered, and refuses an app with no web address.
   for byte. The folder name `blueprints` and the tag are the whole contract with
   a host.
 - **Discovery** reads the generated files: `catalog.json` is one fetch with
-  every template and the fields a Portainer-shaped index has no slot for (the
+  every template with its prose, sizing and bench data (the
   compose block's quiesce, lifecycle, object-store check and object-store switch
   included, lifted from each compose); the ops tooling and the bench read it.
   `index.html` is its static preview, served by the image the `Dockerfile` builds.
@@ -178,50 +161,28 @@ exits 0 when the app answered, and refuses an app with no web address.
   `payload/cmd/catena-applint`) reads the `blueprints/` folders in catena-admin's
   CI.
 
-`templates.json` and `Schema.json` are generated and nothing in Catena reads
-them. `templates.json` carries the Portainer fields and the sentinel (next
-section) where a secret or a host value belongs. The composes join the external
-network `catena-network`, publish no web port, are routed by `vps.route.*`
-labels only Catena's edge reads, and run hooks only Catena runs.
-
-## The env sentinel convention
-
-Host-controlled env vars (TURN auth secret, admin password, ...) plus
-every secret default in `templates.json` to a sentinel placeholder:
-
-```
-TURN_SECRET=__CATENA_OPERATOR_WIRED__
-```
+The composes join the external network `catena-network`, publish no web port,
+are routed by `vps.route.*` labels only Catena's edge reads, and run hooks only
+Catena runs.
 
 An app's own sign-in values (`OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`,
-`OIDC_ISSUER_URL`) are in neither file: the host's settings sync writes
-them into the deployed stack's env from the Keycloak client it makes for
+`OIDC_ISSUER_URL`) are in no file of this repository: the host's settings sync
+writes them into the deployed stack's env from the Keycloak client it makes for
 the sign-in labels on the service of the app's main address (its only
 address, or the one marked `vps.route.main=true`), and the compose reads
-them as `${OIDC_CLIENT_ID:-}`.
-
-The Portainer format has no per-deploy secret generator and no template
-engine, so three classes of value collapse to the sentinel in `templates.json`: the keys of the compose
-block's `managed` env keys, Ansible `lookup('password', ...)` expressions
-(the block's `generated` env keys), and any value still carrying Jinja after
-render.
-
-**Nothing resolves the sentinel in THIS file, and nothing is meant to.**
-This repository is public: one `templates.json` serves every client, so
-it cannot hold a value that differs per host. A deploy from this file would
-give an app the literal sentinel as its secret; a host settles an app's env on the box from the compose's `x-catena`
-block (its zone, its Keycloak, its store, and per-deploy passwords minted
-there).
+them as `${OIDC_CLIENT_ID:-}`. A host mints every generated secret and settles
+every managed value when it deploys the app, from the compose's `x-catena`
+block.
 
 ## How to add a template
 
-1. `sources/<id>.json` -- copy the closest existing file and edit. The
-   shape is enforced by `sources.schema.json`; the validator names the
-   field and the reason on failure. Required: `id` (equal to the file
-   name without `.json` and to the blueprint directory name), `type` (2),
-   `title`, `name`, `categories`, `platform`, and the `x-catena` block
-   (`app_name`, `upstream_url`, `sso_mode`, `domain` (absent for an app
-   with no web address), `bench.pack`, `sizing.peak_ram_mb`, `en`, `fr`).
+1. `blueprints/<id>/app.json` -- copy the closest existing file and edit. The
+   shape is enforced by `app.schema.json`; the validator names the
+   field and the reason on failure. Required: `schema` (1), `app_name`,
+   `upstream_url`, `categories`, `sso_mode`, `bench.pack`, `sizing.peak_ram_mb`
+   and `en` and `fr` (`display_name`, `summary`, `what_it_is`, `replaces`,
+   `compose_description`, `setup_steps`). The folder name is the app's id and
+   the web address is derived from the compose labels.
 2. `blueprints/<id>/docker-compose.yml` -- found by the directory name,
    so there is no path to keep in step with it. Jinja stays in place: the
    render never writes into this file, unless the app is held as neat files
@@ -240,7 +201,7 @@ there).
    expression as `{{ provided.antivirus.host }}`. The host settles the user's
    `.env` from the one running application that provides the capability and
    redeploys the user when the provider is deployed, stopped or removed.
-   An application with no web address leaves `domain` out of its source and
+   An application with no web address labels no service `vps.route.host` and
    names `version_from` in its block.
    An application that offers access levels to invited people adds `access`
    (`access: {user: {label: {en: "Nextcloud", fr: "Nextcloud"}}}`): the panel
@@ -249,11 +210,11 @@ there).
 3. `blueprints/<id>/logo.png` -- optional: the project's own logo, unmodified,
    made with `uv run build/logo.py <source> blueprints/<id>/logo.png` (256x256,
    8-bit RGBA, at most 64 KiB: the control panel keeps no larger logo).
-   `x-catena.logo` in the source names where it comes from (`source`) and the
+   `logo` in `app.json` names where it comes from (`source`) and the
    line its owner's terms ask for (`notice`); a logo whose owner's terms forbid
    this use is not placed. Without a logo the render emits a deterministic
    `logo.svg` placeholder.
-4. `x-catena.sizing.peak_ram_mb` is required: the bench scheduler
+4. `sizing.peak_ram_mb` in `app.json` is required: the bench scheduler
    multiplies it by 1.15 to gate parallel slot acquisition. The other
    numbers stay null until a measured run.
 5. If the application keeps live state that a file-level snapshot can
@@ -298,9 +259,8 @@ there).
    checks that the compose reads each key and that `switch` runs in one of its
    services. Real example: `blueprints/nextcloud-s3-oidc`.
 7. If the entry works only on a Catena release newer than some servers
-   run, `requires_catena` (a field of the compose block, or of a source's
-   `x-catena`) names the oldest one it works on (`0.11.0`). The render opens the entry's templates.json description and its
-   README with that release. A block field a published release does not read
+   run, `requires_catena` (a field of the compose block) names the oldest one it
+   works on (`0.11.0`). The render opens the entry's README with that release. A block field a published release does not read
    needs `requires_catena` at the release that reads it; app-ci refuses the entry
    until that release is published.
 8. Declare the verify hook, `x-catena.hooks.verify`, which asks the running
@@ -326,7 +286,7 @@ there).
    an assert that reads only a file the seed wrote proves the volume, not the
    app. Real example: `blueprints/erpnext`.
 10. `make` -- renders, lints, and runs the tests. Commit the regenerated
-    `blueprints/<id>/README.md`, `templates.json`, `catalog.json` and
+    `blueprints/<id>/README.md`, `catalog.json` and
     `index.html` with the source change, and, for an app held as neat files, its
     packed `blueprints/<id>/docker-compose.yml`.
 11. Open a PR from a branch that changes this one app and nothing else, or, as
@@ -426,12 +386,11 @@ runs later and elsewhere. One job covers the catalog:
   each app held as neat files, and the job fails when the committed
   `docker-compose.yml` differs from that render.
 
-Then one job per app the change touches (`blueprints/<id>/**` or
-`sources/<id>.json`), each running:
+Then one job per app the change touches (`blueprints/<id>/**`), each running:
 
 - `docker stack config` on the app's compose file.
 - `catena-applint` from the catena-admin image of the release the entry's
-  `x-catena.requires_catena` names (the newest release when it names none) over
+  compose block's `requires_catena` names (the newest release when it names none) over
   the blueprints: an `error` finding in the app's own compose file fails the
   job, inherited ones included, and an unpublished release fails it too.
 - scanctl on the app's images, judged from the change's base (the first
@@ -560,7 +519,7 @@ private runner this repository cannot reach):
   `app-tag.yml` tags them (see "Versions").
 - `adopt-fork.yml` serves pull requests from forks, which the bench never sees
   directly. When `app-ci` has passed a fork's pull request, it copies the fork's
-  files for exactly one app (`blueprints/<id>/**` and `sources/<id>.json`) onto
+  files for exactly one app (`blueprints/<id>/**`) onto
   the branch `adopt/<pr>` of this repository through the API, as data: nothing
   of the fork is checked out or run with a secret. A change that touches more
   than one app, a file outside an app, a link or a file over 1 MB is refused.
@@ -578,15 +537,15 @@ No file holds a version string: versions are git tags. A tested app is tagged
 `<app>/<version>-<revision>` (`nextcloud-s3-oidc/31.0.8-1`).
 
 - **Version.** The numeric part of the image tag of the app's main address
-  service: the service `x-catena.domain.service` names in the source, or the
-  compose block's `version_from` service when it has one (`34.0.5-apache` is
+  service: the compose block's `version_from` service when it has one, else the
+  service the compose labels as the main address (`34.0.5-apache` is
   `34.0.5`).
 - **Revision.** 1 plus the highest revision the app already has at that
   version, so a change that leaves the image alone still gets a new tag. Tags order by
   version, then revision, as numbers.
 - **When.** `app-tag.yml` runs on the event `app-passed`, which the bench sends
   with the apps that passed on a commit of `main`. An app whose files
-  (`blueprints/<id>/`, `sources/<id>.json`) differ from its newest tag in the
+  (`blueprints/<id>/`) differ from its newest tag in the
   runtime (or in verification together with presentation), or that has none,
   gets a new tag on the commit; one that differs in presentation alone gets a
   new tag recorded against the newest tag (`create TAG FROM`, below); one that
@@ -619,8 +578,7 @@ No file holds a version string: versions are git tags. A tested app is tagged
   files differ from it in verification alone or not at all. The nightly
   bench run takes the apps that are neither `tested` nor `presentation` first.
 - **Scope.** The `scope` check fails a pull request or a commit of `main` that
-  changes more than one app (distinct ids across `blueprints/<id>/**` and
-  `sources/<id>.json`), so one change is one tag; the `one-app` pre-commit hook
+  changes more than one app (distinct ids across `blueprints/<id>/**`), so one change is one tag; the `one-app` pre-commit hook
   does the same for a commit. `app-checks`, `scope` and `app-tests` are required
   for a pull request to `main`; an admin's direct push gets the same checks per
   commit from `app-main.yml`.
@@ -723,7 +681,7 @@ uv run build/import_registry.py --wave 5 --also arcane=<registry.json address> <
   in the catalog. The richest of a group (most settings, plus a health check,
   plus sign-in labels) seeds the new app and the others are aliases:
   recorded in its `origin.aliases`, not imported. An alias of an app already
-  in the catalog is recorded in `sources/_aliases.json`, which a later run
+  in the catalog is recorded in `catalog-aliases.json`, which a later run
   reads so it weighs the entry no more. `--also FORMAT=ADDRESS` reads a
   further registry in the same run.
 - **Waves.** `--wave N` imports up to N new apps, each on its own branch
@@ -743,26 +701,26 @@ uv run build/import_registry.py --wave 5 --also arcane=<registry.json address> <
   value. A `template.toml` helper (`${password:32}` and the others) gets
   a minted value of the same length and alphabet, and env lines that
   share one generated value read it from one setting.
-- **What it writes.** `sources/<id>.json` with `x-catena.status:
+- **What it writes.** `blueprints/<id>/app.json` with `status:
   imported`, the `origin` (registry, entry, source, licence, attribution,
   and when known the commit, path, upstream project and aliases) and
   `pending` (the findings left on the compose, and what a person still
   chooses: version, access, host name, EN/FR text, sizing, bench pack,
   SSO, quiesce hooks, bind mounts, refused features), plus
-  `blueprints/<id>/docker-compose.yml`. An imported entry the `_meta.json`
+  `blueprints/<id>/docker-compose.yml`. An imported entry the `catalog-meta.json`
   order does not list follows the listed ones, by id; finishing it means
   placing it in the order. An id already in the catalog is left alone.
 
 An imported entry renders with stubs (no bench pack, no measured peak,
 placeholder prose) and the published catalog marks it untested:
 `status` and `origin` in `catalog.json`, "Imported, untested" in the
-templates.json description and note, the README and `index.html`. Finishing
+README and `index.html`. Finishing
 it means filling the stubs, settling `pending`, and deleting both
 `pending` and `status`; `origin` stays.
 
 ## What does NOT live here
 
-- Vault values, OIDC client secrets, any actual secret. Sentinels only.
+- Vault values, OIDC client secrets, any actual secret.
 - The on-box settling of an app's env and the minting of per-deploy app
   passwords. Lives in catenahq/catena-admin.
 - The Keycloak clients apps sign in with: an app's own client comes from
@@ -778,6 +736,4 @@ it means filling the stubs, settling `pending`, and deleting both
 ## Why this is its own repo
 
 A host fetches an app by sparse clone from a repository address, so the
-catalog is a public repository of its own. The source files' Portainer fields
-follow the Portainer App Templates format and the community layout used by
-Lissy93/portainer-templates.
+catalog is a public repository of its own.

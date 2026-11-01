@@ -28,7 +28,7 @@ DAILY_LIMIT = 5
 OPEN_LIMIT = 10
 IMPORT_PREFIX = "import/"
 PRIORITY_PREFIXES = ("renovate/", "engine-bump/", "scanctl/")
-GENERATED = ("templates.json", "catalog.json", "index.html")
+GENERATED = ("catalog.json", "index.html")
 
 Run = Callable[[list[str]], str]
 
@@ -127,15 +127,14 @@ class Publisher:
             self.run(["git", "switch", self.home])
 
 
-def pull_request_title(source: dict[str, Any]) -> str:
-    origin = source["x-catena"]["origin"]
-    return f"feat(import): {source['id']} from {origin['registry'].split('//')[-1].split('/')[0]}"
+def pull_request_title(slug: str, card: dict[str, Any]) -> str:
+    origin = card["origin"]
+    return f"feat(import): {slug} from {origin['registry'].split('//')[-1].split('/')[0]}"
 
 
-def pull_request_body(source: dict[str, Any]) -> str:
-    cat = source["x-catena"]
-    origin = cat["origin"]
-    lines = [f"Imported, untested: {source['title']}.", "",
+def pull_request_body(card: dict[str, Any]) -> str:
+    origin = card["origin"]
+    lines = [f"Imported, untested: {card['en']['display_name']}.", "",
              f"- registry: {origin['registry']}", f"- entry: {origin['entry']}",
              f"- source: {origin['source']}"]
     for key in ("commit", "path", "project"):
@@ -144,10 +143,10 @@ def pull_request_body(source: dict[str, Any]) -> str:
     lines += [f"- licence: {origin['licence']}", f"- attribution: {origin['attribution']}"]
     if origin.get("aliases"):
         lines.append(f"- aliases: {', '.join(a['entry'] for a in origin['aliases'])}")
-    pending = cat["pending"]
+    pending = card["pending"]
     lines += ["", f"Findings left on the compose file: {len(pending['findings'])}. "
                   f"Choices for a person: {len(pending['to_choose'])}. "
-                  f"Both are in x-catena.pending."]
+                  f"Both are in app.json pending."]
     return "\n".join(lines)
 
 

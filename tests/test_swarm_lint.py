@@ -2,7 +2,7 @@
 
 Every case drives the pure functions over a compose body, so the suite runs
 without docker on the host. The end-to-end case at the bottom runs the lint
-over the real sources/ tree, which is what CI gates on.
+over the real blueprints/ tree, which is what CI gates on.
 
 The bans below are not a reading of the documentation. Each key was deployed
 to a single-node swarm and the resulting service spec inspected; the three in

@@ -6,12 +6,10 @@
 #   # then open http://<host>:8080/ (index.html) or
 #   # http://<host>:8080/catalog.json
 #
-# The generated files and the blueprints folders are copied in: sources/ is
-# a build input and is not served.
+# The generated files and the blueprints folders are copied in.
 
 FROM nginxinc/nginx-unprivileged:1.31-alpine
 
-COPY templates.json /usr/share/nginx/html/templates.json
 COPY catalog.json /usr/share/nginx/html/catalog.json
 COPY index.html /usr/share/nginx/html/index.html
 COPY blueprints /usr/share/nginx/html/blueprints

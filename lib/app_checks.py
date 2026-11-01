@@ -9,8 +9,7 @@
                         posted by github-actions[bot] for a run of that repository (GITHUB_TOKEN or
                         GH_TOKEN reads it); any other answer, an unreadable one included, exits 1
   checker ID            the catena-admin image whose app checker reads the app: the release
-                        its compose block (or, for a source, x-catena) names in
-                        requires_catena, else the newest
+                        its compose block names in requires_catena, else the newest
 
 Provenance reads the image's `org.opencontainers.image.source` label from
 `docker image inspect`, so the app's images are pulled first.
@@ -26,7 +25,7 @@ import sys
 
 from . import changes, model, provenance
 from .adopt import REPO, SHA
-from .model import ROOT, SOURCES
+from .model import ROOT
 
 CHECKER_IMAGE = "ghcr.io/catenahq/catena-admin"
 CI_CONTEXT = "app-ci"
@@ -34,14 +33,9 @@ CI_CREATOR = "github-actions[bot]"
 
 
 def requires_catena(app: str) -> str | None:
-    """The release the app names: its compose block's `requires_catena`, else its
-    source's `x-catena.requires_catena`."""
+    """The release the app names: its compose block's `requires_catena`."""
     block = model.compose_doc(ROOT / "blueprints" / app / "docker-compose.yml").get(model.BLOCK_KEY)
-    release = block.get("requires_catena") if isinstance(block, dict) else None
-    source = SOURCES / f"{app}.json"
-    if not release and source.exists():
-        release = (json.loads(source.read_text(encoding="utf-8")).get("x-catena") or {}).get("requires_catena")
-    return release
+    return block.get("requires_catena") if isinstance(block, dict) else None
 
 
 def checker_image(app: str) -> str:

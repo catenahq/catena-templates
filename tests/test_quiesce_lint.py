@@ -1,8 +1,8 @@
 """Unit tests for lib/quiesce_lint.py.
 
 Most argv cases drive lint_migrate_argv directly. The lint_all cases run
-the gate over the real sources/ tree, or over a synthetic one to prove it
-reads sources rather than a cached artifact.
+the gate over the real blueprints/ tree, or over a synthetic one to prove it
+reads the files rather than a cached artifact.
 """
 from __future__ import annotations
 
@@ -110,8 +110,8 @@ def test_lint_all_against_real_sources_passes():
 
 
 def test_lint_all_rejects_a_hostile_quiesce_command(monkeypatch, tmp_path, capsys):
-    """A synthetic sources/ tree with a hostile command must fail. Proves
-    the gate is reading sources, not a cached artifact."""
+    """A synthetic blueprints/ tree with a hostile command must fail. Proves
+    the gate is reading the files, not a cached artifact."""
     _synthetic_sources(monkeypatch, tmp_path, {}, block={
         "schema": 2,
         "quiesce": {
@@ -333,6 +333,7 @@ services:
     image: acme/app:1.0.0
     labels:
       - "vps.route.host=${DOMAIN_HOST}"
+      - "vps.route.port=80"
       - "vps.auth.mode=public"
       - "vps.auth.oidc=true"
       - "vps.auth.oidc.redirect_uris=https://${DOMAIN_HOST}/cb"
@@ -436,7 +437,9 @@ def _compose(services: dict[str, list[str]]) -> str:
     for name, labels in services.items():
         lines += [f"  {name}:", "    image: acme/app:1.0.0"]
         if labels:
-            lines += ["    labels:"] + [f'      - "{label}"' for label in labels]
+            ported = [*labels, "vps.route.port=80"] if any(
+                label.startswith("vps.route.host=") for label in labels) else labels
+            lines += ["    labels:"] + [f'      - "{label}"' for label in ported]
     return "\n".join(lines) + "\n"
 
 
@@ -473,7 +476,7 @@ def test_sign_in_labels_off_the_main_address_are_refused(
 def _imported(findings: list[str]) -> dict:
     return {
         "status": "imported",
-        "origin": {"registry": "https://example.com/templates.json", "entry": "Synthetic",
+        "origin": {"registry": "https://example.com/registry.json", "entry": "Synthetic",
                    "source": "https://github.com/example/app", "licence": "MIT",
                    "attribution": "Copyright (c) 2025 Example"},
         "pending": {"findings": findings, "to_choose": []},
@@ -527,54 +530,37 @@ def test_the_database_match_reads_the_image_name_only():
 def _synthetic_sources(monkeypatch, tmp_path, catena: dict,
                        compose: str = "services:\n  app:\n    image: x\n",
                        block: dict | None = None) -> None:
-    """Point the loader at a one-template sources/ tree whose compose is
+    """Point the loader at a one-template blueprints/ tree whose compose is
     `compose` (one service, `app`, by default) behind `block` as its x-catena
-    block (the env defaults to one DOMAIN_HOST setting), and whose source x-catena
-    block carries `catena` over the required fields."""
-    sources = tmp_path / "sources"
-    sources.mkdir(parents=True)
+    block (the env defaults to one DOMAIN_HOST setting), and whose app.json
+    carries `catena` over the required fields."""
     blueprint = tmp_path / "blueprints" / "synthetic-bad"
     blueprint.mkdir(parents=True)
     block = {"schema": 2, "env": {"DOMAIN_HOST": {"setting": {"default": "x.example.com"}}},
              **(block or {})}
     head = yaml.safe_dump({model.BLOCK_KEY: block}) + "\n"
     (blueprint / model.COMPOSE_NAME).write_text(head + compose)
-    doc = {
-        "id": "synthetic-bad",
-        "type": 2,
-        "title": "Synthetic",
-        "name": "synthetic-bad",
-        "categories": ["Testing"],
-        "platform": "linux",
-        "x-catena": {
-            "app_name": "synthetic-bad",
-            "upstream_url": "https://example.com",
-            "sso_mode": "none",
-            "domain": {"host": "x.example.com", "service": "app", "port": 80},
-            "bench": {"pack": "nodb"},
-            "sizing": {"peak_ram_mb": 128},
-            "en": {
-                "display_name": "Synthetic",
-                "what_it_is": "test",
-                "replaces": [],
-                "compose_description": "test",
-                "setup_steps": "1. none",
-            },
-            "fr": {
-                "display_name": "Synthetic",
-                "what_it_is": "test",
-                "replaces": [],
-                "compose_description": "test",
-                "setup_steps": "1. aucune",
-            },
-            **catena,
-        },
+    prose = {
+        "display_name": "Synthetic",
+        "summary": "test",
+        "what_it_is": "test",
+        "replaces": [],
+        "compose_description": "test",
     }
-    (sources / "synthetic-bad.json").write_text(json.dumps(doc))
-    (sources / model.META_NAME).write_text(
-        json.dumps({"order": ["synthetic-bad"]})
-    )
-    monkeypatch.setattr(model, "SOURCES", sources)
+    doc = {
+        "schema": 1,
+        "app_name": "synthetic-bad",
+        "upstream_url": "https://example.com",
+        "categories": ["Testing"],
+        "sso_mode": "none",
+        "bench": {"pack": "nodb"},
+        "sizing": {"peak_ram_mb": 128},
+        "en": {**prose, "setup_steps": "1. none"},
+        "fr": {**prose, "setup_steps": "1. aucune"},
+        **catena,
+    }
+    (blueprint / model.CARD_NAME).write_text(json.dumps(doc))
+    (tmp_path / model.CATALOG_META).write_text(json.dumps({"order": ["synthetic-bad"]}))
     monkeypatch.setattr(model, "BLUEPRINTS", tmp_path / "blueprints")
 
 

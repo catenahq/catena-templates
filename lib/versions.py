@@ -2,8 +2,7 @@
 
 A tested app is tagged `<app>/<version>-<revision>` (`nextcloud-s3-oidc/31.0.8-1`).
 The version is the numeric part of the image tag of the app's main address
-service: the compose block's `version_from` service when it names one, else
-the service `sources/<id>.json` names in `x-catena.domain.service`, else the
+service: the compose block's `version_from` service when it names one, else the
 service the compose labels as the main address (the only one carrying
 `vps.route.host`, or of several the last also carrying `vps.route.main` as true,
 1 or yes, as catena-admin `payload/engines/stackupdate` reads it). The
@@ -18,8 +17,7 @@ Classes. A change of an app's files falls in three classes: RUNTIME (what
 decides what runs and how Catena operates it), VERIFICATION (what tests it) and
 PRESENTATION (name, descriptions, logo, README). FILE_CLASSES gives the class of
 each file of `blueprints/<id>/` and FIELD_CLASSES the class of each field of the
-card file (`blueprints/<id>/app.json`, or `sources/<id>.json` with its
-`x-catena.` prefix dropped); anything unlisted is RUNTIME. The neat files of an
+card file (`blueprints/<id>/app.json`); anything unlisted is RUNTIME. The neat files of an
 app held as `services.yml` and its section files (lib/pack.py) are DERIVED: they
 add no class, since the render packs `docker-compose.yml` from them and that file
 is judged byte for byte. `changed_classes` returns the classes of the difference
@@ -100,14 +98,9 @@ FILE_CLASSES = {
     "README.md": PRESENTATION,
 }
 
-# Class of each field of the card file; a source's fields are keyed without `x-catena.`.
+# Class of each field of the card file (app.schema.json).
 FIELD_CLASSES = {
-    "id": RUNTIME,
     "schema": RUNTIME,
-    "type": PRESENTATION,
-    "platform": PRESENTATION,
-    "name": PRESENTATION,
-    "title": PRESENTATION,
     "categories": PRESENTATION,
     "upstream_url": PRESENTATION,
     "logo": PRESENTATION,
@@ -120,9 +113,6 @@ FIELD_CLASSES = {
     "sizing": PRESENTATION,
     "bench": VERIFICATION,
     "app_name": VERIFICATION,
-    "domain": RUNTIME,
-    "requires_catena": RUNTIME,
-    "env_required_when": RUNTIME,
 }
 _ABSENT = object()
 
@@ -152,18 +142,17 @@ def version_of_image(ref: str) -> str:
     return match.group(1)
 
 
-def version_service(source: dict[str, Any] | None, compose: dict[str, Any]) -> str:
+def version_service(compose: dict[str, Any]) -> str:
     """The service whose image tag is the app's version."""
     block = compose.get(BLOCK_KEY) or {}
-    domain = ((source or {}).get(BLOCK_KEY) or {}).get("domain") or {}
-    service = block.get("version_from") or domain.get("service") or main_service(compose)
+    service = block.get("version_from") or main_service(compose)
     if not service:
         raise VersionError("the app has no web address, so its block must name version_from")
     return service
 
 
-def app_version(source: dict[str, Any] | None, compose: dict[str, Any]) -> str:
-    service = version_service(source, compose)
+def app_version(compose: dict[str, Any]) -> str:
+    service = version_service(compose)
     spec = (compose.get("services") or {}).get(service)
     if not isinstance(spec, dict) or not spec.get("image"):
         raise VersionError(f"service {service!r} has no image to read the version from")
@@ -221,10 +210,8 @@ def _show(ref: str, path: str) -> str:
 
 def next_tag(app: str, tags: Iterable[str], ref: str = "HEAD") -> str:
     """The next tag of the app as commit `ref` holds it."""
-    path = f"sources/{app}.json"
-    source = json.loads(_show(ref, path)) if _object(f"{ref}:{path}") else None
     compose = yaml.safe_load(_show(ref, f"blueprints/{app}/docker-compose.yml"))
-    version = app_version(source, compose)
+    version = app_version(compose)
     return tag_name(app, version, next_revision(app, version, tags))
 
 
@@ -248,9 +235,9 @@ def app_tags(app: str) -> dict[str, bool]:
     return tags
 
 
-def app_paths(app: str) -> tuple[str, str]:
+def app_paths(app: str) -> tuple[str]:
     """The paths that make up an app."""
-    return f"blueprints/{app}", f"sources/{app}.json"
+    return (f"blueprints/{app}",)
 
 
 def last_change(app: str, ref: str = "HEAD") -> str:
@@ -281,7 +268,7 @@ def same_files(app: str, a: str, b: str) -> bool:
 def _files(app: str, rev: str) -> dict[str, tuple[str, str]]:
     """Path -> (mode, object) of the app's files at `rev`; empty when it holds none."""
     out = subprocess.run(
-        ["git", "-C", str(ROOT), "ls-tree", "-r", "-z", rev, "--", f"blueprints/{app}/", f"sources/{app}.json"],
+        ["git", "-C", str(ROOT), "ls-tree", "-r", "-z", rev, "--", f"blueprints/{app}/"],
         capture_output=True, text=True, check=False).stdout
     files = {}
     for entry in filter(None, out.split("\0")):
@@ -291,22 +278,16 @@ def _files(app: str, rev: str) -> dict[str, tuple[str, str]]:
     return files
 
 
-def _fields(paths: list[str], rev: str) -> dict[str, Any] | None:
-    """The card fields held by the (at most one) card file at `rev`; None when it
+def _fields(app: str, rev: str, present: bool) -> dict[str, Any] | None:
+    """The card file's fields at `rev` (none when the file is absent); None when it
     does not parse to an object."""
-    if not paths:
+    if not present:
         return {}
     try:
-        doc = json.loads(_show(rev, paths[0]))
+        doc = json.loads(_show(rev, f"blueprints/{app}/{CARD}"))
     except (subprocess.CalledProcessError, ValueError):
         return None
-    if not isinstance(doc, dict):
-        return None
-    block = doc.get(BLOCK_KEY, {})
-    fields = {key: value for key, value in doc.items() if key != BLOCK_KEY}
-    if not isinstance(block, dict) or fields.keys() & block.keys():
-        return None
-    return {**fields, **block}
+    return doc if isinstance(doc, dict) else None
 
 
 def _form(value: Any) -> str:
@@ -314,11 +295,9 @@ def _form(value: Any) -> str:
     return "" if value is _ABSENT else json.dumps(value, sort_keys=True)
 
 
-def _card_classes(old: list[str], a: str, new: list[str], b: str) -> set[str]:
-    """Classes of the difference between the card files `old` at `a` and `new` at `b`."""
-    if len(old) > 1 or len(new) > 1:
-        return {RUNTIME}
-    before, after = _fields(old, a), _fields(new, b)
+def _card_classes(app: str, a: str, has_a: bool, b: str, has_b: bool) -> set[str]:
+    """Classes of the difference between the card file at `a` and at `b`."""
+    before, after = _fields(app, a, has_a), _fields(app, b, has_b)
     if before is None or after is None:
         return {RUNTIME}
     found = {FIELD_CLASSES.get(key, RUNTIME) for key in before.keys() | after.keys()
@@ -343,19 +322,19 @@ def file_class(path: str) -> str:
 def changed_classes(app: str, a: str, b: str) -> frozenset[str]:
     """The classes of the difference between the app's files at commits `a` and `b`:
     a differing, added or removed file takes its class (a file the render packs takes
-    none), and the card file is read at both commits (under whichever of its two names
-    it has there) and each differing field takes its class."""
+    none), and the card file is read at both commits and each differing field takes
+    its class."""
     folder = f"blueprints/{app}/"
-    cards = (folder + CARD, f"sources/{app}.json")
+    card = folder + CARD
     before, after = _files(app, a), _files(app, b)
     classes = {file_class(path.removeprefix(folder))
                if _regular(before.get(path)) and _regular(after.get(path)) else RUNTIME
                for path in before.keys() | after.keys()
-               if path not in cards and before.get(path) != after.get(path)} - {DERIVED}
-    if any(before.get(path) != after.get(path) for path in cards):
-        if not all(_regular(entry.get(path)) for entry in (before, after) for path in cards):
+               if path != card and before.get(path) != after.get(path)} - {DERIVED}
+    if before.get(card) != after.get(card):
+        if not (_regular(before.get(card)) and _regular(after.get(card))):
             classes.add(RUNTIME)
-        classes |= _card_classes([p for p in cards if p in before], a, [p for p in cards if p in after], b)
+        classes |= _card_classes(app, a, card in before, b, card in after)
     return frozenset(classes)
 
 

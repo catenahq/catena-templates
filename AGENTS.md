@@ -5,21 +5,18 @@ the repository, and the checks.
 
 ## Edit rules
 
-- A template is TWO hand-edited files: `sources/<id>.json` and
-  `blueprints/<id>/docker-compose.yml`, or `blueprints/<id>/app.json` in place
-  of the source (never both). The `id` MUST equal the source
-  filename stem AND the blueprint directory name (an `app.json` has no `id`:
-  the folder name is it); the loader fails the build otherwise. An app held as
-  `app.json` has a compose with no `vps.homepage.*` label and its `domain`
-  derived from the compose labels.
+- A template is TWO hand-edited files: `blueprints/<id>/app.json` and
+  `blueprints/<id>/docker-compose.yml`. The folder name is the app's id (an
+  `app.json` has no `id` field). The compose carries no `vps.homepage.*` label
+  (`make lint` refuses any) and the app's web address is derived from its
+  labels.
 - Everything else is generated: the per-app `README.md` and placeholder
-  `logo.svg`, plus `templates.json`, `catalog.json` and `index.html`.
+  `logo.svg`, plus `catalog.json` and `index.html`.
   Never hand-edit a generated file -- the change is overwritten on the
   next render, and CI rejects the change.
 - A hand-placed `logo.png` is the project's own logo, unmodified, made by
-  `build/logo.py`, and its source names it in `x-catena.logo`; a logo whose
-  owner's terms forbid this use stays out. The main address's service carries
-  `vps.homepage.name` equal to `x-catena.en.display_name`, or no name label.
+  `build/logo.py`, and its `app.json` names it in `logo`; a logo whose
+  owner's terms forbid this use stays out.
 - What the server needs to back up, update and restore an app (backup
   mode, update and restore commands, object-store check, the env
   expressions Catena keeps set) is the root `x-catena:` block of the
@@ -54,8 +51,8 @@ the repository, and the checks.
   (`ssl` or `tls`) and `smtp_relay_sender` in a managed expression. The password
   is the stored secret `smtp_password`. None of them exists until a relay is
   chosen, so each read carries `| default('')`.
-- An application with no web address (a scanner, a relay) leaves `domain` out of
-  its source and names `version_from` in its block.
+- An application with no web address (a scanner, a relay) has no service
+  labelled `vps.route.host` and names `version_from` in its block.
 - An application that runs on the server's own network declares the
   `host_network` privilege and, in `vps.expose.tcp` and `vps.expose.udp` labels,
   each port it opens, a range of at most 1024 ports. Its compose joins the
@@ -65,7 +62,7 @@ the repository, and the checks.
   container starts, so no secret reaches the service's arguments.
 - A compose file carries no descriptive header. What the template is,
   what it replaces, how sign-in works and what each env var means live
-  in `sources/<id>.json` and reach the reader through the generated
+  in `app.json` and reach the reader through the generated
   README. Comments inside the compose explain a construct that does not
   read as written, beside that construct.
 - The workflows `app-ci.yml`, `build-and-verify.yml`, `app-dispatch.yml` and
@@ -79,10 +76,8 @@ the repository, and the checks.
   deployed with: a new commit changes no running app.
 - An entry that an older Catena release deploys in a shape it cannot
   serve names the oldest release it works on in
-  `requires_catena` (the compose block's field, or a source's
-  `x-catena.requires_catena`), the one place that release is written: the
-  render puts it in the templates.json description and the README, so the
-  prose never repeats it.
+  `requires_catena` (the compose block's field), the one place that release is
+  written: the render puts it in the README, so the prose never repeats it.
 - An app whose folder holds `services.yml` is held as neat files: edit
   `services.yml`, `settings.yml`, `access.yml`, `lifecycle.yml` and `hooks/`, never
   its `docker-compose.yml`, which the render packs from them (`lib/pack.py`; README.md,
@@ -114,10 +109,10 @@ the repository, and the checks.
   from the sibling checkout; this repo holds no copy. A debt entry in
   `.github/prose-debt.txt` that has become clean FAILS the gate and must
   be deleted.
-- Bilingual prose (the `x-catena.en` / `x-catena.fr` blocks): both
-  required, no EN-only or FR-only templates.
+- Bilingual prose (the `en` / `fr` objects of `app.json`): both required, no
+  EN-only or FR-only templates. Each carries a `summary`, the card's one line.
 - An entry `build/import_registry.py` writes carries
-  `x-catena.status: imported` and publishes marked untested, with stubs
+  `status: imported` and publishes marked untested, with stubs
   for its bench pack, sizing and prose. `origin` records where its compose
   file was copied from, with that source's licence and notice. Import only
   an app whose own licence is on the importer's `APP_LICENCES`
@@ -131,21 +126,20 @@ the repository, and the checks.
   Never import an entry whose title or id holds a word on the contracts
   banned-word list; the importer skips it. One catalog app per upstream
   project: an entry the importer records as an alias (`origin.aliases`,
-  `sources/_aliases.json`) is not imported again. Imports reach `main` one
+  `catalog-aliases.json`) is not imported again. Imports reach `main` one
   app per pull request on `import/<id>` (`--wave`), never ahead of an open
   update or vulnerability fix; keep the daily and open limits
   conservative. Finishing an imported entry
   means filling every stub, settling `pending`, then deleting `pending`
   and `status`; `origin` stays.
-- No secrets, ever. Sentinel placeholders (`__CATENA_OPERATOR_WIRED__`)
-  in templates.json. This repo is public and one file serves every
-  client, so it cannot hold a per-host value. Nothing resolves the
-  sentinel in this repo, and no host deploys from `templates.json`.
+- No secrets, ever. This repo is public and one file serves every client, so
+  it cannot hold a per-host value: a host mints each generated value when it
+  deploys the app.
 
 ## The render contract
 
 `make render` (thin entrypoint: `build/render.py`, logic in `lib/`)
-transforms each app's metadata file (`app.json` or source) and compose into:
+transforms each app's `app.json` and compose into:
 
 - `blueprints/<id>/README.md` -- the template's own page: what it is,
   what it replaces, how sign-in works, the setup steps and the env
@@ -160,16 +154,8 @@ Jinja stays in place; the env it reads is settled on the host, and routing is
 reconciled post-deploy by dashboard-sync. The render never writes into
 that file, except for an app held as neat files: the render packs that
 app's `docker-compose.yml` from its neat files (`lib/pack.py`), committed
-beside them. The render deletes a blueprint directory only when no source file
-claims it any more.
-- `templates.json` -- a Portainer-shaped index (format v3) with one entry per
-  app held as a source: type 2,
-  title/name/description/note/categories/logo, `repository{url,
-  stackfile}` pointing at `blueprints/<id>/`, and `env` with human
-  labels. Nothing in Catena reads it. Three classes of value render to the
-  sentinel: the block's `managed` env keys, `lookup('password', ...)`
-  expressions, and anything still carrying Jinja (the format has no
-  template engine).
+beside them. The render deletes a blueprint directory only when it holds no
+`app.json`.
 - `catalog.json` -- the browsable catalog, in one
   fetch: the flat per-template fields, `sizing`, the EN/FR prose, and the
   compose block lifted under the keys `env`, `lifecycle`, `quiesce`,
@@ -179,7 +165,7 @@ claims it any more.
 - `index.html` -- a static preview of the catalog, browsable beside `catalog.json`.
 
 The render must be idempotent: running it twice produces byte-identical
-outputs. CI verifies with `git diff --exit-code` over all four.
+outputs. CI verifies with `git diff --exit-code` over the generated files.
 
 ## Every compose here is a SWARM stack file
 
@@ -222,8 +208,7 @@ lint offers every inline script to the interpreter it names.
 
 ## Naming and identity
 
-`name` and `x-catena.app_name` are the same string and both start with
-`catena-`. That string is the stack name, so under
+`app_name` in `app.json` starts with `catena-`. That string is the stack name, so under
 swarm it prefixes every service (`catena-nextcloud_app`), every task
 container (`catena-nextcloud_app.1.<task-id>`) and every volume
 (`catena-nextcloud_nc-data`).
@@ -239,10 +224,9 @@ address's labels (`vps.route.port`, `vps.auth.mode`, `vps.auth.groups`,
 `vps.health.*`) from that service; it joins `catena-network`, where Traefik
 and the address's oauth2-proxy reach it by its swarm name
 `<app_name>_<service>`. The main address is the only one, or, of several, the
-one whose service also carries `vps.route.main=true`, and `x-catena.domain`
-names it. The host reads the app-wide labels (the sign-in labels
-`vps.auth.oidc*`, `vps.auth.protected`, `vps.display-name`,
-`vps.homepage.*`) from the main address's service alone.
+one whose service also carries `vps.route.main=true`. The host reads the app-wide labels (the sign-in labels
+`vps.auth.oidc*`, `vps.auth.protected`, `vps.display-name`) from the main address's service
+alone.
 
 The host runs a quiesce or lifecycle command in the container of the service
 the block names, and `make lint` checks that a quiesce block's `service` is a
@@ -252,18 +236,17 @@ it.
 
 ## Validation layers
 
-1. `sources.schema.json` -- field shapes, enums, required keys, and the
+1. `app.schema.json` -- field shapes, enums, required keys, and the
    imported tier (an imported entry names its origin and its pending
    list; only a curated one has to carry a bench pack and a measured
    peak). `block.schema.json` -- the compose's `x-catena` block: its
    `schema`, the env shapes, the env key deny list (`DOCKER_*`, `PATH`,
    `HOME`, `LD_*`, `*_PROXY`), the quiesce timeout cap, argv shapes. Both run
    on every load, not just in CI.
-2. Cross-file invariants in `lib/model.py` -- id matches filename, no
-   duplicate slug, the compose file exists and its block declares an env.
-3. `Schema.json` -- the generated `templates.json` against the published
-   Portainer App Templates format it follows.
-4. `make lint` -- the block holds no `$` (outside a hooks body) and no
+2. Cross-file invariants in `lib/model.py` -- the compose file exists and its
+   block declares an env, the logo and its `logo` field agree, no
+   `vps.homepage.*` label.
+3. `make lint` -- the block holds no `$` (outside a hooks body) and no
    image reference of its compose, the quiesce, lifecycle and hooks argv
    allowlists, a hooks script that parses in the interpreter it names, a
    managed expression that reads no store secret outside the block's
@@ -307,8 +290,8 @@ README.md, "How to add a template", says how; these are the rules.
 
 ## Changing catalog.json
 
-`sources.schema.json` and `block.schema.json` are internal to this repo; the
-CONTRACT with every reader of the catalog is `catalog.json`. A source or block
+`app.schema.json` and `block.schema.json` are internal to this repo; the
+CONTRACT with every reader of the catalog is `catalog.json`. A card or block
 change that leaves `catalog.json` identical needs nothing else. A change to
 `catalog.json` lands in the same merge window as its readers, since they
 fetch `main`: ops `automation/helpers/templates_catalog.py` and
@@ -328,10 +311,8 @@ search of the workspace finds.
 
 ## Security invariants (machine-enforced -- do not weaken silently)
 
-- No secrets, ever: sentinel placeholders only (gitleaks on every
-  change; the catalog is public and fetched raw by every deployment).
-- No unresolved Jinja in `templates.json`. Asserted in
-  `tests/test_render.py`.
+- No secrets, ever (gitleaks on every change; the catalog is public and
+  fetched raw by every deployment).
 - Generated artifacts are BUILD OUTPUTS; hand-edits fail the
   idempotent-render CI gate.
 - Every catalog image ref is CVE-scanned (security.yml, through

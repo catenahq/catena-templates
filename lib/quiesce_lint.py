@@ -13,7 +13,7 @@ the app's stack env. And what the registry importer left on an imported
 entry, which reaches every host's app catalog.
 
 Schema-level checks (argv shape, required keys including the block's
-`schema`, timeout caps) live in block.schema.json and sources.schema.json and
+`schema`, timeout caps) live in block.schema.json and app.schema.json and
 run on every render. This module adds:
 
   - A block holds no `$` and names no image of its compose: Docker

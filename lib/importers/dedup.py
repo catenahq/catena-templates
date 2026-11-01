@@ -10,9 +10,8 @@ records: recorded, not imported.
 
 An alias of an app being imported stays in that app's `origin.aliases`. An
 alias of an app already in the catalog is kept in the catalog's alias file
-(`model.aliases_path()`: catalog-aliases.json, or sources/_aliases.json before
-the catalog holds catalog-meta.json), which a later run reads so it does not
-weigh that entry again.
+(`model.aliases_path()`: catalog-aliases.json), which a later run reads so it does
+not weigh that entry again.
 """
 from __future__ import annotations
 
@@ -105,25 +104,17 @@ def reference(p: pipeline.Prepared) -> dict[str, str]:
     return {k: v for k, v in ref.items() if v}
 
 
-def _compose_keys(slug: str, cat: dict[str, Any]) -> list[str]:
+def _compose_keys(slug: str) -> list[str]:
     doc = model.compose_doc(model.BLUEPRINTS / slug / model.COMPOSE_NAME)
     block = doc.get(model.BLOCK_KEY)
     service = ((block or {}).get("version_from") if isinstance(block, dict) else None) \
-        or (cat.get("domain") or {}).get("service") or model.main_service(doc)
+        or model.main_service(doc)
     spec = (doc.get("services") or {}).get(service)
     return [k for k in [image_key(str((spec or {}).get("image") or ""))] if k]
 
 
 def _catalog_cards() -> Iterable[tuple[str, dict[str, Any]]]:
-    """Each app of the catalog with its catena fields: a source's `x-catena`
-    object, or a card file's fields."""
-    paths = sorted(model.SOURCES.glob("*.json")) if model.SOURCES.is_dir() else []
-    for path in [p for p in paths if not p.name.startswith("_")]:
-        try:
-            doc = json.loads(path.read_text())
-            yield doc["id"], doc.get("x-catena") or {}
-        except (OSError, ValueError, KeyError, TypeError):
-            continue
+    """Each app of the catalog with its card file's fields."""
     for path in sorted(model.BLUEPRINTS.glob(f"*/{model.CARD_NAME}")):
         try:
             yield path.parent.name, dict(json.loads(path.read_text()))
@@ -138,7 +129,7 @@ def catalog_index() -> dict[str, str]:
     registry's."""
     index: dict[str, str] = {}
     for slug, cat in _catalog_cards():
-        found = _compose_keys(slug, cat)
+        found = _compose_keys(slug)
         address = (cat.get("origin") or {}).get("project") if cat.get("status") == "imported" \
             else cat.get("upstream_url")
         repo = pipeline.upstream_repo(str(address or ""))

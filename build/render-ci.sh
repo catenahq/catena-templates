@@ -3,7 +3,7 @@
 #
 # The update engine's repository job (catenahq/renovate engine-bump.yml, through
 # ops bump_versions.py) edits the render's inputs -- a compose pin in
-# blueprints/<id>/, the central postgres default in sources/_meta.json -- and
+# blueprints/<id>/ -- and
 # runs this after each bump, so the generated artifacts in the PR it opens
 # match the inputs and render-idempotency passes.
 #

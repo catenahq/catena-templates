@@ -7,22 +7,20 @@ resolves each pointer on every change.
 ## Intent
 
 The canonical application catalog for Catena. A template is two
-hand-edited files -- its metadata at `sources/<id>.json` and its compose
+hand-edited files -- its card at `blueprints/<id>/app.json` and its compose
 at `blueprints/<id>/docker-compose.yml` -- from which everything else is
-rendered: the per-app README, the Portainer App Templates v3
-`templates.json`, and the machine catalog `catalog.json`.
+rendered: the per-app README and the machine catalog `catalog.json`.
 
 ## Boundaries
 
 - **Hand-edited vs rendered.** The hand-edited files are
-  `sources/<id>.json`, `blueprints/<id>/docker-compose.yml` and an
+  `blueprints/<id>/app.json`, `blueprints/<id>/docker-compose.yml` and an
   optional `blueprints/<id>/logo.png`. An app held as neat files
   (`services.yml` in its folder) hand-edits `services.yml`, `settings.yml`,
   `access.yml`, `lifecycle.yml` and `hooks/` in place of the compose, and its
   `docker-compose.yml` is rendered from them. Everything else is a build
   output, committed and drift-gated: the per-app `README.md` and
-  placeholder logo, plus `templates.json`, `catalog.json` and
-  `index.html`. Editing one of those directly fails CI.
+  placeholder logo, plus `catalog.json` and `index.html`. Editing one of those directly fails CI.
 - **The app carries its own declarations.** What the server needs to back
   up, update and restore an app is the `x-catena` block at the root of the
   app's compose, its env included. A host adds the compose byte for byte, so a deployed
@@ -32,13 +30,11 @@ rendered: the per-app README, the Portainer App Templates v3
   a host fetches at a tag, so it is also where that template's
   compose, README and logo live. Nothing about a template is duplicated
   elsewhere in the repository.
-- **Two output formats, one input.** `templates.json` is the Portainer
-  App Templates index and carries only what that format defines;
-  `catalog.json` carries the rest (SSO mode, the compose block's backup
-  quiesce hooks and update commands, bench membership, sizing, bilingual
-  prose) for the Catena side.
-- **Secrets.** Compose files carry sentinel placeholders only; real
-  values are injected at deploy time on the target server.
+- **One catalog file.** `catalog.json` carries the SSO mode, the compose
+  block's backup quiesce hooks and update commands, bench membership,
+  sizing and the bilingual prose for the Catena side.
+- **Secrets.** The repository holds no secret; the server mints each
+  generated value when it deploys the app.
 - **Public by necessity.** A host fetches an app from this repository by
   sparse clone, so the whole catalog is public.
 
@@ -46,8 +42,8 @@ rendered: the per-app README, the Portainer App Templates v3
 
 | Invariant | Enforced by |
 | --- | --- |
-| Rendered outputs are exactly what `sources/` renders to (idempotent build) | `workflow:build-and-verify.yml` |
-| Every source file matches `sources.schema.json`, and `templates.json` matches the published Portainer format in `Schema.json` | `workflow:build-and-verify.yml` |
+| Rendered outputs are exactly what the `app.json` files and composes render to (idempotent build) | `workflow:build-and-verify.yml` |
+| Every `app.json` matches `app.schema.json` and every compose block matches `block.schema.json` | `workflow:build-and-verify.yml` |
 | A hand-placed logo is a square PNG the control panel keeps, and its source names where it comes from | `workflow:build-and-verify.yml` |
 | An entry imported from a third-party registry names its source, that source's licence and notice, and the published catalog marks it untested | `workflow:build-and-verify.yml` |
 | Every catalog image reference is CVE-scanned | `workflow:security.yml`, `scanctl:trivy` |

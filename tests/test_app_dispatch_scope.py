@@ -43,8 +43,8 @@ def scene(tmp_path):
 
     git("init", "-q", "-b", "main")
     shas = {"root": commit("README.md")}
-    shas["web"] = commit("blueprints/web/docker-compose.yml", "sources/web.json")
-    shas["mail"] = commit("blueprints/mail/docker-compose.yml", "sources/mail.json")
+    shas["web"] = commit("blueprints/web/docker-compose.yml")
+    shas["mail"] = commit("blueprints/mail/docker-compose.yml")
     shas["notes"] = commit("notes.txt")
 
     def run(*, commits="", before=None, branch="main", sha=None):

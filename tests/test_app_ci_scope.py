@@ -78,7 +78,7 @@ def scene(tmp_path):
         return git("rev-parse", "HEAD")
 
     git("init", "-q", "-b", "main")
-    runtime = commit("README.md", "blueprints/web/docker-compose.yml", "sources/web.json")
+    runtime = commit("README.md", "blueprints/web/docker-compose.yml")
 
     def run(base, body, code=200):
         out, summary = tmp_path / "output.txt", tmp_path / "summary.md"
