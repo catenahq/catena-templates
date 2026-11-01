@@ -1,0 +1,19 @@
+requires_catena: 0.11.12
+lifecycle:
+  service: "outline"
+  ready: ["node", "-e", "require('net').connect(3000, '127.0.0.1').on('connect', () => process.exit(0)).on('error', () => process.exit(1))"]
+  migrate:
+    - ["node", "node_modules/.bin/sequelize", "db:migrate", "--env", "production-ssl-disabled"]
+  timeout_seconds: 900
+images:
+  db:
+    rule: {kind: partial_line}
+# verify asks the running server for its sign-in configuration (a public call that reads the database).
+# X-Forwarded-Proto keeps FORCE_HTTPS from redirecting the loopback request.
+hooks:
+  service: outline
+  timeout_seconds: 60
+  verify:
+    - - node
+      - -e
+      - {file: hooks/verify.js}

@@ -1,0 +1,11 @@
+env:
+  DOMAIN_HOST:
+    setting: {default: "wiki.{{ cloudflare_zone }}"}
+  OUTLINE_HOSTNAME:
+    setting: {default: "wiki.{{ cloudflare_zone }}"}
+  OUTLINE_SECRET_KEY:
+    generated: {length: 64, alphabet: hex}
+  OUTLINE_UTILS_SECRET:
+    generated: {length: 64, alphabet: hex}
+  DB_PASSWORD:
+    generated: {length: 32, alphabet: alnum}
