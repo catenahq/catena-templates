@@ -1,0 +1,14 @@
+requires_catena: 0.11.12
+images:
+  db:
+    rule: {kind: partial_line}
+# verify asks the running server for /healthz, the request the image's own healthcheck makes. The server
+# is slow to listen after a deploy, so verify asks again every 4 seconds while the port refuses or the
+# answer is 502/503, for up to 150 seconds, then judges the last answer.
+hooks:
+  service: server
+  timeout_seconds: 180
+  verify:
+    - - sh
+      - -c
+      - {file: hooks/verify.sh}

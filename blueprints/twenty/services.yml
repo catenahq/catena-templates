@@ -1,0 +1,97 @@
+services:
+  server:
+    image: twentycrm/twenty:v2.39.5
+    deploy:
+      restart_policy:
+        condition: any
+      placement:
+        constraints:
+          - node.labels.catena.role==data
+    environment:
+      NODE_ENV: production
+      PG_DATABASE_URL: postgres://postgres:${DB_PASSWORD}@db:5432/default
+      REDIS_URL: redis://redis:6379
+      SERVER_URL: https://${TWENTY_HOSTNAME}
+      STORAGE_TYPE: local
+      STORAGE_LOCAL_PATH: /app/.local-storage
+      APP_SECRET: ${TWENTY_APP_SECRET}
+    volumes:
+      - server-data:/app/.local-storage
+    labels:
+      - "vps.route.host=${DOMAIN_HOST}"
+      - "vps.route.port=3000"
+      - "vps.auth.mode=public"
+      - "vps.auto-update=patch"
+    cap_drop:
+      - NET_RAW
+    networks:
+      catena-network: {}
+      default: {}
+
+  worker:
+    image: twentycrm/twenty:v2.39.5
+    deploy:
+      restart_policy:
+        condition: any
+      placement:
+        constraints:
+          - node.labels.catena.role==data
+    command: ["yarn", "worker:prod"]
+    environment:
+      NODE_ENV: production
+      PG_DATABASE_URL: postgres://postgres:${DB_PASSWORD}@db:5432/default
+      REDIS_URL: redis://redis:6379
+      SERVER_URL: https://${TWENTY_HOSTNAME}
+      STORAGE_TYPE: local
+      STORAGE_LOCAL_PATH: /app/.local-storage
+      APP_SECRET: ${TWENTY_APP_SECRET}
+    volumes:
+      - server-data:/app/.local-storage
+    labels:
+      - "vps.auto-update=patch"
+    networks:
+      - default
+
+  db:
+    image: postgres:18.6-alpine
+    deploy:
+      restart_policy:
+        condition: any
+      placement:
+        constraints:
+          - node.labels.catena.role==data
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: default
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 10m
+    labels:
+      - "vps.auto-update=minor"
+    networks:
+      - default
+
+  redis:
+    image: redis:8.6.7-alpine3.23
+    deploy:
+      restart_policy:
+        condition: any
+    labels:
+      - "vps.auto-update=patch"
+    networks:
+      - default
+
+volumes:
+  server-data:
+  db-data:
+
+networks:
+  catena-network:
+    external: true
