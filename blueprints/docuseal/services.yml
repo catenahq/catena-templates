@@ -1,0 +1,70 @@
+services:
+  docuseal:
+    image: docuseal/docuseal:3.2.6
+    deploy:
+      restart_policy:
+        condition: any
+      placement:
+        constraints:
+          - node.labels.catena.role==data
+    environment:
+      HOST: https://${DOCUSEAL_HOSTNAME}
+      FORCE_SSL: "true"
+      DATABASE_URL: postgres://docuseal:${DB_PASSWORD}@db:5432/docuseal
+      SECRET_KEY_BASE: ${SECRET_KEY_BASE}
+
+      # SMTP -- DocuSeal uses SMTP_* env vars. Optional; when unset,
+      # signature-request emails are not delivered (recipients still
+      # see pending requests in their dashboard if they sign in).
+      SMTP_ADDRESS: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM_ADDRESS:-}
+      SMTP_AUTHENTICATION: ${SMTP_AUTH:-plain}
+    volumes:
+      - docuseal-data:/data
+    labels:
+      - "vps.route.host=${DOMAIN_HOST}"
+      - "vps.route.port=3000"
+      - "vps.auth.mode=public"
+      - "vps.auto-update=patch"
+    cap_drop:
+      - NET_RAW
+    networks:
+      catena-network: {}
+      default: {}
+
+  db:
+    image: postgres:18.6-alpine
+    deploy:
+      restart_policy:
+        condition: any
+      placement:
+        constraints:
+          - node.labels.catena.role==data
+    environment:
+      POSTGRES_USER: docuseal
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: docuseal
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U docuseal"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 10m
+    labels:
+      - "vps.auto-update=minor"
+    networks:
+      - default
+
+volumes:
+  docuseal-data:
+  db-data:
+
+networks:
+  catena-network:
+    external: true
