@@ -1,0 +1,47 @@
+env:
+  DOMAIN_HOST:
+    setting: {default: "element.{{ cloudflare_zone }}"}
+  ELEMENT_HOSTNAME:
+    setting: {default: "element.{{ cloudflare_zone }}"}
+  MATRIX_HOSTNAME:
+    setting: {default: "matrix.{{ cloudflare_zone }}"}
+  ELEMENT_JITSI_HOSTNAME:
+    setting: {default: "elementmeet.{{ cloudflare_zone }}"}
+  SYNAPSE_ADMIN_HOSTNAME:
+    setting: {default: "synapseadmin.{{ cloudflare_zone }}"}
+  DB_PASSWORD:
+    generated: {length: 32, alphabet: alnum}
+  SYNAPSE_REGISTRATION_SHARED_SECRET:
+    generated: {length: 48, alphabet: alnum}
+  SYNAPSE_MACAROON_SECRET:
+    generated: {length: 48, alphabet: alnum}
+  SYNAPSE_FORM_SECRET:
+    generated: {length: 48, alphabet: alnum}
+  ALLOW_PUBLIC_REGISTRATION:
+    setting: {default: "false"}
+  FEDERATION_DOMAIN_WHITELIST:
+    setting: {default: ""}
+  VPS_PUBLIC_IP:
+    managed: {expr: "{{ public_ip }}"}
+  TURN_HOSTNAME:
+    managed: {expr: "{{ provided.turn.host }}"}
+  TURN_PORT:
+    managed: {expr: "{{ provided.turn.port }}"}
+  TURN_TLS_PORT:
+    managed: {expr: "{{ provided.turn.tls_port }}"}
+  TURN_SECRET:
+    managed: {expr: "{{ provided.turn.secret }}"}
+  JITSI_JICOFO_AUTH_PASSWORD:
+    generated: {length: 64, alphabet: alnum}
+  JITSI_JICOFO_COMPONENT_SECRET:
+    generated: {length: 64, alphabet: alnum}
+  JITSI_JVB_AUTH_PASSWORD:
+    generated: {length: 64, alphabet: alnum}
+  JIGASI_XMPP_PASSWORD:
+    generated: {length: 64, alphabet: alnum}
+  JIGASI_SIP_URI:
+    setting: {default: ""}
+  JIGASI_SIP_PASSWORD:
+    setting: {default: ""}
+  JIGASI_SIP_SERVER:
+    setting: {default: ""}

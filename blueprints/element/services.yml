@@ -1,0 +1,601 @@
+x-synapse-image: &synapse_image
+  image: matrixdotorg/synapse:v1.161.0
+
+services:
+  postgres:
+    image: postgres:18.6-alpine
+    deploy:
+      restart_policy:
+        condition: any
+      placement:
+        constraints:
+          - node.labels.catena.role==data
+    environment:
+      POSTGRES_DB: synapse
+      POSTGRES_USER: synapse
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      # Synapse requires C collation on the DB. See
+      # https://element-hq.github.io/synapse/latest/postgres.html
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --lc-collate=C --lc-ctype=C"
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - element-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U synapse -d synapse"]
+      interval: 10s
+      start_period: 10m
+      timeout: 10s
+      retries: 5
+    labels:
+      - "vps.auto-update=minor"
+    networks:
+      default:
+        aliases:
+          - postgres
+
+  synapse:
+    <<: *synapse_image
+    deploy:
+      restart_policy:
+        condition: any
+      placement:
+        constraints:
+          - node.labels.catena.role==data
+    # Custom entrypoint: write homeserver.yaml + the log config, then exec
+    # synapse. Matrix-org's stock start.py only templates a fixed subset of
+    # env vars (SERVER_NAME, REPORT_STATS, postgres) -- not OIDC, TURN,
+    # federation or presence -- so the whole config is written here.
+    #
+    # Carried inline rather than in a `configs:` entry because a swarm stack
+    # file has no inline config content: `configs` accepts `file:` (read from
+    # beside the compose file, which a host does not have: it adds the
+    # compose byte for byte) or an external object, and neither survives
+    # a host deploying this compose with docker stack deploy.
+    #
+    # The ${VAR} placeholders below are substituted by docker stack deploy
+    # from the app's env, the same as everywhere else in this file.
+    entrypoint:
+      - python3
+      - -c
+      - |
+        import os
+        import pathlib
+        import socket
+        import subprocess
+        import time
+
+        LOG_CONFIG = """\
+        version: 1
+        formatters:
+          precise:
+            format: '%(asctime)s - %(name)s - %(lineno)d - %(levelname)s - %(request)s - %(message)s'
+        handlers:
+          console:
+            class: logging.StreamHandler
+            formatter: precise
+        loggers:
+          synapse.storage.SQL:
+            level: INFO
+        root:
+          level: INFO
+          handlers: [console]
+        disable_existing_loggers: false
+        """
+
+        HOMESERVER = """\
+        server_name: "${MATRIX_HOSTNAME}"
+        public_baseurl: "https://${MATRIX_HOSTNAME}/"
+        pid_file: /data/homeserver.pid
+        log_config: "/data/synapse-log.config"
+        report_stats: false
+        signing_key_path: "/data/keys/signing.key"
+        trusted_key_servers: []
+
+        listeners:
+          - port: 8008
+            tls: false
+            type: http
+            x_forwarded: true
+            bind_addresses: ["0.0.0.0"]
+            resources:
+              - names: [client, federation]
+                compress: false
+
+        database:
+          name: psycopg2
+          args:
+            user: synapse
+            password: "${DB_PASSWORD}"
+            database: synapse
+            host: postgres
+            port: 5432
+            cp_min: 5
+            cp_max: 10
+
+        media_store_path: /data/media_store
+        max_upload_size: 100M
+        enable_registration: ${ALLOW_PUBLIC_REGISTRATION}
+        enable_registration_without_verification: false
+        registration_shared_secret: "${SYNAPSE_REGISTRATION_SHARED_SECRET}"
+        macaroon_secret_key: "${SYNAPSE_MACAROON_SECRET}"
+        form_secret: "${SYNAPSE_FORM_SECRET}"
+
+        # E2EE: encrypted DMs + private rooms by default. Public rooms
+        # stay unencrypted (E2EE in large public rooms hurts UX).
+        encryption_enabled_by_default_for_room_type: invite
+
+        # Federation: closed by default. FEDERATION_DOMAIN_WHITELIST="" means
+        # the whitelist is the empty list -> no federation. To open
+        # federation to specific peers, set the var to a comma-separated
+        # list like "matrix.org,example.com".
+        federation_domain_whitelist: [${FEDERATION_DOMAIN_WHITELIST}]
+
+        # Presence / typing notifications: keep on for the team-chat UX.
+        use_presence: true
+
+        # OIDC -- this app's own Keycloak sign-in entry, whose values the
+        # settings sync writes from the sign-in labels on element-web; empty
+        # until its first pass, when Synapse logs the provider as broken and
+        # serves on. Users land on Synapse's /_synapse/client/oidc/callback;
+        # Synapse maps the `preferred_username` claim to the local part of
+        # the Matrix ID.
+        oidc_providers:
+          - idp_id: keycloak
+            idp_name: "Keycloak"
+            discover: true
+            issuer: "${OIDC_ISSUER_URL:-}"
+            client_id: "${OIDC_CLIENT_ID:-}"
+            client_secret: "${OIDC_CLIENT_SECRET:-}"
+            scopes: ["openid", "profile", "email"]
+            user_mapping_provider:
+              config:
+                localpart_template: "{{ user.preferred_username }}"
+                display_name_template: "{{ user.name }}"
+                email_template: "{{ user.email }}"
+            allow_existing_users: true
+
+        # Disable the legacy password login UI; users sign in via
+        # Keycloak. (Bootstrap admin still works via registration-shared-
+        # secret + register_new_matrix_user CLI when needed.)
+        password_config:
+          enabled: false
+
+        # Pre-populate the conference widget so Element's /jitsi command
+        # and "video conference" button open elementmeet.<base> instead
+        # of the public meet.jit.si fallback.
+        app_service_config_files: []
+        """
+
+        # TURN through the call relay application of this server, written only
+        # when the relay provides its address. Synapse mints per-call
+        # HMAC-SHA1 credentials (RFC 7635) from the relay's secret.
+        turn_host = os.environ.get("TURN_HOSTNAME", "")
+        if turn_host:
+            HOMESERVER += "\n".join([
+                "",
+                "turn_uris:",
+                f'  - "turn:{turn_host}:{os.environ["TURN_PORT"]}?transport=udp"',
+                f'  - "turns:{turn_host}:{os.environ["TURN_TLS_PORT"]}?transport=tcp"',
+                f'turn_shared_secret: "{os.environ["TURN_SECRET"]}"',
+                "turn_user_lifetime: 86400000",
+                "turn_allow_guests: true",
+                "",
+            ])
+
+        data = pathlib.Path("/data")
+        data.mkdir(parents=True, exist_ok=True)
+        (data / "synapse-log.config").write_text(LOG_CONFIG)
+        (data / "homeserver.yaml").write_text(HOMESERVER)
+
+        # Wait for postgres. Swarm starts every service at once and has no
+        # equivalent of depends_on, and synapse exits on a failed connection
+        # at startup rather than retrying.
+        deadline = time.monotonic() + 300
+        while True:
+            try:
+                socket.create_connection(("postgres", 5432), timeout=5).close()
+                break
+            except OSError:
+                if time.monotonic() > deadline:
+                    raise SystemExit(
+                        "catena: postgres did not accept a connection in 300s"
+                    )
+                time.sleep(2)
+
+        # First boot: generate signing keys if missing. Idempotent --
+        # synapse refuses to overwrite existing keys.
+        keys = data / "keys"
+        keys.mkdir(parents=True, exist_ok=True)
+        if not any(keys.glob("*.signing.key")):
+            subprocess.check_call([
+                "python3", "-m", "synapse.app.homeserver",
+                "--config-path=/data/homeserver.yaml",
+                "--generate-keys",
+            ])
+        os.execvp("python3", [
+            "python3", "-m", "synapse.app.homeserver",
+            "--config-path=/data/homeserver.yaml",
+        ])
+    environment:
+      SYNAPSE_SERVER_NAME: ${MATRIX_HOSTNAME}
+      SYNAPSE_REPORT_STATS: "no"
+      MATRIX_HOSTNAME: ${MATRIX_HOSTNAME}
+      ELEMENT_HOSTNAME: ${ELEMENT_HOSTNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      SYNAPSE_REGISTRATION_SHARED_SECRET: ${SYNAPSE_REGISTRATION_SHARED_SECRET}
+      SYNAPSE_MACAROON_SECRET: ${SYNAPSE_MACAROON_SECRET}
+      SYNAPSE_FORM_SECRET: ${SYNAPSE_FORM_SECRET}
+      OIDC_ISSUER_URL: ${OIDC_ISSUER_URL:-}
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-}
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-}
+      TURN_HOSTNAME: ${TURN_HOSTNAME:-}
+      TURN_PORT: ${TURN_PORT:-}
+      TURN_TLS_PORT: ${TURN_TLS_PORT:-}
+      TURN_SECRET: ${TURN_SECRET:-}
+      ALLOW_PUBLIC_REGISTRATION: ${ALLOW_PUBLIC_REGISTRATION}
+      FEDERATION_DOMAIN_WHITELIST: ${FEDERATION_DOMAIN_WHITELIST}
+      JITSI_PREFERRED_DOMAIN: ${ELEMENT_JITSI_HOSTNAME}
+    volumes:
+      - element-synapse-data:/data
+    labels:
+      # The homeserver host: the web and mobile clients and Keycloak's return
+      # address reach Synapse here, and Synapse checks its own access tokens.
+      - "vps.route.host=${MATRIX_HOSTNAME}"
+      - "vps.route.port=8008"
+      - "vps.auth.mode=public"
+      - "vps.health.path=/health"
+      - "vps.auto-update=patch"
+    cap_drop:
+      - NET_RAW
+    networks:
+      catena-network:
+        aliases:
+          - synapse
+      default: {}
+
+  element-web:
+    image: vectorim/element-web:v1.12.33
+    deploy:
+      restart_policy:
+        condition: any
+    environment:
+      ELEMENT_WEB_PORT: "80"
+    # Element's runtime config. Points the client at our Synapse homeserver,
+    # pre-fills the Jitsi widget with the bundled instance so video calls do
+    # not leak to meet.jit.si, and tightens defaults (no telemetry, no
+    # integration manager).
+    #
+    # Written at /tmp/element-web-config/config.json rather than at
+    # /app/config.json, which is where the image keeps its default: nginx
+    # serves `location /config` from /tmp/element-web-config, and /app is
+    # root-owned while this container runs as uid 101. /tmp is the copy the
+    # browser actually fetches, and it is the one this user can write.
+    #
+    # The stock entrypoint is run first, with `nginx -v` as its command: that
+    # is the argument shape that makes it run /docker-entrypoint.d (the
+    # listen-address, resolver and worker-tuning scripts, plus the one that
+    # seeds /tmp/element-web-config from /app), after which `nginx -v` exits
+    # and this script writes the config that the seeding step just put there.
+    # Writing before it would be writing into a file about to be replaced.
+    entrypoint:
+      - /bin/sh
+      - -ec
+      - |
+        /docker-entrypoint.sh nginx -v
+        mkdir -p /tmp/element-web-config
+        cat > /tmp/element-web-config/config.json <<'JSON'
+        {
+          "default_server_config": {
+            "m.homeserver": {
+              "base_url": "https://${MATRIX_HOSTNAME}",
+              "server_name": "${MATRIX_HOSTNAME}"
+            }
+          },
+          "brand": "Element",
+          "disable_custom_urls": true,
+          "disable_guests": true,
+          "disable_login_language_selector": false,
+          "disable_3pid_login": true,
+          "default_country_code": "CA",
+          "show_labs_settings": false,
+          "default_federate": false,
+          "default_theme": "light",
+          "room_directory": { "servers": ["${MATRIX_HOSTNAME}"] },
+          "enable_presence_by_hs_url": { "https://${MATRIX_HOSTNAME}": true },
+          "settingDefaults": {
+            "UIFeature.urlPreviews": true,
+            "UIFeature.feedback": false,
+            "UIFeature.registration": false,
+            "UIFeature.passwordReset": false,
+            "UIFeature.deactivate": false,
+            "UIFeature.shareQrCode": true,
+            "UIFeature.shareSocial": false,
+            "UIFeature.identityServer": false,
+            "UIFeature.thirdPartyId": false,
+            "UIFeature.advancedSettings": true,
+            "UIFeature.voip": true,
+            "UIFeature.widgets": true
+          },
+          "jitsi": {
+            "preferred_domain": "${ELEMENT_JITSI_HOSTNAME}"
+          },
+          "features": {
+            "feature_element_call_video_rooms": true
+          },
+          "element_call": {
+            "url": "https://${ELEMENT_JITSI_HOSTNAME}",
+            "use_exclusively": false
+          },
+          "posthog": null,
+          "analytics_owner": null,
+          "privacy_policy_url": null
+        }
+        JSON
+        exec nginx -g 'daemon off;'
+    labels:
+      - "vps.route.host=${DOMAIN_HOST}"
+      - "vps.route.port=80"
+      - "vps.route.main=true"
+      - "vps.auth.mode=public"
+      # The sign-in entry is read from the main address's service; Synapse,
+      # on the homeserver host, is what Keycloak returns the browser to.
+      - "vps.auth.oidc=true"
+      - "vps.auth.groups=staff"
+      - "vps.auth.oidc.redirect_uris=https://${MATRIX_HOSTNAME}/_synapse/client/oidc/callback"
+      - "vps.auto-update=patch"
+    cap_drop:
+      - NET_RAW
+    networks:
+      catena-network:
+        aliases:
+          - element-web
+      default: {}
+
+  synapse-admin:
+    image: awesometechnologies/synapse-admin:0.11.4
+    deploy:
+      restart_policy:
+        condition: any
+    environment:
+      # Restricts the admin UI to managing THIS homeserver only.
+      REACT_APP_SERVER: https://${MATRIX_HOSTNAME}
+    labels:
+      - "vps.route.host=${SYNAPSE_ADMIN_HOSTNAME}"
+      - "vps.route.port=80"
+      - "vps.auth.mode=admin-only"
+      - "vps.auto-update=patch"
+    cap_drop:
+      - NET_RAW
+    networks:
+      catena-network:
+        aliases:
+          - synapse-admin
+      default: {}
+
+  # === JITSI BEGIN -- bundled on-server video conferencing =================
+  # Always-on, mirrors the Rocket.Chat pattern. Element's web client
+  # opens video calls in an embedded Jitsi widget pointing at the
+  # bundled instance at elementmeet.<base>. The video bridge advertises the
+  # server's public address in its ICE candidates, so a call reaches it directly.
+  # Each Jitsi image declares its configuration folders as volumes and rewrites
+  # them from the environment at every start, so they live in memory and are
+  # never kept.
+  #
+  # Hostname is intentionally elementmeet.<base> (not meet.<base>) to
+  # avoid collision with the Rocket.Chat bundled Jitsi when both
+  # templates are deployed side-by-side.
+
+  prosody:
+    image: jitsi/prosody:stable-11031
+    deploy:
+      restart_policy:
+        condition: any
+    volumes:
+      - type: tmpfs
+        target: /config
+        tmpfs:
+          size: 16777216
+      - type: tmpfs
+        target: /prosody-plugins-custom
+        tmpfs:
+          size: 16777216
+    environment:
+      AUTH_TYPE: internal
+      ENABLE_AUTH: "1"
+      ENABLE_GUESTS: "1"
+      GLOBAL_MODULES: ""
+      GLOBAL_CONFIG: ""
+      LDAP_URL: ""
+      LDAP_BASE: ""
+      XMPP_DOMAIN: meet.jitsi
+      XMPP_AUTH_DOMAIN: auth.meet.jitsi
+      XMPP_GUEST_DOMAIN: guest.meet.jitsi
+      XMPP_MUC_DOMAIN: muc.meet.jitsi
+      XMPP_INTERNAL_MUC_DOMAIN: internal-muc.meet.jitsi
+      XMPP_MODULES: ""
+      XMPP_MUC_MODULES: ""
+      XMPP_INTERNAL_MUC_MODULES: ""
+      XMPP_RECORDER_DOMAIN: recorder.meet.jitsi
+      JICOFO_AUTH_USER: focus
+      JICOFO_AUTH_PASSWORD: ${JITSI_JICOFO_AUTH_PASSWORD}
+      JICOFO_COMPONENT_SECRET: ${JITSI_JICOFO_COMPONENT_SECRET}
+      JVB_AUTH_USER: jvb
+      JVB_AUTH_PASSWORD: ${JITSI_JVB_AUTH_PASSWORD}
+      # jigasi (SIP gateway) needs an XMPP account on prosody to join
+      # rooms when a SIP call dials in. Auth user / password are
+      # consumed by the jigasi service below.
+      JIGASI_XMPP_USER: jigasi
+      JIGASI_XMPP_PASSWORD: ${JIGASI_XMPP_PASSWORD}
+      TZ: Etc/UTC
+    labels:
+      - "vps.auto-update=patch"
+    networks:
+      default:
+        aliases:
+          - meet.jitsi
+          - auth.meet.jitsi
+          - guest.meet.jitsi
+          - muc.meet.jitsi
+          - internal-muc.meet.jitsi
+          - recorder.meet.jitsi
+
+  jicofo:
+    image: jitsi/jicofo:stable-11031
+    deploy:
+      restart_policy:
+        condition: any
+    volumes:
+      - type: tmpfs
+        target: /config
+        tmpfs:
+          size: 16777216
+    environment:
+      XMPP_DOMAIN: meet.jitsi
+      XMPP_AUTH_DOMAIN: auth.meet.jitsi
+      XMPP_INTERNAL_MUC_DOMAIN: internal-muc.meet.jitsi
+      XMPP_MUC_DOMAIN: muc.meet.jitsi
+      XMPP_SERVER: prosody
+      JICOFO_COMPONENT_SECRET: ${JITSI_JICOFO_COMPONENT_SECRET}
+      JICOFO_AUTH_USER: focus
+      JICOFO_AUTH_PASSWORD: ${JITSI_JICOFO_AUTH_PASSWORD}
+      # Tell jicofo about the SIP gateway so it routes dial-in
+      # requests to jigasi instead of dropping them.
+      JIGASI_SIP_URI: jigasi.meet.jitsi
+      TZ: Etc/UTC
+    labels:
+      - "vps.auto-update=patch"
+    networks:
+      - default
+
+  jvb:
+    image: jitsi/jvb:stable-11031
+    deploy:
+      restart_policy:
+        condition: any
+    volumes:
+      - type: tmpfs
+        target: /config
+        tmpfs:
+          size: 16777216
+    # Media UDP MUST be host-published. mode: host bypasses Swarm's
+    # routing mesh so packets carry the real public source IP and
+    # JVB's ICE candidates point at a routable address. Uses port
+    # 10010 (not 10000) to avoid collision with the Rocket.Chat
+    # bundled JVB on the same host.
+    #
+    # A swarm host-mode publish is DNAT'd past ufw's INPUT chain, so
+    # this port is open because Docker opened it and closes when the
+    # service stops. The vps.expose.udp label below does not open it:
+    # it DECLARES it, so the host's public-port registry lists it in
+    # /etc/catena/public-ports.effective.json and validation can see
+    # the port rather than discovering it with a scanner.
+    ports:
+      - target: 10010
+        published: 10010
+        protocol: udp
+        mode: host
+    environment:
+      XMPP_AUTH_DOMAIN: auth.meet.jitsi
+      XMPP_INTERNAL_MUC_DOMAIN: internal-muc.meet.jitsi
+      XMPP_SERVER: prosody
+      JVB_AUTH_USER: jvb
+      JVB_AUTH_PASSWORD: ${JITSI_JVB_AUTH_PASSWORD}
+      JVB_BREWERY_MUC: jvbbrewery
+      JVB_PORT: "10010"
+      JVB_ADVERTISE_IPS: ${VPS_PUBLIC_IP}
+      TZ: Etc/UTC
+    labels:
+      - "vps.expose.udp=10010"
+      - "vps.auto-update=patch"
+    networks:
+      - default
+
+  jitsi-web:
+    image: jitsi/web:stable-11031
+    deploy:
+      restart_policy:
+        condition: any
+    volumes:
+      - type: tmpfs
+        target: /config
+        tmpfs:
+          size: 16777216
+      - type: tmpfs
+        target: /usr/share/jitsi-meet/transcripts
+        tmpfs:
+          size: 16777216
+    environment:
+      ENABLE_LETSENCRYPT: "0"
+      ENABLE_HTTP_REDIRECT: "0"
+      ENABLE_HSTS: "0"
+      DISABLE_HTTPS: "1"
+      PUBLIC_URL: https://${ELEMENT_JITSI_HOSTNAME}
+      XMPP_DOMAIN: meet.jitsi
+      XMPP_AUTH_DOMAIN: auth.meet.jitsi
+      XMPP_BOSH_URL_BASE: http://prosody:5280
+      XMPP_GUEST_DOMAIN: guest.meet.jitsi
+      XMPP_MUC_DOMAIN: muc.meet.jitsi
+      XMPP_RECORDER_DOMAIN: recorder.meet.jitsi
+      TZ: Etc/UTC
+    labels:
+      - "vps.route.host=${ELEMENT_JITSI_HOSTNAME}"
+      - "vps.route.port=80"
+      - "vps.auth.mode=public"
+      - "vps.auto-update=patch"
+    cap_drop:
+      - NET_RAW
+    networks:
+      catena-network:
+        aliases:
+          - jitsi-web
+      default: {}
+
+  jigasi:
+    image: jitsi/jigasi:stable-11031
+    deploy:
+      restart_policy:
+        condition: any
+    volumes:
+      - type: tmpfs
+        target: /config
+        tmpfs:
+          size: 16777216
+      - type: tmpfs
+        target: /tmp/transcripts
+        tmpfs:
+          size: 16777216
+    # SIP gateway. It publishes no port on the host: with the three
+    # JIGASI_SIP_* values below it registers outbound to the SIP provider
+    # over UDP, and phone dial-in into a room is not a supported feature.
+    environment:
+      XMPP_SERVER: prosody
+      XMPP_DOMAIN: meet.jitsi
+      XMPP_AUTH_DOMAIN: auth.meet.jitsi
+      XMPP_MUC_DOMAIN: muc.meet.jitsi
+      XMPP_INTERNAL_MUC_DOMAIN: internal-muc.meet.jitsi
+      XMPP_GUEST_DOMAIN: guest.meet.jitsi
+      JIGASI_XMPP_USER: jigasi
+      JIGASI_XMPP_PASSWORD: ${JIGASI_XMPP_PASSWORD}
+      # SIP provider credentials, from the Environment tab. Empty values
+      # leave jigasi unregistered; chat, voice and video work either way.
+      JIGASI_SIP_URI: ${JIGASI_SIP_URI}
+      JIGASI_SIP_PASSWORD: ${JIGASI_SIP_PASSWORD}
+      JIGASI_SIP_SERVER: ${JIGASI_SIP_SERVER}
+      JIGASI_SIP_PORT: "5060"
+      JIGASI_SIP_TRANSPORT: UDP
+      ENABLE_SIP_TRANSCRIBER: "0"
+      ENABLE_SIP_VISUAL_NOTIFICATIONS: "1"
+      TZ: Etc/UTC
+    labels:
+      - "vps.auto-update=patch"
+    networks:
+      - default
+  # === JITSI END ============================================================
+
+volumes:
+  element-postgres-data:
+  element-synapse-data:
+
+networks:
+  catena-network:
+    external: true
