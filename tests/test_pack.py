@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import sys
 from pathlib import Path
@@ -763,3 +764,68 @@ def test_the_command_unpacks_an_app_of_the_tree(tmp_path, monkeypatch, capsys):
     assert "already held" in capsys.readouterr().err
     assert pack.main(["unpack", "../web"]) == 1
     assert "not a plain app id" in capsys.readouterr().err
+
+
+# review fixes
+
+@pytest.mark.parametrize("char,name", [("\x85", "U+0085"), (" ", "U+2028"), (" ", "U+2029"),
+                                       ("\r", "carriage return")])
+def test_a_line_break_other_than_a_line_feed_is_refused_in_every_file_with_its_line(char, name):
+    name = re.escape(name)
+    smuggled = f"echo a{char}  privileges:{char}    host_network: true\n"
+    with pytest.raises(pack.PackError, match=rf"blueprints/web/hooks/verify.sh:1: holds .*{name}"):
+        _pack_block(hooks={"hooks/verify.sh": smuggled})
+    with pytest.raises(pack.PackError, match=rf"x-catena.yml:9: holds .*{name}"):
+        _pack_block(BLOCK + f"data: {{}}{char}privileges: [host_network]\n")
+    with pytest.raises(pack.PackError, match=rf"services.yml:4: holds .*{name}"):
+        _pack_block(services=SERVICES + f"x-a: 1{char}x-b: 2\n")
+    with pytest.raises(pack.PackError, match=rf"settings.yml:4: holds .*{name}"):
+        pack.pack_texts({**NEAT, "settings.yml": SETTINGS + f"secrets: []{char}x\n"}, HOOKS, "blueprints/web/")
+    with pytest.raises(pack.PackError, match=rf"snippets/wait/1.sh:1: holds .*{name}"):
+        _pack_block(_verify("snippets/wait/1.sh"), {}, {"snippets/wait/1.sh": f"a{char}b\n"})
+
+
+def test_a_line_deeper_than_a_script_path_is_refused_so_it_cannot_join_the_script():
+    deep = _verify("hooks/verify.sh").replace("verify.sh\n", "verify.sh\n        # note\n")
+    with pytest.raises(pack.PackError, match=r"x-catena.yml:6: a line indented under the script path"):
+        _pack_block(deep)
+    blank = _verify("hooks/verify.sh").replace("verify.sh\n", "verify.sh\n\n        # rm\n")
+    with pytest.raises(pack.PackError, match=r"x-catena.yml:7: a line indented under the script path"):
+        _pack_block(blank)
+
+
+def test_a_comment_level_with_the_dash_after_a_script_path_is_allowed():
+    packed = _pack_block(BLOCK + "# end\n")
+    assert packed.endswith("  # end\n\n" + SERVICES)
+
+
+def test_a_quoted_multi_line_script_of_a_script_pair_is_refused_on_pack_and_unpack(tmp_path):
+    block = _verify('[sh, -c, "echo a\\necho b"]')
+    with pytest.raises(pack.PackError, match=r"x-catena.yml:5: a script of verify with several lines is a file"):
+        _pack_block(block)
+    compose = ("x-catena:\n  schema: 2\n  hooks:\n    service: web\n    verify:\n"
+               '      - [node, -e, "a\\u2028b"]\n\n' + SERVICES)
+    tree = _scratch(tmp_path, "web", compose)
+    with pytest.raises(pack.PackError, match=r"docker-compose.yml:6: a script of verify with several lines"):
+        pack.unpack("web", tree)
+    assert [p.name for p in (tree / "blueprints" / "web").iterdir()] == [pack.COMPOSE]
+
+
+def test_a_one_line_script_of_a_script_pair_and_other_commands_stay_inline():
+    packed = _pack_block(_verify('[sh, -c, "exit 0"]', '[sh, -c, "echo a echo b"]'), {})
+    assert '      - [sh, -c, "exit 0"]\n      - [sh, -c, "echo a echo b"]\n' in packed
+
+
+@pytest.mark.parametrize("name", [pack.SERVICES, pack.BLOCK_FILE, "settings.yml", "hooks"])
+def test_a_link_in_place_of_a_neat_file_or_the_hooks_folder_is_refused(tmp_path, name):
+    tree = _block_tree(tmp_path / "tree", {"web": BLOCK}, {})
+    folder = tree / "blueprints" / "web"
+    target = tmp_path / "linked"
+    target.mkdir() if name == "hooks" else target.write_text(SETTINGS)
+    if (folder / name).is_dir():
+        shutil.rmtree(folder / name)
+    else:
+        (folder / name).unlink(missing_ok=True)
+    (folder / name).symlink_to(target)
+    with pytest.raises(pack.PackError, match=rf"blueprints/web/{name}: a link"):
+        pack.pack_all(tree)

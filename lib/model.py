@@ -252,6 +252,26 @@ def _validate_schema(doc: dict[str, Any], schema: dict[str, Any], label: str) ->
     return errors
 
 
+# The lists of the block that hold scripts: the hook lists and the lifecycle steps.
+HOOK_PLACES = ("configure", "verify", "users", "scan", "reconcile")
+STEP_PLACES = ("before_update", "migrate", "after_update")
+
+
+def _script_path_errors(block: dict[str, Any], label: str) -> list[str]:
+    """A string in a hook list or a lifecycle step list: the path of a script file, which only
+    x-catena.yml holds and pack writes out."""
+    errors = []
+    for key, places in (("hooks", HOOK_PLACES), ("lifecycle", STEP_PLACES)):
+        section = block.get(key)
+        for place in places if isinstance(section, dict) else ():
+            items = section.get(place)
+            for item in items if isinstance(items, list) else ():
+                if isinstance(item, str):
+                    errors.append(f"{label}: {key}.{place} holds the string {item!r}; a script path belongs "
+                                  f"in x-catena.yml, never in a packed compose")
+    return errors
+
+
 def _read_block(path: Path, schema: dict[str, Any], label: str) -> tuple[dict[str, Any], list[str]]:
     """The compose's x-catena block and the problems with it: an empty block
     for a compose that has none."""
@@ -262,7 +282,8 @@ def _read_block(path: Path, schema: dict[str, Any], label: str) -> tuple[dict[st
     block = doc.get(BLOCK_KEY) if isinstance(doc, dict) else None
     if block is None:
         return {}, []
-    errors = _validate_schema(block, schema, label)
+    errors = _script_path_errors(block, label) if isinstance(block, dict) else []
+    errors += _validate_schema(block, schema, label)
     return (block if not errors else {}), errors
 
 

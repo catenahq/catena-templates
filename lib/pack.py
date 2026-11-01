@@ -44,7 +44,7 @@ from pathlib import Path
 
 import yaml
 
-from .model import BLUEPRINTS
+from .model import BLUEPRINTS, HOOK_PLACES, STEP_PLACES
 
 COMPOSE = "docker-compose.yml"
 BLOCK_KEY = "x-catena"
@@ -59,7 +59,8 @@ SECTIONS = {
     "lifecycle.yml": ("requires_catena", "version_from", "lifecycle", "quiesce", "probe",
                       "object_store", "write_hold", "stops", "images", "hooks", "data"),
 }
-# The order of the block keys in the packed file; `schema` opens it and no file holds it.
+# The order of the block keys in the packed file, `schema` first: x-catena.yml holds it and pack
+# writes it for an app held in section files.
 ORDER = ("schema", "requires_catena", "version_from", "privileges", "env", "secrets", "access",
          "capabilities", "host_paths", "provides", "lifecycle", "quiesce", "probe", "object_store",
          "needs", "write_hold", "stops", "images", "hooks", "egress", "data")
@@ -70,9 +71,6 @@ NEAT_FILES = (SERVICES, BLOCK_FILE, *SECTIONS)
 RUNS = {"sh": ("sh", "-c"), "bash": ("bash", "-c"), "py": ("python3", "-c"), "js": ("node", "-e"),
         "php": ("php", "-r")}
 EXTENSIONS = {run: ext for ext, run in RUNS.items()}
-# The lists of the block that hold scripts: hook lists, and lifecycle steps.
-HOOK_PLACES = ("configure", "verify", "users", "scan", "reconcile")
-STEP_PLACES = ("before_update", "migrate", "after_update")
 # The extension of a hook script file of a section-file layout, by the interpreter that runs it.
 INTERPRETERS = {"sh": "sh", "bash": "sh", "python3": "py", "python": "py", "node": "js", "php": "php"}
 
@@ -88,15 +86,26 @@ _PATH_ITEM = re.compile(r"(?P<indent> *)- (?P<path>" + _PATH_TEXT + ")")
 _HEADER = re.compile(r"( *)- \|")
 _ODD_DOLLARS = re.compile(r"(?<!\$)(?:\$\$)*\$(?!\$)")
 _APP = re.compile(r"[a-z0-9][a-z0-9-]*")
+# The characters besides a line feed that YAML parsers read as a line break.
+_BREAKS = {"\r": "a carriage return", "\x85": "a next-line character (U+0085)",
+           "\u2028": "a line separator (U+2028)", "\u2029": "a paragraph separator (U+2029)"}
+_LINE_BREAK = re.compile("[\n" + "".join(_BREAKS) + "]")
+_BREAK = re.compile("[" + "".join(_BREAKS) + "]")
 
 
 class PackError(Exception):
     """A set of neat files or a compose that is not in normal form."""
 
 
+def _no_other_breaks(text: str, where: str) -> None:
+    found = _BREAK.search(text)
+    if found:
+        raise PackError(f"{where}:{text.count(chr(10), 0, found.start()) + 1}: holds {_BREAKS[found[0]]}; "
+                        f"use line feeds")
+
+
 def _lines(text: str, where: str) -> list[str]:
-    if "\r" in text:
-        raise PackError(f"{where}: holds a carriage return; use line feeds")
+    _no_other_breaks(text, where)
     if not text.endswith("\n"):
         raise PackError(f"{where}: does not end with a newline")
     return text[:-1].split("\n")
@@ -143,8 +152,7 @@ def _chunks(lines: list[str], where: str) -> list[tuple[str, int, int, list[str]
 
 
 def _hook_lines(name: str, text: str, where: str) -> list[str]:
-    if "\r" in text:
-        raise PackError(f"{where}: holds a carriage return; use line feeds")
+    _no_other_breaks(text, where)
     if not text.endswith("\n") or text.endswith("\n\n"):
         raise PackError(f"{where}: must end with exactly one newline")
     lines = text[:-1].split("\n")
@@ -320,6 +328,18 @@ def _step_lists(root: yaml.Node) -> list[tuple[str, yaml.SequenceNode]]:
     return found
 
 
+def _refuse_inline_script(item: yaml.SequenceNode, place: str, where: str, first: int) -> None:
+    """Refuse a command list that is `[<interpreter>, <flag>, <body>]` of a script file's pair
+    with a body of several lines: every multi-line script is a file. `first` is the number of
+    the file's first line."""
+    if len(item.value) == 3 and all(isinstance(n, yaml.ScalarNode) for n in item.value):
+        interpreter, flag, body = item.value
+        if (interpreter.value, flag.value) in EXTENSIONS and _LINE_BREAK.search(body.value):
+            raise PackError(f"{where}:{item.start_mark.line + first}: a script of {place} with several lines "
+                            f"is a file; give it as the path "
+                            f"{HOOKS_DIR}/{place}.{EXTENSIONS[interpreter.value, flag.value]}")
+
+
 def _pack_block(text: str, services: list[str], files: dict[str, str], prefix: str,
                 index: dict[str, _Snippet], included: set[str]) -> str:
     """The packed compose of the block file `text` and the `services` lines; the snippet
@@ -355,6 +375,7 @@ def _pack_block(text: str, services: list[str], files: dict[str, str], prefix: s
         ordinal = 0
         for item in seq.value:
             if isinstance(item, yaml.SequenceNode):
+                _refuse_inline_script(item, place, where, 1)
                 continue
             at = item.start_mark.line
             if not isinstance(item, yaml.ScalarNode) or item.style is not None or not _PATH.fullmatch(item.value):
@@ -365,6 +386,12 @@ def _pack_block(text: str, services: list[str], files: dict[str, str], prefix: s
                 raise PackError(f"{where}:{at + 1}: write the script path as `- {item.value}` on its own line")
             path, claimed = item.value, claimed | {id(item)}
             ordinal += 1
+            for under in range(at + 1, len(lines)):
+                if lines[under] and not lines[under].startswith(" " * (len(match["indent"]) + 4)):
+                    break
+                if lines[under]:
+                    raise PackError(f"{where}:{under + 1}: a line indented under the script path {path}; it "
+                                    f"would join the script, so write it elsewhere")
             if path.startswith(f"{SNIPPETS_DIR}/"):
                 if path not in by_path:
                     raise PackError(f"{where}:{at + 1}: the snippet {path} does not exist")
@@ -462,6 +489,9 @@ def _read(path: Path) -> str:
 
 
 def _read_neat(folder: Path) -> tuple[dict[str, str], dict[str, str]]:
+    for name in (*NEAT_FILES, HOOKS_DIR):
+        if (folder / name).is_symlink():
+            raise PackError(f"blueprints/{folder.name}/{name}: a link")
     neat = {name: _read(folder / name) for name in NEAT_FILES if (folder / name).is_file()}
     hooks = {}
     if (folder / HOOKS_DIR).is_dir():
@@ -565,6 +595,8 @@ def _extract_scripts(block: list[str], where: str, index: dict[str, _Snippet]) -
                 continue
             interpreter, flag, body = item.value
             ext = EXTENSIONS.get((interpreter.value, flag.value))
+            if body.style not in ("|", ">"):
+                _refuse_inline_script(item, place, where, 2)
             if ext is None or body.style not in ("|", ">"):
                 if body.style in ("|", ">") and (interpreter.value, flag.value) == ("python", "-c"):
                     raise PackError(f"{where}:{interpreter.start_mark.line + 2}: python -c has no script file; "

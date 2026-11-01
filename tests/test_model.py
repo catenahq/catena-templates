@@ -696,3 +696,22 @@ def test_every_real_compose_gives_a_web_address_or_names_version_from():
         derived, errors = model.derive_domain(model.compose_doc(entry.compose_path))
         assert errors == []
         assert derived is not None or entry.block.get("version_from"), entry.slug
+
+
+@pytest.mark.parametrize("section,place,body", [
+    ("lifecycle", "migrate", "    service: web\n    timeout_seconds: 60\n    migrate:\n      - hooks/migrate.sh\n"),
+    ("hooks", "verify", "    service: web\n    verify:\n      - [echo]\n      - hooks/verify.sh\n"),
+])
+def test_a_packed_compose_holding_a_script_path_is_refused(tmp_path, section, place, body):
+    path = tmp_path / "docker-compose.yml"
+    path.write_text(f"x-catena:\n  schema: 2\n  {section}:\n{body}\nservices: {{}}\n")
+    block, errors = model._read_block(path, model._schema(model.BLOCK_SCHEMA), "compose")
+    assert block == {}
+    assert any(f"{section}.{place} holds the string" in e and "never in a packed compose" in e for e in errors)
+
+
+def test_a_packed_compose_with_command_lists_only_is_read(tmp_path):
+    path = tmp_path / "docker-compose.yml"
+    path.write_text("x-catena:\n  schema: 2\n  hooks:\n    service: web\n    verify:\n      - [echo]\n\nservices: {}\n")
+    block, errors = model._read_block(path, model._schema(model.BLOCK_SCHEMA), "compose")
+    assert errors == [] and block["hooks"]["verify"] == [["echo"]]
