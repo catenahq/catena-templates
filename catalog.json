@@ -1782,7 +1782,7 @@
       "domain_port": 80,
       "domain_service": "nginx",
       "en": {
-        "compose_description": "Production-ready website / CMS with FastCGI cache + Redis. Replaces Wix / Squarespace.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/wordpress/README.md\n",
+        "compose_description": "Production-ready website / CMS with FastCGI cache + Redis. Replaces Wix / Squarespace.\n\nhttps://github.com/catenahq/catena-templates/blob/HEAD/blueprints/wordpress/README.md\n",
         "display_name": "WordPress",
         "extra_notes": "**Stack.** WordPress runs as nginx + php-fpm + MariaDB + Redis. Nginx serves static assets directly, caches PHP responses with FastCGI cache (purged automatically by NPP on edit/publish, then re-warmed via the sitemap), and proxies the rest to php-fpm. Redis backs the WordPress object cache. Sized for a single-VPS deploy; for traffic spikes scale vertically.\n\n**Split-auth note.** Public pages (the website itself) are served anonymously -- search engines crawl normally, visitors don't see Keycloak. Only `/wp-admin` goes through the optional OIDC plugin for admin/editor logins. That's what makes WordPress on this stack a hybrid: reader-facing but SSO-managed for staff.\n",
         "replaces": [
@@ -1870,7 +1870,7 @@
         "SMTP_RELAY_SENDER"
       ],
       "fr": {
-        "compose_description": "Site web / CMS pr\u00eat pour la production avec cache FastCGI + Redis. Remplace Wix / Squarespace.\n\nhttps://github.com/catenahq/catena-templates/blob/main/blueprints/wordpress/README.md\n",
+        "compose_description": "Site web / CMS pr\u00eat pour la production avec cache FastCGI + Redis. Remplace Wix / Squarespace.\n\nhttps://github.com/catenahq/catena-templates/blob/HEAD/blueprints/wordpress/README.md\n",
         "display_name": "WordPress",
         "extra_notes": "**Stack.** WordPress tourne en nginx + php-fpm + MariaDB + Redis. Nginx sert directement les ressources statiques, met en cache les r\u00e9ponses PHP avec son cache FastCGI (purg\u00e9 automatiquement par NPP \u00e0 chaque \u00e9dition / publication, puis r\u00e9chauff\u00e9 via le sitemap), et d\u00e9l\u00e8gue le reste \u00e0 php-fpm. Redis sert de cache d'objets WordPress. Dimensionn\u00e9 pour un VPS unique ; pour absorber un pic de trafic, scaler verticalement.\n\n**Auth mixte.** Les pages publiques du site sont servies anonymement -- les moteurs de recherche crawlent normalement, les visiteurs ne voient pas Keycloak. Seul `/wp-admin` passe par le plugin OIDC optionnel pour les connexions admin/\u00e9diteur. C'est ce qui rend WordPress sur cette stack hybride : tourn\u00e9 vers les lecteurs mais administr\u00e9 en SSO.\n",
         "replaces": [
