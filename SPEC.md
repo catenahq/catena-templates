@@ -7,22 +7,22 @@ resolves each pointer on every change.
 ## Intent
 
 The canonical application catalog for Catena. A template is one folder,
-`blueprints/<id>/`, holding its hand-edited compose (`docker-compose.yml`),
-card (`app.json`), optional `test.yml` and optional `logo.png`; everything
-else is rendered from them: the per-app README, the machine catalog
-`catalog.json` and the static preview `index.html`.
+`blueprints/<id>/`, holding its hand-edited `services.yml`, `x-catena.yml`, hook
+scripts under `hooks/`, card (`app.json`), optional `test.yml` and optional
+`logo.png`; everything else is rendered from them: the packed
+`docker-compose.yml` a host deploys, the machine catalog `catalog.json` and the
+static preview `index.html`.
 
 ## Boundaries
 
 - **Hand-edited vs rendered.** The hand-edited files are
-  `blueprints/<id>/app.json`, `blueprints/<id>/docker-compose.yml`, an
-  optional `blueprints/<id>/test.yml` and an optional
-  `blueprints/<id>/logo.png`. An app held as neat files
-  (`services.yml` in its folder) hand-edits `services.yml`, `settings.yml`,
-  `access.yml`, `lifecycle.yml` and `hooks/` in place of the compose, and its
-  `docker-compose.yml` is rendered from them. Everything else is a build
-  output, committed and drift-gated: the per-app `README.md` and
-  placeholder logo, plus `catalog.json` and `index.html`. Editing one of those directly fails CI.
+  `blueprints/<id>/services.yml`, `blueprints/<id>/x-catena.yml`, the script
+  files under `blueprints/<id>/hooks/`, `blueprints/<id>/app.json`, an
+  optional `blueprints/<id>/test.yml`, an optional
+  `blueprints/<id>/logo.png` and the shared `snippets/`. Everything else is a
+  build output, committed and drift-gated: each app's packed
+  `docker-compose.yml` and placeholder logo, plus `catalog.json` and
+  `index.html`. Editing one of those directly fails CI.
 - **The app carries its own declarations.** What the server needs to back
   up, update and restore an app is the `x-catena` block at the root of the
   app's compose, its env included. A host adds the compose byte for byte, so a deployed
@@ -30,7 +30,7 @@ else is rendered from them: the per-app README, the machine catalog
   this catalog to manage it. A commit on `main` reaches every new deploy.
 - **One directory per template.** `blueprints/<id>/` is the unit
   a host fetches at a tag, so it is also where that template's
-  compose, README and logo live. Nothing about a template is duplicated
+  compose, card and logo live. Nothing about a template is duplicated
   elsewhere in the repository.
 - **One catalog file.** `catalog.json` carries the SSO mode, the compose
   block's backup quiesce hooks and update commands, bench membership,
@@ -45,7 +45,7 @@ else is rendered from them: the per-app README, the machine catalog
 | Invariant | Enforced by |
 | --- | --- |
 | Rendered outputs are exactly what the `app.json` files and composes render to (idempotent build) | `workflow:build-and-verify.yml` |
-| Every `app.json` matches `app.schema.json` and every compose block matches `block.schema.json` | `workflow:build-and-verify.yml` |
+| Every `app.json` matches `app.schema.json`, and every compose block and every `x-catena.yml` matches `block.schema.json` | `workflow:build-and-verify.yml` |
 | A hand-placed logo is a square PNG the control panel keeps, and its source names where it comes from | `workflow:build-and-verify.yml` |
 | An entry imported from a third-party registry names its source, that source's licence and notice, and the published catalog marks it untested | `workflow:build-and-verify.yml` |
 | Every catalog image reference is CVE-scanned | `workflow:security.yml`, `scanctl:trivy` |

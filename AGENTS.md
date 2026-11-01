@@ -6,12 +6,14 @@ the repository, and the checks.
 ## Edit rules
 
 - A template is one folder, `blueprints/<id>/`, whose hand-edited files are
-  `app.json`, `docker-compose.yml`, an optional `test.yml` and an optional
-  `logo.png`. The folder name is the app's id (an `app.json` has no `id`
-  field). The compose carries no `vps.homepage.*` label (`make lint` refuses
-  any) and the app's web address is derived from its labels.
-- Everything else is generated: the per-app `README.md` and placeholder
-  `logo.svg`, plus `catalog.json` and `index.html`.
+  `app.json`, `services.yml`, `x-catena.yml`, the script files under `hooks/`, an
+  optional `test.yml` and an optional `logo.png`. The folder name is the app's id
+  (an `app.json` has no `id` field). The compose carries no `vps.homepage.*` label
+  (`make lint` refuses any) and the app's web address is derived from its labels.
+  No README is kept per app: a template's description and setup steps are in its
+  `app.json`.
+- Everything else is generated: the packed `docker-compose.yml` of each app and
+  its placeholder `logo.svg`, plus `catalog.json` and `index.html`.
   Never hand-edit a generated file -- the change is overwritten on the
   next render, and CI rejects the change.
 - A hand-placed `logo.png` is the project's own logo, unmodified, made by
@@ -19,15 +21,16 @@ the repository, and the checks.
   owner's terms forbid this use stays out.
 - What the server needs to back up, update and restore an app (backup
   mode, update and restore commands, object-store check, the env
-  expressions Catena keeps set) is the root `x-catena:` block of the
-  app's own `blueprints/<id>/docker-compose.yml`, and nowhere else. That
+  expressions Catena keeps set) is the app's own `blueprints/<id>/x-catena.yml`,
+  which the render packs into the root `x-catena:` block of its
+  `docker-compose.yml`, and nowhere else. That
   includes the app's env: every key the deploy form shows, and how each is
   set.
-  A host adds that file byte for byte, so the block travels with the
+  A host adds the packed compose byte for byte, so the block travels with the
   deployed app and the server never reads this catalog to manage it. The
   block holds no `$` (Docker interpolates it at deploy), except in a
-  `hooks` body, which writes each `$` as `$$`, and no image reference (an
-  update rewrites those); it starts with `schema: 2`.
+  script, which the render writes with each `$` doubled, and no image
+  reference (an update rewrites those); `x-catena.yml` starts with `schema: 2`.
   `block.schema.json` is its format; catena-admin
   `payload/engines/appdecl` reads it. Three fields serve other lanes:
   `hooks.scan` (reads a file on stdin; a block that provides `antivirus`
@@ -62,8 +65,8 @@ the repository, and the checks.
   container starts, so no secret reaches the service's arguments.
 - A compose file carries no descriptive header. What the template is,
   what it replaces, how sign-in works and what each env var means live
-  in `app.json` and reach the reader through the generated
-  README. Comments inside the compose explain a construct that does not
+  in `app.json`, which the catalog and the panel show. Comments inside
+  `services.yml` and `x-catena.yml` explain a construct that does not
   read as written, beside that construct.
 - The workflows `app-ci.yml`, `build-and-verify.yml`, `app-dispatch.yml` and
   `app-tag.yml` also serve other repositories through `workflow_call`; their
@@ -76,14 +79,19 @@ the repository, and the checks.
   deployed with: a new commit changes no running app.
 - An entry that an older Catena release deploys in a shape it cannot
   serve names the oldest release it works on in
-  `requires_catena` (the compose block's field), the one place that release is
-  written: the render puts it in the README, so the prose never repeats it.
-- An app whose folder holds `services.yml` is held as neat files: edit
-  `services.yml`, `settings.yml`, `access.yml`, `lifecycle.yml` and `hooks/`, never
-  its `docker-compose.yml`, which the render packs from them (`lib/pack.py`; README.md,
-  "An app held as neat files"). A hook file writes each `$` once: the render
-  doubles it. A file in `hooks/` that `lifecycle.yml` does not name stops the render. A snippet version (`snippets/<name>/<n>.<ext>`) that two or
-  more apps include is never edited: add a version and move each app to it in its own
+  `requires_catena` (a key of `x-catena.yml`), the one place that release is
+  written: the render carries it to `catalog.json` and `index.html`, so the prose
+  never repeats it.
+- An app whose folder holds `services.yml` is held as neat files, as every app here
+  is: edit `services.yml`, `x-catena.yml` and `hooks/`, never its
+  `docker-compose.yml`, which the render packs from them (`lib/pack.py`; README.md,
+  "An app held as neat files"). A multi-line script of a hook or a lifecycle step
+  is a file under `hooks/`, named for its place (`hooks/verify.js`) and referenced
+  in `x-catena.yml` by its path alone; its extension names the interpreter. A
+  one-line command stays argv in `x-catena.yml`. A script file writes each `$`
+  once: the render doubles it. A file in `hooks/` that `x-catena.yml` does not name
+  stops the render. A snippet version (`snippets/<name>/<n>.<ext>`) that two or
+  more apps name is never edited: add a version and move each app to it in its own
   commit.
 - A file's or field's class (runtime, verification or presentation) comes from
   `lib/versions.py` (`FILE_CLASSES`, `FIELD_CLASSES`). A new file type or field
@@ -139,22 +147,18 @@ the repository, and the checks.
 ## The render contract
 
 `make render` (thin entrypoint: `build/render.py`, logic in `lib/`)
-transforms each app's `app.json` and compose into:
+transforms each app's files into:
 
-- `blueprints/<id>/README.md` -- the template's own page: what it is,
-  what it replaces, how sign-in works, the setup steps and the env
-  table, EN then FR. Rendered from the `x-catena` prose, with every
-  Jinja expression resolved to a placeholder first.
+- `blueprints/<id>/docker-compose.yml` -- packed from `services.yml`,
+  `x-catena.yml` and the script files (`lib/pack.py`), committed beside them;
+  a host fetches it from this public repo at a tag. Jinja stays in place; the env
+  it reads is settled on the host, and routing is reconciled post-deploy by
+  dashboard-sync.
 - `blueprints/<id>/logo.svg` -- a deterministic placeholder, unless a
   hand-placed `logo.png` sits beside it.
 
-`blueprints/<id>/docker-compose.yml` is the hand-edited input, and a host
-fetches it from this public repo at a tag. Jinja stays in place; the env it
-reads is settled on the host, and routing is reconciled post-deploy by
-dashboard-sync. The render writes into that file only for an app held as neat
-files: it packs that app's `docker-compose.yml` from them (`lib/pack.py`),
-committed beside them. The render deletes a blueprint directory only when it
-holds no `app.json`.
+The render deletes a blueprint directory only when it holds no `app.json`.
+
 - `catalog.json` -- the browsable catalog, in one
   fetch: the flat per-template fields, `sizing`, the EN/FR prose, and the
   compose block lifted under the keys `env`, `lifecycle`, `quiesce`,
@@ -306,7 +310,7 @@ search of the workspace finds.
   app's sign-in labels.
 - Per-VPS runtime state. All under `/var/lib/catena/` on each VPS.
 - The client docs site. catenahq/docs is hand-written and reads nothing
-  from this repo; a template's own documentation is its README here.
+  from this repo; a template's description and setup steps are in its `app.json`.
 
 ## Security invariants (machine-enforced -- do not weaken silently)
 

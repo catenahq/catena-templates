@@ -2,7 +2,7 @@
   "name": "@catenahq/templates",
   "version": "0.2.0",
   "private": true,
-  "description": "Catena template catalog: one metadata file per template plus its compose file, rendered into the machine catalog (catalog.json) and a static preview (index.html). A host takes an app from a tag.",
+  "description": "Catena template catalog: one metadata file per template plus the files its compose is packed from, rendered into the machine catalog (catalog.json) and a static preview (index.html). A host takes an app from a tag.",
   "type": "module",
   "scripts": {
     "render": "uv run build/render.py",

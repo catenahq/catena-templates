@@ -4,9 +4,10 @@ Email **security@catena.run** (see the full policy in
 [catenahq/catena-ce SECURITY.md](https://github.com/catenahq/catena-ce/blob/HEAD/SECURITY.md)).
 
 Scope for THIS repository: the per-template card files (`blueprints/<id>/app.json`),
-the hand-edited stack files (`blueprints/<id>/docker-compose.yml`), the
+the hand-edited stack files (`blueprints/<id>/services.yml`, `x-catena.yml` and
+`hooks/`) and the packed `blueprints/<id>/docker-compose.yml` a host deploys, the
 render pipeline (`build/render.py`), and the generated
-`catalog.json` and blueprint READMEs. A host fetches a blueprint folder at
+`catalog.json`. A host fetches a blueprint folder at
 a tag, and the ops tooling and the bench read `catalog.json`. A compose change that
 weakens a template's isolation (network exposure, dropped auth labels,
 privileged mounts) is squarely in scope.
