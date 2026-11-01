@@ -1,0 +1,123 @@
+services:
+  espocrm:
+    image: espocrm/espocrm:10.0.11
+    deploy:
+      restart_policy:
+        condition: any
+      placement:
+        constraints:
+          - node.labels.catena.role==data
+    environment:
+      ESPOCRM_DATABASE_PLATFORM: Mysql
+      ESPOCRM_DATABASE_HOST: db
+      ESPOCRM_DATABASE_PORT: "3306"
+      ESPOCRM_DATABASE_NAME: espocrm
+      ESPOCRM_DATABASE_USER: espocrm
+      ESPOCRM_DATABASE_PASSWORD: ${DB_PASSWORD}
+      ESPOCRM_ADMIN_USERNAME: ${ESPOCRM_ADMIN_USERNAME}
+      ESPOCRM_ADMIN_PASSWORD: ${ESPOCRM_ADMIN_PASSWORD}
+      ESPOCRM_SITE_URL: https://${ESPOCRM_HOSTNAME}
+      ESPOCRM_CONFIG_USE_WEB_SOCKET: "false"
+      # The image's entrypoint writes every ESPOCRM_CONFIG_<NAME> into
+      # EspoCRM's config on each start, as the camelCase parameter
+      # (OIDC_CLIENT_ID -> oidcClientId). The OIDC_* values are this app's
+      # own Keycloak sign-in entry, written by the settings sync from the
+      # sign-in labels below; empty until its first pass, when the local
+      # admin's fallback login is the way in.
+      ESPOCRM_CONFIG_AUTHENTICATION_METHOD: Oidc
+      ESPOCRM_CONFIG_OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-}
+      ESPOCRM_CONFIG_OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-}
+      ESPOCRM_CONFIG_OIDC_AUTHORIZATION_ENDPOINT: ${OIDC_ISSUER_URL:-}/protocol/openid-connect/auth
+      ESPOCRM_CONFIG_OIDC_TOKEN_ENDPOINT: ${OIDC_ISSUER_URL:-}/protocol/openid-connect/token
+      ESPOCRM_CONFIG_OIDC_JWKS_ENDPOINT: ${OIDC_ISSUER_URL:-}/protocol/openid-connect/certs
+      ESPOCRM_CONFIG_OIDC_USER_INFO_ENDPOINT: ${OIDC_ISSUER_URL:-}/protocol/openid-connect/userinfo
+      ESPOCRM_CONFIG_OIDC_LOGOUT_URL: ${OIDC_ISSUER_URL:-}/protocol/openid-connect/logout
+      ESPOCRM_CONFIG_OIDC_USERNAME_CLAIM: email
+      ESPOCRM_CONFIG_OIDC_CREATE_USER: "true"
+      ESPOCRM_CONFIG_OIDC_SYNC: "true"
+      ESPOCRM_CONFIG_OIDC_FALLBACK: "true"
+      ESPOCRM_CONFIG_OIDC_ALLOW_ADMIN_USER: "true"
+    # The image's own layout: data/ holds the config and the attachments,
+    # custom/ and client/custom/ what the admin screens make (fields,
+    # layouts, entities, extensions). The rest of /var/www/html comes from
+    # the image, so a new version replaces it.
+    volumes:
+      - server-data:/var/www/html/data
+      - custom:/var/www/html/custom
+      - client-custom:/var/www/html/client/custom
+    labels:
+      - "vps.route.host=${DOMAIN_HOST}"
+      - "vps.route.port=80"
+      - "vps.auth.mode=public"
+      - "vps.auth.oidc=true"
+      - "vps.auth.groups=staff"
+      - "vps.auth.oidc.redirect_uris=https://${ESPOCRM_HOSTNAME}/oauth-callback.php"
+      - "vps.auto-update=patch"
+    cap_drop:
+      - NET_RAW
+    networks:
+      catena-network: {}
+      default: {}
+
+  cron:
+    image: espocrm/espocrm:10.0.11
+    deploy:
+      restart_policy:
+        condition: any
+      placement:
+        constraints:
+          - node.labels.catena.role==data
+    # The image's job runner: it exits until the espocrm service has
+    # installed the application, then runs EspoCRM's daemon.php.
+    entrypoint: docker-daemon.sh
+    environment:
+      ESPOCRM_DATABASE_PLATFORM: Mysql
+      ESPOCRM_DATABASE_HOST: db
+      ESPOCRM_DATABASE_PORT: "3306"
+      ESPOCRM_DATABASE_NAME: espocrm
+      ESPOCRM_DATABASE_USER: espocrm
+      ESPOCRM_DATABASE_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - server-data:/var/www/html/data
+      - custom:/var/www/html/custom
+      - client-custom:/var/www/html/client/custom
+    labels:
+      - "vps.auto-update=patch"
+    networks:
+      - default
+
+  db:
+    image: mariadb:12.3.3
+    deploy:
+      restart_policy:
+        condition: any
+      placement:
+        constraints:
+          - node.labels.catena.role==data
+    environment:
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MARIADB_DATABASE: espocrm
+      MARIADB_USER: espocrm
+      MARIADB_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - db-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 10m
+    labels:
+      - "vps.auto-update=patch"
+    networks:
+      - default
+
+volumes:
+  server-data:
+  custom:
+  client-custom:
+  db-data:
+
+networks:
+  catena-network:
+    external: true

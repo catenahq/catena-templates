@@ -1,0 +1,18 @@
+requires_catena: 0.11.12
+lifecycle:
+  service: "espocrm"
+  user: "www-data"
+  ready: ["php", "-r", "exit(@fsockopen('127.0.0.1', 80) ? 0 : 1);"]
+  migrate:
+    - ["php", "rebuild.php"]
+  versioned_volumes: ["custom"]
+  timeout_seconds: 900
+# verify asks Apache for the start page and for the REST API, which answers 401 to a request with no sign-in.
+hooks:
+  service: espocrm
+  user: www-data
+  timeout_seconds: 60
+  verify:
+    - - php
+      - -r
+      - {file: hooks/verify.php}
