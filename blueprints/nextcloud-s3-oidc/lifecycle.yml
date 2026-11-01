@@ -1,0 +1,81 @@
+requires_catena: 0.11.12
+lifecycle:
+  service: "app"
+  user: "www-data"
+  ready: ["php", "occ", "status", "--exit-code"]
+  migrate:
+    - ["php", "occ", "db:add-missing-indices"]
+    - ["php", "occ", "maintenance:repair", "--include-expensive"]
+  versioned_volumes: ["nc-html", "nc-config", "nc-apps"]
+  timeout_seconds: 1800
+quiesce:
+  service: "app"
+  user: "www-data"
+  pre:
+    - ["php", "occ", "maintenance:mode", "--on"]
+  post:
+    - ["php", "occ", "maintenance:mode", "--off"]
+  timeout_seconds: 60
+# The boot probe starts app alone and asks Apache for status.php: installed
+# and out of maintenance mode (occ status exits 0 for an uninstalled instance).
+probe:
+  service: app
+  memory: 768m
+  timeout_seconds: 180
+  check:
+    - php
+    - -r
+    - "exit(json_decode(file_get_contents('http://localhost/status.php'))->installed === true && json_decode(file_get_contents('http://localhost/status.php'))->maintenance === false ? 0 : 1);"
+object_store:
+  env:
+    bucket: "S3_BUCKET"
+    host: "S3_HOST"
+    port: "S3_PORT"
+    ssl: "S3_SSL"
+    region: "S3_REGION"
+    access_key: "S3_ACCESS_KEY"
+    secret_key: "S3_SECRET_KEY"
+  switch:
+    service: "app"
+    user: "www-data"
+    commands:
+      - ["php", "occ", "status", "--exit-code"]
+images:
+  db:
+    rule: {kind: partial_line}
+  talk-hpb:
+    rule: {kind: pattern, tag_pattern: '(\d{8})_(\d{6})', flat: true, registry: ghcr.io, repo: nextcloud-releases/aio-talk}
+# configure runs after every deploy (add, settings, start, update, rollback,
+# restore) and wires Nextcloud to the rest of the server: the object store
+# file (put back only for an instance whose database holds the bucket's object
+# store, removed from an installed instance that keeps its files on disk), Keycloak sign-in, Mail, the virus scanner and the office editor the
+# applications on this server provide, Talk with its signaling server and the
+# call relay application, Nextcloud's outgoing mail from the server's mail
+# relay, and the Webmail link. Talk's relay and signaling entries are written
+# only while the relay application runs, and taken away when it goes; the
+# mail settings follow the mail relay the same way; the entries written are
+# recorded in the app settings of "catena". It leaves with 0 whenever
+# occ cannot be used (first install running, maintenance mode on, a restore
+# whose database is not replayed yet) and with 1 only when occ answers and a
+# wiring command fails. An app an administrator disabled stays disabled; the
+# scanner settings are written once. verify runs hourly and before an update:
+# it asks occ, then Apache for status.php, then the object store; it fails,
+# naming the disk, for a bucket set on an instance that keeps its files there.
+# reconcile runs after a restore, an app start and a bucket repair: it counts
+# the files the database indexes that the object store lacks, and reports.
+hooks:
+  service: app
+  user: www-data
+  timeout_seconds: 1200
+  configure:
+    - - sh
+      - -c
+      - {file: hooks/configure.sh}
+  verify:
+    - - sh
+      - -c
+      - {file: hooks/verify.sh}
+  reconcile:
+    - - sh
+      - -c
+      - {file: hooks/reconcile.sh}
