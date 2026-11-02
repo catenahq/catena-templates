@@ -45,8 +45,12 @@ services:
       - app_storage:/var/www/html/storage
     labels:
       - "vps.auto-update=patch"
+    # nginx joins catena-network too, where `app` names other applications' services
+    # (Gatus, Nextcloud): it hands requests to this alias, which only this stack holds.
     networks:
-      - default
+      default:
+        aliases:
+          - invoiceninja-fpm
 
   nginx:
     image: nginx:1.31.8-alpine
@@ -65,9 +69,10 @@ services:
     # carries only the compose, and a stack created from a posted string has
     # no directory at all.
     #
-    # Verbatim merge of upstream's debian/nginx/laravel.conf +
+    # Merge of upstream's debian/nginx/laravel.conf +
     # debian/nginx/invoiceninja.conf
-    # (github.com/invoiceninja/dockerfiles/tree/debian/debian/nginx).
+    # (github.com/invoiceninja/dockerfiles/tree/debian/debian/nginx), with
+    # fastcgi_pass naming php-fpm by the app's alias, looked up per request.
     # `$$` is compose's escape for a literal `$`: nginx variables have to
     # reach nginx, not be interpolated at deploy time.
     command:
@@ -115,7 +120,12 @@ services:
             error_page 404 /index.php;
 
             location ~ \.php$$ {
-                fastcgi_pass app:9000;
+                # Docker's DNS names a swarm task once it is healthy, after nginx starts:
+                # a variable makes nginx ask Docker's resolver per request, its answer
+                # kept 10 seconds, where a name written here is resolved once at start.
+                resolver 127.0.0.11 valid=10s;
+                set $$fpm invoiceninja-fpm:9000;
+                fastcgi_pass $$fpm;
                 fastcgi_param SCRIPT_FILENAME $$realpath_root$$fastcgi_script_name;
                 include fastcgi_params;
             }

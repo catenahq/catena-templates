@@ -52,11 +52,35 @@ def test_the_wait_ends_inside_the_hook_timeout():
 
 def test_the_lifecycle_waits_for_the_php_fpm_port_nginx_hands_requests_to():
     lifecycle = _entry().lifecycle
-    nginx = "\n".join(_compose()["services"]["nginx"]["command"])
-    assert lifecycle["service"] == "app" and "fastcgi_pass app:9000;" in nginx
+    services = _compose()["services"]
+    nginx = "\n".join(services["nginx"]["command"])
+    assert lifecycle["service"] == "app" and "invoiceninja-fpm" in services["app"]["networks"]["default"]["aliases"]
+    assert "set $$fpm invoiceninja-fpm:9000;" in nginx
     assert lifecycle["ready"] == ["php", "-r", "exit(@fsockopen('127.0.0.1', 9000) ? 0 : 1);"]
     assert lifecycle["user"] == "www-data"
     assert lifecycle["migrate"] == [["php", "/var/www/html/artisan", "migrate", "--force"]]
+
+
+def test_nginx_asks_docker_per_request_for_a_name_only_this_stack_holds():
+    services = _compose()["services"]
+    nginx = "\n".join(services["nginx"]["command"])
+    # nginx is on catena-network, where `app` is another application's service.
+    assert "catena-network" in services["nginx"]["networks"]
+    assert list(services["app"]["networks"]) == ["default"]
+    assert services["app"]["networks"]["default"]["aliases"] == ["invoiceninja-fpm"]
+    assert "resolver 127.0.0.11 valid=10s;" in nginx and "fastcgi_pass $$fpm;" in nginx
+    assert "fastcgi_pass app" not in nginx
+    held = set()
+    for compose in (ROOT / "blueprints").glob("*/docker-compose.yml"):
+        if compose.parent.name == SLUG:
+            continue
+        for name, service in (yaml.safe_load(compose.read_text(encoding="utf-8")).get("services") or {}).items():
+            held.add(name)
+            networks = service.get("networks")
+            if isinstance(networks, dict):
+                for network in networks.values():
+                    held.update((network or {}).get("aliases") or ())
+    assert "invoiceninja-fpm" not in held
 
 
 # The nginx image's wget is busybox's: this shim answers like it, in the words of its error lines.
