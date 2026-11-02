@@ -106,6 +106,11 @@ jobs:
           ref: ${{ inputs.sha }}
           fetch-depth: 2
           persist-credentials: false
+      - name: Check out contracts beside this repository
+        # The catalog's tests read ../contracts/default-apps/wiring.json, the layout local
+        # development uses; actions/checkout writes inside the workspace only.
+        if: env.TEMPLATES_ROOT == ''
+        run: git clone --quiet --depth 1 https://github.com/catenahq/contracts.git "$GITHUB_WORKSPACE/../contracts"
       - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
       - name: Check out the tools
         if: env.TEMPLATES_ROOT != ''

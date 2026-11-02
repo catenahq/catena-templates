@@ -492,6 +492,17 @@ def test_a_catalog_without_images_adds_nothing(scratch):
     assert _provenance(scratch, [], "") == ""
 
 
+@pytest.mark.parametrize("name,job", [("app-ci.yml", "repo"), ("build-and-verify.yml", "lint-quiesce-tests")])
+def test_the_catalog_s_tests_find_contracts_beside_the_checkout(name, job):
+    # tests/test_monitoring_apps.py and tests/test_quiesce_lint.py read ../contracts/default-apps/wiring.json.
+    steps = _doc(name)["jobs"][job]["steps"]
+    clone = next(i for i, s in enumerate(steps) if s.get("name") == "Check out contracts beside this repository")
+    assert steps[clone]["if"] == "env.TEMPLATES_ROOT == ''"
+    assert steps[clone]["run"] == ('git clone --quiet --depth 1 https://github.com/catenahq/contracts.git '
+                                   '"$GITHUB_WORKSPACE/../contracts"')
+    assert clone < next(i for i, s in enumerate(steps) if "new-failures-only" in str(s.get("uses", "")))
+
+
 def test_the_age_is_asked_of_a_pull_request_from_a_fork_only():
     env = _step("app-ci.yml", "app", "Provenance")["env"]
     assert env["PROVENANCE_CHECK_AGE"] == (
