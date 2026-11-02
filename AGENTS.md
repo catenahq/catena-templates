@@ -233,6 +233,13 @@ one whose service also carries `vps.route.main=true`. The host reads the app-wid
 `vps.auth.oidc*`, `vps.auth.protected`, `vps.display-name`) from the main address's service
 alone.
 
+`catena-network` holds every app's service keys, and Docker names a task only once
+it is healthy, so a service on it that asks for a sibling's key can reach another
+app. Such a service reaches each sibling by an alias of the sibling on the stack
+network named `<id>-<role>`, which `tests/test_catalog_entries.py` holds to one
+app; an nginx asks for it per request (`resolver 127.0.0.11` and the name in a
+variable of `fastcgi_pass` or `proxy_pass`).
+
 The host runs a quiesce or lifecycle command in the container of the service
 the block names, and `make lint` checks that a quiesce block's `service` is a
 service the compose actually defines -- because a service no container runs

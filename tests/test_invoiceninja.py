@@ -70,17 +70,6 @@ def test_nginx_asks_docker_per_request_for_a_name_only_this_stack_holds():
     assert services["app"]["networks"]["default"]["aliases"] == ["invoiceninja-fpm"]
     assert "resolver 127.0.0.11 valid=10s;" in nginx and "fastcgi_pass $$fpm;" in nginx
     assert "fastcgi_pass app" not in nginx
-    held = set()
-    for compose in (ROOT / "blueprints").glob("*/docker-compose.yml"):
-        if compose.parent.name == SLUG:
-            continue
-        for name, service in (yaml.safe_load(compose.read_text(encoding="utf-8")).get("services") or {}).items():
-            held.add(name)
-            networks = service.get("networks")
-            if isinstance(networks, dict):
-                for network in networks.values():
-                    held.update((network or {}).get("aliases") or ())
-    assert "invoiceninja-fpm" not in held
 
 
 # The nginx image's wget is busybox's: this shim answers like it, in the words of its error lines.

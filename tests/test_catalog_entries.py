@@ -2,8 +2,9 @@
 checks: what a template's backup mode does, where EspoCRM keeps what its
 admin screens make, the Rocket.Chat settings its Keycloak sign-in needs, how
 WordPress's mail plugin reads its relay password, and the user_oidc release
-the Nextcloud wiring is written for, and how Nextcloud's start-up keeps its
-master encryption key when the bucket changes.
+the Nextcloud wiring is written for, how Nextcloud's start-up keeps its
+master encryption key when the bucket changes, and that an alias named after
+its app is that app's alone.
 """
 from __future__ import annotations
 
@@ -30,6 +31,33 @@ def _entry(slug: str) -> model.Entry:
 def _service(slug: str, service: str) -> dict:
     compose = yaml.safe_load(_entry(slug).compose_path.read_text(encoding="utf-8"))
     return compose["services"][service]
+
+
+def _names(compose: dict) -> tuple[set[str], set[str]]:
+    """The service keys of a compose, and the aliases its services carry on any network."""
+    aliases = set()
+    for service in compose["services"].values():
+        networks = service.get("networks")
+        if isinstance(networks, dict):
+            for network in networks.values():
+                aliases.update((network or {}).get("aliases") or ())
+    return set(compose["services"]), aliases
+
+
+def test_an_alias_named_after_its_app_is_that_apps_alone():
+    """A service on catena-network reaches a sibling by an alias named
+    `<id>-<role>` on the stack network: catena-network holds every app's service
+    keys, and Docker names a task there only once it is healthy. No other app
+    has a service or an alias of that name."""
+    names = {e.slug: _names(yaml.safe_load(e.compose_path.read_text(encoding="utf-8")))
+             for e in model.load_sources()}
+    owned = {(slug, alias) for slug, (_, aliases) in names.items() for alias in aliases
+             if alias.startswith(slug + "-")}
+    assert {("invoiceninja", "invoiceninja-fpm"), ("rocketchat-oidc", "rocketchat-oidc-jitsi")} <= owned
+    for slug, alias in owned:
+        holders = [other for other, (keys, aliases) in names.items()
+                   if other != slug and alias in keys | aliases]
+        assert holders == [], (alias, holders)
 
 
 def test_actual_budget_holds_its_server_still_for_the_backup():
