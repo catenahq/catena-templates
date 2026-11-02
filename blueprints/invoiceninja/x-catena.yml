@@ -28,6 +28,15 @@ env:
     setting: {default: "invoice@{{ cloudflare_zone }}"}
   INVOICENINJA_MAIL_FROM_NAME:
     setting: {default: "Invoicing"}
+# The image's init.sh migrates, seeds a new database and creates the account before supervisord
+# starts php-fpm, so port 9000 answers once the application can serve.
+lifecycle:
+  service: "app"
+  user: "www-data"
+  ready: ["php", "-r", "exit(@fsockopen('127.0.0.1', 9000) ? 0 : 1);"]
+  migrate:
+    - ["php", "/var/www/html/artisan", "migrate", "--force"]
+  timeout_seconds: 900
 # verify asks nginx for /health, which nginx hands to the PHP application: nginx alone
 # answers /nginx-health. 127.0.0.1: busybox wget tries ::1 first for localhost.
 # The application behind nginx starts after nginx does, so verify asks again every 4 seconds while the

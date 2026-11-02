@@ -50,6 +50,15 @@ def test_the_wait_ends_inside_the_hook_timeout():
     assert 150 + 10 < _entry().block["hooks"]["timeout_seconds"] <= 300
 
 
+def test_the_lifecycle_waits_for_the_php_fpm_port_nginx_hands_requests_to():
+    lifecycle = _entry().lifecycle
+    nginx = "\n".join(_compose()["services"]["nginx"]["command"])
+    assert lifecycle["service"] == "app" and "fastcgi_pass app:9000;" in nginx
+    assert lifecycle["ready"] == ["php", "-r", "exit(@fsockopen('127.0.0.1', 9000) ? 0 : 1);"]
+    assert lifecycle["user"] == "www-data"
+    assert lifecycle["migrate"] == [["php", "/var/www/html/artisan", "migrate", "--force"]]
+
+
 # The nginx image's wget is busybox's: this shim answers like it, in the words of its error lines.
 BUSYBOX_WGET = f"""#!{sys.executable}
 import sys, urllib.error, urllib.request

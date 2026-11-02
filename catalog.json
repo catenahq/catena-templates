@@ -2870,6 +2870,24 @@
       },
       "hostname_baked": true,
       "id": "invoiceninja",
+      "lifecycle": {
+        "migrate": [
+          [
+            "php",
+            "/var/www/html/artisan",
+            "migrate",
+            "--force"
+          ]
+        ],
+        "ready": [
+          "php",
+          "-r",
+          "exit(@fsockopen('127.0.0.1', 9000) ? 0 : 1);"
+        ],
+        "service": "app",
+        "timeout_seconds": 900,
+        "user": "www-data"
+      },
       "requires_catena": "0.11.12",
       "sizing": {
         "disk_baseline_mb": 350,
