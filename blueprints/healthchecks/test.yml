@@ -1,6 +1,7 @@
 # Test for the healthchecks template: the project the configure hook made gets a check
 # and two pings through the app, and the project's API key reads them back, also after
-# a restore. The assert sets the project's read-only key to the first 32 hex characters
+# a restore. A seed replaces the check an earlier seed made, so the project holds one
+# whatever the number of seeds before the backup. The assert sets the project's read-only key to the first 32 hex characters
 # of a hash of the run id before it asks the API, because every deploy's configure hook
 # puts the server's own key back. The ping and the API are asked at 127.0.0.1 with the
 # Host localhost that the app always allows.
@@ -25,6 +26,7 @@ seed:
         from hc.api.models import Check
         project = Project.objects.order_by("id").first()
         assert project is not None, "the configure hook made no project"
+        Check.objects.filter(project=project, name="catena-{{ run_id }}").delete()
         check = Check.objects.create(project=project, name="catena-{{ run_id }}", slug="catena-test", tags="catena")
         for _ in range(2):
             request = urllib.request.Request("http://127.0.0.1:8000/ping/" + str(check.code), headers={"Host": "localhost"})
