@@ -18,8 +18,8 @@ it, a commit of `main` through `.github/workflows/app-main.yml`): the app checke
 app's images (a fixable high or critical vulnerability
 or an image secret that the change adds fails), image provenance (a source repository at least a year old with three
 releases, or three tags when it publishes no release, else for a Docker Hub image its Docker Hub repository registered at
-least a year ago with three pushed tags; an image the repository builds itself
-is listed as its own) and ClamAV over each image's files. The workflow holds
+least a year ago with three pushed tags; the year of age is asked of a pull request from a fork only; an image the
+repository builds itself is listed as its own) and ClamAV over each image's files. The workflow holds
 `contents: read` only and passes pull-request text to scripts through
 environment variables. A push to `main` sends only its commits that passed
 these checks to the bench (the nightly run takes the head of `main`), and an

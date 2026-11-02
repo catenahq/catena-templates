@@ -4,7 +4,8 @@
   changed               repo-relative paths on stdin -> the app ids they touch
   images ID             the image references the app's compose pins
   provenance ID        each pulled image's project is old enough, with releases;
-                        an image listed in PROVENANCE_OWN_IMAGES is the repository's own build
+                        an image listed in PROVENANCE_OWN_IMAGES is the repository's own build;
+                        PROVENANCE_CHECK_AGE=false leaves the age out
   ci-passed SHA         exit 0 when commit SHA of GITHUB_REPOSITORY has an app-ci status of success
                         posted by github-actions[bot] for a run of that repository (GITHUB_TOKEN or
                         GH_TOKEN reads it); any other answer, an unreadable one included, exits 1
@@ -59,12 +60,13 @@ def provenance_errors(app: str, labels_of=None, fetch=provenance.http_fetch) -> 
     refs, unresolved = provenance.compose_images(_compose(app))
     errors = [f"{app}: image {raw!r} is not a plain reference" for raw in unresolved]
     own = provenance.own_images()
+    check_age = provenance.checks_age()
     for ref in refs:
         if provenance.is_own(ref, own):
             print(f"{app}: {ref}: the repository's own build")
             continue
         labels = (labels_of or _docker_labels)(ref)
-        failure = provenance.check_image(ref, labels, fetch)
+        failure = provenance.check_image(ref, labels, fetch, check_age=check_age)
         if failure:
             errors.append(f"{app}: {failure}")
     return errors

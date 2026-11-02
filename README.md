@@ -442,7 +442,9 @@ Then one job per app the change touches (`blueprints/<id>/**`), each running:
   the other registries expose no dates. An image listed in `PROVENANCE_OWN_IMAGES`
   (comma-separated repositories, no tag) is the repository's own build and
   passes. For the catalog the workflow lists `ghcr.io/<owner>/<folder>` for
-  each folder of `images/`, plus the caller's `own-images`.
+  each folder of `images/`, plus the caller's `own-images`. The year of age is
+  asked of a pull request from a fork only (`PROVENANCE_CHECK_AGE`); every other
+  change is judged on the releases, tags and repositories alone.
 - ClamAV over each image's exported regular files (`docker create`,
   `docker export`), one name per inode, dealt to one clamscan per processor (at most one per 2 GB
   of available memory), with the databases the pinned `clamav/clamav` feature

@@ -492,6 +492,13 @@ def test_a_catalog_without_images_adds_nothing(scratch):
     assert _provenance(scratch, [], "") == ""
 
 
+def test_the_age_is_asked_of_a_pull_request_from_a_fork_only():
+    env = _step("app-ci.yml", "app", "Provenance")["env"]
+    assert env["PROVENANCE_CHECK_AGE"] == (
+        "${{ github.event_name == 'pull_request' && "
+        "github.event.pull_request.head.repo.full_name != github.repository }}")
+
+
 # scope of a merge commit
 
 def _merge_scene(scratch):

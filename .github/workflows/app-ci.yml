@@ -377,6 +377,8 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           OWNER: ${{ github.repository_owner }}
           CALLER_OWN_IMAGES: ${{ inputs.own-images }}
+          # The year of age is asked of a pull request from a fork only; GitHub sets the head repository.
+          PROVENANCE_CHECK_AGE: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository }}
         run: |
           set -euo pipefail
           # The catalog builds an image for each folder of images/ and publishes it

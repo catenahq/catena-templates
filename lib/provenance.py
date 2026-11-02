@@ -15,7 +15,9 @@ repository that does not exist, a page that cannot be read, and an image of
 another registry without the label (they expose no dates) fail, naming the image.
 An image whose repository is listed in the environment variable
 `PROVENANCE_OWN_IMAGES` (comma-separated, no tag) is the repository's own
-build and passes unchecked.
+build and passes unchecked. With `PROVENANCE_CHECK_AGE` set to `false` the
+year of age is not asked, of GitHub or of Docker Hub; the releases and tags
+still are.
 
 The checks take `fetch(url) -> JSON | None` (None for a missing page), so a
 test answers from recorded responses and the CLI answers over HTTPS.
@@ -114,11 +116,11 @@ def _old_enough(stamp: str | None, now: datetime) -> bool:
     return bool(stamp) and now - _when(stamp) >= MIN_AGE
 
 
-def _github(owner: str, repo: str, fetch: Fetch, now: datetime) -> str | None:
+def _github(owner: str, repo: str, fetch: Fetch, now: datetime, check_age: bool) -> str | None:
     info = fetch(f"{GITHUB_API}/repos/{owner}/{repo}")
     if not info:
         return f"GitHub has no repository {owner}/{repo}"
-    if not _old_enough(info.get("created_at"), now):
+    if check_age and not _old_enough(info.get("created_at"), now):
         raise SourceNotEstablished(f"{owner}/{repo} is under a year old")
     releases = fetch(f"{GITHUB_API}/repos/{owner}/{repo}/releases?per_page=100") or []
     published = [r for r in releases if not r.get("draft")]
@@ -134,11 +136,11 @@ def _github(owner: str, repo: str, fetch: Fetch, now: datetime) -> str | None:
     return None
 
 
-def _hub(path: str, fetch: Fetch, now: datetime) -> str | None:
+def _hub(path: str, fetch: Fetch, now: datetime, check_age: bool) -> str | None:
     info = fetch(f"{HUB_API}/repositories/{path}/")
     if not info:
         return f"Docker Hub has no repository {path}"
-    if not _old_enough(info.get("date_registered"), now):
+    if check_age and not _old_enough(info.get("date_registered"), now):
         return f"Docker Hub repository {path} was registered under a year ago"
     tags = (fetch(f"{HUB_API}/repositories/{path}/tags?page_size=100") or {}).get("results", [])
     pushed = [t for t in tags if t.get("tag_last_pushed")]
@@ -157,18 +159,23 @@ def is_own(ref: str, own: set[tuple[str, str]]) -> bool:
     return split_ref(ref) in own
 
 
-def _hub_instead(ref: str, reason: str, fetch: Fetch, now: datetime) -> str | None:
+def checks_age(environ: dict[str, str] | None = None) -> bool:
+    """False only when PROVENANCE_CHECK_AGE is `false`."""
+    return (environ if environ is not None else os.environ).get("PROVENANCE_CHECK_AGE", "") != "false"
+
+
+def _hub_instead(ref: str, reason: str, fetch: Fetch, now: datetime, check_age: bool) -> str | None:
     """A GitHub source that is too young or has too few releases: an image on
     Docker Hub falls back to its Docker Hub record."""
     registry, path = split_ref(ref)
     if registry != "docker.io":
         return reason
-    hub = _hub(path, fetch, now)
+    hub = _hub(path, fetch, now, check_age)
     return f"{reason}; {hub}" if hub else None
 
 
 def check_image(ref: str, labels: dict[str, str] | None, fetch: Fetch,
-                now: datetime | None = None) -> str | None:
+                now: datetime | None = None, check_age: bool = True) -> str | None:
     """None when the image's provenance holds, else the failure naming it."""
     now = now or datetime.now(timezone.utc)
     source = (labels or {}).get(SOURCE_LABEL, "")
@@ -180,15 +187,15 @@ def check_image(ref: str, labels: dict[str, str] | None, fetch: Fetch,
             repo = (owner, name)
         if repo:
             try:
-                why = _github(*repo, fetch, now)
+                why = _github(*repo, fetch, now, check_age)
             except SourceNotEstablished as exc:
-                why = _hub_instead(ref, str(exc), fetch, now)
+                why = _hub_instead(ref, str(exc), fetch, now, check_age)
         else:
             if registry != "docker.io":
                 return (f"{ref}: names no GitHub source repository and {registry} "
                         f"exposes no dates; set {SOURCE_LABEL} on the image or use "
                         f"an image from Docker Hub")
-            why = _hub(path, fetch, now)
+            why = _hub(path, fetch, now, check_age)
     except ProvenanceError as exc:
         why = str(exc)
     return f"{ref}: {why}" if why else None

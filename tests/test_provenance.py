@@ -77,6 +77,30 @@ def test_a_source_under_a_year_old_fails_naming_the_image():
     assert failure == "ghcr.io/example/app:3: example/app is under a year old"
 
 
+def test_with_the_age_left_out_a_young_source_is_judged_on_its_releases():
+    pages = {**GITHUB_OK, f"{GH}/repos/example/app": "github_young.json"}
+    assert provenance.check_image("ghcr.io/example/app:3", LABELS, _fetch(pages), NOW, check_age=False) is None
+    pages.update(FEW_RELEASES)
+    failure = provenance.check_image("ghcr.io/example/app:3", LABELS, _fetch(pages), NOW, check_age=False)
+    assert failure == "ghcr.io/example/app:3: example/app has 1 release(s), needs 3"
+
+
+def test_with_the_age_left_out_a_young_hub_record_is_judged_on_its_pushed_tags():
+    pages = {f"{HUB}/repositories/someone/tiny/": "hub_young.json",
+             f"{HUB}/repositories/someone/tiny/tags?page_size=100": "hub_tags.json"}
+    assert provenance.check_image("someone/tiny:1", {}, _fetch(pages), NOW, check_age=False) is None
+    pages[f"{HUB}/repositories/someone/tiny/tags?page_size=100"] = "hub_tags_few.json"
+    failure = provenance.check_image("someone/tiny:1", {}, _fetch(pages), NOW, check_age=False)
+    assert failure == "someone/tiny:1: Docker Hub repository someone/tiny has 1 pushed tag(s), needs 3"
+
+
+def test_the_age_is_asked_unless_the_environment_says_false():
+    assert provenance.checks_age({})
+    assert provenance.checks_age({"PROVENANCE_CHECK_AGE": ""})
+    assert provenance.checks_age({"PROVENANCE_CHECK_AGE": "true"})
+    assert not provenance.checks_age({"PROVENANCE_CHECK_AGE": "false"})
+
+
 def test_a_label_naming_a_missing_repository_fails():
     failure = provenance.check_image("ghcr.io/example/app:3", LABELS, _fetch({}), NOW)
     assert "GitHub has no repository example/app" in failure
@@ -159,6 +183,12 @@ def test_the_hub_fallback_fails_when_the_hub_record_is_too_young():
     failure = provenance.check_image("example/app:3", LABELS, _fetch(pages), NOW)
     assert failure.startswith("example/app:3: example/app has 1 release(s), needs 3; ")
     assert "registered under a year ago" in failure
+
+
+def test_with_the_age_left_out_the_hub_fallback_takes_a_young_hub_record():
+    pages = {**GITHUB_OK, **FEW_RELEASES, **HUB_APP, f"{HUB}/repositories/example/app/": "hub_young.json"}
+    assert provenance.check_image("example/app:3", LABELS, _fetch(pages), NOW, check_age=False) is None
+    assert "registered under a year ago" in provenance.check_image("example/app:3", LABELS, _fetch(pages), NOW)
 
 
 def test_the_hub_fallback_fails_when_the_hub_has_too_few_tags():
@@ -290,6 +320,16 @@ def test_provenance_errors_checks_every_image_of_an_app(tmp_path, monkeypatch):
         "demo", labels_of=lambda ref: {}, fetch=_fetch({**HUB_OK, **GITHUB_OK}))
     assert len(errors) == 1
     assert errors[0].startswith("demo: quay.io/example/app:3: ")
+
+
+def test_provenance_errors_leave_the_age_out_when_the_environment_says_false(tmp_path, monkeypatch):
+    _compose(tmp_path, monkeypatch, "services:\n  a:\n    image: ghcr.io/example/app:3\n")
+    pages = {**GITHUB_OK, f"{GH}/repos/example/app": "github_young.json"}
+    monkeypatch.delenv("PROVENANCE_CHECK_AGE", raising=False)
+    assert app_checks.provenance_errors("demo", labels_of=lambda ref: {}, fetch=_fetch(pages)) == [
+        "demo: ghcr.io/example/app:3: example/app is under a year old"]
+    monkeypatch.setenv("PROVENANCE_CHECK_AGE", "false")
+    assert app_checks.provenance_errors("demo", labels_of=lambda ref: {}, fetch=_fetch(pages)) == []
 
 
 def test_changed_paths_reduce_to_app_ids():
