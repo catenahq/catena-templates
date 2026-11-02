@@ -80,7 +80,7 @@ x-catena:
             let version = "";
             try { version = String(JSON.parse(body).version || ""); } catch (error) {}
             if (status !== 200 || !version) failed.push("/api/info answered " + (status ? "HTTP " + status : body.slice(0, 100)) + " with no version");
-            const [jitsi] = await ask("jitsi-web", 80, "/");
+            const [jitsi] = await ask("rocketchat-oidc-jitsi", 80, "/");
             if (jitsi !== 200) failed.push("the Jitsi web server answered " + (jitsi ? "HTTP " + jitsi : "nothing"));
             if (failed.length) {
               console.error("the chat check failed: " + failed.join("; "));
@@ -384,11 +384,13 @@ services:
       - "vps.auto-update=patch"
     cap_drop:
       - NET_RAW
+    # verify reaches the web server by this alias, which only this stack holds:
+    # Element's Jitsi is also named jitsi-web on catena-network.
     networks:
-      catena-network:
+      catena-network: {}
+      default:
         aliases:
-          - jitsi-web
-      default: {}
+          - rocketchat-oidc-jitsi
   # === JITSI END ============================================================
 
 volumes:

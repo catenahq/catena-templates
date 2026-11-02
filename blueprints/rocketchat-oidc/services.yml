@@ -293,11 +293,13 @@ services:
       - "vps.auto-update=patch"
     cap_drop:
       - NET_RAW
+    # verify reaches the web server by this alias, which only this stack holds:
+    # Element's Jitsi is also named jitsi-web on catena-network.
     networks:
-      catena-network:
+      catena-network: {}
+      default:
         aliases:
-          - jitsi-web
-      default: {}
+          - rocketchat-oidc-jitsi
   # === JITSI END ============================================================
 
 volumes:

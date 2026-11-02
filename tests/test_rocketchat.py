@@ -47,9 +47,15 @@ def test_the_only_hook_is_the_verify_check_that_asks_the_servers():
     (argv,) = hooks["verify"]
     assert argv[:2] == ["node", "-e"]
     assert "/api/info" in argv[2]
-    assert '"jitsi-web", 80' in argv[2]
+    assert '"rocketchat-oidc-jitsi", 80' in argv[2]
     assert "Date.now() + 150000" in argv[2]
     assert 150 + 15 < hooks["timeout_seconds"] <= 300
+
+
+def test_verify_asks_jitsi_by_the_alias_its_stack_network_holds():
+    services = _compose()["services"]
+    assert "catena-network" in services["rocketchat"]["networks"]
+    assert services["jitsi-web"]["networks"] == {"catena-network": {}, "default": {"aliases": ["rocketchat-oidc-jitsi"]}}
 
 
 class _Stub(http.server.BaseHTTPRequestHandler):
@@ -75,7 +81,7 @@ class _Stub(http.server.BaseHTTPRequestHandler):
 INFO = b'{"version":"8.8.1","success":true}'
 SWAP = [
     ('ask("127.0.0.1", 3000,', 'ask("127.0.0.1", {port},'),
-    ('ask("jitsi-web", 80,', 'ask("127.0.0.1", {port},'),
+    ('ask("rocketchat-oidc-jitsi", 80,', 'ask("127.0.0.1", {port},'),
     ("Date.now() + 150000", "Date.now() + 2000"),
     ("sleep(4000)", "sleep(100)"),
 ]

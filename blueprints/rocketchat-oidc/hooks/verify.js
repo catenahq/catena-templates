@@ -25,7 +25,7 @@ const ask = async (host, port, path) => {
   let version = "";
   try { version = String(JSON.parse(body).version || ""); } catch (error) {}
   if (status !== 200 || !version) failed.push("/api/info answered " + (status ? "HTTP " + status : body.slice(0, 100)) + " with no version");
-  const [jitsi] = await ask("jitsi-web", 80, "/");
+  const [jitsi] = await ask("rocketchat-oidc-jitsi", 80, "/");
   if (jitsi !== 200) failed.push("the Jitsi web server answered " + (jitsi ? "HTTP " + jitsi : "nothing"));
   if (failed.length) {
     console.error("the chat check failed: " + failed.join("; "));
