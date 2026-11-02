@@ -77,7 +77,7 @@ x-catena:
 
 services:
   app:
-    image: invoiceninja/invoiceninja-debian:5.13.49
+    image: invoiceninja/invoiceninja-debian:5.13.53
     deploy:
       restart_policy:
         condition: any
