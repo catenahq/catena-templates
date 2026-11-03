@@ -34,7 +34,10 @@ the site does not install costs disk only.
 
 Each app's build-only `node_modules` are removed in the build layer, which
 keeps about 740 MiB out of the image. Frappe's own stay: the websocket service
-runs from them.
+runs from them. The links left pointing at nothing (an app's
+`public/node_modules`, and the base image's `/etc/alternatives` entries for
+the man pages it leaves out) are removed too: BuildKit cannot checksum such a
+link under the repack's `COPY --exclude`.
 
 The image is repacked at the end of the build. The built image's tree is copied
 into a scratch stage, one `COPY` per group of `LAYERS` in `build.py` (the bench

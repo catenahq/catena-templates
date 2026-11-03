@@ -518,7 +518,8 @@ def _build(monkeypatch, tmp_path, telephony_head, walks=None, history="1000\tCOP
         if argv[:2] == ("git", "clone"):
             containerfile = Path(argv[-1]) / "images" / "layered" / "Containerfile"
             containerfile.parent.mkdir(parents=True)
-            containerfile.write_text(f"# syntax=docker/dockerfile:1\nFROM x AS backend\nRUN x && \\\n  {B.ANCHOR}\n")
+            containerfile.write_text(f"# syntax=docker/dockerfile:1\nFROM x AS backend\nRUN x && \\\n  {B.ANCHOR}\n"
+                                     f"{B.BACKEND_ANCHOR}\n")
         if argv[:3] == ("docker", "image", "inspect"):
             return json.dumps(CONFIG)
         if argv[:2] == ("docker", "history"):
@@ -586,19 +587,38 @@ def test_build_fails_on_a_layer_above_the_bound(spec, monkeypatch, tmp_path):
         _build(monkeypatch, tmp_path, "t1", history=f"{B.LAYER_BOUND + 1}\tCOPY big\n")
 
 
-def test_build_stops_when_the_containerfile_has_no_backend_stage(spec, monkeypatch, tmp_path):
+@pytest.mark.parametrize("text, match", [
+    (f"FROM x\nRUN {B.ANCHOR}\n{B.BACKEND_ANCHOR}\n", "no backend stage"),
+    (f"FROM x AS backend\nRUN {B.ANCHOR}\n", "last root step"),
+])
+def test_build_stops_when_the_containerfile_changed_shape(spec, monkeypatch, tmp_path, text, match):
     def run(*argv, **_k):
         if argv[:2] == ("git", "clone"):
             containerfile = Path(argv[-1]) / "images" / "layered" / "Containerfile"
             containerfile.parent.mkdir(parents=True)
-            containerfile.write_text(f"FROM x\nRUN {B.ANCHOR}\n")
+            containerfile.write_text(text)
         return ""
 
     monkeypatch.setattr(B, "run", run)
     monkeypatch.setattr(B.tempfile, "mkdtemp", lambda **_k: str(tmp_path / "work"))
     monkeypatch.setattr(B, "load", lambda: {"inputs": B.inputs(), "tag": "v16.1.0-1"})
-    with pytest.raises(SystemExit, match="no backend stage"):
+    with pytest.raises(SystemExit, match=match):
         B.cmd_build(argparse.Namespace())
+
+
+def test_build_removes_the_links_to_nothing_in_both_stages(spec, monkeypatch, tmp_path):
+    """BuildKit cannot checksum a link to nothing under the repack's COPY --exclude: the
+    builder removes those STRIP leaves in the apps, the backend those of /etc/alternatives."""
+    _build(monkeypatch, tmp_path, "t1")
+    text = (tmp_path / "work" / "frappe_docker" / "images" / "layered" / "Containerfile").read_text()
+    assert f"{B.STRIP} && \\\n  find apps -xtype l -delete" in text
+    assert "RUN chmod 755 /usr/local/bin/start.sh && \\\n  find /etc/alternatives -xtype l -delete\n" in text
+
+
+def test_the_recipe_moves_with_the_backend_steps(spec, monkeypatch):
+    before = B.inputs()["recipe"]
+    monkeypatch.setattr(B, "BACKEND_STEPS", B.BACKEND_STEPS + " && true")
+    assert B.inputs()["recipe"] != before
 
 
 # --- the repack ---------------------------------------------------------------
