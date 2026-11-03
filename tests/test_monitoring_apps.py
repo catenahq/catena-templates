@@ -88,6 +88,7 @@ def test_the_agent_is_on_the_host_network_with_the_socket_and_the_key_read_only(
     assert doc["networks"]["hostnet"] == {"external": True, "name": "host"}
     assert "/var/run/docker.sock:/var/run/docker.sock:ro" in agent["volumes"]
     assert {"type": "volume", "source": "agent-key", "target": "/key", "read_only": True} in agent["volumes"]
+    assert "agent-data:/var/lib/beszel-agent" in agent["volumes"] and "agent-data" in doc["volumes"]
     assert agent["environment"]["KEY_FILE"] == "/key/key.pub"
     assert agent["environment"]["TOKEN_FILE"] == "/key/token"
     assert "TOKEN" not in agent["environment"], "the token reaches the agent as a file"

@@ -76,12 +76,15 @@ services:
     labels:
       - "vps.expose.none=true"
       - "vps.auto-update=patch"
+    # The agent saves the fingerprint the hub knows its system by in /var/lib/beszel-agent, which
+    # the image declares a volume: a named one keeps it across a new container.
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - type: volume
         source: agent-key
         target: /key
         read_only: true
+      - agent-data:/var/lib/beszel-agent
     # The host network is the swarm's external network named host:
     # network_mode is not read by a stack deploy.
     networks:
@@ -189,6 +192,7 @@ services:
 volumes:
   beszel-hub-data:
   agent-key:
+  agent-data:
   relay-state:
 
 networks:
