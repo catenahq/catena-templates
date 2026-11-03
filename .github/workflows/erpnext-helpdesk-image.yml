@@ -61,6 +61,14 @@ jobs:
         run: |
           python3 build.py plan $FORCE
           jq -r '"build=\(.build)", "pin=\(.pin)", "tag=\(.tag)"' inputs.json >> "$GITHUB_OUTPUT"
+      # The repack's COPY --exclude needs BuildKit v0.25.0 or newer. An older one
+      # follows every link under the pattern and fails on a link to nothing, such
+      # as the base image's nginx logs, which point at /dev/stdout. The runner's
+      # Docker embeds an older one, so the build runs on this builder.
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+        if: steps.plan.outputs.build == 'true'
+        with:
+          driver-opts: image=moby/buildkit:v0.34.2@sha256:c5f8862f52499773af85bc07695b2379ef08e8002352b0df2c4864c91d78dabe
       - name: Build
         if: steps.plan.outputs.build == 'true'
         run: python3 build.py build

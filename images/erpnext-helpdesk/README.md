@@ -34,16 +34,16 @@ the site does not install costs disk only.
 
 Each app's build-only `node_modules` are removed in the build layer, which
 keeps about 740 MiB out of the image. Frappe's own stay: the websocket service
-runs from them. The links left pointing at nothing (an app's
-`public/node_modules`, and the base image's `/etc/alternatives` entries for
-the man pages it leaves out) are removed too: BuildKit cannot checksum such a
-link under the repack's `COPY --exclude`.
+runs from them.
 
 The image is repacked at the end of the build. The built image's tree is copied
 into a scratch stage, one `COPY` per group of `LAYERS` in `build.py` (the bench
 venv, each of Frappe and ERPNext, the rest of the bench, `.nvm`, the rest of
 the frappe home, the system libraries, `/usr/share`, `/usr/local`, the rest of
-`/`), so the image holds about ten layers and a host pulls them in parallel. The scratch stage restates the built image's
+`/`), so the image holds about ten layers and a host pulls them in parallel. The
+`COPY --exclude` of those groups needs BuildKit v0.25.0 or newer: an older one
+fails on a link to nothing, such as the base image's nginx logs, which point at
+`/dev/stdout`. The scratch stage restates the built image's
 environment, user, working directory, entrypoint, command, volumes, ports and
 labels. The build then fails unless a walk inside each image finds the same
 paths with the same type, owner, mode, size, link target, extended attributes,
@@ -111,9 +111,11 @@ never reaches a host.
 ## Run it locally
 
 Docker with buildx and compose, git, and a python3 whose standard library
-has `tomllib`:
+has `tomllib`. Docker's embedded BuildKit may be older than v0.25.0; a
+docker-container builder runs a current one:
 
 ```sh
+docker buildx create --use --driver docker-container
 python3 build.py resolve        # refreshes every sha in apps.json; --newest moves every input
 python3 build.py plan           # writes inputs.json; --force to build anyway
 python3 build.py build

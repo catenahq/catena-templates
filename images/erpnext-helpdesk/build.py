@@ -14,8 +14,7 @@
            published and older than the tag); --force builds anyway
   build    the image, from frappe_docker's layered Containerfile at the pinned
            builder commit, Frappe at the tag apps.json names, build-only
-           node_modules removed in the same layer and every link left pointing
-           at nothing in the apps and /etc/alternatives; the result is repacked into
+           node_modules removed in the same layer; the result is repacked into
            the layer groups of LAYERS, and the build fails unless the repack
            holds the same files and configuration and no layer exceeds
            LAYER_BOUND
@@ -65,14 +64,6 @@ ANCHOR = 'find apps -mindepth 1 -path "*/.git" | xargs rm -fr'
 # Build-only node_modules; Frappe's own run the websocket service.
 STRIP = ('find apps -mindepth 2 -maxdepth 4 -type d -name node_modules'
          ' -not -path "apps/frappe/*" -prune -exec rm -rf {} +')
-# The links STRIP leaves pointing at nothing (an app's public/node_modules). BuildKit cannot checksum
-# a link to nothing under the repack's COPY --exclude, so the build removes them.
-DANGLING = "find apps -xtype l -delete"
-# The last RUN of the layered Containerfile's backend stage, which runs as root. The base image's
-# alternatives for the man pages it leaves out point at nothing, and are removed there for the
-# same reason.
-BACKEND_ANCHOR = "RUN chmod 755 /usr/local/bin/start.sh"
-BACKEND_STEPS = BACKEND_ANCHOR + " && \\\n  find /etc/alternatives -xtype l -delete"
 # NLTK corpora an app loads at runtime, into the bench venv's nltk_data, which
 # NLTK searches. An app that finds none downloads them into its container.
 NLTK = ("env/bin/python -c \"import sys, nltk; [nltk.download(c, download_dir='env/nltk_data',"
@@ -96,7 +87,7 @@ def vtuple(v: str) -> tuple[int, ...]:
 
 def builder_steps() -> str:
     """What replaces ANCHOR in the builder stage."""
-    steps = [ANCHOR, STRIP, DANGLING]
+    steps = [ANCHOR, STRIP]
     corpora = [c for app in SPEC["apps"] for c in app.get("nltk_data", [])]
     if corpora:
         steps.append(NLTK + " ".join(corpora))
@@ -319,7 +310,7 @@ def frappe_range(repo: str, sha: str) -> str | None:
 def inputs() -> dict:
     """What apps.json names, in the shape of the image's io.catena.inputs label."""
     out = {"builder": SPEC["builder"]["sha"],
-           "recipe": hashlib.sha256("\n".join([builder_steps(), BACKEND_STEPS, SYNTAX, *copy_lines()]).encode()
+           "recipe": hashlib.sha256("\n".join([builder_steps(), SYNTAX, *copy_lines()]).encode()
                                     ).hexdigest()[:16],
            "frappe": {"version": SPEC["frappe"]["version"], "sha": SPEC["frappe"]["sha"]}}
     for app in SPEC["apps"]:
@@ -529,10 +520,7 @@ def cmd_build(args) -> None:
                          "steps have no single anchor; review the builder bump")
     if not re.search(r"^FROM .* AS backend\s*$", text, re.M):
         raise SystemExit("the layered Containerfile has no backend stage: review the builder bump")
-    if text.count(BACKEND_ANCHOR) != 1:
-        raise SystemExit("the layered Containerfile changed shape: the backend stage's last root "
-                         "step is not there once; review the builder bump")
-    patched = with_syntax(text.replace(ANCHOR, builder_steps()).replace(BACKEND_ANCHOR, BACKEND_STEPS))
+    patched = with_syntax(text.replace(ANCHOR, builder_steps()))
     containerfile.write_text(patched)
 
     apps = []
