@@ -568,15 +568,30 @@ def lint_object_store(entry) -> list[str]:
 AUTO_UPDATE_POLICIES = frozenset({"off", "patch", "minor", "patch+minor", "major"})
 
 
+# A value Docker interpolates from the app folder's .env: ${NAME:-<level>}.
+AUTO_UPDATE_VARIABLE = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)(?::-([^}]*))?\}")
+
+
 def lint_auto_update(entry) -> list[str]:
     doc = yaml.safe_load(entry.compose_path.read_text(encoding="utf-8")) or {}
     errors = []
+    levels = ', '.join(sorted(AUTO_UPDATE_POLICIES))
     for name, service in (doc.get("services") or {}).items():
         value = service_labels(service or {}).get("vps.auto-update")
-        if value is not None and value.strip().lower() not in AUTO_UPDATE_POLICIES:
-            errors.append(f"{entry.slug}:{name}: vps.auto-update={value} is not one of "
-                          f"{', '.join(sorted(AUTO_UPDATE_POLICIES))}; the update engine "
-                          f"would ignore it")
+        if value is None:
+            continue
+        label = f"{entry.slug}:{name}: vps.auto-update={value}"
+        variable = AUTO_UPDATE_VARIABLE.fullmatch(value.strip())
+        if variable is None:
+            if value.strip().lower() not in AUTO_UPDATE_POLICIES:
+                errors.append(f"{label} is not one of {levels}; the update engine "
+                              f"would ignore it")
+        elif variable.group(2) is None:
+            errors.append(f"{label} names {variable.group(1)} with no default; write "
+                          f"${{{variable.group(1)}:-<level>}} with a level of {levels}")
+        elif variable.group(2).strip().lower() not in AUTO_UPDATE_POLICIES:
+            errors.append(f"{label} has the default {variable.group(2)!r}, which is not one "
+                          f"of {levels}; the update engine would ignore it")
     return errors
 
 

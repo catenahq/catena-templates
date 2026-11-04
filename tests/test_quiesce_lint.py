@@ -382,6 +382,28 @@ def test_an_unknown_auto_update_policy_is_refused(monkeypatch, tmp_path, capsys,
             "major, minor, off, patch, patch+minor") in capsys.readouterr().out
 
 
+@pytest.mark.parametrize("value", ["${UPDATE_LEVEL:-major}", "${_lvl2:-patch+minor}"])
+def test_an_auto_update_variable_with_a_level_default_passes(
+        monkeypatch, tmp_path, capsys, value):
+    _synthetic_sources(monkeypatch, tmp_path, {}, _auto_update(value))
+    assert L.lint_all() == 0, capsys.readouterr().out
+
+
+@pytest.mark.parametrize("value,needle", [
+    ("${UPDATE_LEVEL}", "names UPDATE_LEVEL with no default"),
+    ("${UPDATE_LEVEL:-}", "has the default '', which is not one of"),
+    ("${UPDATE_LEVEL:-never}", "has the default 'never', which is not one of"),
+    ("${1BAD:-major}", "is not one of major, minor, off, patch, patch+minor"),
+])
+def test_an_auto_update_variable_without_a_level_default_is_refused(
+        monkeypatch, tmp_path, capsys, value, needle):
+    _synthetic_sources(monkeypatch, tmp_path, {}, _auto_update(value))
+    assert L.lint_all() == 1
+    out = capsys.readouterr().out
+    assert f"synthetic-bad:app: vps.auto-update={value}" in out
+    assert needle in out
+
+
 def test_a_block_with_no_dollar_and_no_image_passes(monkeypatch, tmp_path, capsys):
     _synthetic_sources(monkeypatch, tmp_path, {}, block={
         "env": {"DOMAIN_HOST": {"managed": {"expr": "x.{{ cloudflare_zone }}"}}}})

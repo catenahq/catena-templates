@@ -231,6 +231,10 @@ block.
    redeploys the user when the provider is deployed, stopped or removed.
    An application with no web address labels no service `vps.route.host` and
    names `version_from` in its block.
+   An app service's `vps.auto-update` label is `${UPDATE_LEVEL:-major}` and the
+   block declares `UPDATE_LEVEL` as a setting with the default `major`; a
+   database, a cache and a stateful service no data upgrade covers keep a
+   literal label, and `make lint` refuses a variable with no level default.
    An application that offers access levels to invited people adds `access`
    (`access: {user: {label: {en: "Nextcloud", fr: "Nextcloud"}}}`): the panel
    shows each label, and Catena admits the level's members at the application's
@@ -355,10 +359,17 @@ The bench runs these legs in this order in a test VM (see
 8. `data_upgrade:<service>` -- for each service the block declares under
    `data`, its volume and the seeded data survive the update from the oldest
    version.
-9. `rollback` -- a next revision that cannot start is deployed by the update
-   engine and reverted: the service was redeployed, its image is back, the tag is
-   quarantined, the data is as before and the verify hook answers ok.
-10. `egress` -- the clone still drops a connection the app's declared `egress`
+9. `rollback_migrated` -- for a commit whose major is above the newest tag's: the
+   app is added at the newest tag and seeded, then a next revision whose verify
+   hook fails is deployed by the update engine, which migrates the data, runs the
+   verify and reverts: the tag is quarantined, the app is back on the newest tag,
+   and the asserts pass on the data the replay put back. Skipped when the commit
+   does not move the major, when no verify hook is declared, when `update_newest`
+   did not pass, or when the night offered that update.
+10. `rollback` -- a next revision that cannot start is deployed by the update
+    engine and reverted: the service was redeployed, its image is back, the tag is
+    quarantined, the data is as before and the verify hook answers ok.
+11. `egress` -- the clone still drops a connection the app's declared `egress`
     does not allow.
 
 A failed `install` skips every leg but `egress`; a failed `checks` skips `verify`, `backup`,

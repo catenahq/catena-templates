@@ -110,6 +110,10 @@ the repository, and the checks.
   with no `^` or `$` (the whole tag is matched). Each app pins and moves its
   own database; there is no catalog-wide pin. The engine moves the pins, one
   app per pull request.
+- An app service's `vps.auto-update` label is `${UPDATE_LEVEL:-major}` and the
+  block declares `UPDATE_LEVEL` as a setting with the default `major`; a
+  database, a cache and a stateful service no data upgrade covers keep a literal
+  label.
 - No emojis or em-dashes in any artifact. Plain hyphens + straight
   quotes only. `npm run check:unicode` enforces, and also scans for the
   system names it lists.
