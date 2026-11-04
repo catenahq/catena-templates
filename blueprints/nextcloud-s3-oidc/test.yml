@@ -1,0 +1,108 @@
+# Test for the nextcloud-s3-oidc template: a file written through Nextcloud and its
+# public link share survive a backup and a restore. The seed uploads the file with
+# WebDAV as the administrator, so with a bucket it goes through the app into the object
+# store and without one into the data volume, then makes a public link share of it
+# with the OCS Share API only when the file has none, so a second seed changes
+# nothing. The asserts read the file back the same way and list the shares of its
+# path. Every step waits until status.php reports Nextcloud installed and out of
+# maintenance mode (occ status, the lifecycle ready question, also passes before the
+# install), then runs curl inside the app container against its own Apache. The
+# administrator's login comes from the container's environment and reaches curl on
+# stdin, so it is printed nowhere and rides no argument list. The OCS answers carry
+# their own status in the body, which the steps read with php.
+#
+# {{ run_id }} is supplied by the bench at execution time so the file name and content
+# are unique per run. Each {{ container_* }} is resolved from `docker ps` before
+# invoking.
+
+id: nextcloud-s3-oidc
+description: >-
+  The file catena-<run>.txt uploaded through Nextcloud's WebDAV is read back with its
+  content, and the file carries exactly one public link share, before and after the
+  backup, the restore and the updates.
+
+seed:
+  - name: upload_the_file_and_share_it_by_public_link
+    type: docker_exec
+    container: "{{ container_app }}"
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        ready() { php -r '$s = json_decode(@file_get_contents("http://localhost/status.php")); exit($s && $s->installed === true && $s->maintenance === false ? 0 : 1);'; }
+        nc() { printf 'user = "%s:%s"\n' "$NEXTCLOUD_ADMIN_USER" "$NEXTCLOUD_ADMIN_PASSWORD" \
+          | curl -sS -K - --max-time 30 -H "Host: $NEXTCLOUD_TRUSTED_DOMAINS" -H "OCS-APIRequest: true" "$@"; }
+        links() { php -r '$d = json_decode(stream_get_contents(STDIN), true); if (!$d || ($d["ocs"]["meta"]["statuscode"] ?? 0) !== 200) exit(2); $n = 0; foreach ($d["ocs"]["data"] as $s) { if (($s["share_type"] ?? -1) === 3) $n++; } echo $n;'; }
+        waited=0
+        until ready; do
+          [ "$waited" -lt 600 ] || { echo "Nextcloud was not installed and out of maintenance mode within 600 s" >&2; exit 1; }
+          sleep 5
+          waited=$((waited + 5))
+        done
+        file="catena-{{ run_id }}.txt"
+        api="http://127.0.0.1/ocs/v2.php/apps/files_sharing/api/v1/shares"
+        code=$(nc -o /dev/null -w '%{http_code}' -X PUT --data-binary 'fixture-{{ run_id }}' \
+          "http://127.0.0.1/remote.php/dav/files/$NEXTCLOUD_ADMIN_USER/$file")
+        case "$code" in
+          201|204) ;;
+          *) echo "WebDAV PUT of the file answered $code" >&2; exit 1 ;;
+        esac
+        listed=$(nc --fail "$api?path=/$file&format=json") || { echo "listing the shares of the file failed" >&2; exit 1; }
+        count=$(printf '%s' "$listed" | links) || { echo "the share list answer was not an OCS success" >&2; exit 1; }
+        if [ "$count" -eq 0 ]; then
+          created=$(nc --fail -X POST -d shareType=3 -d format=json --data-urlencode "path=/$file" "$api") \
+            || { echo "creating the public link share failed" >&2; exit 1; }
+          printf '%s' "$created" | links >/dev/null || { echo "the share creation answer was not an OCS success" >&2; exit 1; }
+        fi
+        echo "seeded $file"
+    expect_stdout_contains: "seeded catena-{{ run_id }}.txt"
+    timeout_s: 660
+
+assert:
+  - name: file_present_with_expected_content
+    type: docker_exec
+    container: "{{ container_app }}"
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        ready() { php -r '$s = json_decode(@file_get_contents("http://localhost/status.php")); exit($s && $s->installed === true && $s->maintenance === false ? 0 : 1);'; }
+        waited=0
+        until ready; do
+          [ "$waited" -lt 600 ] || { echo "Nextcloud was not installed and out of maintenance mode within 600 s" >&2; exit 1; }
+          sleep 5
+          waited=$((waited + 5))
+        done
+        printf 'user = "%s:%s"\n' "$NEXTCLOUD_ADMIN_USER" "$NEXTCLOUD_ADMIN_PASSWORD" \
+          | curl -sS -K - --fail --max-time 30 -H "Host: $NEXTCLOUD_TRUSTED_DOMAINS" \
+              "http://127.0.0.1/remote.php/dav/files/$NEXTCLOUD_ADMIN_USER/catena-{{ run_id }}.txt"
+    expect_stdout_contains: "fixture-{{ run_id }}"
+    timeout_s: 660
+
+  - name: file_has_exactly_one_public_link_share
+    type: docker_exec
+    container: "{{ container_app }}"
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        ready() { php -r '$s = json_decode(@file_get_contents("http://localhost/status.php")); exit($s && $s->installed === true && $s->maintenance === false ? 0 : 1);'; }
+        links() { php -r '$d = json_decode(stream_get_contents(STDIN), true); if (!$d || ($d["ocs"]["meta"]["statuscode"] ?? 0) !== 200) exit(2); $n = 0; foreach ($d["ocs"]["data"] as $s) { if (($s["share_type"] ?? -1) === 3) $n++; } echo $n;'; }
+        waited=0
+        until ready; do
+          [ "$waited" -lt 600 ] || { echo "Nextcloud was not installed and out of maintenance mode within 600 s" >&2; exit 1; }
+          sleep 5
+          waited=$((waited + 5))
+        done
+        listed=$(printf 'user = "%s:%s"\n' "$NEXTCLOUD_ADMIN_USER" "$NEXTCLOUD_ADMIN_PASSWORD" \
+          | curl -sS -K - --fail --max-time 30 -H "Host: $NEXTCLOUD_TRUSTED_DOMAINS" -H "OCS-APIRequest: true" \
+              "http://127.0.0.1/ocs/v2.php/apps/files_sharing/api/v1/shares?path=/catena-{{ run_id }}.txt&format=json") \
+          || { echo "listing the shares of the file failed" >&2; exit 1; }
+        count=$(printf '%s' "$listed" | links) || { echo "the share list answer was not an OCS success" >&2; exit 1; }
+        [ "$count" -eq 1 ] || { echo "the file has $count public link shares, expected 1" >&2; exit 1; }
+        echo "public link shares of catena-{{ run_id }}.txt: 1"
+    expect_stdout_contains: "public link shares of catena-{{ run_id }}.txt: 1"
+    timeout_s: 660
