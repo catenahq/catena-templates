@@ -212,7 +212,7 @@ jobs:
           ref: ${{ inputs.tools-ref }}
           path: .tools
           persist-credentials: false
-      - name: pytest, quiesce lint and postgres pin lint
+      - name: pytest (the catalog adds the help desk image's), quiesce lint and postgres pin lint
         # Three gates in one run: a failure line of one must not hide a new
         # failure of another, so the exit status decides.
         uses: catenahq/contracts/.github/actions/new-failures-only@main
@@ -221,7 +221,9 @@ jobs:
           repo-path: ${{ github.workspace }}
           run: |
             rc=0
-            uv run --with pytest --with jsonschema --with pyyaml --with pillow --with resvg-py pytest tests/ -q || rc=1
+            tests=(tests/)
+            if [ -z "$TEMPLATES_ROOT" ]; then tests+=(images/erpnext-helpdesk); fi
+            uv run --with pytest --with jsonschema --with pyyaml --with pillow --with resvg-py pytest "${tests[@]}" -q || rc=1
             uv run "$TOOLS/build/lint_quiesce.py" || rc=1
             uv run "$TOOLS/build/lint_postgres_pins.py" || rc=1
             exit $rc

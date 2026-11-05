@@ -84,6 +84,14 @@ def test_app_ci_jobs_still_run_when_the_gate_is_skipped():
     assert _needs(jobs["app"]) == ["plan"]
 
 
+def test_build_and_verify_tests_the_help_desk_image_for_the_catalog_only():
+    job = _jobs("build-and-verify.yml")["lint-quiesce-tests"]
+    run = next(s["with"]["run"] for s in job["steps"] if "pytest" in s.get("name", ""))
+    assert "tests=(tests/)" in run
+    assert "if [ -z \"$TEMPLATES_ROOT\" ]; then tests+=(images/erpnext-helpdesk); fi" in run
+    assert '"${tests[@]}"' in run
+
+
 def test_every_caller_of_a_gated_workflow_grants_actions_read():
     found = 0
     for path in sorted(WORKFLOWS.glob("*.yml")):

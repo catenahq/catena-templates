@@ -2,10 +2,13 @@ name: app-main
 
 # Gates every commit of a push to main, for repository admins' direct pushes
 # and for merges alike. `list` names the commits of the push on the first-parent
-# line, oldest first, each with its parent. `checks` calls app-ci once per
-# commit, which judges the commit from its parent. `verdict` posts the commit
+# line, oldest first, each with its parent, and drops a commit whose tree and
+# parent tree an app-ci run of a pull request already judged: that commit takes
+# the run's result. `checks` calls app-ci once per remaining commit, which judges
+# the commit from its parent. `verdict` posts the commit
 # status `app-ci` on each commit: success when the commit's `scope` and
-# `app-checks` jobs passed, else failure naming the jobs that did not. `dispatch`
+# `app-checks` jobs passed (or the reused run succeeded, its address as the
+# target), else failure naming the jobs that did not. `dispatch`
 # calls app-dispatch with the commits that passed, so the bench runs only those,
 # and app-tag tags an app only when its last change on main holds an `app-ci`
 # success.
@@ -36,11 +39,16 @@ permissions:
 jobs:
   list:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
     env:
       TOOLS: .
     outputs:
-      commits: ${{ steps.commits.outputs.commits }}
-      shas: ${{ steps.commits.outputs.shas }}
+      commits: ${{ steps.split.outputs.commits }}
+      shas: ${{ steps.split.outputs.shas }}
+      all: ${{ steps.split.outputs.all }}
+      reused: ${{ steps.split.outputs.reused }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
@@ -59,6 +67,7 @@ jobs:
           set -euo pipefail
           json="["
           sep=""
+          pairs=""
           if [ "$EVENT" = workflow_dispatch ]; then
             # Each named app's last change is judged again, with the checks of the head.
             if [ "$REF" != refs/heads/main ]; then
@@ -108,6 +117,7 @@ jobs:
               parent="$(git rev-parse "$commit^")"
               json="$json$sep{\"sha\":\"$commit\",\"parent\":\"$parent\",\"check\":\"$commit\",\"apps\":\"\"}"
               sep=","
+              pairs="$pairs$commit $parent"$'\n'
             done
           fi
           count="$(wc -w <<< "$list")"
@@ -117,6 +127,41 @@ jobs:
           fi
           echo "commits=$json]" >> "$GITHUB_OUTPUT"
           echo "shas=${list//$'\n'/ }" >> "$GITHUB_OUTPUT"
+          printf 'pairs<<PAIRS_END\n%sPAIRS_END\n' "$pairs" >> "$GITHUB_OUTPUT"
+
+      # A commit whose change an app-ci run of a pull request already judged
+      # (the same tree and base tree) takes that run's result and is not checked
+      # again. A push only; a named-apps run judges again by intent.
+      - name: Earlier app-ci results for the commits
+        id: tree
+        if: github.event_name == 'push' && steps.commits.outputs.pairs != ''
+        uses: catenahq/contracts/.github/actions/same-tree@main
+        with:
+          name: app-ci
+          workflow: .github/workflows/app-ci.yml
+          commits: ${{ steps.commits.outputs.pairs }}
+          judge-change: true
+          siblings: catenahq/contracts
+          record: false
+          wait-minutes: 0
+      - name: The commits still to check, and the reused results
+        id: split
+        env:
+          COMMITS: ${{ steps.commits.outputs.commits }}
+          SHAS: ${{ steps.commits.outputs.shas }}
+          RESULTS: ${{ steps.tree.outputs.results }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os
+          reused = {line.split()[0] for line in os.environ["RESULTS"].splitlines() if line.strip()}
+          remaining = [c for c in json.loads(os.environ["COMMITS"]) if c["sha"] not in reused]
+          with open(os.environ["GITHUB_OUTPUT"], "a") as out:
+              out.write("commits=" + json.dumps(remaining, separators=(",", ":")) + "\n")
+              out.write("shas=" + " ".join(c["sha"] for c in remaining) + "\n")
+              out.write("all=" + os.environ["SHAS"] + "\n")
+              out.write("reused<<REUSED_END\n" + os.environ["RESULTS"] + "\nREUSED_END\n")
+          PY
 
   checks:
     name: app-ci ${{ matrix.commit.sha }}
@@ -138,7 +183,7 @@ jobs:
 
   verdict:
     needs: [list, checks]
-    if: always() && needs.list.result == 'success' && needs.list.outputs.commits != '[]'
+    if: always() && needs.list.result == 'success' && (needs.list.outputs.shas != '' || needs.list.outputs.reused != '')
     runs-on: ubuntu-latest
     permissions:
       actions: read
@@ -151,9 +196,25 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           SHAS: ${{ needs.list.outputs.shas }}
+          ALL: ${{ needs.list.outputs.all }}
+          REUSED: ${{ needs.list.outputs.reused }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           set -euo pipefail
+          # SHAS are the commits this run checked, ALL every commit of the push in
+          # order, REUSED lines "<commit> <state> <url>" for those that took an
+          # earlier run's result.
+          all="${ALL:-$SHAS}"
+          reused_state=""
+          reused_url=""
+          reuse_of() {
+            local sha state url
+            reused_state=""
+            reused_url=""
+            while read -r sha state url; do
+              if [ "$sha" = "$1" ]; then reused_state="$state"; reused_url="$url"; fi
+            done <<< "${REUSED:-}"
+          }
           # The conclusion of the job "app-ci <commit> / <job>", or missing.
           conclusion() {
             local name result found=missing
@@ -166,7 +227,9 @@ jobs:
           # The jobs API can lag behind jobs that have just finished: the list is read again,
           # up to 10 times 15 seconds apart, while a commit's scope or app-checks job shows no
           # conclusion.
+          : > "$RUNNER_TEMP/jobs.tsv"
           for try in $(seq 10); do
+            [ -n "$SHAS" ] || break
             gh api --paginate "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/jobs" \
               --jq '.jobs[] | [.name, .conclusion] | @tsv' > "$RUNNER_TEMP/jobs.tsv"
             lagging=""
@@ -180,23 +243,37 @@ jobs:
             sleep 15
           done
           passed=""
-          for commit in $SHAS; do
-            failing=""
-            for job in scope app-checks; do
-              if [ "$(conclusion "$commit" "$job")" != success ]; then failing="$failing${failing:+, }$job"; fi
-            done
-            if [ -z "$failing" ]; then
-              state=success
-              description="app-ci passed"
-              passed="$passed${passed:+ }$commit"
+          for commit in $all; do
+            reuse_of "$commit"
+            target_url="$RUN_URL"
+            if [ -n "$reused_state" ]; then
+              target_url="$reused_url"
+              if [ "$reused_state" = success ]; then
+                state=success
+                description="app-ci passed: the same change as $reused_url"
+                passed="$passed${passed:+ }$commit"
+              else
+                state=failure
+                description="app-ci failed: the same change as $reused_url"
+              fi
             else
-              state=failure
-              description="app-ci failed: $failing"
+              failing=""
+              for job in scope app-checks; do
+                if [ "$(conclusion "$commit" "$job")" != success ]; then failing="$failing${failing:+, }$job"; fi
+              done
+              if [ -z "$failing" ]; then
+                state=success
+                description="app-ci passed"
+                passed="$passed${passed:+ }$commit"
+              else
+                state=failure
+                description="app-ci failed: $failing"
+              fi
             fi
             echo "$commit: $description"
             gh api -X POST "repos/$GITHUB_REPOSITORY/statuses/$commit" \
               -f "state=$state" -f context=app-ci \
-              -f "description=${description:0:140}" -f "target_url=$RUN_URL" > /dev/null
+              -f "description=${description:0:140}" -f "target_url=$target_url" > /dev/null
           done
           echo "passed=$passed" >> "$GITHUB_OUTPUT"
 

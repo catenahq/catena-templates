@@ -421,10 +421,11 @@ input of its `workflow_call` sets another label) for every pull
 request, forks included (no secret, a read-only token). The bench lifecycle
 runs later and elsewhere. One job covers the catalog:
 
-- `make` (render, lint, tests) and `catena-applint --catalog --nodes 2` over
-  `blueprints/`, run from the public catena-admin image. The render in `make` packs
-  each app held as neat files, and the job fails when the committed
-  `docker-compose.yml` differs from that render.
+- The swarm lint (`build/lint_swarm.py`) and `catena-applint --catalog --nodes 2` over
+  `blueprints/`, run from the public catena-admin image. The unit tests, the other
+  lints and the render drift check (the render packs each app held as neat files,
+  and the committed `docker-compose.yml` must equal that render) run in
+  `build-and-verify.yml` only.
 
 Then one job per app the change touches (`blueprints/<id>/**`), each running:
 
@@ -489,7 +490,10 @@ makes, skips the job.
 A push to `main` (a repository admin's direct push or a merge) runs
 `.github/workflows/app-main.yml`, which calls `app-ci.yml` once per commit of
 the push with `sha` (the commit) and `base` (its parent), so each commit is
-judged on what it introduces, as a pull request is. It posts the commit status
+judged on what it introduces, as a pull request is. A commit whose tree and
+parent tree an `app-ci` run of a pull request already judged (a single-commit
+pull request merged while up to date, as the bot pull requests are) runs
+nothing: it gets that run's result, and its `app-ci` status points at that run. It posts the commit status
 `app-ci` on each commit (success, or failure naming the jobs that failed) and
 calls `app-dispatch.yml` with the commits that passed: a push sends only
 those to the bench (the nightly run takes the head of `main`). A merge commit

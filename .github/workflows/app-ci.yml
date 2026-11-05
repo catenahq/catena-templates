@@ -45,9 +45,9 @@ name: app-ci
 # `bench.plain`, on the same runs as the heavy steps and on a change of verification.
 #
 # An app held as neat files (`services.yml` in its folder) is judged by the
-# `docker-compose.yml` the render packs from them. `repo` re-renders and fails
-# when `git diff blueprints` shows that file, or any other generated one, out of
-# step with its inputs.
+# `docker-compose.yml` the render packs from them. build-and-verify re-renders
+# and fails when that file, or any other generated one, is out of step with its
+# inputs; it also runs the unit tests and the lints besides the swarm lint.
 #
 # For a pull request or another repository's call, the first job, same-tree,
 # looks for an earlier run of this workflow that judged the same tree against the
@@ -134,11 +134,6 @@ jobs:
           ref: ${{ inputs.sha }}
           fetch-depth: 2
           persist-credentials: false
-      - name: Check out contracts beside this repository
-        # The catalog's tests read ../contracts/default-apps/wiring.json, the layout local
-        # development uses; actions/checkout writes inside the workspace only.
-        if: env.TEMPLATES_ROOT == ''
-        run: git clone --quiet --depth 1 https://github.com/catenahq/contracts.git "$GITHUB_WORKSPACE/../contracts"
       - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
       - name: Check out the tools
         if: env.TEMPLATES_ROOT != ''
@@ -153,7 +148,7 @@ jobs:
         env:
           BASE_SHA: ${{ inputs.base }}
         run: echo "sha=${BASE_SHA:-$(git rev-parse HEAD^1)}" >> "$GITHUB_OUTPUT"
-      - name: make (render, lint, test) and catena-applint over the catalog
+      - name: Swarm lint and catena-applint over the catalog
         # The checker ships in the public catena-admin image, so a fork's run
         # needs no credential to get it. Two nodes, as every catalog check runs.
         if: env.TEMPLATES_ROOT == ''
@@ -163,7 +158,7 @@ jobs:
           repo-path: ${{ github.workspace }}
           base: ${{ steps.base.outputs.sha }}
           run: |
-            make
+            uv run build/lint_swarm.py
             docker run --rm -v "$PWD:/work:ro" \
               --entrypoint /usr/local/share/catena-ee/bin/catena-applint \
               ghcr.io/catenahq/catena-admin:latest --catalog --nodes 2 /work/blueprints
@@ -180,32 +175,6 @@ jobs:
             docker run --rm -v "$PWD:/work:ro" \
               --entrypoint /usr/local/share/catena-ee/bin/catena-applint \
               ghcr.io/catenahq/catena-admin:latest --nodes 2 /work/blueprints
-      - name: The packed and rendered files match their inputs (catalog)
-        # A file the render writes or deletes under blueprints/ shows in the diff,
-        # untracked ones too (git add -N); a base that already drifts passes.
-        if: env.TEMPLATES_ROOT == ''
-        uses: catenahq/contracts/.github/actions/new-failures-only@main
-        with:
-          working-directory: ${{ github.workspace }}
-          repo-path: ${{ github.workspace }}
-          base: ${{ steps.base.outputs.sha }}
-          failure-lines: '^diff --git a/blueprints/\S+'
-          run: |
-            make render
-            git add -N blueprints
-            git diff --exit-code blueprints
-      - name: The packed and rendered files match their inputs (folder)
-        if: env.TEMPLATES_ROOT != ''
-        uses: catenahq/contracts/.github/actions/new-failures-only@main
-        with:
-          working-directory: ${{ github.workspace }}
-          repo-path: ${{ github.workspace }}
-          base: ${{ steps.base.outputs.sha }}
-          failure-lines: '^diff --git a/blueprints/\S+'
-          run: |
-            uv run "$TOOLS/build/render.py"
-            git add -N blueprints
-            git diff --exit-code blueprints
 
   scope:
     # A pull request or a commit of main changes one app, so one change is one tag.
