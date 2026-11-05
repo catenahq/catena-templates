@@ -345,7 +345,7 @@ def test_checks_is_a_matrix_of_local_calls_that_do_not_cancel_each_other():
     assert checks["uses"] == "./.github/workflows/app-ci.yml"
     assert checks["with"] == {"sha": "${{ matrix.commit.check }}", "base": "${{ matrix.commit.parent }}",
                               "apps": "${{ matrix.commit.apps }}"}
-    assert checks["permissions"] == {"contents": "read", "statuses": "read"}
+    assert checks["permissions"] == {"actions": "read", "contents": "read", "statuses": "read"}
     assert checks["name"] == "app-ci ${{ matrix.commit.sha }}"
 
 

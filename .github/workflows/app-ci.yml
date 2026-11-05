@@ -48,6 +48,12 @@ name: app-ci
 # `docker-compose.yml` the render packs from them. `repo` re-renders and fails
 # when `git diff blueprints` shows that file, or any other generated one, out of
 # step with its inputs.
+#
+# For a pull request or another repository's call, the first job, same-tree,
+# looks for an earlier run of this workflow that judged the same tree against the
+# same base, and reuses its result: `repo`, `scope` and `plan` are skipped, so
+# `app` is too, and a reused failure fails the job. A call with `sha` skips the
+# job, and the caller reuses per commit. The caller grants `actions: read`.
 
 on:
   pull_request:
@@ -97,8 +103,30 @@ env:
   TOOLS: ${{ format('{0}', inputs.catalog) == 'false' && '.tools' || '.' }}
 
 jobs:
+  same-tree:
+    # app-main calls this workflow for a commit with `sha` and reuses per
+    # commit itself, so the job runs for pull requests and other repositories'
+    # calls. Its jobs below need it: a skipped gate lets them run, a reused
+    # success or a carried failure does not.
+    name: same tree (app-ci)
+    if: inputs.sha == ''
+    runs-on: ${{ inputs.runner || 'ubuntu-latest' }}
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      run: ${{ steps.tree.outputs.run }}
+    steps:
+      - id: tree
+        uses: catenahq/contracts/.github/actions/same-tree@main
+        with:
+          siblings: catenahq/contracts
+          judge-change: true
+
   repo:
     name: make and app checker
+    needs: same-tree
+    if: ${{ !cancelled() && needs.same-tree.result != 'failure' && needs.same-tree.outputs.run != 'false' }}
     runs-on: ${{ inputs.runner || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
@@ -182,6 +210,8 @@ jobs:
   scope:
     # A pull request or a commit of main changes one app, so one change is one tag.
     name: scope
+    needs: same-tree
+    if: ${{ !cancelled() && needs.same-tree.result != 'failure' && needs.same-tree.outputs.run != 'false' }}
     runs-on: ${{ inputs.runner || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
@@ -219,6 +249,8 @@ jobs:
 
   plan:
     name: changed apps
+    needs: same-tree
+    if: ${{ !cancelled() && needs.same-tree.result != 'failure' && needs.same-tree.outputs.run != 'false' }}
     runs-on: ${{ inputs.runner || 'ubuntu-latest' }}
     outputs:
       apps: ${{ steps.changed.outputs.apps }}

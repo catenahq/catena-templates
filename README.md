@@ -477,6 +477,15 @@ started (`build/pack.py plain-check`, see "Run an app on bare Docker"), on the
 runs of the heavy steps and on a change of verification; the job fails when the
 export does not answer.
 
+The first job of `app-ci.yml`, `same tree (app-ci)`, runs for a pull request and
+for another repository's call. It looks for an earlier run of the workflow on the
+same tree against the same base (contracts' `same-tree` action, in the README of
+contracts, "Runs once per tree"). A found success skips `repo`, `scope`, `plan`
+and so the app jobs; a found failure fails the job, which blocks the merge where
+the job is required; no result runs everything. `build-and-verify.yml` starts the
+same way with `same tree (build-and-verify)`. A call with `sha`, as `app-main.yml`
+makes, skips the job.
+
 A push to `main` (a repository admin's direct push or a merge) runs
 `.github/workflows/app-main.yml`, which calls `app-ci.yml` once per commit of
 the push with `sha` (the commit) and `base` (its parent), so each commit is
@@ -506,10 +515,11 @@ layout; `app-main.yml` serves this repository alone. Their inputs are `catalog`
 (default true), `tools-ref` (default `main`) and `own-images` (default empty);
 `app-ci.yml` also takes `sha` and `base` and `app-dispatch.yml` takes `commits`
 (the commits of a push to send, default every commit of the push), all
-defaulting to empty. A caller of `app-ci.yml` grants `contents: read` and
-`statuses: read`: the `app` job reads the `app-ci` status of the app's last
-runtime change, and GitHub refuses a called workflow that asks for more than its
-caller grants. A repository that posts no `app-ci` status runs the heavy steps
+defaulting to empty. A caller of `app-ci.yml` grants `contents: read`,
+`statuses: read` and `actions: read`: the `app` job reads the `app-ci` status of
+the app's last runtime change, the `same tree` job reads earlier runs, and GitHub
+refuses a called workflow that asks for more than its caller grants. A caller of
+`build-and-verify.yml` grants `actions: read` for the same reason. A repository that posts no `app-ci` status runs the heavy steps
 every time. `app-dispatch.yml` and `app-tag.yml` take the
 secrets `RENOVATE_APP_CLIENT_ID` and `RENOVATE_APP_PRIVATE_KEY`. With `catalog`
 false a called workflow checks out catena-templates at `tools-ref` into

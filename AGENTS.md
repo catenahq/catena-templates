@@ -74,6 +74,7 @@ the repository, and the checks.
   `app-tag.yml` also serve other repositories through `workflow_call`; their
   steps run unchanged for this repository (`catalog` true), and a change to
   them keeps both paths working; `app-main.yml` serves this repository alone.
+  A caller of `app-ci.yml` or `build-and-verify.yml` grants `actions: read`.
   The build tools read another tree through
   `TEMPLATES_ROOT`, and the schemas always come from this checkout.
 - A change on `main` reaches every new deploy at once, so `main` stays

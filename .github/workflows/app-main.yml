@@ -132,6 +132,7 @@ jobs:
       base: ${{ matrix.commit.parent }}
       apps: ${{ matrix.commit.apps }}
     permissions:
+      actions: read
       contents: read
       statuses: read
 
