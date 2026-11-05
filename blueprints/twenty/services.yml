@@ -45,6 +45,10 @@ services:
       STORAGE_TYPE: local
       STORAGE_LOCAL_PATH: /app/.local-storage
       APP_SECRET: ${TWENTY_APP_SECRET}
+      # The server alone creates and upgrades the schema and registers the
+      # cron jobs: run by both, the two race on the same tables.
+      DISABLE_DB_MIGRATIONS: "true"
+      DISABLE_CRON_JOBS_REGISTRATION: "true"
     volumes:
       - server-data:/app/.local-storage
     labels:
