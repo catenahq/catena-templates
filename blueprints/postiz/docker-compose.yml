@@ -123,6 +123,9 @@ services:
       RUN_CRON: "true"
       JWT_SECRET: ${JWT_SECRET}
       DISABLE_REGISTRATION: "false"
+      # The image loads Sentry's CPU profiler at start, with or without a Sentry DSN; its default eager logging
+      # can deadlock the backend or the orchestrator on a V8 lock their own thread holds. Lazy logging skips it.
+      SENTRY_PROFILER_LOGGING_MODE: lazy
     volumes:
       - postiz-uploads:/uploads
       - postiz-config:/config
