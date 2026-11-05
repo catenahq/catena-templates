@@ -1,25 +1,35 @@
 # Test for the nextcloud-s3-oidc template: a file written through Nextcloud and its
-# public link share survive a backup and a restore. The seed uploads the file with
-# WebDAV as the administrator, so with a bucket it goes through the app into the object
-# store and without one into the data volume, then makes a public link share of it
-# with the OCS Share API only when the file has none, so a second seed changes
-# nothing. The asserts read the file back the same way and list the shares of its
-# path. Every step waits until status.php reports Nextcloud installed and out of
-# maintenance mode (occ status, the lifecycle ready question, also passes before the
-# install), then runs curl inside the app container against its own Apache. The
-# administrator's login comes from the container's environment and reaches curl on
-# stdin, so it is printed nowhere and rides no argument list. The OCS answers carry
-# their own status in the body, which the steps read with php.
+# public link share survive a backup and a restore, Talk keeps its conversation, the
+# signaling server answers, and the sign-in provider is still wired. The seed uploads
+# the file with WebDAV as the administrator, so with a bucket it goes through the app
+# into the object store and without one into the data volume, then makes a public link
+# share of it with the OCS Share API only when the file has none, and a Talk
+# conversation through Talk's OCS API only when none of that name is listed, so a
+# second seed changes nothing. The asserts read the file back the same way, list the
+# shares of its path and the conversations, ask the signaling service its welcome at
+# http://signaling:8081/api/v1/welcome (the alias of the talk-hpb service; a name that
+# does not resolve fails the step), and, when
+# auth.<the zone of the Nextcloud address> resolves from the app container, ask occ
+# for user_oidc enabled at a release of major 8 from 8.11.0 (the configure hook's
+# USER_OIDC_VERSION) and the provider keycloak; the step prints a skip line and passes
+# when the name does not resolve. Every step waits until status.php reports Nextcloud
+# installed and out of maintenance mode (occ status, the lifecycle ready question, also
+# passes before the install), then runs curl inside the app container against its own
+# Apache. The administrator's login comes from the container's environment and reaches
+# curl on stdin, so it is printed nowhere and rides no argument list. The OCS answers
+# carry their own status in the body, which the steps read with php.
 #
-# {{ run_id }} is supplied by the bench at execution time so the file name and content
-# are unique per run. Each {{ container_* }} is resolved from `docker ps` before
-# invoking.
+# {{ run_id }} is supplied by the bench at execution time so the file name, the file
+# content and the conversation name are unique per run. Each {{ container_* }} is
+# resolved from `docker ps` before invoking.
 
 id: nextcloud-s3-oidc
 description: >-
   The file catena-<run>.txt uploaded through Nextcloud's WebDAV is read back with its
-  content, and the file carries exactly one public link share, before and after the
-  backup, the restore and the updates.
+  content, the file carries exactly one public link share and Talk lists exactly one
+  conversation named catena-<run>, the signaling server answers its welcome, and where
+  the sign-in domain resolves the user_oidc app at major 8 holds the keycloak provider,
+  before and after the backup, the restore and the updates.
 
 seed:
   - name: upload_the_file_and_share_it_by_public_link
@@ -58,6 +68,42 @@ seed:
         echo "seeded $file"
     expect_stdout_contains: "seeded catena-{{ run_id }}.txt"
     timeout_s: 660
+
+  - name: create_the_talk_conversation
+    type: docker_exec
+    container: "{{ container_app }}"
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        ready() { php -r '$s = json_decode(@file_get_contents("http://localhost/status.php")); exit($s && $s->installed === true && $s->maintenance === false ? 0 : 1);'; }
+        nc() { printf 'user = "%s:%s"\n' "$NEXTCLOUD_ADMIN_USER" "$NEXTCLOUD_ADMIN_PASSWORD" \
+          | curl -sS -K - --max-time 30 -H "Host: $NEXTCLOUD_TRUSTED_DOMAINS" -H "OCS-APIRequest: true" "$@"; }
+        rooms() { ROOM="catena-{{ run_id }}" php -r '$d = json_decode(stream_get_contents(STDIN), true); if (!$d || ($d["ocs"]["meta"]["statuscode"] ?? 0) !== 200) exit(2); $n = 0; foreach ($d["ocs"]["data"] as $r) { if (($r["name"] ?? "") === getenv("ROOM")) $n++; } echo $n;'; }
+        created() { php -r '$d = json_decode(stream_get_contents(STDIN), true); exit(($d["ocs"]["meta"]["statuscode"] ?? 0) === 201 ? 0 : 2);'; }
+        api="http://127.0.0.1/ocs/v2.php/apps/spreed/api/v4/room"
+        waited=0
+        until ready; do
+          [ "$waited" -lt 600 ] || { echo "Nextcloud was not installed and out of maintenance mode within 600 s" >&2; exit 1; }
+          sleep 5
+          waited=$((waited + 5))
+        done
+        waited=0
+        until listed=$(nc --fail "$api?format=json" 2>/dev/null); do
+          [ "$waited" -lt 300 ] || { echo "Talk did not list conversations within 300 s" >&2; exit 1; }
+          sleep 5
+          waited=$((waited + 5))
+        done
+        count=$(printf '%s' "$listed" | rooms) || { echo "the conversation list answer was not an OCS success" >&2; exit 1; }
+        if [ "$count" -eq 0 ]; then
+          made=$(nc --fail -X POST -d roomType=2 -d format=json --data-urlencode "roomName=catena-{{ run_id }}" "$api") \
+            || { echo "creating the conversation failed" >&2; exit 1; }
+          printf '%s' "$made" | created || { echo "the conversation creation answer was not 201" >&2; exit 1; }
+        fi
+        echo "seeded conversation catena-{{ run_id }}"
+    expect_stdout_contains: "seeded conversation catena-{{ run_id }}"
+    timeout_s: 960
 
 assert:
   - name: file_present_with_expected_content
@@ -105,4 +151,80 @@ assert:
         [ "$count" -eq 1 ] || { echo "the file has $count public link shares, expected 1" >&2; exit 1; }
         echo "public link shares of catena-{{ run_id }}.txt: 1"
     expect_stdout_contains: "public link shares of catena-{{ run_id }}.txt: 1"
+    timeout_s: 660
+
+  - name: talk_lists_exactly_one_conversation_of_the_run
+    type: docker_exec
+    container: "{{ container_app }}"
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        ready() { php -r '$s = json_decode(@file_get_contents("http://localhost/status.php")); exit($s && $s->installed === true && $s->maintenance === false ? 0 : 1);'; }
+        rooms() { ROOM="catena-{{ run_id }}" php -r '$d = json_decode(stream_get_contents(STDIN), true); if (!$d || ($d["ocs"]["meta"]["statuscode"] ?? 0) !== 200) exit(2); $n = 0; foreach ($d["ocs"]["data"] as $r) { if (($r["name"] ?? "") === getenv("ROOM")) $n++; } echo $n;'; }
+        waited=0
+        until ready; do
+          [ "$waited" -lt 600 ] || { echo "Nextcloud was not installed and out of maintenance mode within 600 s" >&2; exit 1; }
+          sleep 5
+          waited=$((waited + 5))
+        done
+        listed=$(printf 'user = "%s:%s"\n' "$NEXTCLOUD_ADMIN_USER" "$NEXTCLOUD_ADMIN_PASSWORD" \
+          | curl -sS -K - --fail --max-time 30 -H "Host: $NEXTCLOUD_TRUSTED_DOMAINS" -H "OCS-APIRequest: true" \
+              "http://127.0.0.1/ocs/v2.php/apps/spreed/api/v4/room?format=json") \
+          || { echo "listing the conversations failed" >&2; exit 1; }
+        count=$(printf '%s' "$listed" | rooms) || { echo "the conversation list answer was not an OCS success" >&2; exit 1; }
+        [ "$count" -eq 1 ] || { echo "Talk lists $count conversations named catena-{{ run_id }}, expected 1" >&2; exit 1; }
+        echo "Talk conversations named catena-{{ run_id }}: 1"
+    expect_stdout_contains: "Talk conversations named catena-{{ run_id }}: 1"
+    timeout_s: 660
+
+  - name: signaling_server_answers_its_welcome
+    type: docker_exec
+    container: "{{ container_app }}"
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        getent hosts signaling >/dev/null || { echo "the name signaling does not resolve from the app container" >&2; exit 1; }
+        body=$(curl -sS --fail --max-time 10 http://signaling:8081/api/v1/welcome) \
+          || { echo "the signaling welcome did not answer" >&2; exit 1; }
+        printf '%s' "$body" | php -r '$d = json_decode(stream_get_contents(STDIN), true); if (!$d || ($d["nextcloud-spreed-signaling"] ?? "") !== "Welcome" || empty($d["version"])) exit(2); echo "signaling welcome version " . $d["version"] . "\n";' \
+          || { echo "the signaling welcome body held no Welcome and version" >&2; exit 1; }
+    expect_stdout_contains: "signaling"
+    timeout_s: 60
+
+  - name: sign_in_provider_is_wired_where_the_edge_resolves
+    type: docker_exec
+    container: "{{ container_app }}"
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        ready() { php -r '$s = json_decode(@file_get_contents("http://localhost/status.php")); exit($s && $s->installed === true && $s->maintenance === false ? 0 : 1);'; }
+        occ() { if [ "$(id -u)" -eq 0 ]; then su -s /bin/sh www-data -c "php /var/www/html/occ $*"; else php /var/www/html/occ "$@"; fi; }
+        auth="auth.${NEXTCLOUD_TRUSTED_DOMAINS#*.}"
+        if ! getent hosts "$auth" >/dev/null; then
+          echo "user_oidc check skipped: $auth does not resolve"
+          exit 0
+        fi
+        waited=0
+        until ready; do
+          [ "$waited" -lt 600 ] || { echo "Nextcloud was not installed and out of maintenance mode within 600 s" >&2; exit 1; }
+          sleep 5
+          waited=$((waited + 5))
+        done
+        enabled=$(occ config:app:get user_oidc enabled 2>/dev/null || true)
+        [ "$enabled" = yes ] || { echo "user_oidc is not enabled" >&2; exit 1; }
+        have=$(occ config:app:get user_oidc installed_version 2>/dev/null || true)
+        if [ "${have%%.*}" != 8 ] || ! printf '8.11.0\n%s\n' "$have" | sort -V -C; then
+          echo "user_oidc $have is installed; expected a release of major 8 from 8.11.0" >&2
+          exit 1
+        fi
+        shown=$(occ user_oidc:provider keycloak --output=json 2>/dev/null) || shown=""
+        printf '%s' "$shown" | grep -q keycloak || { echo "the provider keycloak is not listed" >&2; exit 1; }
+        echo "user_oidc check ok: version $have, provider keycloak listed"
+    expect_stdout_contains: "user_oidc check "
     timeout_s: 660
