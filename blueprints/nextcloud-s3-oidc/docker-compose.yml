@@ -685,6 +685,9 @@ x-catena:
             say "not in the object store: $$(head -n 5 "$$work/missing" | sed 's/^/urn:oid:/' | tr '\n' ' ')"
           fi
           echo "missing=$$missing bucket=$$bucket database=$$database"
+  # The app store's index and the GitHub release downloads it links to, from
+  # which the configure hook installs each app it enables (Talk among them).
+  egress: [apps.nextcloud.com, github.com, release-assets.githubusercontent.com]
 
 services:
   app:

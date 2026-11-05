@@ -149,3 +149,6 @@ hooks:
     - hooks/verify.sh
   reconcile:
     - hooks/reconcile.sh
+# The app store's index and the GitHub release downloads it links to, from
+# which the configure hook installs each app it enables (Talk among them).
+egress: [apps.nextcloud.com, github.com, release-assets.githubusercontent.com]
