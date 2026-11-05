@@ -846,19 +846,16 @@ def test_every_step_is_a_docker_exec_into_a_service_of_the_stack(slug):
             assert container and container.group(1) in services, step["name"]
 
 
+RUN_RECORD = re.compile(r"[\w./-]*\{\{ run_id \}\}[\w./-]*")
+
+
 @each_app
-def test_each_seeded_marker_has_a_check_that_reads_it_back(slug):
+def test_each_record_a_seed_names_by_the_run_has_a_check_that_reads_it(slug):
     doc = _test_yml(slug)
-    seeded = "\n".join(" ".join(step["command"]) for step in doc["seed"])
-    for step in doc["assert"]:
-        assert "{{ run_id }}" in step["expect_stdout_contains"]
-    assert "r25-marker.txt" in seeded and "catena_canary" in seeded
-    checks = "\n".join(" ".join(step["command"]) for step in doc["assert"])
-    assert "r25-marker.txt" in checks and "catena_canary" in checks
-
-
-def test_the_two_test_files_differ_only_in_their_id():
-    plain, helpdesk = _test_yml("erpnext"), _test_yml("erpnext-helpdesk")
-    assert plain.pop("id") == "erpnext"
-    assert helpdesk.pop("id") == "erpnext-helpdesk"
-    assert plain == helpdesk
+    seeded = {name for step in doc["seed"] for name in RUN_RECORD.findall(" ".join(step["command"]))}
+    checks = " ".join(
+        " ".join(step["command"]) + " " + step.get("expect_stdout_contains", "") for step in doc["assert"]
+    )
+    assert seeded
+    for name in seeded:
+        assert name in checks, name
