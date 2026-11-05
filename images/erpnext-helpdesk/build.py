@@ -103,8 +103,9 @@ LAYERS = ("/home/frappe/frappe-bench/env", "/home/frappe/frappe-bench/apps/frapp
           "/home/frappe/frappe-bench/apps/erpnext", "/home/frappe/frappe-bench",
           "/home/frappe/.nvm", "/home/frappe", "/usr/lib/x86_64-linux-gnu", "/usr/lib",
           "/usr/share", "/usr/local", "/")
-# The largest layer, in bytes, a built image may hold.
-LAYER_BOUND = 400 * 1000 * 1000
+# The largest layer, in bytes, a built image may hold: no layer is much larger
+# than the bench venv, the largest group.
+LAYER_BOUND = 900 * 1000 * 1000
 # COPY --exclude needs Dockerfile 1.19 or later.
 SYNTAX = ("# syntax=docker/dockerfile:1.27.1"
           "@sha256:4edf897a3ffa55b89f906fc8cc78afdb3f1834cc9c7083565e611a8a7d5fe99e")

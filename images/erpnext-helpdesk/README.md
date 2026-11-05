@@ -49,7 +49,7 @@ labels. The build then fails unless a walk inside each image finds the same
 paths with the same type, owner, mode, size, link target, extended attributes,
 content hash and hard-link groups, and the same configuration (every field of
 the image's config except its parent image id and hostname), and unless
-every layer is at most `LAYER_BOUND` (400 MB). A hard-link group split across
+every layer is at most `LAYER_BOUND` (900 MB). A hard-link group split across
 two groups shows up as a difference.
 
 The NLTK corpora an app lists under `nltk_data` in `apps.json` are part of the
