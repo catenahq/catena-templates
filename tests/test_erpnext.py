@@ -242,8 +242,9 @@ def test_the_helpdesk_app_runs_catenas_build_under_its_tag_rule():
 
 
 def _without_the_differences(slug: str) -> dict:
-    """The compose with what the two apps differ in set aside: the Frappe
-    images and their tag rules, FRAPPE_APPS and the install-app line, the
+    """The compose with what the two apps differ in set aside: every image
+    (the engine bump moves each app's pins on its own) and the Frappe tag
+    rules, FRAPPE_APPS and the install-app line, the
     address defaults, what the sign-in differs in (the access level, the users
     hook, the groups the main address admits, the name and description labels
     and the sign-ups the entry is made
@@ -267,8 +268,8 @@ def _without_the_differences(slug: str) -> dict:
     block["env"].pop("ERPNEXT_WEB_FORMS", None)
     for key in ("DOMAIN_HOST", "ERPNEXT_HOSTNAME"):
         block["env"][key] = "address"
-    for name in FRAPPE_SERVICES:
-        compose["services"][name]["image"] = "frappe-image"
+    for service in compose["services"].values():
+        service["image"] = "image"
     backend = compose["services"]["backend"]
     backend["environment"].pop("FRAPPE_APPS", None)
     shell, flag, script = backend["command"]
