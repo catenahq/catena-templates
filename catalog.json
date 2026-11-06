@@ -588,7 +588,7 @@
     },
     {
       "app_name": "catena-onlyoffice",
-      "bench_fixture": "required",
+      "bench_fixture": "skip",
       "bench_pack": "embedded",
       "categories": [
         "Productivity",

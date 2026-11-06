@@ -13,6 +13,7 @@
   "sso_mode": "n/a",
   "bench": {
     "pack": "embedded",
+    "fixture": "skip",
     "hostname_baked": false
   },
   "sizing": {

@@ -1,0 +1,28 @@
+# Test for the onlyoffice template: the document server holds no documents at rest, so
+# the check is its own /healthcheck, which answers true once its database, queue and
+# cache answer. It runs after the install, the restore and each update, inside the
+# document server container against its own port 80, and waits for the answer up to
+# 300 s because the server starts its bundled services after the container.
+
+id: onlyoffice
+description: >-
+  The document server answers true on /healthcheck.
+
+assert:
+  - name: document_server_healthcheck_answers_true
+    type: docker_exec
+    container: "{{ container_documentserver }}"
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        waited=0
+        until body=$(curl -fsS --max-time 10 http://127.0.0.1/healthcheck 2>/dev/null) && [ "$body" = true ]; do
+          [ "$waited" -lt 300 ] || { echo "ONLYOFFICE /healthcheck did not answer true within 300 s" >&2; exit 1; }
+          sleep 5
+          waited=$((waited + 5))
+        done
+        echo "ONLYOFFICE /healthcheck answers true"
+    expect_stdout_contains: "ONLYOFFICE /healthcheck answers true"
+    timeout_s: 360
