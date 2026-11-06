@@ -1,24 +1,189 @@
-# Test for the arcane template: a marker in the volume that holds Arcane's
-# database survives the backup, the restore and each update. The steps mount the
-# volume in a throwaway container.
+# Test for the arcane template: a user made through Arcane's own API survives a backup, a
+# restore and the updates. The image is distroless, so every step runs python3 in the harness's
+# helper, which shares the network of the arcane container and asks the server at
+# 127.0.0.1:3552, signed in with the bearer token POST /api/auth/login answers.
+#
+# The setup does a person's first visit: Arcane starts with the administrator arcane holding the
+# password arcane-admin and asks for a new one, so, only while the test password does not sign
+# in, it signs in with arcane-admin and sets the password the harness gives as
+# CATENA_TEST_PASSWORD (POST /api/auth/password). Arcane allows five sign-ins a minute from one
+# address, so a sign-in that answers 429 waits and asks again. The seed gets or creates the user
+# catena-<run> with the display name fixture-<run> (POST /api/users); the assert signs in with
+# the test password and counts exactly one user of that name holding that display name.
+#
+# {{ run_id }} is supplied by the bench at execution time.
 
 id: arcane
 description: >-
-  A marker file in the arcane-data volume round-trips through the backup, the
-  restore and the updates unchanged.
+  Arcane lists exactly one user catena-<run> with the display name fixture-<run> and its
+  administrator signs in with the test password, before and after the backup, the restore and
+  the updates.
+
+setup:
+  - name: administrator_password
+    type: docker_exec
+    container: "{{ helper_arcane }}"
+    command:
+      - python3
+      - -c
+      - |
+        import json, os, sys, time, urllib.error, urllib.request
+        def call(method, path, body=None, token=None):
+            headers = {"Content-Type": "application/json"}
+            if token:
+                headers["Authorization"] = "Bearer " + token
+            data = None if body is None else json.dumps(body).encode()
+            req = urllib.request.Request("http://127.0.0.1:3552" + path, data=data, headers=headers, method=method)
+            try:
+                r = urllib.request.urlopen(req, timeout=60)
+            except urllib.error.HTTPError as e:
+                r = e
+            text = r.read().decode("utf-8", "replace")
+            try:
+                return r.status, json.loads(text)
+            except ValueError:
+                return r.status, text
+        def fail(message):
+            sys.stderr.write(message + "\n")
+            sys.exit(1)
+        def sign_in(password):
+            for _ in range(10):
+                status, answer = call("POST", "/api/auth/login", {"username": "arcane", "password": password})
+                if status != 429:
+                    break
+                time.sleep(15)
+            if status == 200 and isinstance(answer, dict):
+                return (answer.get("data") or {}).get("token") or ""
+            if status == 401:
+                return ""
+            fail("POST /api/auth/login answered %s: %.300s" % (status, answer))
+        deadline = time.time() + 300
+        while True:
+            try:
+                if call("GET", "/api/health")[0] == 200:
+                    break
+            except OSError:
+                pass
+            if time.time() > deadline:
+                fail("Arcane did not answer GET /api/health within 300 s")
+            time.sleep(5)
+        password = os.environ["CATENA_TEST_PASSWORD"]
+        if not sign_in(password):
+            token = sign_in("arcane-admin")
+            if not token:
+                fail("the administrator arcane signs in with neither the test password nor arcane-admin")
+            status, answer = call("POST", "/api/auth/password",
+                                  {"currentPassword": "arcane-admin", "newPassword": password}, token)
+            if status != 200:
+                fail("POST /api/auth/password answered %s: %.300s" % (status, answer))
+        print("arcane administrator ready")
+    expect_stdout_contains: "arcane administrator ready"
+    timeout_s: 600
 
 seed:
-  - name: volume_marker_write
-    type: volume_file
-    volume: "{{ app_name }}_arcane-data"
-    path: /catena_canary.txt
-    content: "{{ run_id }}"
-    timeout_s: 60
+  - name: create_the_user
+    type: docker_exec
+    container: "{{ helper_arcane }}"
+    command:
+      - python3
+      - -c
+      - |
+        import json, os, sys, time, urllib.error, urllib.parse, urllib.request
+        def call(method, path, body=None, token=None):
+            headers = {"Content-Type": "application/json"}
+            if token:
+                headers["Authorization"] = "Bearer " + token
+            data = None if body is None else json.dumps(body).encode()
+            req = urllib.request.Request("http://127.0.0.1:3552" + path, data=data, headers=headers, method=method)
+            try:
+                r = urllib.request.urlopen(req, timeout=60)
+            except urllib.error.HTTPError as e:
+                r = e
+            text = r.read().decode("utf-8", "replace")
+            try:
+                return r.status, json.loads(text)
+            except ValueError:
+                return r.status, text
+        def fail(message):
+            sys.stderr.write(message + "\n")
+            sys.exit(1)
+        password = os.environ["CATENA_TEST_PASSWORD"]
+        for _ in range(10):
+            status, answer = call("POST", "/api/auth/login", {"username": "arcane", "password": password})
+            if status != 429:
+                break
+            time.sleep(15)
+        token = (answer.get("data") or {}).get("token") if status == 200 and isinstance(answer, dict) else ""
+        if not token:
+            fail("the administrator arcane does not sign in with the test password: %s" % status)
+        name = "catena-{{ run_id }}"
+        query = urllib.parse.urlencode({"search": name, "limit": 100})
+        status, users = call("GET", "/api/users?" + query, token=token)
+        if status != 200 or not isinstance(users, dict):
+            fail("GET /api/users answered %s: %.300s" % (status, users))
+        if not any(u.get("username") == name for u in users.get("data") or []):
+            status, answer = call("POST", "/api/users", {"username": name, "password": password,
+                                                         "displayName": "fixture-{{ run_id }}"}, token)
+            if status not in (200, 201):
+                fail("POST /api/users answered %s: %.300s" % (status, answer))
+        print("seeded user " + name)
+    expect_stdout_contains: "seeded user catena-{{ run_id }}"
+    timeout_s: 240
 
 assert:
-  - name: volume_marker_present
-    type: volume_file
-    volume: "{{ app_name }}_arcane-data"
-    path: /catena_canary.txt
-    expect_stdout_contains: "{{ run_id }}"
-    timeout_s: 60
+  - name: arcane_lists_exactly_one_user_of_the_run
+    type: docker_exec
+    container: "{{ helper_arcane }}"
+    command:
+      - python3
+      - -c
+      - |
+        import json, os, sys, time, urllib.error, urllib.parse, urllib.request
+        def call(method, path, body=None, token=None):
+            headers = {"Content-Type": "application/json"}
+            if token:
+                headers["Authorization"] = "Bearer " + token
+            data = None if body is None else json.dumps(body).encode()
+            req = urllib.request.Request("http://127.0.0.1:3552" + path, data=data, headers=headers, method=method)
+            try:
+                r = urllib.request.urlopen(req, timeout=60)
+            except urllib.error.HTTPError as e:
+                r = e
+            text = r.read().decode("utf-8", "replace")
+            try:
+                return r.status, json.loads(text)
+            except ValueError:
+                return r.status, text
+        def fail(message):
+            sys.stderr.write(message + "\n")
+            sys.exit(1)
+        deadline = time.time() + 300
+        while True:
+            try:
+                if call("GET", "/api/health")[0] == 200:
+                    break
+            except OSError:
+                pass
+            if time.time() > deadline:
+                fail("Arcane did not answer GET /api/health within 300 s")
+            time.sleep(5)
+        for _ in range(10):
+            status, answer = call("POST", "/api/auth/login",
+                                  {"username": "arcane", "password": os.environ["CATENA_TEST_PASSWORD"]})
+            if status != 429:
+                break
+            time.sleep(15)
+        token = (answer.get("data") or {}).get("token") if status == 200 and isinstance(answer, dict) else ""
+        if not token:
+            fail("the administrator arcane does not sign in with the test password: %s" % status)
+        name, text = "catena-{{ run_id }}", "fixture-{{ run_id }}"
+        query = urllib.parse.urlencode({"search": name, "limit": 100})
+        status, users = call("GET", "/api/users?" + query, token=token)
+        if status != 200 or not isinstance(users, dict):
+            fail("GET /api/users answered %s: %.300s" % (status, users))
+        found = [u for u in users.get("data") or [] if u.get("username") == name]
+        if len(found) != 1 or found[0].get("displayName") != text:
+            fail("Arcane lists %d users %s, expected one with the display name %s" % (len(found), name, text))
+        print("users named %s: 1, display name %s" % (name, text))
+    expect_stdout_contains: "users named catena-{{ run_id }}: 1, display name fixture-{{ run_id }}"
+    timeout_s: 600
