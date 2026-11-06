@@ -1,6 +1,6 @@
 x-catena:
   schema: 2
-  requires_catena: 0.11.12
+  requires_catena: 0.12.2
   env:
     DOMAIN_HOST:
       managed: {expr: "work.{{ cloudflare_zone }}"}
@@ -10,6 +10,8 @@ x-catena:
       generated: {length: 64, alphabet: alnum}
     DB_PASSWORD:
       generated: {length: 32, alphabet: alnum}
+    UPDATE_LEVEL:
+      setting: {default: "major", label: {en: "Automatic updates: major, minor, patch or off", fr: "Mises à jour automatiques : major, minor, patch ou off"}}
   images:
     windshift:
       rule: {kind: semver, registry: ghcr.io, repo: windshiftapp/windshift, stops: ['v0.8.5']}
@@ -104,7 +106,7 @@ services:
       - "vps.auth.oidc=true"
       - "vps.auth.groups=staff"
       - "vps.auth.oidc.redirect_uris=https://${WINDSHIFT_HOSTNAME}/api/sso/callback/keycloak"
-      - "vps.auto-update=patch"
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
     cap_drop:
       - NET_RAW
     networks:
