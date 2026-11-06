@@ -234,7 +234,9 @@ block.
    An app service's `vps.auto-update` label is `${UPDATE_LEVEL:-major}` and the
    block declares `UPDATE_LEVEL` as a setting with the default `major`; a
    database, a cache and a stateful service no data upgrade covers keep a
-   literal label, and `make lint` refuses a variable with no level default.
+   literal label (on a service that is no database or cache, with a comment
+   naming why), and `make lint` refuses a variable with no level default, a
+   literal label without that comment and an undeclared `UPDATE_LEVEL`.
    An application that offers access levels to invited people adds `access`
    (`access: {user: {label: {en: "Nextcloud", fr: "Nextcloud"}}}`): the panel
    shows each label, and Catena admits the level's members at the application's

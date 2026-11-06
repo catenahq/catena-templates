@@ -114,7 +114,9 @@ the repository, and the checks.
 - An app service's `vps.auto-update` label is `${UPDATE_LEVEL:-major}` and the
   block declares `UPDATE_LEVEL` as a setting with the default `major`; a
   database, a cache and a stateful service no data upgrade covers keep a literal
-  label.
+  label, and a literal label on a service that is not a database or a cache has
+  a comment beside it naming why. `make lint` refuses a literal label without
+  one and a compose that reads `UPDATE_LEVEL` without declaring it.
 - No emojis or em-dashes in any artifact. Plain hyphens + straight
   quotes only. `npm run check:unicode` enforces, and also scans for the
   system names it lists.
