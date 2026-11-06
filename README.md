@@ -582,7 +582,8 @@ private runner this repository cannot reach):
   the private ops repository the event `app-test` with the commit, the commit
   the change is judged from, the apps the change touches, the branch and the
   name of the repository the event comes from (`catena-templates` here; another
-  repository calls this workflow too). On `main`, each commit of the push is sent on its own, judged from its parent,
+  repository calls this workflow too) and the caller's `own-images`, so the
+  bench knows which images the repository builds itself. On `main`, each commit of the push is sent on its own, judged from its parent,
   except a commit that changes no app or whose app `main` has changed again since. A
   branch other than `main` is judged as a whole, from where it left `main`, and
   is sent only when it changes one app or none; a newer push cancels the send of
