@@ -723,6 +723,15 @@
             "default": "{{ cloudflare_zone }}"
           }
         },
+        "UPDATE_LEVEL": {
+          "setting": {
+            "default": "major",
+            "label": {
+              "en": "Automatic updates: major, minor, patch or off",
+              "fr": "Mises \u00e0 jour automatiques : major, minor, patch ou off"
+            }
+          }
+        },
         "VPS_PUBLIC_IP": {
           "managed": {
             "expr": "{{ public_ip }}"
@@ -739,7 +748,8 @@
         "VPS_PUBLIC_IP={{ public_ip }}",
         "JITSI_JICOFO_AUTH_PASSWORD={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}",
         "JITSI_JICOFO_COMPONENT_SECRET={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}",
-        "JITSI_JVB_AUTH_PASSWORD={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}"
+        "JITSI_JVB_AUTH_PASSWORD={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}",
+        "UPDATE_LEVEL=major"
       ],
       "env_managed_keys": [
         "VPS_PUBLIC_IP"
@@ -779,7 +789,7 @@
         "service": "mongodb",
         "timeout_seconds": 60
       },
-      "requires_catena": "0.11.12",
+      "requires_catena": "0.12.2",
       "sizing": {
         "disk_baseline_mb": 180,
         "idle_cpu_pct": 3,
