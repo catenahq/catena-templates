@@ -2054,6 +2054,15 @@
           "setting": {
             "default": "UTC"
           }
+        },
+        "UPDATE_LEVEL": {
+          "setting": {
+            "default": "major",
+            "label": {
+              "en": "Automatic updates: major, minor, patch or off",
+              "fr": "Mises \u00e0 jour automatiques : major, minor, patch ou off"
+            }
+          }
         }
       },
       "env_defaults": [
@@ -2062,7 +2071,8 @@
         "N8N_TIMEZONE=UTC",
         "N8N_ENCRYPTION_KEY={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}",
         "N8N_JWT_SECRET={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}",
-        "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
+        "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
+        "UPDATE_LEVEL=major"
       ],
       "fr": {
         "compose_description": "Automatisation de workflows (400+ int\u00e9grations). Remplace Zapier / Make.\n",
@@ -2079,7 +2089,7 @@
       },
       "hostname_baked": true,
       "id": "n8n",
-      "requires_catena": "0.11.12",
+      "requires_catena": "0.12.2",
       "sizing": {
         "disk_baseline_mb": 150,
         "idle_cpu_pct": 2,
