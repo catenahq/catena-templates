@@ -1187,6 +1187,15 @@
             "alphabet": "hex",
             "length": 64
           }
+        },
+        "UPDATE_LEVEL": {
+          "setting": {
+            "default": "major",
+            "label": {
+              "en": "Automatic updates: major, minor, patch or off",
+              "fr": "Mises \u00e0 jour automatiques : major, minor, patch ou off"
+            }
+          }
         }
       },
       "env_defaults": [
@@ -1194,7 +1203,8 @@
         "OUTLINE_HOSTNAME=wiki.{{ cloudflare_zone }}",
         "OUTLINE_SECRET_KEY={{ lookup('password', '/dev/null length=64 chars=hexdigits') | lower }}",
         "OUTLINE_UTILS_SECRET={{ lookup('password', '/dev/null length=64 chars=hexdigits') | lower }}",
-        "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
+        "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
+        "UPDATE_LEVEL=major"
       ],
       "fr": {
         "compose_description": "Wiki d'\u00e9quipe + base de connaissances. Keycloak SSO pr\u00e9-c\u00e2bl\u00e9. Remplace Notion / Confluence.\n",
@@ -1228,7 +1238,7 @@
         "service": "outline",
         "timeout_seconds": 900
       },
-      "requires_catena": "0.11.12",
+      "requires_catena": "0.12.2",
       "sizing": {
         "disk_baseline_mb": 110,
         "idle_cpu_pct": 1,
