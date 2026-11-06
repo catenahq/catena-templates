@@ -1405,13 +1405,23 @@
           "setting": {
             "default": "twenty.{{ cloudflare_zone }}"
           }
+        },
+        "UPDATE_LEVEL": {
+          "setting": {
+            "default": "major",
+            "label": {
+              "en": "Automatic updates: major, minor, patch or off",
+              "fr": "Mises \u00e0 jour automatiques : major, minor, patch ou off"
+            }
+          }
         }
       },
       "env_defaults": [
         "DOMAIN_HOST=twenty.{{ cloudflare_zone }}",
         "TWENTY_HOSTNAME=twenty.{{ cloudflare_zone }}",
         "TWENTY_APP_SECRET={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}",
-        "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
+        "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
+        "UPDATE_LEVEL=major"
       ],
       "fr": {
         "compose_description": "CRM moderne open-source (alternative \u00e0 EspoCRM). Remplace Salesforce / HubSpot.\n",
@@ -1428,7 +1438,7 @@
       },
       "hostname_baked": true,
       "id": "twenty",
-      "requires_catena": "0.11.12",
+      "requires_catena": "0.12.2",
       "sizing": {
         "disk_baseline_mb": 220,
         "idle_cpu_pct": 4,
