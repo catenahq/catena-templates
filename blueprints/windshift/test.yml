@@ -1,0 +1,296 @@
+# Test for the windshift template: a work item with a file attached, made through Windshift's
+# own API, survives a backup, a restore and the updates. The image has no shell, so every step
+# runs python3 in the harness's helper, which shares the network of the windshift container and
+# asks the server at 127.0.0.1:8080 with the headers its proxy and a browser send (the site's
+# host, X-Forwarded-Proto https, Sec-Fetch-Site same-origin), keeping the session cookie itself.
+#
+# The setup does the two steps the card gives a person, each only when it is not done yet: the
+# first administrator catena-admin (POST /api/setup/complete) with the password the harness
+# gives as CATENA_TEST_PASSWORD, then, once the settings file holds the app's Keycloak sign-in
+# entry, the OpenID Connect provider `keycloak` with those values and account creation on
+# (POST /api/sso/providers). The seed signs in, gets or creates the workspace CATENA, gets or
+# creates the item catena-<run> holding fixture-<run> and, when the item holds none, attaches
+# catena-<run>.txt holding fixture-<run>, which Windshift keeps in the windshift-data volume. The
+# assert signs in with the same password, counts exactly one item of that title in the
+# workspace, one attachment on it, and downloads the attachment's bytes.
+#
+# {{ run_id }} is supplied by the bench at execution time. {{ route_host_windshift }} is the
+# host of the service's route label.
+
+id: windshift
+description: >-
+  Windshift lists exactly one work item catena-<run> holding fixture-<run> in the workspace
+  CATENA, with one attachment that downloads as fixture-<run>, and its administrator signs in
+  with the test password, before and after the backup, the restore and the updates.
+
+setup:
+  - name: first_administrator
+    type: docker_exec
+    container: "{{ helper_windshift }}"
+    command:
+      - python3
+      - -c
+      - |
+        import json, os, sys, time, urllib.error, urllib.request
+        SITE = "{{ route_host_windshift }}"
+        HEADERS = {"Host": SITE, "Origin": "https://" + SITE, "X-Forwarded-Proto": "https",
+                   "Sec-Fetch-Site": "same-origin"}
+        jar = {}
+        def call(method, path, body=None):
+            headers = dict(HEADERS)
+            data = None
+            if body is not None:
+                data = json.dumps(body).encode()
+                headers["Content-Type"] = "application/json"
+            if jar:
+                headers["Cookie"] = "; ".join(k + "=" + v for k, v in jar.items())
+            req = urllib.request.Request("http://127.0.0.1:8080" + path, data=data, headers=headers, method=method)
+            try:
+                r = urllib.request.urlopen(req, timeout=60)
+            except urllib.error.HTTPError as e:
+                r = e
+            for cookie in r.headers.get_all("Set-Cookie") or []:
+                k, _, v = cookie.split(";", 1)[0].partition("=")
+                jar[k.strip()] = v
+            text = r.read().decode("utf-8", "replace")
+            try:
+                return r.status, json.loads(text)
+            except ValueError:
+                return r.status, text
+        def fail(message):
+            sys.stderr.write(message + "\n")
+            sys.exit(1)
+        deadline = time.time() + 300
+        while True:
+            try:
+                status, state = call("GET", "/api/setup/status")
+                if status == 200 and isinstance(state, dict):
+                    break
+            except OSError:
+                pass
+            if time.time() > deadline:
+                fail("Windshift did not answer GET /api/setup/status within 300 s")
+            time.sleep(5)
+        password = os.environ["CATENA_TEST_PASSWORD"]
+        if not state.get("setup_completed"):
+            status, answer = call("POST", "/api/setup/complete", {"admin_user": {
+                "email": "catena-admin@example.com", "username": "catena-admin", "first_name": "Catena",
+                "last_name": "Test", "password": password}})
+            if status != 200:
+                fail("POST /api/setup/complete answered %s: %.300s" % (status, answer))
+        status, answer = call("POST", "/api/auth/login", {"email_or_username": "catena-admin", "password": password})
+        if status != 200:
+            fail("the administrator catena-admin does not sign in with the test password: %s" % status)
+        print("windshift administrator ready")
+    expect_stdout_contains: "windshift administrator ready"
+    timeout_s: 420
+
+  - name: keycloak_provider
+    type: docker_exec
+    container: "{{ helper_windshift }}"
+    env: [OIDC_CLIENT_ID, OIDC_CLIENT_SECRET, OIDC_ISSUER_URL]
+    command:
+      - python3
+      - -c
+      - |
+        import json, os, sys, urllib.error, urllib.request
+        SITE = "{{ route_host_windshift }}"
+        HEADERS = {"Host": SITE, "Origin": "https://" + SITE, "X-Forwarded-Proto": "https",
+                   "Sec-Fetch-Site": "same-origin"}
+        jar = {}
+        def call(method, path, body=None):
+            headers = dict(HEADERS)
+            data = None
+            if body is not None:
+                data = json.dumps(body).encode()
+                headers["Content-Type"] = "application/json"
+            if jar:
+                headers["Cookie"] = "; ".join(k + "=" + v for k, v in jar.items())
+            req = urllib.request.Request("http://127.0.0.1:8080" + path, data=data, headers=headers, method=method)
+            try:
+                r = urllib.request.urlopen(req, timeout=60)
+            except urllib.error.HTTPError as e:
+                r = e
+            for cookie in r.headers.get_all("Set-Cookie") or []:
+                k, _, v = cookie.split(";", 1)[0].partition("=")
+                jar[k.strip()] = v
+            text = r.read().decode("utf-8", "replace")
+            try:
+                return r.status, json.loads(text)
+            except ValueError:
+                return r.status, text
+        def fail(message):
+            sys.stderr.write(message + "\n")
+            sys.exit(1)
+        values = {k: os.environ.get(k, "") for k in ("OIDC_CLIENT_ID", "OIDC_CLIENT_SECRET", "OIDC_ISSUER_URL")}
+        if not all(values.values()):
+            print("keycloak provider: no sign-in entry in the settings file yet")
+            sys.exit(0)
+        status, answer = call("POST", "/api/auth/login",
+                              {"email_or_username": "catena-admin", "password": os.environ["CATENA_TEST_PASSWORD"]})
+        if status != 200:
+            fail("the administrator catena-admin does not sign in with the test password: %s" % status)
+        status, providers = call("GET", "/api/sso/providers")
+        if status != 200 or not isinstance(providers, list):
+            fail("GET /api/sso/providers answered %s: %.300s" % (status, providers))
+        if not any(p.get("slug") == "keycloak" for p in providers):
+            status, answer = call("POST", "/api/sso/providers", {
+                "slug": "keycloak", "name": "Keycloak", "provider_type": "oidc", "enabled": True,
+                "issuer_url": values["OIDC_ISSUER_URL"], "client_id": values["OIDC_CLIENT_ID"],
+                "client_secret": values["OIDC_CLIENT_SECRET"], "scopes": "openid email profile",
+                "auto_provision_users": True})
+            if status not in (200, 201):
+                fail("POST /api/sso/providers answered %s: %.300s" % (status, answer))
+        print("keycloak provider ready")
+    expect_stdout_contains: "keycloak provider"
+    timeout_s: 120
+
+seed:
+  - name: item_with_an_attachment
+    type: docker_exec
+    container: "{{ helper_windshift }}"
+    command:
+      - python3
+      - -c
+      - |
+        import json, os, sys, time, urllib.error, urllib.parse, urllib.request
+        SITE = "{{ route_host_windshift }}"
+        RUN = "{{ run_id }}"
+        HEADERS = {"Host": SITE, "Origin": "https://" + SITE, "X-Forwarded-Proto": "https",
+                   "Sec-Fetch-Site": "same-origin"}
+        jar = {}
+        def call(method, path, body=None, raw=None, content_type=None):
+            headers = dict(HEADERS)
+            data = raw
+            if body is not None:
+                data = json.dumps(body).encode()
+                content_type = "application/json"
+            if content_type:
+                headers["Content-Type"] = content_type
+            if jar:
+                headers["Cookie"] = "; ".join(k + "=" + v for k, v in jar.items())
+            req = urllib.request.Request("http://127.0.0.1:8080" + path, data=data, headers=headers, method=method)
+            try:
+                r = urllib.request.urlopen(req, timeout=60)
+            except urllib.error.HTTPError as e:
+                r = e
+            for cookie in r.headers.get_all("Set-Cookie") or []:
+                k, _, v = cookie.split(";", 1)[0].partition("=")
+                jar[k.strip()] = v
+            text = r.read().decode("utf-8", "replace")
+            try:
+                return r.status, json.loads(text)
+            except ValueError:
+                return r.status, text
+        def fail(message):
+            sys.stderr.write(message + "\n")
+            sys.exit(1)
+        def data(step, status, answer, ok=(200,)):
+            if status not in ok or not isinstance(answer, dict) or "data" not in answer:
+                fail("%s answered %s: %.300s" % (step, status, answer))
+            return answer["data"]
+        name, text = "catena-" + RUN, "fixture-" + RUN
+        status, answer = call("POST", "/api/auth/login",
+                              {"email_or_username": "catena-admin", "password": os.environ["CATENA_TEST_PASSWORD"]})
+        if status != 200:
+            fail("the administrator catena-admin does not sign in with the test password: %s" % status)
+        spaces = data("GET /api/v2/workspaces", *call("GET", "/api/v2/workspaces?page_size=1000"))
+        space = next((w for w in spaces if w.get("key") == "CATENA"), None)
+        if space is None:
+            space = data("POST /api/v2/workspaces", *call("POST", "/api/v2/workspaces", {
+                "name": "Catena test", "key": "CATENA", "description": "", "color": "", "icon": "",
+                "default_view": "board", "is_personal": False}), ok=(200, 201))
+        query = urllib.parse.urlencode({"workspace_id": space["id"], "search": name, "page_size": 100})
+        items = [i for i in data("GET /api/v2/items", *call("GET", "/api/v2/items?" + query)) if i.get("title") == name]
+        if items:
+            item = items[0]
+        else:
+            item = data("POST /api/v2/items", *call("POST", "/api/v2/items", {
+                "workspace_id": space["id"], "title": name, "description": text, "is_task": False,
+                "inherit_project": False, "label_ids": [], "milestone_ids": [], "custom_field_values": {}}),
+                ok=(200, 201))
+        files = data("GET the item's attachments", *call("GET", "/api/v2/items/%s/attachments" % item["id"]))
+        if not any(f.get("original_filename") == name + ".txt" for f in files):
+            boundary = "catena-" + RUN + "-boundary"
+            body = ("--" + boundary + "\r\nContent-Disposition: form-data; name=\"file\"; filename=\"" + name
+                    + ".txt\"\r\nContent-Type: text/plain\r\n\r\n" + text + "\r\n--" + boundary + "--\r\n").encode()
+            data("POST the item's attachment", *call("POST", "/api/v2/items/%s/attachments" % item["id"], raw=body,
+                 content_type="multipart/form-data; boundary=" + boundary), ok=(200, 201))
+        print("seeded item " + name)
+    expect_stdout_contains: "seeded item catena-{{ run_id }}"
+    timeout_s: 180
+
+assert:
+  - name: windshift_lists_exactly_one_item_of_the_run
+    type: docker_exec
+    container: "{{ helper_windshift }}"
+    command:
+      - python3
+      - -c
+      - |
+        import json, os, sys, time, urllib.error, urllib.parse, urllib.request
+        SITE = "{{ route_host_windshift }}"
+        RUN = "{{ run_id }}"
+        HEADERS = {"Host": SITE, "Origin": "https://" + SITE, "X-Forwarded-Proto": "https",
+                   "Sec-Fetch-Site": "same-origin"}
+        jar = {}
+        def call(method, path, body=None):
+            headers = dict(HEADERS)
+            data = None
+            if body is not None:
+                data = json.dumps(body).encode()
+                headers["Content-Type"] = "application/json"
+            if jar:
+                headers["Cookie"] = "; ".join(k + "=" + v for k, v in jar.items())
+            req = urllib.request.Request("http://127.0.0.1:8080" + path, data=data, headers=headers, method=method)
+            try:
+                r = urllib.request.urlopen(req, timeout=60)
+            except urllib.error.HTTPError as e:
+                r = e
+            for cookie in r.headers.get_all("Set-Cookie") or []:
+                k, _, v = cookie.split(";", 1)[0].partition("=")
+                jar[k.strip()] = v
+            text = r.read().decode("utf-8", "replace")
+            try:
+                return r.status, json.loads(text)
+            except ValueError:
+                return r.status, text
+        def fail(message):
+            sys.stderr.write(message + "\n")
+            sys.exit(1)
+        def data(step, status, answer):
+            if status != 200 or not isinstance(answer, dict) or "data" not in answer:
+                fail("%s answered %s: %.300s" % (step, status, answer))
+            return answer["data"]
+        name, text = "catena-" + RUN, "fixture-" + RUN
+        deadline = time.time() + 300
+        while True:
+            try:
+                if call("GET", "/api/setup/status")[0] == 200:
+                    break
+            except OSError:
+                pass
+            if time.time() > deadline:
+                fail("Windshift did not answer GET /api/setup/status within 300 s")
+            time.sleep(5)
+        status, answer = call("POST", "/api/auth/login",
+                              {"email_or_username": "catena-admin", "password": os.environ["CATENA_TEST_PASSWORD"]})
+        if status != 200:
+            fail("the administrator catena-admin does not sign in with the test password: %s" % status)
+        spaces = [w for w in data("GET /api/v2/workspaces", *call("GET", "/api/v2/workspaces?page_size=1000"))
+                  if w.get("key") == "CATENA"]
+        if len(spaces) != 1:
+            fail("Windshift lists %d workspaces CATENA, expected 1" % len(spaces))
+        query = urllib.parse.urlencode({"workspace_id": spaces[0]["id"], "search": name, "page_size": 100})
+        items = [i for i in data("GET /api/v2/items", *call("GET", "/api/v2/items?" + query)) if i.get("title") == name]
+        if len(items) != 1 or text not in (items[0].get("description") or ""):
+            fail("Windshift lists %d items %s, expected one holding %s" % (len(items), name, text))
+        files = data("GET the item's attachments", *call("GET", "/api/v2/items/%s/attachments" % items[0]["id"]))
+        if len(files) != 1 or files[0].get("original_filename") != name + ".txt":
+            fail("the item holds the attachments %s, expected only %s.txt" % ([f.get("original_filename") for f in files], name))
+        status, body = call("GET", "/api/v2/attachments/%s/content" % files[0]["id"])
+        if status != 200 or body != text:
+            fail("the attachment downloads as %s %.100r, expected %s" % (status, body, text))
+        print("items named %s: 1, attachment %s" % (name, text))
+    expect_stdout_contains: "items named catena-{{ run_id }}: 1, attachment fixture-{{ run_id }}"
+    timeout_s: 420
