@@ -141,6 +141,7 @@ unwire_signaling() {
   { occ config:app:delete spreed external_signaling_only || true; } &&
   occ config:app:delete catena signaling_wired
 }
+signaling_alive() { curl -fsS --max-time 3 http://signaling:8081/api/v1/welcome >/dev/null 2>&1; }
 wire_signaling() {
   [ "$(occ config:app:get catena signaling_wired 2>/dev/null || true)" != "$(signaling_record)" ] || return 0
   unwire_signaling &&
@@ -330,9 +331,17 @@ fi
 if ensure_app spreed; then
   if [ -n "${TURN_HOSTNAME:-}" ] && [ -n "${TURN_SECRET:-}" ]; then
     step "the Talk relay entries" wire_turn
-    if [ -n "${SIGNALING_HOSTNAME:-}" ] && [ -n "${SIGNALING_SECRET:-}" ] \
-        && curl -fsS --max-time 3 http://signaling:8081/api/v1/welcome >/dev/null 2>&1; then
-      step "the Talk signaling entry" wire_signaling
+    if [ -n "${SIGNALING_HOSTNAME:-}" ] && [ -n "${SIGNALING_SECRET:-}" ]; then
+      waited=0
+      until up=1; signaling_alive || { up=0; [ "$waited" -ge 60 ]; }; do
+        sleep 5
+        waited=$((waited + 5))
+      done
+      if [ "$up" = 1 ]; then
+        step "the Talk signaling entry" wire_signaling
+      else
+        echo "catena: the signaling server does not answer; the next deploy wires it" >&2
+      fi
     fi
   else
     step "the Talk relay entries removal" unwire_turn

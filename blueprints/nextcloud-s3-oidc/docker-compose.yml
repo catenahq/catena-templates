@@ -9,9 +9,16 @@ x-catena:
     NEXTCLOUD_ADMIN_USER:
       setting: {default: "admin"}
     NEXTCLOUD_ADMIN_PASSWORD:
-      generated: {length: 24, alphabet: alnum}
+      generated:
+        length: 24
+        alphabet: alnum
+        first_start_only: true
+        note: "Read only at Nextcloud's first start, which created the administrator account with it; this line keeps that first password. To change the password, sign in to Nextcloud as the administrator and change it in Settings, from the profile picture menu."
     DB_PASSWORD:
-      generated: {length: 32, alphabet: alnum}
+      generated:
+        length: 32
+        alphabet: alnum
+        note: "The database keeps its own copy, as the password of its user nextcloud, and Nextcloud keeps another in config.php, as dbpassword. Change both to the new value first; until all three match, Nextcloud does not start."
     NEXTCLOUD_LOGLEVEL:
       setting: {default: "3"}
     NEXTCLOUD_VERSIONS_RETENTION:
@@ -37,9 +44,17 @@ x-catena:
     SIGNALING_HOSTNAME:
       managed: {expr: "signaling.{{ cloudflare_zone }}"}
     SIGNALING_SECRET:
-      generated: {length: 64, alphabet: alnum}
+      generated:
+        length: 64
+        alphabet: alnum
+        applied_on_deploy: true
+        note: "Shared by Talk and its signaling server; both take the new value when the file is saved."
     TALK_INTERNAL_SECRET:
-      generated: {length: 64, alphabet: alnum}
+      generated:
+        length: 64
+        alphabet: alnum
+        applied_on_deploy: true
+        note: "Used inside the signaling server alone, which takes the new value when the file is saved."
     TURN_HOSTNAME:
       managed: {expr: "{{ provided.turn.host }}"}
     TURN_PORT:
@@ -114,6 +129,9 @@ x-catena:
       region: "S3_REGION"
       access_key: "S3_ACCESS_KEY"
       secret_key: "S3_SECRET_KEY"
+    note:
+      en: "Nextcloud stores each file in the bucket under a number, encrypted, so the bucket alone shows no file. A bucket set after the first start is refused: the files Nextcloud already holds would no longer show."
+      fr: "Nextcloud range chaque fichier dans le seau sous un numéro, chiffré, si bien que le seau seul ne montre aucun fichier. Un seau indiqué après le premier démarrage est refusé : les fichiers que Nextcloud contient déjà n'apparaîtraient plus."
     switch:
       service: "app"
       user: "www-data"
@@ -132,6 +150,7 @@ x-catena:
   # call relay application, Nextcloud's outgoing mail from the server's mail
   # relay, and the Webmail link. Talk's relay and signaling entries are written
   # only while the relay application runs, and taken away when it goes; the
+  # signaling entry waits up to 60 seconds for the signaling server to answer; the
   # mail settings follow the mail relay the same way; the entries written are
   # recorded in the app settings of "catena". It leaves with 0 whenever
   # occ cannot be used (first install running, maintenance mode on, a restore
@@ -293,6 +312,7 @@ x-catena:
             { occ config:app:delete spreed external_signaling_only || true; } &&
             occ config:app:delete catena signaling_wired
           }
+          signaling_alive() { curl -fsS --max-time 3 http://signaling:8081/api/v1/welcome >/dev/null 2>&1; }
           wire_signaling() {
             [ "$$(occ config:app:get catena signaling_wired 2>/dev/null || true)" != "$$(signaling_record)" ] || return 0
             unwire_signaling &&
@@ -482,9 +502,17 @@ x-catena:
           if ensure_app spreed; then
             if [ -n "$${TURN_HOSTNAME:-}" ] && [ -n "$${TURN_SECRET:-}" ]; then
               step "the Talk relay entries" wire_turn
-              if [ -n "$${SIGNALING_HOSTNAME:-}" ] && [ -n "$${SIGNALING_SECRET:-}" ] \
-                  && curl -fsS --max-time 3 http://signaling:8081/api/v1/welcome >/dev/null 2>&1; then
-                step "the Talk signaling entry" wire_signaling
+              if [ -n "$${SIGNALING_HOSTNAME:-}" ] && [ -n "$${SIGNALING_SECRET:-}" ]; then
+                waited=0
+                until up=1; signaling_alive || { up=0; [ "$$waited" -ge 60 ]; }; do
+                  sleep 5
+                  waited=$$((waited + 5))
+                done
+                if [ "$$up" = 1 ]; then
+                  step "the Talk signaling entry" wire_signaling
+                else
+                  echo "catena: the signaling server does not answer; the next deploy wires it" >&2
+                fi
               fi
             else
               step "the Talk relay entries removal" unwire_turn

@@ -92,7 +92,12 @@ if tool == "curl":
             sys.exit(7)
         print(json.dumps(state["status_php"], separators=(",", ":")))
         sys.exit(0)
-    up = state["signaling_up"] if "signaling:8081" in url else state["s3_up"]
+    if "signaling:8081" in url:
+        state["signaling_probes"] += 1
+        save()
+        up = state["signaling_up"] and state["signaling_probes"] > state["signaling_after"]
+    else:
+        up = state["s3_up"]
     sys.exit(0 if up else 7)
 
 # php
@@ -305,7 +310,7 @@ class Instance:
             "talk": {"turn": [], "stun": [], "signaling": []},
             "store": {"user_oidc": "8.11.3", "mail": "5.0", "files_antivirus": "6.0", "spreed": "21.0",
                       "external": "5.4", "richdocuments": "9.0", "onlyoffice": "9.0"},
-            "ready": True, "signaling_up": True, "roundcube": True, "s3_up": True, "office_up": True,
+            "ready": True, "signaling_up": True, "signaling_after": 0, "signaling_probes": 0, "roundcube": True, "s3_up": True, "office_up": True,
             "db_rc": 1, "bucket": [], "filecache_ids": [], "filecache_down": False,
             "storage_ids": ["object::store:amazon::files-bucket"], "storages_down": False,
             "status_php": {"installed": True, "maintenance": False, "needsDbUpgrade": False, "version": "34.0.5"},
@@ -437,6 +442,29 @@ def test_the_relay_is_wired_while_the_signaling_server_is_down(nc):
     assert nc.run("configure").returncode == 0
     assert _talk(nc)["turn"] and _talk(nc)["signaling"] == []
     assert "catena/signaling_wired" not in nc.state["appconfig"]
+
+
+def test_the_wait_for_the_signaling_server_ends_after_sixty_seconds_and_says_so(nc):
+    nc.state["signaling_up"] = False
+    run = nc.run("configure")
+    assert run.returncode == 0
+    assert nc.state["signaling_probes"] == 13
+    assert "signaling server does not answer; the next deploy wires it" in run.stderr
+
+
+def test_a_signaling_server_that_answers_within_the_wait_is_wired(nc):
+    nc.state["signaling_after"] = 4
+    run = nc.run("configure")
+    assert run.returncode == 0, run.stderr
+    assert nc.state["signaling_probes"] == 5
+    assert _talk(nc)["signaling"] == [["https://signaling.example.test", "sig-secret"]]
+    assert "does not answer" not in run.stderr
+
+
+def test_without_the_relay_values_the_signaling_server_is_not_waited_for(nc):
+    nc.state["signaling_up"] = False
+    assert nc.run("configure", TURN_HOSTNAME="", TURN_SECRET="").returncode == 0
+    assert nc.state["signaling_probes"] == 0
 
 
 def test_a_second_configure_keeps_what_an_administrator_changed(nc):
@@ -1102,6 +1130,26 @@ def test_the_talk_backend_mints_a_secret_when_there_is_no_relay(tmp_path):
         secrets.add(run.stdout.splitlines()[0])
     assert len(secrets) == 2
     assert all(len(s) > len("secret=") + 32 for s in secrets)
+
+
+def test_each_generated_value_says_what_a_change_does():
+    env = _entry().block["env"]
+    first = env["NEXTCLOUD_ADMIN_PASSWORD"]["generated"]
+    assert first["first_start_only"] is True and "applied_on_deploy" not in first
+    assert "profile picture menu" in first["note"]
+    copies = env["DB_PASSWORD"]["generated"]
+    assert "first_start_only" not in copies and "applied_on_deploy" not in copies
+    assert "dbpassword" in copies["note"]
+    for key in ("SIGNALING_SECRET", "TALK_INTERNAL_SECRET"):
+        passed = env[key]["generated"]
+        assert passed["applied_on_deploy"] is True and "first_start_only" not in passed, key
+        assert "when the file is saved" in passed["note"], key
+
+
+def test_the_object_store_note_is_in_both_languages():
+    note = _entry().block["object_store"]["note"]
+    assert note["en"] and note["fr"]
+    assert "after the first start is refused" in note["en"]
 
 
 def test_the_bucket_settings_are_first_start_only_and_the_keys_are_not():

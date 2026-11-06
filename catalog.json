@@ -44,7 +44,8 @@
         "DB_PASSWORD": {
           "generated": {
             "alphabet": "alnum",
-            "length": 32
+            "length": 32,
+            "note": "The database keeps its own copy, as the password of its user nextcloud, and Nextcloud keeps another in config.php, as dbpassword. Change both to the new value first; until all three match, Nextcloud does not start."
           }
         },
         "DOMAIN_HOST": {
@@ -55,7 +56,9 @@
         "NEXTCLOUD_ADMIN_PASSWORD": {
           "generated": {
             "alphabet": "alnum",
-            "length": 24
+            "first_start_only": true,
+            "length": 24,
+            "note": "Read only at Nextcloud's first start, which created the administrator account with it; this line keeps that first password. To change the password, sign in to Nextcloud as the administrator and change it in Settings, from the profile picture menu."
           }
         },
         "NEXTCLOUD_ADMIN_USER": {
@@ -151,7 +154,9 @@
         "SIGNALING_SECRET": {
           "generated": {
             "alphabet": "alnum",
-            "length": 64
+            "applied_on_deploy": true,
+            "length": 64,
+            "note": "Shared by Talk and its signaling server; both take the new value when the file is saved."
           }
         },
         "SMTP_RELAY_HOST": {
@@ -187,7 +192,9 @@
         "TALK_INTERNAL_SECRET": {
           "generated": {
             "alphabet": "alnum",
-            "length": 64
+            "applied_on_deploy": true,
+            "length": 64,
+            "note": "Used inside the signaling server alone, which takes the new value when the file is saved."
           }
         },
         "TURN_HOSTNAME": {
@@ -336,6 +343,10 @@
           "region": "S3_REGION",
           "secret_key": "S3_SECRET_KEY",
           "ssl": "S3_SSL"
+        },
+        "note": {
+          "en": "Nextcloud stores each file in the bucket under a number, encrypted, so the bucket alone shows no file. A bucket set after the first start is refused: the files Nextcloud already holds would no longer show.",
+          "fr": "Nextcloud range chaque fichier dans le seau sous un num\u00e9ro, chiffr\u00e9, si bien que le seau seul ne montre aucun fichier. Un seau indiqu\u00e9 apr\u00e8s le premier d\u00e9marrage est refus\u00e9 : les fichiers que Nextcloud contient d\u00e9j\u00e0 n'appara\u00eetraient plus."
         },
         "switch": {
           "commands": [
