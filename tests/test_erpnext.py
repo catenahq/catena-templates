@@ -2,8 +2,8 @@
 `erpnext-helpdesk` (Catena's build): the verify hook run against stubs of what
 it asks, the sign-in entry the scheduler's start writes and the users hook,
 both run against a stub of frappe, the data declaration of the database, the
-test.yml the CI harness runs after a restore, and the places where the two
-differ."""
+test.yml the CI harness runs, its seeds against a stub of frappe and its
+asserts against a stub of the site, and the places where the two differ."""
 from __future__ import annotations
 
 import copy
@@ -15,6 +15,7 @@ import socket
 import subprocess
 import sys
 import threading
+import urllib.parse
 from pathlib import Path
 
 import pytest
@@ -847,16 +848,320 @@ def test_every_step_is_a_docker_exec_into_a_service_of_the_stack(slug):
             assert container and container.group(1) in services, step["name"]
 
 
-RUN_RECORD = re.compile(r"[\w./-]*\{\{ run_id \}\}[\w./-]*")
+def test_the_helpdesk_test_holds_every_step_of_erpnexts_plus_its_ticket():
+    plain, desk = _test_yml("erpnext"), _test_yml("erpnext-helpdesk")
+    for phase, ticket in (("seed", "helpdesk_ticket"), ("assert", "ticket_through_the_site")):
+        steps = {step["name"]: step for step in desk[phase]}
+        assert steps.pop(ticket)
+        assert list(steps.values()) == plain[phase], phase
+
+
+RUN = "r1"
+PASSWORD = "s3cret-admin"
+SITE_NAME = "erp.a.example"
+SEED_STUB = '''
+import json
+import os
+
+_path = os.environ["STUB_STATE"]
+_state = json.load(open(_path))
+
+
+def _note(*call):
+    with open(os.environ["STUB_LOG"], "a") as log:
+        log.write(json.dumps(list(call)) + "\\n")
+
+
+class _Doc:
+    def __init__(self, data):
+        self.data = data
+        self.name = None
+
+    def insert(self):
+        doctype = self.data["doctype"]
+        if os.environ.get("STUB_FAIL") == doctype:
+            _note("refused", doctype)
+            raise Exception("insert refused")
+        self.name = self.data["name"] = doctype + "-" + str(len(_state.get(doctype, [])) + 1)
+        _note("insert", doctype, self.data)
+        _state.setdefault(doctype, []).append(self.data)
+        return self
+
+
+class _Db:
+    def get_value(self, doctype, filters):
+        found = [doc for doc in _state.get(doctype, []) if all(doc.get(k) == v for k, v in filters.items())]
+        return found[0]["name"] if found else None
+
+    def exists(self, doctype, filters):
+        return self.get_value(doctype, filters)
+
+    def commit(self):
+        _note("commit")
+        json.dump(_state, open(_path, "w"))
+
+    def rollback(self):
+        _note("rollback")
+
+
+db = _Db()
+
+
+def init(site):
+    _note("init", site)
+
+
+def connect():
+    if os.environ.get("STUB_DOWN"):
+        raise Exception("no database")
+    _note("connect")
+
+
+def destroy():
+    _note("destroy")
+
+
+def get_doc(data):
+    return _Doc(dict(data))
+'''
+TICKET_STUB = '''
+import frappe
+
+
+def new(doc, attachments=[]):
+    assert attachments == []
+    return frappe.get_doc(dict(doc, doctype="HD Ticket", raised_by="Administrator")).insert()
+'''
+
+
+def _rendered(step: dict) -> list[str]:
+    return [part.replace("{{ run_id }}", RUN) for part in step["command"]]
+
+
+class _Seeds:
+    """The seed steps of a test.yml run against a stub of frappe and of the
+    helpdesk's ticket call, over a site held in a JSON file."""
+
+    def __init__(self, tmp_path: Path):
+        self.tmp = tmp_path
+        stubs = tmp_path / "stubs"
+        (stubs / "frappe").mkdir(parents=True)
+        (stubs / "frappe" / "__init__.py").write_text(SEED_STUB, encoding="utf-8")
+        package = stubs
+        for part in ("helpdesk", "helpdesk", "doctype", "hd_ticket"):
+            package = package / part
+            package.mkdir()
+            (package / "__init__.py").touch()
+        (package / "api.py").write_text(TICKET_STUB, encoding="utf-8")
+        self.state = tmp_path / "state.json"
+        self.state.write_text("{}")
+        self.log = tmp_path / "log"
+
+    def run(self, slug: str, **env: str) -> list[subprocess.CompletedProcess]:
+        runs = []
+        for step in _test_yml(slug)["seed"]:
+            shell, flag, body = _rendered(step)
+            body = body.replace("/home/frappe/frappe-bench/sites", str(self.tmp)).replace(
+                "../env/bin/python", sys.executable)
+            runs.append(subprocess.run(
+                [shell, flag, body], capture_output=True, text=True, timeout=30,
+                env={"PATH": os.environ["PATH"], "PYTHONPATH": str(self.tmp / "stubs"), "SITE_NAME": SITE_NAME,
+                     "STUB_STATE": str(self.state), "STUB_LOG": str(self.log), **env}))
+        return runs
+
+    def docs(self) -> dict:
+        return json.loads(self.state.read_text())
+
+    def kinds(self) -> list[str]:
+        return [json.loads(line)[0] for line in self.log.read_text().splitlines()]
 
 
 @each_app
-def test_each_record_a_seed_names_by_the_run_has_a_check_that_reads_it(slug):
-    doc = _test_yml(slug)
-    seeded = {name for step in doc["seed"] for name in RUN_RECORD.findall(" ".join(step["command"]))}
-    checks = " ".join(
-        " ".join(step["command"]) + " " + step.get("expect_stdout_contains", "") for step in doc["assert"]
-    )
-    assert seeded
-    for name in seeded:
-        assert name in checks, name
+def test_the_seed_makes_the_note_its_private_file_and_the_ticket_once_however_often_it_runs(slug, tmp_path):
+    seeds = _Seeds(tmp_path)
+    for _ in range(2):
+        for step, run in zip(_test_yml(slug)["seed"], seeds.run(slug)):
+            assert run.returncode == 0, run.stderr
+            assert step["expect_stdout_contains"].replace("{{ run_id }}", RUN) in run.stdout
+    docs = seeds.docs()
+    assert docs["Note"] == [{"doctype": "Note", "title": "catena-r1", "content": "fixture-r1", "name": "Note-1"}]
+    assert docs["File"] == [{"attached_to_doctype": "Note", "attached_to_name": "Note-1",
+                             "file_name": "catena-r1.txt", "doctype": "File", "content": "fixture-r1",
+                             "is_private": 1, "name": "File-1"}]
+    if slug in HELPDESK_APPS:
+        assert docs["HD Ticket"] == [{"subject": "catena-r1", "description": "fixture-r1", "doctype": "HD Ticket",
+                                      "raised_by": "Administrator", "name": "HD Ticket-1"}]
+    else:
+        assert "HD Ticket" not in docs
+    assert seeds.kinds().count("insert") == len(docs)
+
+
+@each_app
+@pytest.mark.parametrize("refused", ["Note", "File"])
+def test_a_refused_insert_rolls_the_seed_back_and_commits_nothing(slug, refused, tmp_path):
+    seeds = _Seeds(tmp_path)
+    [run, *_] = seeds.run(slug, STUB_FAIL=refused)
+    assert run.returncode != 0 and "insert refused" in run.stderr
+    first = seeds.kinds()[:seeds.kinds().index("destroy") + 1]
+    assert first[-3:] == ["refused", "rollback", "destroy"]
+    assert "commit" not in first
+    assert not {"Note", "File"} & set(seeds.docs())
+
+
+@each_helpdesk_app
+def test_a_refused_ticket_rolls_its_seed_back(slug, tmp_path):
+    seeds = _Seeds(tmp_path)
+    documents, ticket = seeds.run(slug, STUB_FAIL="HD Ticket")
+    assert documents.returncode == 0 and ticket.returncode != 0
+    assert seeds.kinds()[-3:] == ["refused", "rollback", "destroy"]
+    assert "HD Ticket" not in seeds.docs()
+
+
+@each_app
+def test_the_seed_closes_frappe_when_the_site_does_not_answer(slug, tmp_path):
+    seeds = _Seeds(tmp_path)
+    for run in seeds.run(slug, STUB_DOWN="1"):
+        assert run.returncode != 0
+    assert seeds.kinds() == ["init", "destroy"] * len(_test_yml(slug)["seed"])
+
+
+class _FrappeSite(http.server.BaseHTTPRequestHandler):
+    """The backend's listener as the asserts ask it: the login, the REST lists
+    of the documents it holds, filtered and cut to the fields asked, and the
+    private files."""
+    docs: dict = {}
+    files: dict = {}
+    seen: list = []
+
+    def _answer(self, code: int, body: bytes, headers: dict | None = None):
+        self.send_response(code)
+        for key, value in (headers or {}).items():
+            self.send_header(key, value)
+        self.end_headers()
+        self.wfile.write(body)
+
+    def do_POST(self):
+        type(self).seen.append(("POST", self.path, self.headers.get("Host")))
+        form = urllib.parse.parse_qs(self.rfile.read(int(self.headers["Content-Length"])).decode())
+        if self.path == "/api/method/login" and form == {"usr": ["Administrator"], "pwd": [PASSWORD]}:
+            self._answer(200, b'{"message": "Logged In"}', {"Set-Cookie": "sid=abc; HttpOnly"})
+        else:
+            self._answer(401, b"{}")
+
+    def do_GET(self):
+        type(self).seen.append(("GET", self.path, self.headers.get("Host")))
+        if self.headers.get("Cookie") != "sid=abc":
+            return self._answer(403, b"{}")
+        url = urllib.parse.urlsplit(self.path)
+        path = urllib.parse.unquote(url.path)
+        if path in type(self).files:
+            return self._answer(200, type(self).files[path].encode())
+        doctype = path.removeprefix("/api/resource/")
+        if doctype not in type(self).docs:
+            return self._answer(404, b"{}")
+        query = {key: json.loads(value) for key, [value] in urllib.parse.parse_qs(url.query).items()}
+        rows = [{field: doc.get(field) for field in query["fields"]} for doc in type(self).docs[doctype]
+                if all(op == "=" and doc.get(field) == value for field, op, value in query["filters"])]
+        self._answer(200, json.dumps({"data": rows}).encode())
+
+    def log_message(self, *args):
+        pass
+
+
+def _seeded_site() -> tuple[dict, dict]:
+    docs = {"Note": [{"name": "n1", "title": "catena-r1", "content": "<p>fixture-r1</p>"},
+                     {"name": "n0", "title": "catena-r0", "content": "fixture-r0"}],
+            "File": [{"attached_to_doctype": "Note", "attached_to_name": "n1",
+                      "file_url": "/private/files/catena-r1.txt"}],
+            "HD Ticket": [{"name": 7, "subject": "catena-r1", "description": "<p>fixture-r1</p>"}]}
+    return docs, {"/private/files/catena-r1.txt": "fixture-r1"}
+
+
+def _asserts(slug: str, docs: dict, files: dict,
+             password: str = PASSWORD) -> list[tuple[dict, subprocess.CompletedProcess]]:
+    _FrappeSite.docs, _FrappeSite.files, _FrappeSite.seen = docs, files, []
+    server = http.server.HTTPServer(("127.0.0.1", 0), _FrappeSite)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        runs = []
+        for step in _test_yml(slug)["assert"]:
+            python, flag, script = _rendered(step)
+            assert (python, flag) == ("python3", "-c")
+            script = script.replace("http://127.0.0.1:8000", f"http://127.0.0.1:{server.server_port}")
+            runs.append((step, subprocess.run(
+                [sys.executable, flag, script], capture_output=True, text=True, timeout=60,
+                env={"PATH": os.environ["PATH"], "SITE_NAME": SITE_NAME, "ERPNEXT_ADMIN_PASSWORD": password})))
+        return runs
+    finally:
+        server.shutdown()
+
+
+@each_app
+def test_the_asserts_pass_on_a_site_that_lists_each_seeded_document_once(slug):
+    docs, files = _seeded_site()
+    for step, run in _asserts(slug, docs, files):
+        assert run.returncode == 0, run.stderr
+        assert step["expect_stdout_contains"].replace("{{ run_id }}", RUN) in run.stdout
+        assert PASSWORD not in run.stdout + run.stderr + " ".join(step["command"])
+    assert {host for _, _, host in _FrappeSite.seen} == {SITE_NAME}
+
+
+def _break_note_twice(docs, files):
+    docs["Note"].append({"name": "n2", "title": "catena-r1", "content": "fixture-r1"})
+
+
+def _break_note_content(docs, files):
+    docs["Note"][0]["content"] = "other"
+
+
+def _break_note_gone(docs, files):
+    del docs["Note"][0]
+
+
+def _break_file_record(docs, files):
+    docs["File"].clear()
+
+
+def _break_file_twice(docs, files):
+    docs["File"].append(dict(docs["File"][0], file_url="/private/files/catena-r1abcdef.txt"))
+
+
+def _break_file_on_disk(docs, files):
+    files.clear()
+
+
+def _break_file_content(docs, files):
+    files["/private/files/catena-r1.txt"] = "fixture-r1 and more"
+
+
+@each_app
+@pytest.mark.parametrize("damage", [_break_note_twice, _break_note_content, _break_note_gone, _break_file_record,
+                                    _break_file_twice, _break_file_on_disk, _break_file_content])
+def test_the_site_documents_assert_fails_on_a_site_that_lost_or_doubled_them(slug, damage):
+    docs, files = _seeded_site()
+    damage(docs, files)
+    [(step, run)] = [(step, run) for step, run in _asserts(slug, docs, files)
+                     if step["name"] == "site_documents_through_the_site"]
+    assert run.returncode != 0
+    assert "site documents ok" not in run.stdout
+
+
+@each_helpdesk_app
+@pytest.mark.parametrize("tickets", [[], [{"name": 7, "subject": "catena-r1", "description": "fixture-r1"}] * 2,
+                                     [{"name": 7, "subject": "catena-r1", "description": "other"}]])
+def test_the_ticket_assert_fails_on_a_site_without_exactly_the_seeded_ticket(slug, tickets):
+    docs, files = _seeded_site()
+    docs["HD Ticket"] = tickets
+    [(step, run)] = [(step, run) for step, run in _asserts(slug, docs, files)
+                     if step["name"] == "ticket_through_the_site"]
+    assert run.returncode != 0
+    assert "helpdesk ticket ok" not in run.stdout
+
+
+@each_app
+def test_the_asserts_fail_when_the_administrator_cannot_sign_in(slug):
+    docs, files = _seeded_site()
+    for _, run in _asserts(slug, docs, files, password="wrong"):
+        assert run.returncode != 0
+        assert "/api/method/login answered HTTP 401" in run.stderr
+    assert [method for method, _, _ in _FrappeSite.seen] == ["POST"] * len(_test_yml(slug)["assert"])
