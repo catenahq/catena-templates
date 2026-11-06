@@ -1,5 +1,5 @@
 x-synapse-image: &synapse_image
-  image: matrixdotorg/synapse:v1.161.0
+  image: matrixdotorg/synapse:v1.164.2
 
 services:
   postgres:

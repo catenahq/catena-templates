@@ -134,7 +134,7 @@ services:
   # before the app server starts. The image is built from catena-templates
   # images/erpnext-helpdesk.
   backend:
-    image: ghcr.io/catenahq/erpnext-helpdesk:v16.53.0-1
+    image: ghcr.io/catenahq/erpnext-helpdesk:v16.53.0-2
     deploy:
       restart_policy:
         condition: any
@@ -184,7 +184,7 @@ services:
       - default
 
   frontend:
-    image: ghcr.io/catenahq/erpnext-helpdesk:v16.53.0-1
+    image: ghcr.io/catenahq/erpnext-helpdesk:v16.53.0-2
     deploy:
       restart_policy:
         condition: any
@@ -221,7 +221,7 @@ services:
       default: {}
 
   websocket:
-    image: ghcr.io/catenahq/erpnext-helpdesk:v16.53.0-1
+    image: ghcr.io/catenahq/erpnext-helpdesk:v16.53.0-2
     deploy:
       restart_policy:
         condition: any
@@ -239,7 +239,7 @@ services:
       - default
 
   queue-default:
-    image: ghcr.io/catenahq/erpnext-helpdesk:v16.53.0-1
+    image: ghcr.io/catenahq/erpnext-helpdesk:v16.53.0-2
     deploy:
       restart_policy:
         condition: any
@@ -257,7 +257,7 @@ services:
       - default
 
   queue-short:
-    image: ghcr.io/catenahq/erpnext-helpdesk:v16.53.0-1
+    image: ghcr.io/catenahq/erpnext-helpdesk:v16.53.0-2
     deploy:
       restart_policy:
         condition: any
@@ -275,7 +275,7 @@ services:
       - default
 
   queue-long:
-    image: ghcr.io/catenahq/erpnext-helpdesk:v16.53.0-1
+    image: ghcr.io/catenahq/erpnext-helpdesk:v16.53.0-2
     deploy:
       restart_policy:
         condition: any
@@ -301,7 +301,7 @@ services:
   # ships a newer form file publishes it again. The client secret leaves the
   # environment before the scheduler runs.
   scheduler:
-    image: ghcr.io/catenahq/erpnext-helpdesk:v16.53.0-1
+    image: ghcr.io/catenahq/erpnext-helpdesk:v16.53.0-2
     deploy:
       restart_policy:
         condition: any
