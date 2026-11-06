@@ -1,1 +1,0 @@
-portainer -- the seed writes a marker file into the data volume and the assert reads it back: no step goes through the app
