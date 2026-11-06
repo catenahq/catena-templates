@@ -41,7 +41,7 @@ services:
       # services that read or ping it join and no client app does.
       REMOTE_USER_HEADER: HTTP_X_FORWARDED_EMAIL
     labels:
-      - "vps.auto-update=patch"
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
     volumes:
       - healthchecks-data:/data
     # Host mode with the long syntax: the short form publishes through the

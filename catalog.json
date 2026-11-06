@@ -3724,6 +3724,15 @@
             "alphabet": "alnum",
             "length": 32
           }
+        },
+        "UPDATE_LEVEL": {
+          "setting": {
+            "default": "major",
+            "label": {
+              "en": "Automatic updates: major, minor, patch or off",
+              "fr": "Mises \u00e0 jour automatiques : major, minor, patch ou off"
+            }
+          }
         }
       },
       "env_defaults": [
@@ -3735,7 +3744,8 @@
         "READ_KEY={{ healthchecks_api_key_readonly | default('') }}",
         "API_KEY={{ healthchecks_api_key_readwrite | default('') }}",
         "SUPERUSER_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
-        "EMAIL_HOST_PASSWORD={{ smtp_password | default('') }}"
+        "EMAIL_HOST_PASSWORD={{ smtp_password | default('') }}",
+        "UPDATE_LEVEL=major"
       ],
       "env_managed_keys": [
         "HC_URL",
