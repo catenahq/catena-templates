@@ -109,10 +109,11 @@ SWITCH_PLACEHOLDERS = frozenset({"{old_bucket}", "{new_bucket}"})
 
 # The commands a hooks body may start with: the lifecycle commands, the
 # interpreters of an inline script, and the health command of a shell-less
-# image (Collabora Online, Arcane, Windshift): each is the app's own binary and
-# asks only its own running server.
+# image (Collabora Online, Arcane, Windshift, the error-report receiver): each is
+# the app's own binary and asks only its own running server.
 ALLOWED_HOOK_COMMANDS = ALLOWED_MIGRATE_COMMANDS | {
-    "sh", "bash", "python", "python3", "/usr/bin/coolwsd", "/app/arcane", "/windshift"}
+    "sh", "bash", "python", "python3", "/usr/bin/coolwsd", "/app/arcane", "/windshift",
+    "/usr/local/bin/catena-reports"}
 
 # The argv lists a hooks block can carry.
 HOOK_LISTS = ("configure", "verify", "users", "scan", "reconcile")

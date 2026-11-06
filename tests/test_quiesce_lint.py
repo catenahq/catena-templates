@@ -676,6 +676,7 @@ def test_a_hooks_script_that_parses_passes(monkeypatch, tmp_path, capsys):
     ["/usr/bin/coolwsd", "--probe", "--use-env-vars"],
     ["/app/arcane", "health", "--timeout", "10s"],
     ["/windshift", "healthcheck"],
+    ["/usr/local/bin/catena-reports", "probe"],
 ])
 def test_the_health_command_of_a_shell_less_image_is_allowed(monkeypatch, tmp_path, capsys, argv):
     _synthetic_sources(monkeypatch, tmp_path, {}, block={"hooks": {"service": "app", "verify": [argv]}})
