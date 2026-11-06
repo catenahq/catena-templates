@@ -93,7 +93,7 @@ def test_the_agent_is_on_the_host_network_with_the_socket_and_the_key_read_only(
     assert agent["environment"]["TOKEN_FILE"] == "/key/token"
     assert "TOKEN" not in agent["environment"], "the token reaches the agent as a file"
     assert agent["environment"]["DISABLE_SSH"] == "true", "the agent opens no listener"
-    assert agent["labels"] == ["vps.expose.none=true", "vps.auto-update=patch"]
+    assert agent["labels"] == ["vps.expose.none=true", "vps.auto-update=${UPDATE_LEVEL:-major}"]
     assert agent["environment"]["HUB_URL"] == "http://127.0.0.1:18190"
     assert agent["deploy"]["placement"]["constraints"] == ["node.labels.catena.role==data"]
     assert _entry("beszel").block["privileges"] == ["host_network", "docker_socket"]

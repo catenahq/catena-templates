@@ -3873,6 +3873,15 @@
             "alphabet": "alnum",
             "length": 32
           }
+        },
+        "UPDATE_LEVEL": {
+          "setting": {
+            "default": "major",
+            "label": {
+              "en": "Automatic updates: major, minor, patch or off",
+              "fr": "Mises \u00e0 jour automatiques : major, minor, patch ou off"
+            }
+          }
         }
       },
       "env_defaults": [
@@ -3890,7 +3899,8 @@
         "SMTP_RELAY_PORT={{ smtp_relay_port | default('') }}",
         "SMTP_RELAY_USER={{ smtp_relay_user | default('') }}",
         "SMTP_RELAY_TLS={{ smtp_relay_tls | default('') }}",
-        "SMTP_RELAY_SENDER={{ smtp_relay_sender | default('') }}"
+        "SMTP_RELAY_SENDER={{ smtp_relay_sender | default('') }}",
+        "UPDATE_LEVEL=major"
       ],
       "env_managed_keys": [
         "HUB_URL",
