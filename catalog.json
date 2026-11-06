@@ -3331,13 +3331,23 @@
           "setting": {
             "default": "104857600"
           }
+        },
+        "UPDATE_LEVEL": {
+          "setting": {
+            "default": "major",
+            "label": {
+              "en": "Automatic updates: major, minor, patch or off",
+              "fr": "Mises \u00e0 jour automatiques : major, minor, patch ou off"
+            }
+          }
         }
       },
       "env_defaults": [
         "CLAMD_HOST=clamav",
         "CLAMD_PORT=3310",
         "CLAMD_STREAM_MAX_LENGTH=104857600",
-        "CLAMD_CONCURRENT_RELOAD=no"
+        "CLAMD_CONCURRENT_RELOAD=no",
+        "UPDATE_LEVEL=major"
       ],
       "env_managed_keys": [
         "CLAMD_HOST",
@@ -3355,7 +3365,7 @@
       },
       "hostname_baked": false,
       "id": "clamav",
-      "requires_catena": "0.11.12",
+      "requires_catena": "0.12.2",
       "sizing": {
         "disk_baseline_mb": 400,
         "idle_cpu_pct": null,
