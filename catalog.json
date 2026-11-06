@@ -2724,6 +2724,15 @@
           "setting": {
             "default": ""
           }
+        },
+        "UPDATE_LEVEL": {
+          "setting": {
+            "default": "major",
+            "label": {
+              "en": "Automatic updates: major, minor, patch or off",
+              "fr": "Mises \u00e0 jour automatiques : major, minor, patch ou off"
+            }
+          }
         }
       },
       "env_defaults": [
@@ -2735,7 +2744,8 @@
         "SMTP_PORT=587",
         "SMTP_USERNAME=",
         "SMTP_PASSWORD=",
-        "SMTP_FROM_ADDRESS="
+        "SMTP_FROM_ADDRESS=",
+        "UPDATE_LEVEL=major"
       ],
       "fr": {
         "compose_description": "Automatisation marketing open-source. S\u00e9quences drip, segments, pages de destination. Remplace Mailchimp / ActiveCampaign.\n",
@@ -2753,7 +2763,7 @@
       },
       "hostname_baked": true,
       "id": "mautic",
-      "requires_catena": "0.11.12",
+      "requires_catena": "0.12.2",
       "sizing": {
         "disk_baseline_mb": 420,
         "idle_cpu_pct": 3,

@@ -1,5 +1,5 @@
 schema: 2
-requires_catena: 0.11.12
+requires_catena: 0.12.2
 env:
   DOMAIN_HOST:
     setting: {default: "marketing.{{ cloudflare_zone }}"}
@@ -19,6 +19,8 @@ env:
     setting: {default: ""}
   SMTP_FROM_ADDRESS:
     setting: {default: ""}
+  UPDATE_LEVEL:
+    setting: {default: "major", label: {en: "Automatic updates: major, minor, patch or off", fr: "Mises à jour automatiques : major, minor, patch ou off"}}
 # verify asks Apache for the sign-in page and looks for the product name. A site that has not run the
 # installer redirects to it, which also shows Mautic answering. The redirect is not followed: the
 # installed site sends it to its public address.
