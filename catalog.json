@@ -1092,6 +1092,15 @@
           "setting": {
             "default": ""
           }
+        },
+        "UPDATE_LEVEL": {
+          "setting": {
+            "default": "major",
+            "label": {
+              "en": "Automatic updates: major, minor, patch or off",
+              "fr": "Mises \u00e0 jour automatiques : major, minor, patch ou off"
+            }
+          }
         }
       },
       "env_defaults": [
@@ -1104,7 +1113,8 @@
         "SMTP_USERNAME=",
         "SMTP_PASSWORD=",
         "SMTP_FROM_ADDRESS=",
-        "SMTP_AUTH=plain"
+        "SMTP_AUTH=plain",
+        "UPDATE_LEVEL=major"
       ],
       "fr": {
         "compose_description": "Signature \u00e9lectronique open-source (par d\u00e9faut). Remplace DocuSign / HelloSign.\n",
@@ -1122,7 +1132,7 @@
       },
       "hostname_baked": true,
       "id": "docuseal",
-      "requires_catena": "0.11.12",
+      "requires_catena": "0.12.2",
       "sizing": {
         "disk_baseline_mb": 140,
         "idle_cpu_pct": 1,
