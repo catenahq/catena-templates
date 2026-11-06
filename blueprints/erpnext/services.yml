@@ -55,7 +55,7 @@ services:
       - sites:/home/frappe/frappe-bench/sites
       - logs:/home/frappe/frappe-bench/logs
     labels:
-      - "vps.auto-update=minor"
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
     networks:
       - default
 
@@ -89,7 +89,7 @@ services:
       - "vps.auth.oidc=true"
       - "vps.auth.groups=staff"
       - "vps.auth.oidc.redirect_uris=https://${ERPNEXT_HOSTNAME}/api/method/frappe.integrations.oauth2_logins.custom/keycloak"
-      - "vps.auto-update=minor"
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
     cap_drop:
       - NET_RAW
     networks:
@@ -110,7 +110,7 @@ services:
       - sites:/home/frappe/frappe-bench/sites
       - logs:/home/frappe/frappe-bench/logs
     labels:
-      - "vps.auto-update=minor"
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
     networks:
       - default
 
@@ -128,7 +128,7 @@ services:
       - sites:/home/frappe/frappe-bench/sites
       - logs:/home/frappe/frappe-bench/logs
     labels:
-      - "vps.auto-update=minor"
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
     networks:
       - default
 
@@ -146,7 +146,7 @@ services:
       - sites:/home/frappe/frappe-bench/sites
       - logs:/home/frappe/frappe-bench/logs
     labels:
-      - "vps.auto-update=minor"
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
     networks:
       - default
 
@@ -164,7 +164,7 @@ services:
       - sites:/home/frappe/frappe-bench/sites
       - logs:/home/frappe/frappe-bench/logs
     labels:
-      - "vps.auto-update=minor"
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
     networks:
       - default
 
@@ -259,7 +259,7 @@ services:
       - sites:/home/frappe/frappe-bench/sites
       - logs:/home/frappe/frappe-bench/logs
     labels:
-      - "vps.auto-update=minor"
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
     networks:
       - default
 

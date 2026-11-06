@@ -1,6 +1,6 @@
 x-catena:
   schema: 2
-  requires_catena: 0.11.12
+  requires_catena: 0.12.2
   env:
     DOMAIN_HOST:
       setting: {default: "erp.{{ cloudflare_zone }}"}
@@ -10,6 +10,8 @@ x-catena:
       generated: {length: 24, alphabet: alnum}
     DB_ROOT_PASSWORD:
       generated: {length: 32, alphabet: alnum}
+    UPDATE_LEVEL:
+      setting: {default: "major", label: {en: "Automatic updates: major, minor, patch or off", fr: "Mises à jour automatiques : major, minor, patch ou off"}}
   access:
     customer:
       label: {en: "Customer portal", fr: "Portail client"}
@@ -244,7 +246,7 @@ services:
       - sites:/home/frappe/frappe-bench/sites
       - logs:/home/frappe/frappe-bench/logs
     labels:
-      - "vps.auto-update=minor"
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
     networks:
       - default
 
@@ -278,7 +280,7 @@ services:
       - "vps.auth.oidc=true"
       - "vps.auth.groups=staff"
       - "vps.auth.oidc.redirect_uris=https://${ERPNEXT_HOSTNAME}/api/method/frappe.integrations.oauth2_logins.custom/keycloak"
-      - "vps.auto-update=minor"
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
     cap_drop:
       - NET_RAW
     networks:
@@ -299,7 +301,7 @@ services:
       - sites:/home/frappe/frappe-bench/sites
       - logs:/home/frappe/frappe-bench/logs
     labels:
-      - "vps.auto-update=minor"
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
     networks:
       - default
 
@@ -317,7 +319,7 @@ services:
       - sites:/home/frappe/frappe-bench/sites
       - logs:/home/frappe/frappe-bench/logs
     labels:
-      - "vps.auto-update=minor"
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
     networks:
       - default
 
@@ -335,7 +337,7 @@ services:
       - sites:/home/frappe/frappe-bench/sites
       - logs:/home/frappe/frappe-bench/logs
     labels:
-      - "vps.auto-update=minor"
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
     networks:
       - default
 
@@ -353,7 +355,7 @@ services:
       - sites:/home/frappe/frappe-bench/sites
       - logs:/home/frappe/frappe-bench/logs
     labels:
-      - "vps.auto-update=minor"
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
     networks:
       - default
 
@@ -448,7 +450,7 @@ services:
       - sites:/home/frappe/frappe-bench/sites
       - logs:/home/frappe/frappe-bench/logs
     labels:
-      - "vps.auto-update=minor"
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
     networks:
       - default
 
