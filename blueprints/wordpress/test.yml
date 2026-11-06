@@ -1,0 +1,112 @@
+# Test for the wordpress template: a post made with WordPress's own functions survives a backup
+# and a restore. The php of every step runs as www-data, the user of the site's files.
+#
+# The setup finishes the install wizard as a person's first visit does, only when WordPress is
+# not installed (is_blog_installed()): once the database answers it posts the wizard's last
+# step to the stack's nginx under the site's host name, as the proxy sends it, with the
+# administrator catena-admin and the password the harness gives as CATENA_TEST_PASSWORD, read
+# inside php so no argument list or output carries it. The host name is the one wp-config.php
+# gives WP_CACHE_KEY_SALT. The data seed loads wp-load.php and inserts the post catena-<run>
+# with wp_insert_post only when get_posts finds none; the assert checks that catena-admin signs
+# in with the test password (wp_authenticate) and counts the post with get_posts: exactly one,
+# holding fixture-<run>.
+#
+# {{ run_id }} is supplied by the bench at execution time so the post is unique per run.
+# Each {{ container_* }} is resolved from `docker ps` before invoking.
+
+id: wordpress
+description: >-
+  WordPress lists exactly one post titled catena-<run>, holding fixture-<run>, on an
+  installed site whose administrator signs in with the test password, before and after the
+  backup, the restore and the updates.
+
+setup:
+  - name: install_wizard
+    type: docker_exec
+    container: "{{ container_wp }}"
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        exec su -s /bin/sh www-data -c php <<'PHP'
+        <?php
+        $deadline = time() + 900;
+        while (!is_file('/var/www/html/wp-config.php') || !is_file('/var/www/html/wp-load.php')) {
+          if (time() > $deadline) { fwrite(STDERR, "the WordPress files were not there within 900 s\n"); exit(1); }
+          sleep(5);
+        }
+        define('WP_INSTALLING', true);
+        require '/var/www/html/wp-load.php';
+        global $wpdb;
+        while (!$wpdb->check_connection(false)) {
+          if (time() > $deadline) { fwrite(STDERR, "the WordPress database did not answer within 900 s\n"); exit(1); }
+          sleep(5);
+        }
+        if (is_blog_installed()) { echo "wordpress install wizard done\n"; exit(0); }
+        if (!preg_match("/define\\(\\s*'WP_CACHE_KEY_SALT',\\s*'([^']+)_'/", (string) file_get_contents('/var/www/html/wp-config.php'), $m)) {
+          fwrite(STDERR, "wp-config.php holds no WP_CACHE_KEY_SALT to take the host name from\n"); exit(1);
+        }
+        $pw = (string) getenv('CATENA_TEST_PASSWORD');
+        if ($pw === '') { fwrite(STDERR, "the step was given no CATENA_TEST_PASSWORD\n"); exit(1); }
+        $form = http_build_query(['weblog_title' => 'Catena test', 'user_name' => 'catena-admin', 'admin_password' => $pw,
+          'admin_password2' => $pw, 'pw_weak' => '1', 'admin_email' => 'catena-admin@example.com', 'blog_public' => '0',
+          'Submit' => 'Install WordPress', 'language' => '']);
+        $context = stream_context_create(['http' => ['method' => 'POST', 'content' => $form,
+          'header' => "Host: $m[1]\r\nX-Forwarded-Proto: https\r\nContent-Type: application/x-www-form-urlencoded\r\n",
+          'ignore_errors' => true, 'timeout' => 120, 'follow_location' => 0]]);
+        $body = (string) @file_get_contents('http://nginx/wp-admin/install.php?step=2', false, $context);
+        if (strpos($body, 'Success!') === false) {
+          fwrite(STDERR, 'the install wizard did not report success: ' . substr(trim(preg_replace('/\s+/', ' ', strip_tags($body))), 0, 200) . "\n"); exit(1);
+        }
+        echo "wordpress install wizard done\n";
+        PHP
+    expect_stdout_contains: "wordpress install wizard done"
+    timeout_s: 960
+
+seed:
+  - name: create_the_post
+    type: docker_exec
+    container: "{{ container_wp }}"
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        exec su -s /bin/sh www-data -c php <<'PHP'
+        <?php
+        require '/var/www/html/wp-load.php';
+        $title = 'catena-{{ run_id }}';
+        $found = get_posts(['post_type' => 'post', 'post_status' => 'any', 'title' => $title, 'numberposts' => 5]);
+        if (count($found) === 0) {
+          $id = wp_insert_post(['post_title' => $title, 'post_content' => 'fixture-{{ run_id }}', 'post_status' => 'publish', 'post_author' => 1], true);
+          if (is_wp_error($id)) { fwrite(STDERR, 'wp_insert_post failed: ' . $id->get_error_message() . "\n"); exit(1); }
+        }
+        echo "seeded post $title\n";
+        PHP
+    expect_stdout_contains: "seeded post catena-{{ run_id }}"
+    timeout_s: 120
+
+assert:
+  - name: wordpress_lists_exactly_one_post_of_the_run
+    type: docker_exec
+    container: "{{ container_wp }}"
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        exec su -s /bin/sh www-data -c php <<'PHP'
+        <?php
+        require '/var/www/html/wp-load.php';
+        $title = 'catena-{{ run_id }}';
+        if (!is_blog_installed()) { fwrite(STDERR, "WordPress is not installed\n"); exit(1); }
+        $user = wp_authenticate('catena-admin', (string) getenv('CATENA_TEST_PASSWORD'));
+        if (is_wp_error($user) || !user_can($user, 'manage_options')) { fwrite(STDERR, "the administrator catena-admin does not sign in with the test password\n"); exit(1); }
+        $found = get_posts(['post_type' => 'post', 'post_status' => 'any', 'title' => $title, 'numberposts' => 5]);
+        if (count($found) !== 1) { fwrite(STDERR, 'WordPress lists ' . count($found) . " posts titled $title, expected 1\n"); exit(1); }
+        if ($found[0]->post_content !== 'fixture-{{ run_id }}') { fwrite(STDERR, "the post $title does not hold its content\n"); exit(1); }
+        echo "posts titled $title: 1, content fixture-{{ run_id }}\n";
+        PHP
+    expect_stdout_contains: "posts titled catena-{{ run_id }}: 1, content fixture-{{ run_id }}"
+    timeout_s: 120
