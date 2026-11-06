@@ -1,5 +1,5 @@
 schema: 2
-requires_catena: 0.11.12
+requires_catena: 0.12.2
 version_from: app
 env:
   DOMAIN_HOST:
@@ -28,6 +28,8 @@ env:
     setting: {default: "invoice@{{ cloudflare_zone }}"}
   INVOICENINJA_MAIL_FROM_NAME:
     setting: {default: "Invoicing"}
+  UPDATE_LEVEL:
+    setting: {default: "major", label: {en: "Automatic updates: major, minor, patch or off", fr: "Mises à jour automatiques : major, minor, patch ou off"}}
 # The image's init.sh migrates, seeds a new database and creates the account before supervisord
 # starts php-fpm, so port 9000 answers once the application can serve.
 lifecycle:
