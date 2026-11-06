@@ -1,0 +1,100 @@
+# Test for the espocrm template: an Account made through EspoCRM's REST API survives a
+# backup and a restore. The seed lists the Accounts named catena-<run> and creates one,
+# with the description fixture-<run>, only when none is listed, so a second seed
+# changes nothing. The assert lists them again and requires exactly one holding that
+# description. Both steps run php inside the espocrm container against its own Apache
+# on 127.0.0.1, signed in as the administrator with the container's
+# ESPOCRM_ADMIN_USERNAME and ESPOCRM_ADMIN_PASSWORD (read with getenv, so no
+# credential reaches an argument list or the output), and first wait until the API
+# accepts that sign-in, which the install behind the first start delays.
+#
+# {{ run_id }} is supplied by the bench at execution time so the Account is unique per
+# run. Each {{ container_* }} is resolved from `docker ps` before invoking.
+
+id: espocrm
+description: >-
+  EspoCRM's REST API lists exactly one Account named catena-<run>, holding the
+  description fixture-<run>, before and after the backup, the restore and the updates.
+
+seed:
+  - name: create_the_account_through_the_api
+    type: docker_exec
+    container: "{{ container_espocrm }}"
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        php <<'PHP'
+        <?php
+        function call($method, $path, $body = null) {
+          $auth = base64_encode(getenv('ESPOCRM_ADMIN_USERNAME') . ':' . getenv('ESPOCRM_ADMIN_PASSWORD'));
+          $opts = ['method' => $method, 'header' => "Authorization: Basic $auth\r\nContent-Type: application/json\r\n",
+                   'ignore_errors' => true, 'timeout' => 30];
+          if ($body !== null) { $opts['content'] = json_encode($body); }
+          $raw = @file_get_contents('http://127.0.0.1' . $path, false, stream_context_create(['http' => $opts]));
+          $code = 0;
+          foreach (($http_response_header ?? []) as $line) {
+            if (preg_match('#^HTTP/\S+ (\d+)#', $line, $m)) { $code = (int) $m[1]; }
+          }
+          return [$code, json_decode($raw === false ? '' : $raw, true)];
+        }
+        $deadline = time() + 900;
+        do {
+          [$code] = call('GET', '/api/v1/App/user');
+          if ($code === 200) { break; }
+          sleep(5);
+        } while (time() < $deadline);
+        if ($code !== 200) { fwrite(STDERR, "the EspoCRM API did not accept the administrator within 900 s, last answer $code\n"); exit(1); }
+        $name = 'catena-{{ run_id }}';
+        $query = http_build_query(['maxSize' => 5, 'where' => [['type' => 'equals', 'attribute' => 'name', 'value' => $name]]]);
+        [$code, $found] = call('GET', '/api/v1/Account?' . $query);
+        if ($code !== 200 || !is_array($found['list'] ?? null)) { fwrite(STDERR, "listing the Accounts answered $code\n"); exit(1); }
+        if (count($found['list']) === 0) {
+          [$code, $made] = call('POST', '/api/v1/Account', ['name' => $name, 'description' => 'fixture-{{ run_id }}']);
+          if ($code !== 200 || empty($made['id'])) { fwrite(STDERR, "creating the Account answered $code\n"); exit(1); }
+        }
+        echo "seeded account $name\n";
+        PHP
+    expect_stdout_contains: "seeded account catena-{{ run_id }}"
+    timeout_s: 960
+
+assert:
+  - name: api_lists_exactly_one_account_of_the_run
+    type: docker_exec
+    container: "{{ container_espocrm }}"
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        php <<'PHP'
+        <?php
+        function call($method, $path) {
+          $auth = base64_encode(getenv('ESPOCRM_ADMIN_USERNAME') . ':' . getenv('ESPOCRM_ADMIN_PASSWORD'));
+          $opts = ['method' => $method, 'header' => "Authorization: Basic $auth\r\n", 'ignore_errors' => true, 'timeout' => 30];
+          $raw = @file_get_contents('http://127.0.0.1' . $path, false, stream_context_create(['http' => $opts]));
+          $code = 0;
+          foreach (($http_response_header ?? []) as $line) {
+            if (preg_match('#^HTTP/\S+ (\d+)#', $line, $m)) { $code = (int) $m[1]; }
+          }
+          return [$code, json_decode($raw === false ? '' : $raw, true)];
+        }
+        $deadline = time() + 900;
+        do {
+          [$code] = call('GET', '/api/v1/App/user');
+          if ($code === 200) { break; }
+          sleep(5);
+        } while (time() < $deadline);
+        if ($code !== 200) { fwrite(STDERR, "the EspoCRM API did not accept the administrator within 900 s, last answer $code\n"); exit(1); }
+        $name = 'catena-{{ run_id }}';
+        $query = http_build_query(['maxSize' => 5, 'where' => [['type' => 'equals', 'attribute' => 'name', 'value' => $name]]]);
+        [$code, $found] = call('GET', '/api/v1/Account?' . $query);
+        if ($code !== 200 || !is_array($found['list'] ?? null)) { fwrite(STDERR, "listing the Accounts answered $code\n"); exit(1); }
+        $n = count($found['list']);
+        if ($n !== 1) { fwrite(STDERR, "EspoCRM lists $n Accounts named $name, expected 1\n"); exit(1); }
+        if (($found['list'][0]['description'] ?? '') !== 'fixture-{{ run_id }}') { fwrite(STDERR, "the Account $name does not hold its description\n"); exit(1); }
+        echo "Accounts named $name: 1, description fixture-{{ run_id }}\n";
+        PHP
+    expect_stdout_contains: "Accounts named catena-{{ run_id }}: 1, description fixture-{{ run_id }}"
+    timeout_s: 960
