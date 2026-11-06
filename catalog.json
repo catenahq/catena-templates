@@ -2193,6 +2193,15 @@
           "setting": {
             "default": "erpnext,telephony,helpdesk"
           }
+        },
+        "UPDATE_LEVEL": {
+          "setting": {
+            "default": "major",
+            "label": {
+              "en": "Automatic updates: major, minor, patch or off",
+              "fr": "Mises \u00e0 jour automatiques : major, minor, patch ou off"
+            }
+          }
         }
       },
       "env_defaults": [
@@ -2201,7 +2210,8 @@
         "ERPNEXT_ADMIN_PASSWORD={{ lookup('password', '/dev/null length=24 chars=ascii_letters,digits') }}",
         "DB_ROOT_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
         "FRAPPE_APPS=erpnext,telephony,helpdesk",
-        "ERPNEXT_WEB_FORMS=off"
+        "ERPNEXT_WEB_FORMS=off",
+        "UPDATE_LEVEL=major"
       ],
       "fr": {
         "compose_description": "ERP open-source (compta/stock/RH/CRM/prod) avec helpdesk. Remplace SAP / Odoo / NetSuite.\n",
@@ -2254,7 +2264,7 @@
         "service": "backend",
         "timeout_seconds": 3600
       },
-      "requires_catena": "0.11.12",
+      "requires_catena": "0.12.2",
       "sizing": {
         "disk_baseline_mb": 850,
         "idle_cpu_pct": 8,
