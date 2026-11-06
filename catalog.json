@@ -1531,6 +1531,15 @@
             "alphabet": "alnum",
             "length": 64
           }
+        },
+        "UPDATE_LEVEL": {
+          "setting": {
+            "default": "major",
+            "label": {
+              "en": "Automatic updates: major, minor, patch or off",
+              "fr": "Mises \u00e0 jour automatiques : major, minor, patch ou off"
+            }
+          }
         }
       },
       "env_defaults": [
@@ -1541,7 +1550,8 @@
         "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
         "PLANE_MQ_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
         "PLANE_MINIO_ACCESS_KEY={{ lookup('password', '/dev/null length=20 chars=ascii_letters,digits') }}",
-        "PLANE_MINIO_SECRET_KEY={{ lookup('password', '/dev/null length=40 chars=ascii_letters,digits') }}"
+        "PLANE_MINIO_SECRET_KEY={{ lookup('password', '/dev/null length=40 chars=ascii_letters,digits') }}",
+        "UPDATE_LEVEL=major"
       ],
       "fr": {
         "compose_description": "Gestion de projet open-source. Remplace Jira / Linear / Asana.\n",
@@ -1558,7 +1568,7 @@
       },
       "hostname_baked": true,
       "id": "plane",
-      "requires_catena": "0.11.12",
+      "requires_catena": "0.12.2",
       "sizing": {
         "disk_baseline_mb": 380,
         "idle_cpu_pct": 4,
