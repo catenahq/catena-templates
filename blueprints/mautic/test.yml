@@ -1,0 +1,260 @@
+# Test for the mautic template: a contact made through Mautic's own entities survives a backup,
+# a restore and the updates.
+#
+# The setup runs Mautic's web installer as a person's first visit does, only while /installer
+# still answers the installer: python3 in the harness's helper, which shares the network of the
+# mautic_web container, asks Apache at 127.0.0.1 under the site's host name and follows each
+# redirect there itself. Each installer page's form is posted with the values Mautic put in it:
+# the requirements check, the database (the image's local.php fills it from the stack's env),
+# then the administrator catena-admin with the password the harness gives as
+# CATENA_TEST_PASSWORD; the installer then writes the site URL from that host name and runs its
+# final migrations. The seed runs php in the mautic_web container as www-data, boots Mautic's
+# kernel the way bin/console does and, through its Doctrine entity manager, gets or creates the
+# contact catena-<run>@example.com named catena-<run> fixture-<run>. The asserts read the
+# contact back the same way, exactly one, and sign catena-admin in through the login form with
+# the test password, which lands on the dashboard.
+#
+# {{ run_id }} is supplied by the bench at execution time. {{ route_host_mautic_web }} is the
+# host of the service's route label.
+
+id: mautic
+description: >-
+  Mautic lists exactly one contact catena-<run>@example.com named catena-<run> fixture-<run>,
+  and its administrator signs in with the test password, before and after the backup, the
+  restore and the updates.
+
+setup:
+  - name: web_installer
+    type: docker_exec
+    container: "{{ helper_mautic_web }}"
+    command:
+      - python3
+      - -c
+      - |
+        import html, html.parser, os, re, sys, time, urllib.error, urllib.parse, urllib.request
+        SITE = "{{ route_host_mautic_web }}"
+        jar = {}
+        class Stay(urllib.request.HTTPRedirectHandler):
+            def redirect_request(self, *args, **kwargs):
+                return None
+        opener = urllib.request.build_opener(Stay)
+        def fail(message):
+            sys.stderr.write(message + "\n")
+            sys.exit(1)
+        def call(method, path, form=None):
+            for _ in range(12):
+                headers = {"Host": SITE, "X-Forwarded-Proto": "https"}
+                data = None
+                if form is not None:
+                    data = urllib.parse.urlencode(form).encode()
+                    headers["Content-Type"] = "application/x-www-form-urlencoded"
+                if jar:
+                    headers["Cookie"] = "; ".join(k + "=" + v for k, v in jar.items())
+                req = urllib.request.Request("http://127.0.0.1" + path, data=data, headers=headers, method=method)
+                try:
+                    r = opener.open(req, timeout=600)
+                except urllib.error.HTTPError as e:
+                    r = e
+                for cookie in r.headers.get_all("Set-Cookie") or []:
+                    k, _, v = cookie.split(";", 1)[0].partition("=")
+                    jar[k.strip()] = v
+                body = r.read().decode("utf-8", "replace")
+                where = r.headers.get("Location")
+                if r.status in (301, 302, 303, 307, 308) and where:
+                    url = urllib.parse.urlsplit(urllib.parse.urljoin(path, where))
+                    path = url.path + ("?" + url.query if url.query else "")
+                    if r.status != 307 and r.status != 308:
+                        method, form = "GET", None
+                    continue
+                return r.status, path, body
+            fail("Mautic redirected more than 12 times from " + path)
+        class Fields(html.parser.HTMLParser):
+            def __init__(self):
+                super().__init__()
+                self.values, self.action, self.select, self.first = {}, None, None, None
+            def handle_starttag(self, tag, attrs):
+                a = {k: v if v is not None else "" for k, v in attrs}
+                name = a.get("name", "")
+                if tag == "form" and name.startswith("install_") and self.action is None:
+                    self.action = a.get("action")
+                elif tag == "input" and name and a.get("type", "text") not in ("submit", "button", "image", "file"):
+                    if a.get("type") in ("checkbox", "radio"):
+                        if "checked" in a:
+                            self.values[name] = a.get("value", "on")
+                    else:
+                        self.values[name] = a.get("value", "")
+                elif tag == "button" and name.endswith("[next]"):
+                    self.values[name] = a.get("value", "")
+                elif tag == "select":
+                    self.select, self.first = name, None
+                elif tag == "option" and self.select:
+                    if self.first is None:
+                        self.first = a.get("value", "")
+                        self.values.setdefault(self.select, self.first)
+                    if "selected" in a:
+                        self.values[self.select] = a.get("value", "")
+            def handle_endtag(self, tag):
+                if tag == "select":
+                    self.select = None
+        def text_of(body):
+            return re.sub(r"\s+", " ", html.unescape(re.sub(r"(?s)<script.*?</script>|<[^>]+>", " ", body))).strip()[:400]
+        password = os.environ["CATENA_TEST_PASSWORD"]
+        deadline = time.time() + 600
+        while True:
+            try:
+                status, path, body = call("GET", "/installer")
+                if status == 200:
+                    break
+            except OSError:
+                pass
+            if time.time() > deadline:
+                fail("Mautic did not answer /installer within 600 s")
+            time.sleep(5)
+        for _ in range(6):
+            if not path.startswith("/installer") or path.startswith("/installer/final"):
+                break
+            page = Fields()
+            page.feed(body)
+            form = {k: v for k, v in page.values.items() if k.startswith("install_")}
+            if not form:
+                fail("the installer page %s holds no installer form: %s" % (path, text_of(body)))
+            prefix = next(iter(form)).split("[", 1)[0]
+            if prefix == "install_user_step":
+                form.update({prefix + "[firstname]": "Catena", prefix + "[lastname]": "Test",
+                             prefix + "[email]": "catena-admin@example.com", prefix + "[username]": "catena-admin",
+                             prefix + "[password]": password})
+            before = path
+            status, path, body = call("POST", page.action or path, form)
+            if path == before:
+                fail("the installer refused %s at %s: %s" % (prefix, path, text_of(body)))
+        status, path, body = call("GET", "/installer")
+        if path.startswith("/installer"):
+            fail("Mautic still answers its installer at %s: %s" % (path, text_of(body)))
+        print("mautic installed")
+    expect_stdout_contains: "mautic installed"
+    timeout_s: 1500
+
+seed:
+  - name: create_the_contact_through_the_kernel
+    type: docker_exec
+    container: "{{ container_mautic_web }}"
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        exec su -s /bin/sh www-data -c php <<'PHP'
+        <?php
+        require '/var/www/html/vendor/autoload.php';
+        $reflection = new ReflectionClass(AppKernel::class);
+        $application = include dirname($reflection->getFileName(), 2) . '/app/console-application.php';
+        $kernel = $application->getKernel();
+        $kernel->boot();
+        $em = $kernel->getContainer()->get('doctrine')->getManager();
+        $repo = $em->getRepository(Mautic\LeadBundle\Entity\Lead::class);
+        $email = 'catena-{{ run_id }}@example.com';
+        if (count($repo->findBy(['email' => $email])) === 0) {
+          $lead = new Mautic\LeadBundle\Entity\Lead();
+          $lead->setFirstname('catena-{{ run_id }}');
+          $lead->setLastname('fixture-{{ run_id }}');
+          $lead->setEmail($email);
+          $lead->setDateAdded(new DateTime());
+          $em->persist($lead);
+          $em->flush();
+        }
+        echo "seeded contact $email\n";
+        PHP
+    expect_stdout_contains: "seeded contact catena-{{ run_id }}@example.com"
+    timeout_s: 300
+
+assert:
+  - name: kernel_lists_exactly_one_contact_of_the_run
+    type: docker_exec
+    container: "{{ container_mautic_web }}"
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        exec su -s /bin/sh www-data -c php <<'PHP'
+        <?php
+        require '/var/www/html/vendor/autoload.php';
+        $reflection = new ReflectionClass(AppKernel::class);
+        $application = include dirname($reflection->getFileName(), 2) . '/app/console-application.php';
+        $kernel = $application->getKernel();
+        $kernel->boot();
+        $em = $kernel->getContainer()->get('doctrine')->getManager();
+        $email = 'catena-{{ run_id }}@example.com';
+        $found = $em->getRepository(Mautic\LeadBundle\Entity\Lead::class)->findBy(['email' => $email]);
+        if (count($found) !== 1) { fwrite(STDERR, 'Mautic lists ' . count($found) . " contacts $email, expected 1\n"); exit(1); }
+        if ($found[0]->getFirstname() !== 'catena-{{ run_id }}' || $found[0]->getLastname() !== 'fixture-{{ run_id }}') {
+          fwrite(STDERR, "the contact $email does not hold its name\n"); exit(1);
+        }
+        echo "contacts $email: 1, named catena-{{ run_id }} fixture-{{ run_id }}\n";
+        PHP
+    expect_stdout_contains: "contacts catena-{{ run_id }}@example.com: 1, named catena-{{ run_id }} fixture-{{ run_id }}"
+    timeout_s: 300
+
+  - name: administrator_signs_in
+    type: docker_exec
+    container: "{{ helper_mautic_web }}"
+    command:
+      - python3
+      - -c
+      - |
+        import html.parser, os, sys, urllib.error, urllib.parse, urllib.request
+        SITE = "{{ route_host_mautic_web }}"
+        jar = {}
+        class Stay(urllib.request.HTTPRedirectHandler):
+            def redirect_request(self, *args, **kwargs):
+                return None
+        opener = urllib.request.build_opener(Stay)
+        def fail(message):
+            sys.stderr.write(message + "\n")
+            sys.exit(1)
+        def call(method, path, form=None):
+            for _ in range(12):
+                headers = {"Host": SITE, "X-Forwarded-Proto": "https"}
+                data = None
+                if form is not None:
+                    data = urllib.parse.urlencode(form).encode()
+                    headers["Content-Type"] = "application/x-www-form-urlencoded"
+                if jar:
+                    headers["Cookie"] = "; ".join(k + "=" + v for k, v in jar.items())
+                req = urllib.request.Request("http://127.0.0.1" + path, data=data, headers=headers, method=method)
+                try:
+                    r = opener.open(req, timeout=120)
+                except urllib.error.HTTPError as e:
+                    r = e
+                for cookie in r.headers.get_all("Set-Cookie") or []:
+                    k, _, v = cookie.split(";", 1)[0].partition("=")
+                    jar[k.strip()] = v
+                body = r.read().decode("utf-8", "replace")
+                where = r.headers.get("Location")
+                if r.status in (301, 302, 303, 307, 308) and where:
+                    url = urllib.parse.urlsplit(urllib.parse.urljoin(path, where))
+                    path = url.path + ("?" + url.query if url.query else "")
+                    method, form = "GET", None
+                    continue
+                return r.status, path, body
+            fail("Mautic redirected more than 12 times from " + path)
+        class Fields(html.parser.HTMLParser):
+            def __init__(self):
+                super().__init__()
+                self.values = {}
+            def handle_starttag(self, tag, attrs):
+                a = {k: v if v is not None else "" for k, v in attrs}
+                if tag == "input" and a.get("name") in ("_csrf_token", "_username", "_password"):
+                    self.values[a["name"]] = a.get("value", "")
+        status, path, body = call("GET", "/s/login")
+        page = Fields()
+        page.feed(body)
+        if status != 200 or "_csrf_token" not in page.values:
+            fail("GET /s/login answered %s at %s with no login form" % (status, path))
+        page.values.update({"_username": "catena-admin", "_password": os.environ["CATENA_TEST_PASSWORD"]})
+        status, path, body = call("POST", "/s/login_check", page.values)
+        if status != 200 or not path.startswith("/s/dashboard"):
+            fail("signing catena-admin in with the test password ended with %s at %s" % (status, path))
+        print("catena-admin signs in to the dashboard")
+    expect_stdout_contains: "catena-admin signs in to the dashboard"
+    timeout_s: 180
