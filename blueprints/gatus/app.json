@@ -46,6 +46,6 @@
       "Pingdom"
     ],
     "compose_description": "Page d'\u00e9tat et sondes de disponibilit\u00e9 auto-h\u00e9berg\u00e9es.\n",
-    "setup_steps": "Le serveur installe cette application et vous y connecte par sa propre connexion. Son adresse est le pr\u00e9fixe ci-dessous suivi de votre domaine.\n\n1. Ouvrez **Gatus** depuis la page Apps.\n2. Les services du serveur et vos applications sont list\u00e9s d'eux-m\u00eames.\n3. Pour sonder autre chose, ajoutez au volume config un fichier dont le nom commence par 99- et se termine par .yaml ; le serveur ne le r\u00e9\u00e9crit jamais."
+    "setup_steps": "Le serveur installe cette application et vous y connecte par sa propre connexion. Son adresse est le pr\u00e9fixe ci-dessous suivi de votre domaine.\n\n1. Ouvrez **Gatus** depuis la page Applications.\n2. Les services du serveur et vos applications sont list\u00e9s d'eux-m\u00eames.\n3. Pour sonder autre chose, ajoutez au volume config un fichier dont le nom commence par 99- et se termine par .yaml ; le serveur ne le r\u00e9\u00e9crit jamais."
   }
 }
