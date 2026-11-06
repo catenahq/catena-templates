@@ -3763,7 +3763,7 @@
           "Dead Man's Snitch",
           "healthchecks.io"
         ],
-        "setup_steps": "Le serveur installe cette application et vous y connecte par sa propre connexion. Son adresse est le pr\u00e9fixe ci-dessous suivi de votre domaine.\n\n1. Ouvrez **Healthchecks** depuis la page Apps.\n2. Ajoutez un contr\u00f4le par t\u00e2che, copiez son adresse d'appel et appelez-la \u00e0 la fin de la t\u00e2che.\n3. Ajoutez des canaux d'alerte sous **Integrations**.\n\nLe courriel sortant utilise le relais choisi dans Settings.",
+        "setup_steps": "Le serveur installe cette application et vous y connecte par sa propre connexion. Son adresse est le pr\u00e9fixe ci-dessous suivi de votre domaine.\n\n1. Ouvrez **Healthchecks** depuis la page Applications.\n2. Ajoutez un contr\u00f4le par t\u00e2che, copiez son adresse d'appel et appelez-la \u00e0 la fin de la t\u00e2che.\n3. Ajoutez des canaux d'alerte sous **Integrations**.\n\nLe courriel sortant utilise le relais choisi dans Param\u00e8tres.",
         "summary": "Surveillance de pouls : vos t\u00e2ches planifi\u00e9es le sonnent, et il vous alerte quand l'une se tait.",
         "what_it_is": "Surveillance de pouls pour les t\u00e2ches cron, les sauvegardes et les t\u00e2ches planifi\u00e9es. Chaque t\u00e2che appelle l'adresse de son contr\u00f4le quand elle s'ex\u00e9cute ; Healthchecks envoie une alerte quand un appel est en retard. Gatus, le relais d'alertes de Beszel et les plages planifi\u00e9es du serveur lui font rapport."
       },
