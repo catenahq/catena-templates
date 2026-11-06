@@ -2067,7 +2067,7 @@
           "Make (Integromat)",
           "Tray.io"
         ],
-        "setup_steps": "1. Click **Deploy**. Wait ~1 min for Postgres + n8n to initialize.\n2. Visit the n8n domain and create the owner account via the setup wizard.\n3. Invite additional users: **Settings** -> **Users** -> **Invite**. Each user receives an email invite.\n4. Start building workflows: **Workflows** -> **+ Add Workflow**. Browse the integrations library for pre-built nodes.\n",
+        "setup_steps": "1. Press **Deploy application**. Wait ~1 min for Postgres + n8n to initialize; the **Logs** section shows the progress.\n2. Visit the n8n domain and create the owner account via the setup wizard.\n3. Invite additional users in n8n: **Settings** -> **Users** -> **Invite**. Each user receives an email invite.\n4. Start building workflows: **Workflows** -> **+ Add Workflow**. Browse the integrations library for pre-built nodes.\n",
         "summary": "Connects apps and services into automated workflows built on a visual canvas.",
         "what_it_is": "Workflow automation -- visually chain hundreds of integrations (APIs, apps, databases) into no-code/low-code workflows."
       },
@@ -2133,7 +2133,7 @@
           "Make (Integromat)",
           "Tray.io"
         ],
-        "setup_steps": "1. Cliquez **Deploy**. Patientez ~1 min le temps que Postgres + n8n s'initialisent.\n2. Visitez le domaine n8n et cr\u00e9ez le compte propri\u00e9taire via l'assistant.\n3. Invitez d'autres utilisateurs : **Settings** -> **Users** -> **Invite**. Chaque utilisateur re\u00e7oit une invitation par courriel.\n4. Cr\u00e9ez des workflows : **Workflows** -> **+ Add Workflow**. Parcourez la biblioth\u00e8que d'int\u00e9grations pour les n\u0153uds pr\u00eats \u00e0 l'emploi.\n",
+        "setup_steps": "1. Appuyez sur **D\u00e9ployer l'application**. Patientez ~1 min le temps que Postgres + n8n s'initialisent ; la section **Journaux** montre la progression.\n2. Visitez le domaine n8n et cr\u00e9ez le compte propri\u00e9taire via l'assistant.\n3. Invitez d'autres utilisateurs dans n8n : **Settings** -> **Users** -> **Invite**. Chaque utilisateur re\u00e7oit une invitation par courriel.\n4. Cr\u00e9ez des workflows : **Workflows** -> **+ Add Workflow**. Parcourez la biblioth\u00e8que d'int\u00e9grations pour les n\u0153uds pr\u00eats \u00e0 l'emploi.\n",
         "summary": "Relie des applications et des services en flux de travail automatis\u00e9s, construits sur un canevas visuel.",
         "what_it_is": "Automatisation de flux de travail -- encha\u00eenez visuellement des centaines d'int\u00e9grations (APIs, apps, bases de donn\u00e9es) en workflows no-code/low-code."
       },
