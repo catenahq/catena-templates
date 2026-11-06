@@ -29,8 +29,9 @@ blueprints/              # ONE directory per template -- what a host fetches at 
                          # committed; the swarm stack file a host deploys
     app.json             # HAND-EDITED; the app's card, catalog and bench data
                          # (app.schema.json), at most 64 KiB
-    test.yml             # HAND-EDITED; optional; the state the CI harness
-                         # seeds after a deploy and checks after a restore
+    test.yml             # HAND-EDITED; optional; the first-run setup and the
+                         # state the CI harness seeds after a deploy and
+                         # checks after a restore
     logo.png             # HAND-PLACED; optional
     logo.svg             # generated placeholder, absent a logo.png
 
@@ -309,14 +310,34 @@ block.
    Real examples: the hooks of `blueprints/erpnext` and
    `blueprints/nextcloud-s3-oidc`.
 9. `blueprints/<id>/test.yml` -- the data the bench seeds and reads back. It
-   holds `id` (the template id), `description`, and the lists `seed` and
-   `assert`. Each step has a unique `name` and a `type`: `docker_exec` runs the
-   argv `command` in `container` (`expect_exit_code`, default 0, and
-   `expect_stdout_contains`, a substring of the output, `timeout_s`, default
-   30), and `volume_file` writes (`content`) or reads (`expect_stdout_contains`)
-   one `path` in the named `volume`, for an image with no shell. `{{ run_id }}`,
-   `{{ app_name }}`, `{{ primary_container }}` and `{{ container_<service> }}`
-   are filled in. The seed writes its data through the app itself (its API or
+   holds `id` (the template id), `description`, the lists `seed` and `assert`,
+   and an optional `setup` list. Each step has a unique `name` and a `type`:
+   `docker_exec` runs the argv `command` in `container` (`expect_exit_code`,
+   default 0, and `expect_stdout_contains`, a substring of the output,
+   `timeout_s`, default 30), and `volume_file` writes (`content`) or reads
+   (`expect_stdout_contains`) one `path` in the named `volume`, for an image
+   with no shell. `{{ run_id }}`, `{{ app_name }}`, `{{ primary_container }}`,
+   `{{ container_<service> }}` and `{{ route_host_<service> }}` (the first host
+   of the service's `vps.route.host`) are filled in.
+   - `setup` does the app's first run as a person would: its first
+     administrator, and a setting only an administrator makes. It runs before
+     every seed and before a bench sign-in, never before an assert. Each step
+     gets or creates what it makes and names no `{{ run_id }}`, since what it
+     makes belongs to the instance.
+   - The credential is the harness's: every step of a test with `setup` gets
+     a throwaway password as `CATENA_TEST_PASSWORD` in its environment, the
+     same for the life of the instance. The setup gives it to the app, an
+     assert signs in with it, and no step makes a secret of its own or passes
+     the password on a command line (pass it through the environment, a file
+     or stdin).
+   - `container: "{{ helper_<service> }}"` runs the command in a throwaway
+     container with sh, busybox wget and python3 that shares the network of
+     the service's container and mounts no volume: the way to ask an image with
+     no shell or no HTTP client over HTTP at `127.0.0.1:<port>`.
+     `stdin: service_log` gives a step the last lines of its service's log on
+     stdin, for a one-time setup code the app logs.
+
+   The seed writes its data through the app itself (its API or
    command line) wherever the app allows it, so the restore proves data the
    app wrote. The asserts read that data back through the app and exercise it;
    an assert that reads only a file the seed wrote proves the volume, not the
@@ -324,8 +345,10 @@ block.
    run id, since the `checks` leg and the bench both seed again. An assert
    counts what the seed made, exactly one of each. `tests/test_app_tests.py`
    refuses a step on a stand-in (a `catena_canary` table, a database server's
-   own database), asserts that only read a path, and a word a seed builds from
-   the run id that no assert names; `tests/app-tests-debt.txt` lists the apps whose test
+   own database), asserts that only read a path, a word a seed builds from
+   the run id that no assert names, a setup step naming the run id, a helper of
+   a service the compose lacks, and a credential other than
+   `CATENA_TEST_PASSWORD`; `tests/app-tests-debt.txt` lists the apps whose test
    is still to be rewritten. Real example: `blueprints/erpnext`.
 10. `make` -- renders, lints, and runs the tests. Commit the packed
     `blueprints/<id>/docker-compose.yml`, `catalog.json` and `index.html` with the

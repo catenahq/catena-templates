@@ -303,6 +303,14 @@ README.md, "How to add a template", says how; these are the rules.
   No step reads or writes a stand-in (a `catena_canary` table, a database
   server's own database). An app listed in `tests/app-tests-debt.txt` waits
   for its rewrite; its line goes in the commit whose test meets these rules.
+- An app whose first run needs a person (a first administrator, a setup
+  code, an installer) does it in `setup`, never in a seed: get-or-create,
+  safe to run twice, no `{{ run_id }}`. Its only credential is
+  `CATENA_TEST_PASSWORD`, given to the app in `setup` and signed in with in an
+  assert; never make a password, never write one to the app's data, never put
+  it on a command line. A shell-less app is reached through
+  `{{ helper_<service> }}`, a one-time code through `stdin: service_log`, never
+  through a change to the stack.
 - An app that keeps live state a file snapshot can tear declares `quiesce`,
   one that migrates a schema declares `lifecycle` with `ready`, and one that
   keeps its files in a bucket the host can repoint declares `object_store`.

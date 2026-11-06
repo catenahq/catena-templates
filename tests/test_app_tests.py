@@ -1,9 +1,13 @@
 """Every blueprint's test.yml proves the app's own data: no step reads or
 writes a stand-in (a catena_canary table, a database server's own database), at
 least one assert asks the app more than a plain read of a path, and each word a
-seed builds from the run id appears in an assert. An app listed in
-app-tests-debt.txt is held to none of it until its test is rewritten, and its
-line goes once the test meets the contract."""
+seed builds from the run id appears in an assert. Its setup steps name no run
+id, a helper container serves a service of the app's compose, and the
+credential is the harness's CATENA_TEST_PASSWORD alone: a test with setup steps
+gives it to the app in its setup, signs in with it in an assert and makes no
+secret of its own, a test without them never names it, and no step passes it on
+a command line. An app listed in app-tests-debt.txt is held to none of it until
+its test is rewritten, and its line goes once the test meets the contract."""
 from __future__ import annotations
 
 import re
@@ -37,6 +41,14 @@ PSQL_VALUES = {"-h", "--host", "-p", "--port", "-c", "--command", "-f", "--file"
 # the `postgres` database.
 SERVER_SQL = re.compile(r"\b(?:FROM|JOIN|INTO|UPDATE|TABLE|EXISTS|USE)\s+`?mysql`?(?:\.|\s*;|\s*$)"
                         r"|\\c(?:onnect)?\s+postgres\b", re.I | re.M)
+HELPER = re.compile(r"\{\{ helper_(\w+) \}\}")
+PASSWORD = "CATENA_TEST_PASSWORD"
+PASSWORD_VALUE = re.compile(r"\$\{?CATENA_TEST_PASSWORD\b")
+# Shell builtins: a value they take never reaches a program's argument list.
+BUILTINS = {"printf", "echo", "test", "[", "read", ":"}
+# Calls that make a random secret.
+MAKES_SECRET = re.compile(r"/dev/u?random|openssl\s+rand|\bsecrets\.(?:token_\w+|choice)|\bpwgen\b|SecureRandom"
+                          r"|random_bytes|randomBytes|kernel/random/uuid|\buuidgen\b")
 
 
 def _debt() -> dict[str, str]:
@@ -185,15 +197,50 @@ def _plain_read(command: list[str]) -> bool:
     return any(p in READERS for p in programs) and all(p in READERS | NEUTRAL for p in programs)
 
 
-def problems(doc: dict) -> list[str]:
-    """Why a test.yml does not prove the app's own data."""
-    seed, checks = doc.get("seed") or [], doc.get("assert") or []
+def _password_argument(command: list[str]) -> bool:
+    """Whether a command gives the value of CATENA_TEST_PASSWORD to a program as an argument."""
+    return any(PASSWORD_VALUE.search(word) for _, words in _step_commands(command)
+               if _name(words[0]) not in BUILTINS for word in words[1:])
+
+
+def _credential_problems(setup: list[dict], steps: list[dict], checks: list[dict]) -> list[str]:
     found = []
-    for step in (*seed, *checks):
+    for step in steps:
+        if _password_argument(step.get("command") or []):
+            found.append(f"step {step['name']} passes {PASSWORD} on a command line")
+    if not setup:
+        found.extend(f"step {step['name']} names {PASSWORD}, which only a test with setup steps is given"
+                     for step in steps if PASSWORD in _text(step))
+        return found
+    if not any(PASSWORD in _text(step) for step in setup):
+        found.append(f"no setup step gives the app {PASSWORD}")
+    if not any(PASSWORD in _text(step) for step in checks):
+        found.append(f"no assert signs in with {PASSWORD}")
+    found.extend(f"step {step['name']} makes a secret of its own: a test with setup steps uses {PASSWORD}"
+                 for step in steps if MAKES_SECRET.search(_text(step)))
+    return found
+
+
+def problems(doc: dict, services: frozenset[str] = frozenset()) -> list[str]:
+    """Why a test.yml does not prove the app's own data. `services` are the
+    compose services of the app, spelled as a placeholder (`-` as `_`)."""
+    setup, seed, checks = doc.get("setup") or [], doc.get("seed") or [], doc.get("assert") or []
+    steps = [*setup, *seed, *checks]
+    found = []
+    for step in steps:
         if CANARY.search(_text(step)):
             found.append(f"step {step['name']} names a catena_canary table")
         if _server_database(step):
             found.append(f"step {step['name']} reads or writes a database server's own database")
+        if HELPER.search(_text(step) + " " + step.get("expect_stdout_contains", "")):
+            found.append(f"step {step['name']} names a helper outside its container")
+        helper = HELPER.fullmatch(step.get("container", ""))
+        if helper and helper[1] not in services:
+            found.append(f"step {step['name']} runs in a helper of {helper[1]}, which is no service of the compose")
+    for step in setup:
+        if RUN_RECORD.search(_text(step) + " " + step.get("expect_stdout_contains", "")):
+            found.append(f"setup {step['name']} names the run id: what a setup makes belongs to the instance")
+    found.extend(_credential_problems(setup, steps, checks))
     if not any(step["type"] == "docker_exec" and not _plain_read(step["command"]) for step in checks):
         found.append("no assert is a docker_exec that asks the app more than a plain read of a path")
     named = " ".join(_text(step) + " " + step.get("expect_stdout_contains", "") for step in checks)
@@ -208,17 +255,26 @@ def _app(path: Path) -> str:
     return path.parent.name
 
 
+def _services(app: str) -> frozenset[str]:
+    compose = yaml.safe_load((ROOT / "blueprints" / app / "docker-compose.yml").read_text(encoding="utf-8"))
+    return frozenset(name.replace("-", "_") for name in compose.get("services") or {})
+
+
+def _problems(app: str) -> list[str]:
+    path = ROOT / "blueprints" / app / "test.yml"
+    return problems(yaml.safe_load(path.read_text(encoding="utf-8")), _services(app))
+
+
 @pytest.mark.parametrize("path", [p for p in TESTS if _app(p) not in _debt()], ids=_app)
 def test_the_test_proves_the_apps_own_data(path):
-    assert problems(yaml.safe_load(path.read_text(encoding="utf-8"))) == []
+    assert _problems(_app(path)) == []
 
 
 @pytest.mark.parametrize("app", sorted(_debt()))
 def test_an_app_listed_as_debt_has_a_test_that_still_breaks_the_contract(app):
     path = ROOT / "blueprints" / app / "test.yml"
     assert path.is_file(), f"{app} has no test.yml: delete its line in app-tests-debt.txt"
-    assert problems(yaml.safe_load(path.read_text(encoding="utf-8"))), (
-        f"{app}'s test.yml meets the contract: delete its line in app-tests-debt.txt")
+    assert _problems(app), f"{app}'s test.yml meets the contract: delete its line in app-tests-debt.txt"
 
 
 def _exec(name: str, *command: str, expect: str = "") -> dict:
@@ -329,3 +385,96 @@ def test_a_second_seed_is_held_to_its_own_words():
 
 def test_a_test_with_no_seed_needs_no_run_id():
     assert problems({"assert": [_exec("probe", "sh", "-c", "curl http://app/health")]}) == []
+
+
+SET_UP = {
+    "setup": [_exec("admin", "sh", "-c", 'printf %s "$CATENA_TEST_PASSWORD" | app-cli admin create --password-stdin')],
+    **GOOD,
+    "assert": [*GOOD["assert"], _exec("sign_in", "python3", "-c",
+                                      "import os; sign_in(os.environ['CATENA_TEST_PASSWORD'])")],
+}
+
+
+def test_a_test_whose_setup_gives_the_app_the_test_password_passes():
+    assert problems(SET_UP) == []
+
+
+def test_a_setup_step_on_a_stand_in_is_refused():
+    doc = {**SET_UP, "setup": [*SET_UP["setup"], _exec("canary", "sh", "-c", "SELECT 1 FROM catena_canary")]}
+    assert problems(doc) == ["step canary names a catena_canary table"]
+
+
+def test_a_setup_step_that_names_the_run_id_is_refused():
+    doc = {**SET_UP, "setup": [*SET_UP["setup"], _exec("mine", "sh", "-c", "put team-{{ run_id }}")]}
+    assert problems(doc) == ["setup mine names the run id: what a setup makes belongs to the instance"]
+
+
+def _helper(service: str, *command: str) -> dict:
+    return {**_exec("probe", *command), "container": f"{{{{ helper_{service} }}}}"}
+
+
+def test_an_assert_in_a_helper_of_a_compose_service_asks_the_app():
+    doc = {**GOOD, "assert": [_helper("app", "python3", "-c", "get('http://127.0.0.1:8080/api/catena-{{ run_id }}')")]}
+    assert problems(doc, frozenset({"app", "db"})) == []
+
+
+def test_a_helper_of_a_service_the_compose_lacks_is_refused():
+    doc = {**GOOD, "assert": [*GOOD["assert"], _helper("web", "python3", "-c", "get('/')")]}
+    assert problems(doc, frozenset({"app"})) == [
+        "step probe runs in a helper of web, which is no service of the compose"]
+
+
+def test_a_helper_named_outside_a_steps_container_is_refused():
+    doc = {**GOOD, "assert": [*GOOD["assert"], _exec("probe", "sh", "-c", "curl http://{{ helper_app }}/")]}
+    assert problems(doc, frozenset({"app"})) == ["step probe names a helper outside its container"]
+
+
+def test_a_test_without_setup_never_names_the_test_password():
+    doc = {**GOOD, "assert": [*GOOD["assert"], _exec("sign_in", "sh", "-c", "app-cli login --env CATENA_TEST_PASSWORD")]}
+    assert problems(doc) == ["step sign_in names CATENA_TEST_PASSWORD, which only a test with setup steps is given"]
+
+
+def test_a_setup_that_never_gives_the_app_the_test_password_is_refused():
+    doc = {**SET_UP, "setup": [_exec("admin", "sh", "-c", "app-cli admin create")]}
+    assert problems(doc) == ["no setup step gives the app CATENA_TEST_PASSWORD"]
+
+
+def test_a_test_with_setup_signs_in_with_the_test_password_in_an_assert():
+    doc = {**SET_UP, "assert": GOOD["assert"]}
+    assert problems(doc) == ["no assert signs in with CATENA_TEST_PASSWORD"]
+
+
+@pytest.mark.parametrize("command", [
+    "head -c 18 /dev/urandom | base64 > /data/pw",
+    "openssl rand -hex 16",
+    "python3 -c 'import secrets; print(secrets.token_hex(16))'",
+    "php -r 'echo bin2hex(random_bytes(16));'",
+    "node -e 'console.log(require(\"crypto\").randomBytes(18))'",
+    "cat /proc/sys/kernel/random/uuid",
+])
+def test_a_test_with_setup_that_makes_a_secret_of_its_own_is_refused(command):
+    doc = {**SET_UP, "seed": [*SET_UP["seed"], _exec("own", "sh", "-c", command)]}
+    assert problems(doc) == ["step own makes a secret of its own: a test with setup steps uses CATENA_TEST_PASSWORD"]
+
+
+@pytest.mark.parametrize("command", [
+    'app-cli login --password "$CATENA_TEST_PASSWORD"',
+    "curl -u admin:${CATENA_TEST_PASSWORD} http://127.0.0.1/api",
+    'set -eu\nexec app-cli login "$CATENA_TEST_PASSWORD"',
+])
+def test_the_test_password_on_a_command_line_is_refused(command):
+    doc = {**SET_UP, "assert": [*SET_UP["assert"], _exec("leak", "sh", "-c", command)]}
+    assert problems(doc) == ["step leak passes CATENA_TEST_PASSWORD on a command line"]
+
+
+@pytest.mark.parametrize("command", [
+    'printf %s "$CATENA_TEST_PASSWORD" | app-cli login --password-stdin',
+    'APP_PASSWORD="$CATENA_TEST_PASSWORD" app-cli login',
+    'export APP_PASSWORD="$CATENA_TEST_PASSWORD"\napp-cli login',
+    '[ -n "$CATENA_TEST_PASSWORD" ] && app-cli login',
+    "rails r 'User.find_by(login: \"admin\").valid_password?(ENV[\"CATENA_TEST_PASSWORD\"])'",
+    "app-cli login <<EOF\n$CATENA_TEST_PASSWORD\nEOF",
+])
+def test_the_test_password_through_the_environment_or_stdin_is_not_a_command_line(command):
+    doc = {**SET_UP, "assert": [*SET_UP["assert"], _exec("sign_in", "sh", "-c", command)]}
+    assert problems(doc) == []
