@@ -3434,6 +3434,15 @@
           "managed": {
             "expr": "5349"
           }
+        },
+        "UPDATE_LEVEL": {
+          "setting": {
+            "default": "major",
+            "label": {
+              "en": "Automatic updates: major, minor, patch or off",
+              "fr": "Mises \u00e0 jour automatiques : major, minor, patch ou off"
+            }
+          }
         }
       },
       "env_defaults": [
@@ -3441,7 +3450,8 @@
         "TURN_PORT=3478",
         "TURN_TLS_PORT=5349",
         "TURN_EXTERNAL_IP={{ public_ip }}",
-        "TURN_SECRET={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}"
+        "TURN_SECRET={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}",
+        "UPDATE_LEVEL=major"
       ],
       "env_managed_keys": [
         "TURN_HOSTNAME",
@@ -3462,7 +3472,7 @@
       },
       "hostname_baked": false,
       "id": "coturn",
-      "requires_catena": "0.11.12",
+      "requires_catena": "0.12.2",
       "sizing": {
         "disk_baseline_mb": 30,
         "idle_cpu_pct": null,
