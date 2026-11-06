@@ -1,82 +1,113 @@
-# Restore-drill test for the erpnext template: state the bench seeds after the
-# deploy and checks after a restore. Steps are plain data the CI harness runs
-# with docker exec; {{ run_id }} and {{ container_<service> }} are filled in by
-# the harness.
+# Test for the erpnext template: a note and its private file, made through Frappe,
+# survive a backup, a restore and the updates. The seed runs Frappe in the backend
+# (the users hook's way: frappe.init on SITE_NAME, then frappe.connect as
+# Administrator) and makes the note catena-<run> holding fixture-<run>, then attaches
+# the private file catena-<run>.txt with the same content, each only when it is
+# missing, so a second seed changes nothing. A seed that fails rolls its transaction
+# back, and Frappe's rollback deletes the file the insert wrote, so the next seed
+# writes it again under the same name. The note lives in the site's own
+# database and the file in sites/<site>/private/files, so the asserts read the
+# database and the files the restore brings back. The assert signs in as
+# Administrator at the backend's own listener with the Host header of the site, lists
+# the note and the files attached to it through the REST API, counting exactly one
+# of each, and downloads the file. The password comes from the container's
+# environment, so it rides no argument list and is printed nowhere.
 #
-# The backend creates the site, so it always mounts the sites volume, where the
-# file marker lands. The database canary uses the mysql system database with the
-# root user, which keeps the test independent of the hash-derived name Frappe
-# gives the site's own database.
+# {{ run_id }} is supplied by the bench at execution time and each
+# {{ container_* }} is resolved from `docker ps` before invoking.
 
 id: erpnext
 description: >-
-  File marker in /home/frappe/frappe-bench/sites AND a row in MariaDB
-  mysql.catena_canary (root user) must round-trip through restic +
-  per-db replay restore unchanged.
+  The note catena-<run> holding fixture-<run> and its private file catena-<run>.txt,
+  made through Frappe, are listed exactly once by the site's REST API and the file
+  downloads with its content, before and after the backup, the restore and the
+  updates.
 
 seed:
-  - name: file_marker
+  - name: site_documents
     type: docker_exec
     container: "{{ container_backend }}"
     command:
-      - sh
+      - bash
       - -c
       - |
         set -eu
-        umask 0027
-        target="/home/frappe/frappe-bench/sites/r25-marker.txt"
-        printf 'fixture-{{ run_id }}\n' > "$target"
-    timeout_s: 60
+        cd /home/frappe/frappe-bench/sites
+        exec ../env/bin/python - <<'PY'
+        import os
 
-  - name: wait_db_ready
-    type: docker_exec
-    container: "{{ container_db }}"
-    command:
-      - sh
-      - -c
-      - |
-        for i in $(seq 1 30); do
-          mariadb-admin ping -h localhost -uroot \
-            -p"$MARIADB_ROOT_PASSWORD" && exit 0
-          sleep 2
-        done
-        exit 1
-    timeout_s: 70
+        import frappe
 
-  - name: db_canary_insert
-    type: docker_exec
-    container: "{{ container_db }}"
-    command:
-      - sh
-      - -c
-      - |
-        MYSQL_PWD="$MARIADB_ROOT_PASSWORD" mariadb -uroot mysql <<'SQL'
-        CREATE TABLE IF NOT EXISTS catena_canary (
-          run_id VARCHAR(64) NOT NULL PRIMARY KEY,
-          seeded_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-        INSERT IGNORE INTO catena_canary (run_id) VALUES ('{{ run_id }}');
-        SQL
-    timeout_s: 30
+        TITLE = "catena-{{ run_id }}"
+        FILE = "catena-{{ run_id }}.txt"
+        CONTENT = "fixture-{{ run_id }}"
+
+        frappe.init(os.environ["SITE_NAME"])
+        try:
+            frappe.connect()
+            try:
+                note = frappe.db.get_value("Note", {"title": TITLE})
+                if not note:
+                    note = frappe.get_doc({"doctype": "Note", "title": TITLE, "content": CONTENT}).insert().name
+                attached = {"attached_to_doctype": "Note", "attached_to_name": note, "file_name": FILE}
+                if not frappe.db.exists("File", attached):
+                    frappe.get_doc(dict(attached, doctype="File", content=CONTENT, is_private=1)).insert()
+                frappe.db.commit()
+            except BaseException:
+                frappe.db.rollback()
+                raise
+            print("seeded note " + TITLE + " as " + note)
+        finally:
+            frappe.destroy()
+        PY
+    expect_stdout_contains: "seeded note catena-{{ run_id }}"
+    timeout_s: 120
 
 assert:
-  - name: file_marker_present
+  - name: site_documents_through_the_site
     type: docker_exec
     container: "{{ container_backend }}"
     command:
-      - cat
-      - /home/frappe/frappe-bench/sites/r25-marker.txt
-    expect_stdout_contains: "fixture-{{ run_id }}"
-    timeout_s: 30
-
-  - name: db_canary_row_present
-    type: docker_exec
-    container: "{{ container_db }}"
-    command:
-      - sh
+      - python3
       - -c
       - |
-        MYSQL_PWD="$MARIADB_ROOT_PASSWORD" mariadb -uroot -N -B mysql \
-          -e "SELECT run_id FROM catena_canary WHERE run_id = '{{ run_id }}'"
-    expect_stdout_contains: "{{ run_id }}"
-    timeout_s: 30
+        import json, os, sys, urllib.error, urllib.parse, urllib.request
+
+        TITLE = "catena-{{ run_id }}"
+        CONTENT = "fixture-{{ run_id }}"
+        FILE_URL = "/private/files/catena-{{ run_id }}.txt"
+        headers = {"Host": os.environ["SITE_NAME"]}
+
+
+        def call(path, data=None, **query):
+            url = "http://127.0.0.1:8000" + urllib.parse.quote(path)
+            if query:
+                url += "?" + urllib.parse.urlencode({key: json.dumps(value) for key, value in query.items()})
+            try:
+                with urllib.request.urlopen(urllib.request.Request(url, data=data, headers=headers), timeout=30) as answer:
+                    return answer.headers.get_all("Set-Cookie") or [], answer.read().decode()
+            except urllib.error.HTTPError as error:
+                sys.exit(f"{path} answered HTTP {error.code}")
+
+
+        login = urllib.parse.urlencode({"usr": "Administrator", "pwd": os.environ["ERPNEXT_ADMIN_PASSWORD"]})
+        sid = [cookie.split(";", 1)[0] for cookie in call("/api/method/login", data=login.encode())[0]
+               if cookie.startswith("sid=")]
+        if not sid:
+            sys.exit("the login set no session cookie")
+        headers["Cookie"] = sid[0]
+        notes = json.loads(call("/api/resource/Note", filters=[["title", "=", TITLE]],
+                                fields=["name", "content"])[1])["data"]
+        if len(notes) != 1 or CONTENT not in (notes[0].get("content") or ""):
+            sys.exit(f"the site lists {notes} as the notes titled {TITLE}, expected one holding {CONTENT}")
+        files = json.loads(call("/api/resource/File", filters=[["attached_to_doctype", "=", "Note"],
+                                                                ["attached_to_name", "=", notes[0]["name"]]],
+                                fields=["file_url"])[1])["data"]
+        if [entry.get("file_url") for entry in files] != [FILE_URL]:
+            sys.exit(f"the note {TITLE} has the files {files} attached, expected only {FILE_URL}")
+        body = call(FILE_URL)[1]
+        if body != CONTENT:
+            sys.exit(f"{FILE_URL} holds {body[:200]!r}, expected {CONTENT}")
+        print(f"site documents ok: note {TITLE} and its file {FILE_URL}")
+    expect_stdout_contains: "site documents ok: note catena-{{ run_id }}"
+    timeout_s: 120
