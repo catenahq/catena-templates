@@ -186,7 +186,7 @@ def test_temporal_is_wired_to_postiz_and_to_the_db_service():
         assert service["networks"] == ["default"]
         assert "volumes" not in service and "depends_on" not in service
         assert service["deploy"]["restart_policy"]["condition"] == "any"
-        assert "vps.auto-update=patch" in service["labels"]
+        assert "vps.auto-update=${UPDATE_LEVEL:-major}" in service["labels"]
     minor = lambda s: s["image"].rsplit(":", 1)[1].rsplit(".", 1)[0]
     assert minor(temporal) == minor(setup)
     assert temporal["environment"]["POSTGRES_SEEDS"] == "db"

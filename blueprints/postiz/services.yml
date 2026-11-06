@@ -48,7 +48,7 @@ services:
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=5000"
       - "vps.auth.mode=public"
-      - "vps.auto-update=patch"
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
     cap_drop:
       - NET_RAW
     networks:
@@ -114,7 +114,7 @@ services:
       SQL_VIS_MAX_CONNS: "5"
       SQL_VIS_MAX_IDLE_CONNS: "5"
     labels:
-      - "vps.auto-update=patch"
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
     networks:
       - default
 
@@ -150,7 +150,7 @@ services:
       SQL_USER: postiz
       SQL_PASSWORD: ${DB_PASSWORD}
     labels:
-      - "vps.auto-update=patch"
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
     networks:
       - default
 
