@@ -320,7 +320,13 @@ block.
    command line) wherever the app allows it, so the restore proves data the
    app wrote. The asserts read that data back through the app and exercise it;
    an assert that reads only a file the seed wrote proves the volume, not the
-   app. Real example: `blueprints/erpnext`.
+   app. The seed is safe to run twice: it gets or creates each record by the
+   run id, since the `checks` leg and the bench both seed again. An assert
+   counts what the seed made, exactly one of each. `tests/test_app_tests.py`
+   refuses a step on a stand-in (a `catena_canary` table, a database server's
+   own database), asserts that only read a path, and a word a seed builds from
+   the run id that no assert names; `tests/app-tests-debt.txt` lists the apps whose test
+   is still to be rewritten. Real example: `blueprints/erpnext`.
 10. `make` -- renders, lints, and runs the tests. Commit the packed
     `blueprints/<id>/docker-compose.yml`, `catalog.json` and `index.html` with the
     source change.

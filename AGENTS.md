@@ -298,7 +298,11 @@ README.md, "How to add a template", says how; these are the rules.
   backup or an update holds is on.
 - `test.yml` seeds through the app itself (its API or command line) wherever
   the app allows it. Its asserts exercise the app; an assert that reads only
-  data the seed itself wrote is never enough.
+  data the seed itself wrote is never enough. A seed is safe to run twice: it
+  gets or creates each record by the run id, and an assert counts exactly one.
+  No step reads or writes a stand-in (a `catena_canary` table, a database
+  server's own database). An app listed in `tests/app-tests-debt.txt` waits
+  for its rewrite; its line goes in the commit whose test meets these rules.
 - An app that keeps live state a file snapshot can tear declares `quiesce`,
   one that migrates a schema declares `lifecycle` with `ready`, and one that
   keeps its files in a bucket the host can repoint declares `object_store`.
