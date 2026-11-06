@@ -2436,10 +2436,20 @@
           "managed": {
             "expr": "budget.{{ cloudflare_zone }}"
           }
+        },
+        "UPDATE_LEVEL": {
+          "setting": {
+            "default": "major",
+            "label": {
+              "en": "Automatic updates: major, minor, patch or off",
+              "fr": "Mises \u00e0 jour automatiques : major, minor, patch ou off"
+            }
+          }
         }
       },
       "env_defaults": [
-        "DOMAIN_HOST=budget.{{ cloudflare_zone }}"
+        "DOMAIN_HOST=budget.{{ cloudflare_zone }}",
+        "UPDATE_LEVEL=major"
       ],
       "env_managed_keys": [
         "DOMAIN_HOST"
@@ -2491,7 +2501,7 @@
         "service": "actual",
         "timeout_seconds": 10
       },
-      "requires_catena": "0.11.12",
+      "requires_catena": "0.12.2",
       "sizing": {
         "disk_baseline_mb": 30,
         "idle_cpu_pct": 1,

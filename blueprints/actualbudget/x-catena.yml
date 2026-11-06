@@ -1,8 +1,10 @@
 schema: 2
-requires_catena: 0.11.12
+requires_catena: 0.12.2
 env:
   DOMAIN_HOST:
     managed: {expr: "budget.{{ cloudflare_zone }}"}
+  UPDATE_LEVEL:
+    setting: {default: "major", label: {en: "Automatic updates: major, minor, patch or off", fr: "Mises à jour automatiques : major, minor, patch ou off"}}
 lifecycle:
   service: "actual"
   ready: ["node", "-e", "require('net').connect(5006, '127.0.0.1').on('connect', () => process.exit(0)).on('error', () => process.exit(1))"]
