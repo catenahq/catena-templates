@@ -1,6 +1,6 @@
 x-catena:
   schema: 2
-  requires_catena: 0.11.12
+  requires_catena: 0.12.2
   version_from: dms
   env:
     DOMAIN_HOST:
@@ -27,6 +27,8 @@ x-catena:
       managed: {expr: "{{ provided.antivirus.host }}"}
     ANTIVIRUS_PORT:
       managed: {expr: "{{ provided.antivirus.port }}"}
+    UPDATE_LEVEL:
+      setting: {default: "major", label: {en: "Automatic updates: major, minor, patch or off", fr: "Mises à jour automatiques : major, minor, patch ou off"}}
   capabilities: [NET_ADMIN]
   lifecycle:
     service: "roundcube"
@@ -511,7 +513,7 @@ services:
     labels:
       # Mail ports -> public-port registry (host reconciler applies ufw).
       - "vps.expose.tcp=25,465,587,993"
-      - "vps.auto-update=patch"
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
     networks:
       default: {}
       # rspamd reaches the antivirus scanner on its network.
@@ -604,7 +606,7 @@ services:
       - "vps.auth.oidc.introspect=true"
       - "vps.auth.groups=staff,client"
       - "vps.auth.oidc.redirect_uris=https://${DOMAIN_HOST}/index.php/login/oauth"
-      - "vps.auto-update=patch"
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
     cap_drop:
       - NET_RAW
     networks:
@@ -662,7 +664,7 @@ services:
       - "vps.auth.mode=public"
       - "vps.health.path=/.well-known/mta-sts.txt"
       - "vps.health.expect=STSv1"
-      - "vps.auto-update=patch"
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
     cap_drop:
       - NET_RAW
     networks:

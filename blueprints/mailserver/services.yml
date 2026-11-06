@@ -303,7 +303,7 @@ services:
     labels:
       # Mail ports -> public-port registry (host reconciler applies ufw).
       - "vps.expose.tcp=25,465,587,993"
-      - "vps.auto-update=patch"
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
     networks:
       default: {}
       # rspamd reaches the antivirus scanner on its network.
@@ -396,7 +396,7 @@ services:
       - "vps.auth.oidc.introspect=true"
       - "vps.auth.groups=staff,client"
       - "vps.auth.oidc.redirect_uris=https://${DOMAIN_HOST}/index.php/login/oauth"
-      - "vps.auto-update=patch"
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
     cap_drop:
       - NET_RAW
     networks:
@@ -454,7 +454,7 @@ services:
       - "vps.auth.mode=public"
       - "vps.health.path=/.well-known/mta-sts.txt"
       - "vps.health.expect=STSv1"
-      - "vps.auto-update=patch"
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
     cap_drop:
       - NET_RAW
     networks:
