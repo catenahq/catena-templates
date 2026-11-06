@@ -1,0 +1,147 @@
+# Test for the rocketchat-oidc template: a channel and a message in it, made through
+# Rocket.Chat's REST API, survive a backup, a restore and the updates. The seed runs
+# node inside the rocketchat container against its own listener on 127.0.0.1:3000: it
+# waits until the first administrator (ADMIN_USERNAME and ADMIN_PASS of the
+# container's environment) can sign in, then gets or creates the public channel
+# catena-<run> and posts the message fixture-<run> in it only when the channel does
+# not hold it, so a second seed changes nothing. Channels and messages live in
+# MongoDB, so the asserts read what the database replay brings back: they sign in
+# again, list the channels named catena-<run> and count exactly one, and list that
+# channel's messages and count exactly one holding fixture-<run>. The login comes
+# from the container's environment, so it rides no argument list and is printed
+# nowhere.
+#
+# {{ run_id }} is supplied by the bench at execution time and each
+# {{ container_* }} is resolved from `docker ps` before invoking.
+
+id: rocketchat-oidc
+description: >-
+  The channel catena-<run> made through Rocket.Chat's REST API is listed exactly once
+  and holds exactly one message fixture-<run>, before and after the backup, the
+  restore and the updates.
+
+seed:
+  - name: channel_with_a_message
+    type: docker_exec
+    container: "{{ container_rocketchat }}"
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        exec node - <<'JS'
+        const env = process.env;
+        const api = "http://127.0.0.1:3000/api/v1";
+        const NAME = "catena-{{ run_id }}";
+        const TEXT = "fixture-{{ run_id }}";
+        const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+        async function call(method, path, auth, body) {
+          const headers = { ...auth };
+          if (body) headers["content-type"] = "application/json";
+          const res = await fetch(api + path, {
+            method, headers, signal: AbortSignal.timeout(30000),
+            body: body ? JSON.stringify(body) : undefined,
+          });
+          return { status: res.status, body: await res.json().catch(() => null) };
+        }
+
+        (async () => {
+          let auth = null;
+          for (let i = 0; !auth; i++) {
+            try {
+              const res = await call("POST", "/login", {}, { user: env.ADMIN_USERNAME, password: env.ADMIN_PASS });
+              if (res.status === 200 && res.body.data) {
+                auth = { "X-Auth-Token": res.body.data.authToken, "X-User-Id": res.body.data.userId };
+              }
+            } catch {}
+            if (!auth) {
+              if (i === 60) throw new Error("the administrator could not sign in within 300 s");
+              await sleep(5000);
+            }
+          }
+          let info = await call("GET", "/channels.info?roomName=" + encodeURIComponent(NAME), auth);
+          if (info.status !== 200) {
+            info = await call("POST", "/channels.create", auth, { name: NAME });
+            if (info.status !== 200) throw new Error("channels.create answered HTTP " + info.status);
+          }
+          const roomId = info.body.channel._id;
+          const listed = await call("GET", "/channels.messages?count=100&roomId=" + roomId, auth);
+          if (listed.status !== 200) throw new Error("channels.messages answered HTTP " + listed.status);
+          if (!listed.body.messages.some((m) => m.msg === TEXT)) {
+            const posted = await call("POST", "/chat.postMessage", auth, { roomId, text: TEXT });
+            if (posted.status !== 200) throw new Error("chat.postMessage answered HTTP " + posted.status);
+          }
+          await call("POST", "/logout", auth);
+          console.log("seeded channel " + NAME + " as " + roomId);
+        })().catch((e) => {
+          console.error(e.message);
+          process.exit(1);
+        });
+        JS
+    expect_stdout_contains: "seeded channel catena-{{ run_id }}"
+    timeout_s: 420
+
+assert:
+  - name: channel_and_message_through_rocketchat
+    type: docker_exec
+    container: "{{ container_rocketchat }}"
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        exec node - <<'JS'
+        const env = process.env;
+        const api = "http://127.0.0.1:3000/api/v1";
+        const NAME = "catena-{{ run_id }}";
+        const TEXT = "fixture-{{ run_id }}";
+        const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+        async function call(method, path, auth, body) {
+          const headers = { ...auth };
+          if (body) headers["content-type"] = "application/json";
+          const res = await fetch(api + path, {
+            method, headers, signal: AbortSignal.timeout(30000),
+            body: body ? JSON.stringify(body) : undefined,
+          });
+          return { status: res.status, body: await res.json().catch(() => null) };
+        }
+
+        (async () => {
+          let auth = null;
+          for (let i = 0; !auth; i++) {
+            try {
+              const res = await call("POST", "/login", {}, { user: env.ADMIN_USERNAME, password: env.ADMIN_PASS });
+              if (res.status === 200 && res.body.data) {
+                auth = { "X-Auth-Token": res.body.data.authToken, "X-User-Id": res.body.data.userId };
+              }
+            } catch {}
+            if (!auth) {
+              if (i === 60) throw new Error("the administrator could not sign in within 300 s");
+              await sleep(5000);
+            }
+          }
+          const query = encodeURIComponent(JSON.stringify({ name: NAME }));
+          const channels = await call("GET", "/channels.list?query=" + query, auth);
+          if (channels.status !== 200 || channels.body.channels.length !== 1) {
+            throw new Error("channels.list answered HTTP " + channels.status + " with "
+              + (channels.body && channels.body.channels ? channels.body.channels.length : "no")
+              + " channels named " + NAME + ", expected one");
+          }
+          const roomId = channels.body.channels[0]._id;
+          const listed = await call("GET", "/channels.messages?count=100&roomId=" + roomId, auth);
+          if (listed.status !== 200) throw new Error("channels.messages answered HTTP " + listed.status);
+          const found = listed.body.messages.filter((m) => m.msg === TEXT);
+          if (found.length !== 1) {
+            throw new Error("the channel " + NAME + " holds " + found.length + " messages " + TEXT + ", expected one");
+          }
+          await call("POST", "/logout", auth);
+          console.log("channel ok: " + NAME + " holds " + TEXT);
+        })().catch((e) => {
+          console.error(e.message);
+          process.exit(1);
+        });
+        JS
+    expect_stdout_contains: "channel ok: catena-{{ run_id }} holds fixture-{{ run_id }}"
+    timeout_s: 420
