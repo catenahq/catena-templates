@@ -1,5 +1,5 @@
 schema: 2
-requires_catena: 0.11.12
+requires_catena: 0.12.2
 env:
   DOMAIN_HOST:
     managed: {expr: "nextcloud.{{ cloudflare_zone }}"}
@@ -71,6 +71,8 @@ env:
     managed: {expr: "{{ smtp_relay_tls | default('') }}"}
   SMTP_RELAY_SENDER:
     managed: {expr: "{{ smtp_relay_sender | default('') }}"}
+  UPDATE_LEVEL:
+    setting: {default: "major", label: {en: "Automatic updates: major, minor, patch or off", fr: "Mises à jour automatiques : major, minor, patch ou off"}}
 secrets: [smtp_password]
 access:
   user:

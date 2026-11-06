@@ -210,6 +210,15 @@
             "expr": "{{ provided.turn.tls_port }}"
           }
         },
+        "UPDATE_LEVEL": {
+          "setting": {
+            "default": "major",
+            "label": {
+              "en": "Automatic updates: major, minor, patch or off",
+              "fr": "Mises \u00e0 jour automatiques : major, minor, patch ou off"
+            }
+          }
+        },
         "WEBMAIL_HOSTNAME": {
           "setting": {
             "default": "webmail.{{ cloudflare_zone }}"
@@ -251,7 +260,8 @@
         "SMTP_RELAY_USER={{ smtp_relay_user | default('') }}",
         "SMTP_RELAY_PASSWORD={{ smtp_password | default('') }}",
         "SMTP_RELAY_TLS={{ smtp_relay_tls | default('') }}",
-        "SMTP_RELAY_SENDER={{ smtp_relay_sender | default('') }}"
+        "SMTP_RELAY_SENDER={{ smtp_relay_sender | default('') }}",
+        "UPDATE_LEVEL=major"
       ],
       "env_managed_keys": [
         "DOMAIN_HOST",
@@ -361,7 +371,7 @@
         "timeout_seconds": 60,
         "user": "www-data"
       },
-      "requires_catena": "0.11.12",
+      "requires_catena": "0.12.2",
       "sizing": {
         "disk_baseline_mb": 320,
         "idle_cpu_pct": 2,

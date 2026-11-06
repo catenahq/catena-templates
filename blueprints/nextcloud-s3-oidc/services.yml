@@ -365,7 +365,7 @@ services:
       - "vps.auth.oidc=true"
       - "vps.auth.groups=staff"
       - "vps.auth.oidc.redirect_uris=https://${NEXTCLOUD_HOSTNAME}/apps/user_oidc/code"
-      - "vps.auto-update=patch"
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
       # status.php answers 200 before the install and in maintenance; the body says which.
       - "vps.health.path=/status.php"
       - 'vps.health.expect="installed":true,"maintenance":false'
@@ -548,6 +548,8 @@ services:
       # Background virus scans (files_antivirus job) run here too, so
       # cron also reaches the antivirus scanner.
       - antivirus
+    labels:
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
 
   # === HPB BEGIN -- Talk High-Performance Backend ==========================
   # Comment out this single service to disable Talk + HPB. The configure
@@ -652,7 +654,7 @@ services:
       - "vps.route.port=8081"
       - "vps.auth.mode=public"
       - "vps.health.path=/api/v1/welcome"
-      - "vps.auto-update=patch"
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
     cap_drop:
       - NET_RAW
     networks:
