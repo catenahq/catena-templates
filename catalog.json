@@ -3990,6 +3990,15 @@
           "managed": {
             "expr": "{{ cloudflare_zone | default('') }}"
           }
+        },
+        "UPDATE_LEVEL": {
+          "setting": {
+            "default": "major",
+            "label": {
+              "en": "Automatic updates: major, minor, patch or off",
+              "fr": "Mises \u00e0 jour automatiques : major, minor, patch ou off"
+            }
+          }
         }
       },
       "env_defaults": [
@@ -3997,7 +4006,8 @@
         "HC_URL={{ provided.healthchecks.url }}",
         "HC_PING_KEY={{ provided.healthchecks.ping_key }}",
         "HUB_URL={{ provided.beszel.url }}",
-        "UI_TITLE={{ cloudflare_zone | default('') }}"
+        "UI_TITLE={{ cloudflare_zone | default('') }}",
+        "UPDATE_LEVEL=major"
       ],
       "env_managed_keys": [
         "HC_URL",
