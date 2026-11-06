@@ -44,6 +44,6 @@
       "Grafana avec Prometheus"
     ],
     "compose_description": "Concentrateur auto-h\u00e9berg\u00e9 de surveillance des serveurs et des conteneurs.\n",
-    "setup_steps": "Le serveur installe cette application et vous y connecte par sa propre connexion. Son adresse est le pr\u00e9fixe ci-dessous suivi de votre domaine.\n\n1. Ouvrez **Beszel** depuis la page Apps.\n2. L'agent du serveur est d\u00e9j\u00e0 enregistr\u00e9. Ajoutez d'autres machines avec **Add system**.\n3. R\u00e9glez les seuils d'alerte de chaque syst\u00e8me."
+    "setup_steps": "Le serveur installe cette application et vous y connecte par sa propre connexion. Son adresse est le pr\u00e9fixe ci-dessous suivi de votre domaine.\n\n1. Ouvrez **Beszel** depuis la page Applications.\n2. L'agent du serveur est d\u00e9j\u00e0 enregistr\u00e9. Ajoutez d'autres machines avec **Add system**.\n3. R\u00e9glez les seuils d'alerte de chaque syst\u00e8me."
   }
 }

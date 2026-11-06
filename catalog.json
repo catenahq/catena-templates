@@ -3932,7 +3932,7 @@
           "Datadog",
           "Grafana avec Prometheus"
         ],
-        "setup_steps": "Le serveur installe cette application et vous y connecte par sa propre connexion. Son adresse est le pr\u00e9fixe ci-dessous suivi de votre domaine.\n\n1. Ouvrez **Beszel** depuis la page Apps.\n2. L'agent du serveur est d\u00e9j\u00e0 enregistr\u00e9. Ajoutez d'autres machines avec **Add system**.\n3. R\u00e9glez les seuils d'alerte de chaque syst\u00e8me.",
+        "setup_steps": "Le serveur installe cette application et vous y connecte par sa propre connexion. Son adresse est le pr\u00e9fixe ci-dessous suivi de votre domaine.\n\n1. Ouvrez **Beszel** depuis la page Applications.\n2. L'agent du serveur est d\u00e9j\u00e0 enregistr\u00e9. Ajoutez d'autres machines avec **Add system**.\n3. R\u00e9glez les seuils d'alerte de chaque syst\u00e8me.",
         "summary": "Surveillance l\u00e9g\u00e8re des serveurs : historique du processeur, de la m\u00e9moire, du disque et des conteneurs, avec alertes.",
         "what_it_is": "Le concentrateur Beszel garde l'historique des ressources des serveurs et des conteneurs qu'il surveille et alerte quand un seuil est franchi. Le serveur ex\u00e9cute un agent pour lui-m\u00eame ; les alertes vont \u00e0 Healthchecks."
       },
