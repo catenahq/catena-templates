@@ -3533,10 +3533,20 @@
           "setting": {
             "default": "portainer.{{ cloudflare_zone }}"
           }
+        },
+        "UPDATE_LEVEL": {
+          "setting": {
+            "default": "major",
+            "label": {
+              "en": "Automatic updates: major, minor, patch or off",
+              "fr": "Mises \u00e0 jour automatiques : major, minor, patch ou off"
+            }
+          }
         }
       },
       "env_defaults": [
-        "DOMAIN_HOST=portainer.{{ cloudflare_zone }}"
+        "DOMAIN_HOST=portainer.{{ cloudflare_zone }}",
+        "UPDATE_LEVEL=major"
       ],
       "fr": {
         "compose_description": "Console de gestion Docker, r\u00e9serv\u00e9e aux administrateurs.\n",
@@ -3552,7 +3562,7 @@
       },
       "hostname_baked": false,
       "id": "portainer",
-      "requires_catena": "0.11.12",
+      "requires_catena": "0.12.2",
       "sizing": {
         "disk_baseline_mb": null,
         "idle_cpu_pct": null,
