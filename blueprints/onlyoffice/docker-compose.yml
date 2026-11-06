@@ -1,6 +1,6 @@
 x-catena:
   schema: 2
-  requires_catena: 0.11.12
+  requires_catena: 0.12.2
   env:
     DOMAIN_HOST:
       managed: {expr: "office.{{ cloudflare_zone }}"}
@@ -10,6 +10,8 @@ x-catena:
       managed: {expr: "onlyoffice"}
     OFFICE_URL:
       managed: {expr: "https://office.{{ cloudflare_zone }}"}
+    UPDATE_LEVEL:
+      setting: {default: "major", label: {en: "Automatic updates: major, minor, patch or off", fr: "Mises à jour automatiques : major, minor, patch ou off"}}
   provides:
     office: {editor: OFFICE_EDITOR, url: OFFICE_URL, jwt_secret: JWT_SECRET}
   images:
@@ -67,7 +69,7 @@ services:
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=80"
       - "vps.auth.mode=public"
-      - "vps.auto-update=patch"
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
     cap_drop:
       - NET_RAW
     networks:

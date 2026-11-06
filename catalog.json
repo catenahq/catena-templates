@@ -619,13 +619,23 @@
           "managed": {
             "expr": "https://office.{{ cloudflare_zone }}"
           }
+        },
+        "UPDATE_LEVEL": {
+          "setting": {
+            "default": "major",
+            "label": {
+              "en": "Automatic updates: major, minor, patch or off",
+              "fr": "Mises \u00e0 jour automatiques : major, minor, patch ou off"
+            }
+          }
         }
       },
       "env_defaults": [
         "DOMAIN_HOST=office.{{ cloudflare_zone }}",
         "JWT_SECRET={{ lookup('password', '/dev/null length=48 chars=ascii_letters,digits') }}",
         "OFFICE_EDITOR=onlyoffice",
-        "OFFICE_URL=https://office.{{ cloudflare_zone }}"
+        "OFFICE_URL=https://office.{{ cloudflare_zone }}",
+        "UPDATE_LEVEL=major"
       ],
       "env_managed_keys": [
         "DOMAIN_HOST",
@@ -645,7 +655,7 @@
       },
       "hostname_baked": false,
       "id": "onlyoffice",
-      "requires_catena": "0.11.12",
+      "requires_catena": "0.12.2",
       "sizing": {
         "disk_baseline_mb": 90,
         "idle_cpu_pct": 1,
