@@ -35,7 +35,8 @@ private runner in a disposable test VM copied from the Catena base VM. That VM h
 throwaway credentials (its own backup repositories and a sandbox licence, and
 Catena's own generated secrets made new; none the bench's, checked by a scan), is refused unless the app checker finds no X7, X8 or X9 in the
 compose file, runs only the steps of `test.yml` that touch the app's own
-containers and volumes, and has its outbound network dropped except the
+containers and volumes or run in a helper sharing an app container's network,
+and has its outbound network dropped except the
 registry caches, DNS, time servers and the hosts the app's block declares. The
 hosts a pull request adds to the block are listed in the test result for review.
 

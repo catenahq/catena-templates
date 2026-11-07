@@ -15,7 +15,10 @@
 # when the name does not resolve. Every step waits until status.php reports Nextcloud
 # installed and out of maintenance mode (occ status, the lifecycle ready question, also
 # passes before the install), then runs curl inside the app container against its own
-# Apache. The administrator's login comes from the container's environment and reaches
+# Apache. The configure hook installs Talk and user_oidc from the app store and leaves
+# an install that fails for the next deploy, so when either is missing the step prints
+# what `occ app:install` answers. The administrator's login comes from the container's
+# environment and reaches
 # curl on stdin, so it is printed nowhere and rides no argument list. The OCS answers
 # carry their own status in the body, which the steps read with php.
 #
@@ -82,6 +85,7 @@ seed:
           | curl -sS -K - --max-time 30 -H "Host: $NEXTCLOUD_TRUSTED_DOMAINS" -H "OCS-APIRequest: true" "$@"; }
         rooms() { ROOM="catena-{{ run_id }}" php -r '$d = json_decode(stream_get_contents(STDIN), true); if (!$d || ($d["ocs"]["meta"]["statuscode"] ?? 0) !== 200) exit(2); $n = 0; foreach ($d["ocs"]["data"] as $r) { if (($r["name"] ?? "") === getenv("ROOM")) $n++; } echo $n;'; }
         created() { php -r '$d = json_decode(stream_get_contents(STDIN), true); exit(($d["ocs"]["meta"]["statuscode"] ?? 0) === 201 ? 0 : 2);'; }
+        occ() { if [ "$(id -u)" -eq 0 ]; then su -s /bin/sh www-data -c "php /var/www/html/occ $*"; else php /var/www/html/occ "$@"; fi; }
         api="http://127.0.0.1/ocs/v2.php/apps/spreed/api/v4/room"
         waited=0
         until ready; do
@@ -91,7 +95,11 @@ seed:
         done
         waited=0
         until listed=$(nc --fail "$api?format=json" 2>/dev/null); do
-          [ "$waited" -lt 300 ] || { echo "Talk did not list conversations within 300 s" >&2; exit 1; }
+          if [ "$waited" -ge 300 ]; then
+            echo "Talk did not list conversations within 300 s; what installing it answers:" >&2
+            occ app:install spreed >&2 2>&1 || true
+            exit 1
+          fi
           sleep 5
           waited=$((waited + 5))
         done
@@ -217,7 +225,11 @@ assert:
           waited=$((waited + 5))
         done
         enabled=$(occ config:app:get user_oidc enabled 2>/dev/null || true)
-        [ "$enabled" = yes ] || { echo "user_oidc is not enabled" >&2; exit 1; }
+        if [ "$enabled" != yes ]; then
+          echo "user_oidc is not enabled; what installing it answers:" >&2
+          occ app:install user_oidc >&2 2>&1 || true
+          exit 1
+        fi
         have=$(occ config:app:get user_oidc installed_version 2>/dev/null || true)
         if [ "${have%%.*}" != 8 ] || ! printf '8.11.0\n%s\n' "$have" | sort -V -C; then
           echo "user_oidc $have is installed; expected a release of major 8 from 8.11.0" >&2

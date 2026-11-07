@@ -1,0 +1,187 @@
+# Test for the immich template: a photo and the album holding it, made through
+# Immich's API, survive a backup, a restore and the updates. The seed runs node
+# inside the server container against its own listener on 127.0.0.1:2283: it waits
+# until the administrator the container makes at its start can sign in, then gets
+# or creates the album catena-<run>, uploads the picture catena-<run>.png (a 1x1 PNG
+# carrying catena-<run> in a text chunk, so each run has its own checksum; Immich
+# answers a second upload of the same bytes with the existing asset) and puts it in
+# the album when it is not there. The album and the asset row live in the database
+# and the picture in the library volume, so the asserts read what the restore brings
+# back: they sign in again, list the albums and count exactly one named
+# catena-<run> holding one asset, find that asset by name through the metadata
+# search, and download the original, which must still carry the run's text. The
+# administrator's login comes from the container's environment, so it rides no
+# argument list and is printed nowhere.
+#
+# {{ run_id }} is supplied by the bench at execution time and each
+# {{ container_* }} is resolved from `docker ps` before invoking.
+
+id: immich
+description: >-
+  The album catena-<run> made through Immich's API is listed exactly once with one
+  asset, the picture catena-<run>.png is found by the search and downloads with the
+  bytes uploaded, before and after the backup, the restore and the updates.
+
+seed:
+  - name: album_with_a_picture
+    type: docker_exec
+    container: "{{ container_immich_server }}"
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        exec node - <<'JS'
+        const zlib = require("zlib");
+        const env = process.env;
+        const api = "http://127.0.0.1:2283/api";
+        const NAME = "catena-{{ run_id }}";
+        const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+        const table = Array.from({ length: 256 }, (_, n) => {
+          let c = n;
+          for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+          return c >>> 0;
+        });
+        const crc = (bytes) => {
+          let c = 0xffffffff;
+          for (const b of bytes) c = table[(c ^ b) & 255] ^ (c >>> 8);
+          return (c ^ 0xffffffff) >>> 0;
+        };
+        const chunk = (type, data) => {
+          const head = Buffer.from(type);
+          const size = Buffer.alloc(4);
+          const sum = Buffer.alloc(4);
+          size.writeUInt32BE(data.length);
+          sum.writeUInt32BE(crc(Buffer.concat([head, data])));
+          return Buffer.concat([size, head, data, sum]);
+        };
+        const header = Buffer.alloc(13);
+        header.writeUInt32BE(1, 0);
+        header.writeUInt32BE(1, 4);
+        header[8] = 8;
+        header[9] = 2;
+        const picture = Buffer.concat([
+          Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+          chunk("IHDR", header),
+          chunk("tEXt", Buffer.from("Comment\0" + NAME)),
+          chunk("IDAT", zlib.deflateSync(Buffer.from([0, 0, 128, 255]))),
+          chunk("IEND", Buffer.alloc(0)),
+        ]);
+
+        async function call(method, path, token, body) {
+          const headers = { authorization: "Bearer " + token };
+          if (body && !(body instanceof FormData)) headers["content-type"] = "application/json";
+          const res = await fetch(api + path, {
+            method, headers, signal: AbortSignal.timeout(30000),
+            body: !body || body instanceof FormData ? body : JSON.stringify(body),
+          });
+          const answer = await res.json().catch(() => null);
+          if (res.status >= 300) throw new Error(method + " " + path + " answered HTTP " + res.status);
+          return answer;
+        }
+
+        (async () => {
+          let token = null;
+          for (let i = 0; !token; i++) {
+            try {
+              const res = await fetch(api + "/auth/login", {
+                method: "POST", headers: { "content-type": "application/json" },
+                body: JSON.stringify({ email: env.IMMICH_ADMIN_EMAIL, password: env.IMMICH_ADMIN_PASSWORD }),
+                signal: AbortSignal.timeout(15000),
+              });
+              if (res.status < 300) token = (await res.json()).accessToken;
+            } catch {}
+            if (!token) {
+              if (i === 60) throw new Error("the administrator could not sign in within 300 s");
+              await sleep(5000);
+            }
+          }
+          let album = (await call("GET", "/albums", token)).find((a) => a.albumName === NAME);
+          if (!album) album = await call("POST", "/albums", token, { albumName: NAME });
+          const form = new FormData();
+          const now = new Date().toISOString();
+          form.append("assetData", new Blob([picture], { type: "image/png" }), NAME + ".png");
+          form.append("filename", NAME + ".png");
+          form.append("fileCreatedAt", now);
+          form.append("fileModifiedAt", now);
+          const asset = await call("POST", "/assets", token, form);
+          const added = await call("PUT", "/albums/" + album.id + "/assets", token, { ids: [asset.id] });
+          if (!added.every((r) => r.success || r.error === "duplicate")) {
+            throw new Error("the album refused the picture: " + JSON.stringify(added));
+          }
+          console.log("seeded album " + NAME + " with asset " + asset.id);
+        })().catch((e) => {
+          console.error(e.message);
+          process.exit(1);
+        });
+        JS
+    expect_stdout_contains: "seeded album catena-{{ run_id }}"
+    timeout_s: 420
+
+assert:
+  - name: album_and_picture_through_immich
+    type: docker_exec
+    container: "{{ container_immich_server }}"
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        exec node - <<'JS'
+        const env = process.env;
+        const api = "http://127.0.0.1:2283/api";
+        const NAME = "catena-{{ run_id }}";
+        const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+        async function call(method, path, token, body) {
+          const headers = { authorization: "Bearer " + token };
+          if (body) headers["content-type"] = "application/json";
+          const res = await fetch(api + path, {
+            method, headers, signal: AbortSignal.timeout(30000),
+            body: body ? JSON.stringify(body) : undefined,
+          });
+          if (res.status >= 300) throw new Error(method + " " + path + " answered HTTP " + res.status);
+          return res;
+        }
+
+        (async () => {
+          let token = null;
+          for (let i = 0; !token; i++) {
+            try {
+              const res = await fetch(api + "/auth/login", {
+                method: "POST", headers: { "content-type": "application/json" },
+                body: JSON.stringify({ email: env.IMMICH_ADMIN_EMAIL, password: env.IMMICH_ADMIN_PASSWORD }),
+                signal: AbortSignal.timeout(15000),
+              });
+              if (res.status < 300) token = (await res.json()).accessToken;
+            } catch {}
+            if (!token) {
+              if (i === 60) throw new Error("the administrator could not sign in within 300 s");
+              await sleep(5000);
+            }
+          }
+          const albums = (await (await call("GET", "/albums", token)).json()).filter((a) => a.albumName === NAME);
+          if (albums.length !== 1 || albums[0].assetCount !== 1) {
+            throw new Error("Immich lists " + albums.length + " albums named " + NAME + " holding "
+              + albums.map((a) => a.assetCount) + " assets, expected one holding one");
+          }
+          const found = await (await call("POST", "/search/metadata", token,
+            { albumIds: [albums[0].id], originalFileName: NAME + ".png" })).json();
+          const items = found.assets.items;
+          if (items.length !== 1 || items[0].originalFileName !== NAME + ".png") {
+            throw new Error("the search finds " + JSON.stringify(items.map((a) => a.originalFileName))
+              + " in the album, expected only " + NAME + ".png");
+          }
+          const original = Buffer.from(await (await call("GET", "/assets/" + items[0].id + "/original", token)).arrayBuffer());
+          if (!original.includes(Buffer.from(NAME))) {
+            throw new Error("the downloaded picture (" + original.length + " bytes) does not carry " + NAME);
+          }
+          console.log("album ok: " + NAME + " holds " + NAME + ".png");
+        })().catch((e) => {
+          console.error(e.message);
+          process.exit(1);
+        });
+        JS
+    expect_stdout_contains: "album ok: catena-{{ run_id }} holds catena-{{ run_id }}.png"
+    timeout_s: 420

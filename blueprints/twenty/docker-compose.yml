@@ -1,6 +1,6 @@
 x-catena:
   schema: 2
-  requires_catena: 0.11.12
+  requires_catena: 0.12.2
   env:
     DOMAIN_HOST:
       setting: {default: "twenty.{{ cloudflare_zone }}"}
@@ -10,6 +10,8 @@ x-catena:
       generated: {length: 64, alphabet: alnum}
     DB_PASSWORD:
       generated: {length: 32, alphabet: alnum}
+    UPDATE_LEVEL:
+      setting: {default: "major", label: {en: "Automatic updates: major, minor, patch or off", fr: "Mises à jour automatiques : major, minor, patch ou off"}}
   images:
     db:
       rule: {kind: partial_line}
@@ -69,7 +71,7 @@ services:
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=3000"
       - "vps.auth.mode=public"
-      - "vps.auto-update=patch"
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
     cap_drop:
       - NET_RAW
     networks:
@@ -93,10 +95,14 @@ services:
       STORAGE_TYPE: local
       STORAGE_LOCAL_PATH: /app/.local-storage
       APP_SECRET: ${TWENTY_APP_SECRET}
+      # The server alone creates and upgrades the schema and registers the
+      # cron jobs: run by both, the two race on the same tables.
+      DISABLE_DB_MIGRATIONS: "true"
+      DISABLE_CRON_JOBS_REGISTRATION: "true"
     volumes:
       - server-data:/app/.local-storage
     labels:
-      - "vps.auto-update=patch"
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
     networks:
       - default
 

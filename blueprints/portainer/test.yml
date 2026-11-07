@@ -1,24 +1,165 @@
-# Test for the portainer template: a marker in the volume that holds Portainer's
-# database survives the backup, the restore and each update. The steps mount the
-# volume in a throwaway container.
+# Test for the portainer template: a tag made through Portainer's own API survives a backup, a
+# restore and the updates. The image holds only the binary, so every step runs python3 in the
+# harness's helper, which shares the network of the portainer container and asks the server at
+# 127.0.0.1:9000.
+#
+# The setup makes the first administrator catena-admin, as a person's first visit does, only
+# while GET /api/users/admin/check answers 404: it reads the one-time setup token Portainer
+# logs at its start (setup_token=<hex>) from the service's log on stdin, the newest one, and
+# sends it as X-Setup-Token to POST /api/users/admin/init with the password the harness gives as
+# CATENA_TEST_PASSWORD. Portainer refuses that call once five minutes passed since its start
+# with no administrator, until it is restarted. The seed signs in (POST /api/auth) and gets or
+# creates the tag catena-<run>; the assert signs in with the same password and counts exactly
+# one tag of that name.
+#
+# {{ run_id }} is supplied by the bench at execution time.
 
 id: portainer
 description: >-
-  A marker file in the portainer-data volume round-trips through the backup, the
-  restore and the updates unchanged.
+  Portainer lists exactly one tag catena-<run> and its administrator signs in with the test
+  password, before and after the backup, the restore and the updates.
+
+setup:
+  - name: first_administrator
+    type: docker_exec
+    container: "{{ helper_portainer }}"
+    stdin: service_log
+    command:
+      - python3
+      - -c
+      - |
+        import json, os, re, sys, time, urllib.error, urllib.request
+        def call(method, path, body=None, headers=None):
+            data = None if body is None else json.dumps(body).encode()
+            req = urllib.request.Request("http://127.0.0.1:9000" + path, data=data, method=method,
+                                         headers={"Content-Type": "application/json", **(headers or {})})
+            try:
+                r = urllib.request.urlopen(req, timeout=60)
+            except urllib.error.HTTPError as e:
+                r = e
+            text = r.read().decode("utf-8", "replace")
+            try:
+                return r.status, json.loads(text)
+            except ValueError:
+                return r.status, text
+        def fail(message):
+            sys.stderr.write(message + "\n")
+            sys.exit(1)
+        log = sys.stdin.read()
+        password = os.environ["CATENA_TEST_PASSWORD"]
+        deadline = time.time() + 300
+        while True:
+            try:
+                status, _ = call("GET", "/api/users/admin/check")
+                if status in (204, 404):
+                    break
+            except OSError:
+                pass
+            if time.time() > deadline:
+                fail("Portainer did not answer GET /api/users/admin/check within 300 s")
+            time.sleep(5)
+        if status == 404:
+            tokens = re.findall(r"setup_token=([0-9a-f]{64})", log)
+            if not tokens:
+                fail("the last lines of Portainer's log hold no setup_token")
+            status, answer = call("POST", "/api/users/admin/init", {"Username": "catena-admin", "Password": password},
+                                  {"X-Setup-Token": tokens[-1]})
+            if status not in (200, 409):
+                fail("POST /api/users/admin/init answered %s: %.300s" % (status, answer))
+        status, answer = call("POST", "/api/auth", {"Username": "catena-admin", "Password": password})
+        if status != 200 or not isinstance(answer, dict) or not answer.get("jwt"):
+            fail("the administrator catena-admin does not sign in with the test password: %s" % status)
+        print("portainer administrator ready")
+    expect_stdout_contains: "portainer administrator ready"
+    timeout_s: 420
 
 seed:
-  - name: volume_marker_write
-    type: volume_file
-    volume: "{{ app_name }}_portainer-data"
-    path: /catena_canary.txt
-    content: "{{ run_id }}"
-    timeout_s: 60
+  - name: create_the_tag
+    type: docker_exec
+    container: "{{ helper_portainer }}"
+    command:
+      - python3
+      - -c
+      - |
+        import json, os, sys, urllib.error, urllib.request
+        def call(method, path, body=None, headers=None):
+            data = None if body is None else json.dumps(body).encode()
+            req = urllib.request.Request("http://127.0.0.1:9000" + path, data=data, method=method,
+                                         headers={"Content-Type": "application/json", **(headers or {})})
+            try:
+                r = urllib.request.urlopen(req, timeout=60)
+            except urllib.error.HTTPError as e:
+                r = e
+            text = r.read().decode("utf-8", "replace")
+            try:
+                return r.status, json.loads(text)
+            except ValueError:
+                return r.status, text
+        def fail(message):
+            sys.stderr.write(message + "\n")
+            sys.exit(1)
+        name = "catena-{{ run_id }}"
+        status, answer = call("POST", "/api/auth", {"Username": "catena-admin", "Password": os.environ["CATENA_TEST_PASSWORD"]})
+        if status != 200 or not isinstance(answer, dict) or not answer.get("jwt"):
+            fail("the administrator catena-admin does not sign in with the test password: %s" % status)
+        signed = {"Authorization": "Bearer " + answer["jwt"]}
+        status, tags = call("GET", "/api/tags", headers=signed)
+        if status != 200 or not isinstance(tags, list):
+            fail("GET /api/tags answered %s: %.300s" % (status, tags))
+        if not any(t.get("Name") == name for t in tags):
+            status, answer = call("POST", "/api/tags", {"Name": name}, signed)
+            if status not in (200, 409):
+                fail("POST /api/tags answered %s: %.300s" % (status, answer))
+        print("seeded tag " + name)
+    expect_stdout_contains: "seeded tag catena-{{ run_id }}"
+    timeout_s: 120
 
 assert:
-  - name: volume_marker_present
-    type: volume_file
-    volume: "{{ app_name }}_portainer-data"
-    path: /catena_canary.txt
-    expect_stdout_contains: "{{ run_id }}"
-    timeout_s: 60
+  - name: portainer_lists_exactly_one_tag_of_the_run
+    type: docker_exec
+    container: "{{ helper_portainer }}"
+    command:
+      - python3
+      - -c
+      - |
+        import json, os, sys, time, urllib.error, urllib.request
+        def call(method, path, body=None, headers=None):
+            data = None if body is None else json.dumps(body).encode()
+            req = urllib.request.Request("http://127.0.0.1:9000" + path, data=data, method=method,
+                                         headers={"Content-Type": "application/json", **(headers or {})})
+            try:
+                r = urllib.request.urlopen(req, timeout=60)
+            except urllib.error.HTTPError as e:
+                r = e
+            text = r.read().decode("utf-8", "replace")
+            try:
+                return r.status, json.loads(text)
+            except ValueError:
+                return r.status, text
+        def fail(message):
+            sys.stderr.write(message + "\n")
+            sys.exit(1)
+        name = "catena-{{ run_id }}"
+        deadline = time.time() + 300
+        while True:
+            try:
+                status, answer = call("POST", "/api/auth",
+                                      {"Username": "catena-admin", "Password": os.environ["CATENA_TEST_PASSWORD"]})
+                if status != 503:
+                    break
+            except OSError:
+                pass
+            if time.time() > deadline:
+                fail("Portainer did not answer POST /api/auth within 300 s")
+            time.sleep(5)
+        if status != 200 or not isinstance(answer, dict) or not answer.get("jwt"):
+            fail("the administrator catena-admin does not sign in with the test password: %s" % status)
+        status, tags = call("GET", "/api/tags", headers={"Authorization": "Bearer " + answer["jwt"]})
+        if status != 200 or not isinstance(tags, list):
+            fail("GET /api/tags answered %s: %.300s" % (status, tags))
+        found = [t for t in tags if t.get("Name") == name]
+        if len(found) != 1:
+            fail("Portainer lists %d tags %s, expected 1" % (len(found), name))
+        print("tags named %s: 1" % name)
+    expect_stdout_contains: "tags named catena-{{ run_id }}: 1"
+    timeout_s: 420

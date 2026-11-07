@@ -1,0 +1,144 @@
+# Test for the plane template: a user, a workspace, a project, an issue and an object
+# in the object store, made through Plane's own Django models and storage class,
+# survive a backup, a restore and the updates. The seed runs `manage.py shell` from
+# /code in the api container, with a script it writes to /tmp, and runs it again every
+# 15 seconds (at most 20 times) while the shell fails, because the migrations of the
+# api's start are not done yet. The script uses the api's own environment and database
+# connection (no credential is read or printed) and gets or creates, each only when
+# absent: the user catena-<run>@catena.test (no usable password, and no instance
+# administrator is made), the workspace catena-<run> with that user as admin, the
+# project catena-<run> with its default state, the issue catena-<run> holding
+# fixture-<run>, and the object <workspace id>/catena-<run>.txt in the bucket that
+# plane's S3Storage client reaches (the bundled object store, the minio-data volume).
+# A second seed changes nothing. The assert runs the same way and counts exactly one
+# user, workspace, project and issue of those names, with the issue holding
+# fixture-<run>, and reads the object back through the same client. A failed check
+# exits 3, which ends the retries.
+#
+# {{ run_id }} is supplied by the bench at execution time and each
+# {{ container_* }} is resolved from `docker ps` before invoking.
+
+id: plane
+description: >-
+  The issue catena-<run> made through Plane's models is found exactly once in the
+  project and workspace catena-<run>, and the object stored through Plane's storage
+  client reads back fixture-<run>, before and after the backup, the restore and the
+  updates.
+
+seed:
+  - name: workspace_issue_and_object
+    type: docker_exec
+    container: "{{ container_api }}"
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        cat > /tmp/catena-seed.py <<'PY'
+        from botocore.exceptions import ClientError
+        from django.db import transaction
+        from plane.db.models import Issue, Project, ProjectMember, State, User, Workspace, WorkspaceMember
+        from plane.settings.storage import S3Storage
+
+        NAME = "catena-{{ run_id }}"
+        TEXT = "fixture-{{ run_id }}"
+        EMAIL = (NAME + "@catena.test").lower()
+        SLUG = NAME.lower()[:48]
+
+        with transaction.atomic():
+            user = User.objects.filter(email=EMAIL).first()
+            if user is None:
+                user = User(email=EMAIL, username=NAME, first_name="Catena", last_name="Run", display_name=NAME)
+                user.set_unusable_password()
+                user.save()
+            workspace = Workspace.objects.filter(slug=SLUG).first() or Workspace.objects.create(
+                name=NAME, slug=SLUG, owner=user)
+            WorkspaceMember.objects.get_or_create(workspace=workspace, member=user, defaults={"role": 20})
+            project = Project.objects.filter(workspace=workspace, name=NAME).first() or Project.objects.create(
+                workspace=workspace, name=NAME, identifier="CATENA")
+            ProjectMember.objects.get_or_create(project=project, member=user, defaults={"workspace": workspace, "role": 20})
+            state = State.objects.filter(project=project, default=True).first() or State.objects.create(
+                name="Backlog", color="#A3A3A3", sequence=15000, group="backlog", default=True,
+                project=project, workspace=workspace)
+            issue = Issue.objects.filter(project=project, name=NAME).first() or Issue.objects.create(
+                workspace=workspace, project=project, name=NAME, state=state, description_html="<p>" + TEXT + "</p>")
+
+        storage = S3Storage()
+        bucket = storage.aws_storage_bucket_name
+        key = str(workspace.id) + "/" + NAME + ".txt"
+        try:
+            storage.s3_client.head_bucket(Bucket=bucket)
+        except ClientError:
+            storage.s3_client.create_bucket(Bucket=bucket)
+        storage.s3_client.put_object(Bucket=bucket, Key=key, Body=TEXT.encode(), ContentType="text/plain")
+        print("seeded issue " + NAME + " as " + str(issue.id))
+        PY
+        cd /code
+        n=0
+        while :; do
+          rc=0
+          python manage.py shell < /tmp/catena-seed.py || rc=$?
+          [ "$rc" -eq 0 ] && break
+          n=$((n + 1))
+          [ "$n" -lt 20 ] || exit "$rc"
+          sleep 15
+        done
+    expect_stdout_contains: "seeded issue catena-{{ run_id }} as "
+    timeout_s: 1500
+
+assert:
+  - name: workspace_issue_and_object_through_plane
+    type: docker_exec
+    container: "{{ container_api }}"
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        cat > /tmp/catena-assert.py <<'PY'
+        import sys
+        from plane.db.models import Issue, Project, User, Workspace
+        from plane.settings.storage import S3Storage
+
+        NAME = "catena-{{ run_id }}"
+        TEXT = "fixture-{{ run_id }}"
+        EMAIL = (NAME + "@catena.test").lower()
+
+
+        def fail(message):
+            print(message, file=sys.stderr)
+            sys.exit(3)
+
+
+        users = User.objects.filter(email=EMAIL).count()
+        if users != 1:
+            fail("Plane lists " + str(users) + " users " + EMAIL + ", expected one")
+        workspaces = list(Workspace.objects.filter(name=NAME))
+        if len(workspaces) != 1:
+            fail("Plane lists " + str(len(workspaces)) + " workspaces " + NAME + ", expected one")
+        projects = list(Project.objects.filter(workspace=workspaces[0], name=NAME))
+        if len(projects) != 1:
+            fail("the workspace holds " + str(len(projects)) + " projects " + NAME + ", expected one")
+        issues = list(Issue.objects.filter(project=projects[0], name=NAME))
+        if len(issues) != 1 or TEXT not in (issues[0].description_html or ""):
+            fail("the project holds " + str(len(issues)) + " issues " + NAME + ", expected one holding " + TEXT)
+        storage = S3Storage()
+        key = str(workspaces[0].id) + "/" + NAME + ".txt"
+        held = storage.s3_client.get_object(Bucket=storage.aws_storage_bucket_name, Key=key)["Body"].read().decode()
+        if held != TEXT:
+            fail("the object " + key + " holds " + repr(held) + ", expected " + TEXT)
+        print("issue ok: " + NAME + " holds " + TEXT + " with its object")
+        PY
+        cd /code
+        n=0
+        while :; do
+          rc=0
+          python manage.py shell < /tmp/catena-assert.py || rc=$?
+          [ "$rc" -eq 0 ] && break
+          [ "$rc" -ne 3 ] || exit 3
+          n=$((n + 1))
+          [ "$n" -lt 20 ] || exit "$rc"
+          sleep 15
+        done
+    expect_stdout_contains: "issue ok: catena-{{ run_id }} holds fixture-{{ run_id }}"
+    timeout_s: 1500

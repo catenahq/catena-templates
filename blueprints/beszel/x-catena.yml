@@ -36,6 +36,8 @@ env:
     managed: {expr: "{{ smtp_relay_tls | default('') }}"}
   SMTP_RELAY_SENDER:
     managed: {expr: "{{ smtp_relay_sender | default('') }}"}
+  UPDATE_LEVEL:
+    setting: {default: "major", label: {en: "Automatic updates: major, minor, patch or off", fr: "Mises à jour automatiques : major, minor, patch ou off"}}
 secrets: [beszel_oidc_client_secret, smtp_password]
 provides:
   beszel: {url: HUB_URL}

@@ -1,0 +1,116 @@
+# Test for the docuseal template: an account with its administrator, a template and
+# the file attached to the template, made through DocuSeal's own models, survive a
+# backup, a restore and the updates. The seed runs `rails runner` from /app in the
+# docuseal container with a script it writes to /tmp, and runs it again every 15
+# seconds (at most 12 times) while the runner fails, because the database is not
+# prepared yet: it gets or creates the account catena-<run>, its administrator
+# catena-<run>@catena.test (password: the first 24 characters of the SHA-256 of
+# SECRET_KEY_BASE and the run id, both from the container's environment, printed
+# nowhere), the folder and the template catena-<run> in it and, when none is attached,
+# the file catena-<run>.txt holding fixture-<run> on the template's documents, which
+# Active Storage keeps in /data/docuseal/attachments (the docuseal-data volume). A
+# second seed changes nothing. The account, the user and the template live in the
+# database and the file in the volume, so the assert runs the same way and counts
+# exactly one account, one user and one template of that name, then reads the attached
+# file back through Active Storage, which must hold fixture-<run>. A failed check
+# exits 3, which ends the retries.
+#
+# {{ run_id }} is supplied by the bench at execution time and each
+# {{ container_* }} is resolved from `docker ps` before invoking.
+
+id: docuseal
+description: >-
+  The account catena-<run> made through DocuSeal's models is listed exactly once with
+  one administrator catena-<run>@catena.test and one template catena-<run>, and the
+  file attached to the template reads back fixture-<run>, before and after the backup,
+  the restore and the updates.
+
+seed:
+  - name: account_template_and_file
+    type: docker_exec
+    container: "{{ container_docuseal }}"
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        cat > /tmp/catena-seed.rb <<'RUBY'
+        require "digest"
+        name = "catena-{{ run_id }}"
+        text = "fixture-{{ run_id }}"
+        email = "#{name}@catena.test".downcase
+        password = Digest::SHA256.hexdigest("#{ENV.fetch('SECRET_KEY_BASE')}:#{name}")[0, 24]
+        account = Account.find_by(name: name) || Account.create!(name: name)
+        user = User.find_by(email: email) ||
+               User.create!(account: account, email: email, first_name: "Catena", last_name: "Run", password: password)
+        folder = TemplateFolder.find_by(account_id: account.id, name: name) ||
+                 TemplateFolder.create!(account: account, author: user, name: name)
+        template = Template.find_by(account_id: account.id, name: name) ||
+                   Template.create!(account: account, author: user, folder: folder, name: name)
+        unless template.documents.attached?
+          template.documents.attach(io: StringIO.new(text), filename: "#{name}.txt", content_type: "text/plain")
+        end
+        puts "seeded account #{name} as #{account.id}"
+        RUBY
+        cd /app
+        n=0
+        while :; do
+          rc=0
+          /app/bin/bundle exec rails runner /tmp/catena-seed.rb || rc=$?
+          [ "$rc" -eq 0 ] && break
+          n=$((n + 1))
+          [ "$n" -lt 12 ] || exit "$rc"
+          sleep 15
+        done
+    expect_stdout_contains: "seeded account catena-{{ run_id }}"
+    timeout_s: 1200
+
+assert:
+  - name: account_template_and_file_through_docuseal
+    type: docker_exec
+    container: "{{ container_docuseal }}"
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        cat > /tmp/catena-assert.rb <<'RUBY'
+        name = "catena-{{ run_id }}"
+        text = "fixture-{{ run_id }}"
+        email = "#{name}@catena.test".downcase
+        accounts = Account.where(name: name).to_a
+        if accounts.size != 1
+          warn "DocuSeal lists #{accounts.size} accounts named #{name}, expected one"
+          exit 3
+        end
+        account = accounts.first
+        users = User.where(account_id: account.id, email: email).count
+        if users != 1
+          warn "the account #{name} holds #{users} users #{email}, expected one"
+          exit 3
+        end
+        templates = Template.where(account_id: account.id, name: name).to_a
+        if templates.size != 1
+          warn "the account #{name} holds #{templates.size} templates #{name}, expected one"
+          exit 3
+        end
+        held = templates.first.documents.attached? ? templates.first.documents.first.download : nil
+        if held != text
+          warn "the template #{name} holds the file #{held.inspect}, expected #{text}"
+          exit 3
+        end
+        puts "account ok: #{name} with its administrator #{name}@catena.test, its template and file #{text}"
+        RUBY
+        cd /app
+        n=0
+        while :; do
+          rc=0
+          /app/bin/bundle exec rails runner /tmp/catena-assert.rb || rc=$?
+          [ "$rc" -eq 0 ] && break
+          [ "$rc" -ne 3 ] || exit 3
+          n=$((n + 1))
+          [ "$n" -lt 12 ] || exit "$rc"
+          sleep 15
+        done
+    expect_stdout_contains: "account ok: catena-{{ run_id }} with its administrator catena-{{ run_id }}@catena.test"
+    timeout_s: 1200

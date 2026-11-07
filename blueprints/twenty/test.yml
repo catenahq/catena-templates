@@ -1,0 +1,96 @@
+# Test for the twenty template: a user record, made through Twenty's own TypeORM data
+# source and its UserEntity, survives a backup, a restore and the updates. The seed
+# runs node inside the server container, from /app/packages/twenty-server, and loads
+# the compiled core data source (dist/database/typeorm/core/core.datasource.js, which
+# reads PG_DATABASE_URL from the container's environment, so no credential is read or
+# printed and no database client is involved). It waits until the user table answers
+# (the server's start migrates first, at most 300 s), then gets or creates the user
+# catena-<run>@catena.test with the first name catena and the last name <run> through
+# the UserEntity repository, which runs the entity's own email formatting. The user
+# has no password, no workspace and no sign-in, so the workspace a first person signs
+# up to is not touched. A second seed changes nothing. The assert reads through the
+# same repository and counts exactly one such user holding those names.
+#
+# {{ run_id }} is supplied by the bench at execution time and each
+# {{ container_* }} is resolved from `docker ps` before invoking.
+
+id: twenty
+description: >-
+  The user catena-<run>@catena.test made through Twenty's UserEntity is listed exactly
+  once with its names, before and after the backup, the restore and the updates.
+
+seed:
+  - name: user_through_the_entity
+    type: docker_exec
+    container: "{{ container_server }}"
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        exec node - <<'JS'
+        const { connectionSource } = require(process.cwd() + "/dist/database/typeorm/core/core.datasource.js");
+        const RUN = "{{ run_id }}";
+        const EMAIL = ("catena-" + RUN + "@catena.test").toLowerCase();
+        const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+        (async () => {
+          await connectionSource.initialize();
+          const users = connectionSource.getRepository("UserEntity");
+          for (let i = 0; ; i++) {
+            try { await users.count(); break; } catch (e) {
+              if (i === 60) throw new Error("the user table did not answer within 300 s: " + e.message);
+              await sleep(5000);
+            }
+          }
+          let user = await users.findOne({ where: { email: EMAIL } });
+          if (!user) {
+            user = await users.save(users.create({ email: EMAIL, firstName: "catena", lastName: RUN }));
+          }
+          console.log("seeded user catena-" + RUN + "@catena.test as " + user.id);
+          await connectionSource.destroy();
+        })().catch((e) => {
+          console.error(e.stack || e.message);
+          process.exit(1);
+        });
+        JS
+    expect_stdout_contains: "seeded user catena-{{ run_id }}@catena.test as "
+    timeout_s: 420
+
+assert:
+  - name: user_through_the_entity_listed_once
+    type: docker_exec
+    container: "{{ container_server }}"
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        exec node - <<'JS'
+        const { connectionSource } = require(process.cwd() + "/dist/database/typeorm/core/core.datasource.js");
+        const RUN = "{{ run_id }}";
+        const EMAIL = ("catena-" + RUN + "@catena.test").toLowerCase();
+        const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+        (async () => {
+          await connectionSource.initialize();
+          const users = connectionSource.getRepository("UserEntity");
+          for (let i = 0; ; i++) {
+            try { await users.count(); break; } catch (e) {
+              if (i === 60) throw new Error("the user table did not answer within 300 s: " + e.message);
+              await sleep(5000);
+            }
+          }
+          const found = await users.find({ where: { email: EMAIL } });
+          if (found.length !== 1 || found[0].firstName !== "catena" || found[0].lastName !== RUN) {
+            throw new Error("Twenty lists " + found.length + " users " + EMAIL + ", expected one named catena " + RUN);
+          }
+          console.log("user ok: catena-" + RUN + "@catena.test named catena " + RUN);
+          await connectionSource.destroy();
+        })().catch((e) => {
+          console.error(e.stack || e.message);
+          process.exit(1);
+        });
+        JS
+    expect_stdout_contains: "user ok: catena-{{ run_id }}@catena.test named catena {{ run_id }}"
+    timeout_s: 420

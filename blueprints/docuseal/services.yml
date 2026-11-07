@@ -1,6 +1,6 @@
 services:
   docuseal:
-    image: docuseal/docuseal:3.2.6
+    image: docuseal/docuseal:3.3.5
     deploy:
       restart_policy:
         condition: any
@@ -28,7 +28,7 @@ services:
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=3000"
       - "vps.auth.mode=public"
-      - "vps.auto-update=patch"
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
     cap_drop:
       - NET_RAW
     networks:

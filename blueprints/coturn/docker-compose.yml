@@ -1,6 +1,6 @@
 x-catena:
   schema: 2
-  requires_catena: 0.11.12
+  requires_catena: 0.12.2
   version_from: coturn
   # The relay listens on the host's own network, so its ports are the ones the
   # service's vps.expose labels declare.
@@ -16,6 +16,8 @@ x-catena:
       managed: {expr: "{{ public_ip }}"}
     TURN_SECRET:
       generated: {length: 64, alphabet: alnum}
+    UPDATE_LEVEL:
+      setting: {default: "major", label: {en: "Automatic updates: major, minor, patch or off", fr: "Mises à jour automatiques : major, minor, patch ou off"}}
   # Nextcloud Talk and Element read these as provided.turn.<name>.
   provides:
     turn: {host: TURN_HOSTNAME, port: TURN_PORT, tls_port: TURN_TLS_PORT, secret: TURN_SECRET}
@@ -182,7 +184,7 @@ services:
     labels:
       - "vps.expose.udp=3478,5349,50000-50100"
       - "vps.expose.tcp=5349"
-      - "vps.auto-update=patch"
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
     cap_drop:
       - NET_RAW
     healthcheck:

@@ -14,7 +14,7 @@ services:
   # swarm starts the task again. The two setup secrets leave the environment
   # before the app server starts.
   backend:
-    image: frappe/erpnext:v16.53.0
+    image: frappe/erpnext:v16.54.0
     deploy:
       restart_policy:
         condition: any
@@ -55,12 +55,12 @@ services:
       - sites:/home/frappe/frappe-bench/sites
       - logs:/home/frappe/frappe-bench/logs
     labels:
-      - "vps.auto-update=minor"
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
     networks:
       - default
 
   frontend:
-    image: frappe/erpnext:v16.53.0
+    image: frappe/erpnext:v16.54.0
     deploy:
       restart_policy:
         condition: any
@@ -89,7 +89,7 @@ services:
       - "vps.auth.oidc=true"
       - "vps.auth.groups=staff"
       - "vps.auth.oidc.redirect_uris=https://${ERPNEXT_HOSTNAME}/api/method/frappe.integrations.oauth2_logins.custom/keycloak"
-      - "vps.auto-update=minor"
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
     cap_drop:
       - NET_RAW
     networks:
@@ -97,7 +97,7 @@ services:
       default: {}
 
   websocket:
-    image: frappe/erpnext:v16.53.0
+    image: frappe/erpnext:v16.54.0
     deploy:
       restart_policy:
         condition: any
@@ -110,12 +110,12 @@ services:
       - sites:/home/frappe/frappe-bench/sites
       - logs:/home/frappe/frappe-bench/logs
     labels:
-      - "vps.auto-update=minor"
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
     networks:
       - default
 
   queue-default:
-    image: frappe/erpnext:v16.53.0
+    image: frappe/erpnext:v16.54.0
     deploy:
       restart_policy:
         condition: any
@@ -128,12 +128,12 @@ services:
       - sites:/home/frappe/frappe-bench/sites
       - logs:/home/frappe/frappe-bench/logs
     labels:
-      - "vps.auto-update=minor"
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
     networks:
       - default
 
   queue-short:
-    image: frappe/erpnext:v16.53.0
+    image: frappe/erpnext:v16.54.0
     deploy:
       restart_policy:
         condition: any
@@ -146,12 +146,12 @@ services:
       - sites:/home/frappe/frappe-bench/sites
       - logs:/home/frappe/frappe-bench/logs
     labels:
-      - "vps.auto-update=minor"
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
     networks:
       - default
 
   queue-long:
-    image: frappe/erpnext:v16.53.0
+    image: frappe/erpnext:v16.54.0
     deploy:
       restart_policy:
         condition: any
@@ -164,7 +164,7 @@ services:
       - sites:/home/frappe/frappe-bench/sites
       - logs:/home/frappe/frappe-bench/logs
     labels:
-      - "vps.auto-update=minor"
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
     networks:
       - default
 
@@ -174,7 +174,7 @@ services:
   # corrects the client, the secret and Keycloak's addresses when they differ.
   # The client secret leaves the environment before the scheduler runs.
   scheduler:
-    image: frappe/erpnext:v16.53.0
+    image: frappe/erpnext:v16.54.0
     deploy:
       restart_policy:
         condition: any
@@ -259,7 +259,7 @@ services:
       - sites:/home/frappe/frappe-bench/sites
       - logs:/home/frappe/frappe-bench/logs
     labels:
-      - "vps.auto-update=minor"
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
     networks:
       - default
 

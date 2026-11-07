@@ -16,6 +16,8 @@ x-catena:
       managed: {expr: "{{ provided.beszel.url }}"}
     UI_TITLE:
       managed: {expr: "{{ cloudflare_zone | default('') }}"}
+    UPDATE_LEVEL:
+      setting: {default: "major", label: {en: "Automatic updates: major, minor, patch or off", fr: "Mises à jour automatiques : major, minor, patch ou off"}}
   # The Gatus image has no shell, wget or curl. verify runs in the busybox helper
   # that writes the base configuration, on the stack network, and asks Gatus's own
   # health endpoint.
@@ -60,7 +62,7 @@ services:
       GATUS_CONFIG_PATH: /catena
       GATUS_WEB_PORT: "8080"
     labels:
-      - "vps.auto-update=patch"
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
     volumes:
       - gatus-data:/data
       - config:/catena:ro

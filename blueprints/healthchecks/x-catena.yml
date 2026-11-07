@@ -23,6 +23,8 @@ env:
     generated: {length: 32, alphabet: alnum}
   EMAIL_HOST_PASSWORD:
     managed: {expr: "{{ smtp_password | default('') }}"}
+  UPDATE_LEVEL:
+    setting: {default: "major", label: {en: "Automatic updates: major, minor, patch or off", fr: "Mises à jour automatiques : major, minor, patch ou off"}}
 # The three keys are the ones the server's own jobs and Gatus use; the configure hook
 # sets them on the project, and the ping key is what the other monitoring apps read
 # through provided.healthchecks.ping_key. smtp_password is the outgoing mail's password.

@@ -1,9 +1,11 @@
 schema: 2
-requires_catena: 0.11.12
+requires_catena: 0.12.2
 privileges: [docker_socket]
 env:
   DOMAIN_HOST:
     setting: {default: "portainer.{{ cloudflare_zone }}"}
+  UPDATE_LEVEL:
+    setting: {default: "major", label: {en: "Automatic updates: major, minor, patch or off", fr: "Mises à jour automatiques : major, minor, patch ou off"}}
 # The Portainer image holds only the binary: no shell, curl or wget. verify
 # runs in a small busybox helper on the stack network and asks Portainer's
 # main page for its name.

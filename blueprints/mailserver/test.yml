@@ -1,0 +1,118 @@
+# Test for the mailserver template: a mailbox made with the server's own `setup email add`
+# and one message delivered to it through the server's own sendmail survive a backup and a
+# restore. The users hook removes only the mailboxes it recorded as made, so a mailbox made
+# here is never removed by it. The seed makes the mailbox catena-<run>@MAIL_DOMAIN only when
+# `setup email list` lacks it, waits until the change detector has regenerated the account
+# maps and reloaded Postfix and Dovecot (the account file's checksum line lands in
+# /tmp/docker-mailserver-config-chksum last) and until `doveadm user` knows the box, then
+# sends one message (Message-ID <catena-<run>@catena.invalid>, Subject catena-<run>, body
+# fixture-<run>) only when Dovecot's search finds none, once and never again, so a second seed
+# changes nothing and no second copy appears. The asserts list the mailbox with `setup email
+# list`, count the messages with that Message-ID through `doveadm search`: exactly one, and
+# read its subject and body back through `doveadm fetch`. Every step runs inside the dms
+# container and waits for the server, bounded.
+#
+# {{ run_id }} is supplied by the bench at execution time so the mailbox and the message are
+# unique per run. Each {{ container_* }} is resolved from `docker ps` before invoking.
+
+id: mailserver
+description: >-
+  The mailbox catena-<run> is listed by the server and holds exactly one message with the
+  subject catena-<run> and the body fixture-<run>, before and after the backup, the restore
+  and the updates.
+
+seed:
+  - name: make_the_mailbox
+    type: docker_exec
+    container: "{{ container_dms }}"
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        box=$(printf '%s' "catena-{{ run_id }}@$MAIL_DOMAIN" | tr 'A-Z' 'a-z')
+        waited=0
+        until [ -s /tmp/docker-mailserver-config-chksum ] && postfix status >/dev/null 2>&1; do
+          [ "$waited" -lt 300 ] || { echo "the mail server was not up within 300 s" >&2; exit 1; }
+          sleep 5
+          waited=$((waited + 5))
+        done
+        if ! setup email list | grep -qF -- "$box"; then
+          setup email add "$box" "$(head -c 18 /dev/urandom | base64)" >/dev/null
+        fi
+        waited=0
+        until grep -qxF -- "$(sha512sum /tmp/docker-mailserver/postfix-accounts.cf)" /tmp/docker-mailserver-config-chksum \
+            && doveadm user "$box" >/dev/null 2>&1; do
+          [ "$waited" -lt 120 ] || { echo "the mail server did not load the mailbox $box within 120 s" >&2; exit 1; }
+          sleep 2
+          waited=$((waited + 2))
+        done
+        echo "mailbox catena-{{ run_id }} ready"
+    expect_stdout_contains: "mailbox catena-{{ run_id }} ready"
+    timeout_s: 480
+
+  - name: deliver_the_message
+    type: docker_exec
+    container: "{{ container_dms }}"
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        box=$(printf '%s' "catena-{{ run_id }}@$MAIL_DOMAIN" | tr 'A-Z' 'a-z')
+        found() { doveadm search -u "$box" mailbox INBOX header message-id "catena-{{ run_id }}@catena.invalid" | wc -l; }
+        if [ "$(found)" -eq 0 ]; then
+          printf 'From: postmaster@%s\nTo: %s\nSubject: %s\nMessage-ID: <%s@catena.invalid>\nDate: %s\n\n%s\n' \
+            "$MAIL_DOMAIN" "$box" "catena-{{ run_id }}" "catena-{{ run_id }}" "$(date -R)" "fixture-{{ run_id }}" | sendmail -i -f "postmaster@$MAIL_DOMAIN" "$box"
+          waited=0
+          until [ "$(found)" -ge 1 ]; do
+            [ "$waited" -lt 120 ] || { echo "the message was not delivered to $box within 120 s" >&2; exit 1; }
+            sleep 2
+            waited=$((waited + 2))
+          done
+        fi
+        echo "message catena-{{ run_id }} delivered"
+    expect_stdout_contains: "message catena-{{ run_id }} delivered"
+    timeout_s: 180
+
+assert:
+  - name: server_lists_the_mailbox
+    type: docker_exec
+    container: "{{ container_dms }}"
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        box=$(printf '%s' "catena-{{ run_id }}@$MAIL_DOMAIN" | tr 'A-Z' 'a-z')
+        waited=0
+        until listed=$(setup email list 2>/dev/null); do
+          [ "$waited" -lt 120 ] || { echo "setup email list did not answer within 120 s" >&2; exit 1; }
+          sleep 5
+          waited=$((waited + 5))
+        done
+        printf '%s\n' "$listed" | grep -qF -- "$box" || { echo "the server does not list $box" >&2; exit 1; }
+        echo "listed catena-{{ run_id }}"
+    expect_stdout_contains: "listed catena-{{ run_id }}"
+    timeout_s: 150
+
+  - name: mailbox_holds_exactly_one_message_of_the_run
+    type: docker_exec
+    container: "{{ container_dms }}"
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        box=$(printf '%s' "catena-{{ run_id }}@$MAIL_DOMAIN" | tr 'A-Z' 'a-z')
+        waited=0
+        until doveadm user "$box" >/dev/null 2>&1; do
+          [ "$waited" -lt 120 ] || { echo "Dovecot does not know $box within 120 s" >&2; exit 1; }
+          sleep 5
+          waited=$((waited + 5))
+        done
+        n=$(doveadm search -u "$box" mailbox INBOX header message-id "catena-{{ run_id }}@catena.invalid" | wc -l)
+        [ "$n" -eq 1 ] || { echo "$box holds $n messages of the run, expected 1" >&2; exit 1; }
+        doveadm fetch -u "$box" 'hdr.subject body' mailbox INBOX header message-id "catena-{{ run_id }}@catena.invalid"
+    expect_stdout_contains: "fixture-{{ run_id }}"
+    timeout_s: 150

@@ -10,7 +10,11 @@ name: build-and-verify
 # `catalog: false`. Its tools then come from a checkout of catena-templates at
 # `tools-ref` into .tools, TEMPLATES_ROOT names the caller's tree, the render
 # drift covers its blueprints only, its own tests/ run, and the duplication job
-# is skipped.
+# is skipped. The caller grants `actions: read`.
+#
+# The first job, same-tree, looks for an earlier run of this workflow on the
+# same tree and reuses its result: every other job is skipped, and a reused
+# failure fails the job.
 
 on:
   # Every pushed branch. Renovate, engine-bump and image-pin branches always
@@ -54,7 +58,23 @@ env:
   DRIFT_PATHS: ${{ format('{0}', inputs.catalog) == 'false' && 'blueprints' || 'blueprints catalog.json index.html' }}
 
 jobs:
+  same-tree:
+    name: same tree (build-and-verify)
+    runs-on: ${{ inputs.runner || 'ubuntu-latest' }}
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      run: ${{ steps.tree.outputs.run }}
+    steps:
+      - id: tree
+        uses: catenahq/contracts/.github/actions/same-tree@main
+        with:
+          siblings: catenahq/contracts
+
   render-idempotency:
+    needs: same-tree
+    if: needs.same-tree.outputs.run != 'false'
     runs-on: ${{ inputs.runner || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
@@ -84,6 +104,8 @@ jobs:
             fi
 
   schema:
+    needs: same-tree
+    if: needs.same-tree.outputs.run != 'false'
     runs-on: ${{ inputs.runner || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
@@ -106,6 +128,8 @@ jobs:
   # path to put contracts alongside this repo, the same layout local dev
   # uses.
   unicode-hygiene:
+    needs: same-tree
+    if: needs.same-tree.outputs.run != 'false'
     runs-on: ${{ inputs.runner || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
@@ -167,6 +191,8 @@ jobs:
           fi
 
   lint-quiesce-tests:
+    needs: same-tree
+    if: needs.same-tree.outputs.run != 'false'
     runs-on: ${{ inputs.runner || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
@@ -186,7 +212,7 @@ jobs:
           ref: ${{ inputs.tools-ref }}
           path: .tools
           persist-credentials: false
-      - name: pytest, quiesce lint and postgres pin lint
+      - name: pytest (the catalog adds the help desk image's), quiesce lint and postgres pin lint
         # Three gates in one run: a failure line of one must not hide a new
         # failure of another, so the exit status decides.
         uses: catenahq/contracts/.github/actions/new-failures-only@main
@@ -195,7 +221,9 @@ jobs:
           repo-path: ${{ github.workspace }}
           run: |
             rc=0
-            uv run --with pytest --with jsonschema --with pyyaml --with pillow --with resvg-py pytest tests/ -q || rc=1
+            tests=(tests/)
+            if [ -z "$TEMPLATES_ROOT" ]; then tests+=(images/erpnext-helpdesk); fi
+            uv run --with pytest --with jsonschema --with pyyaml --with pillow --with resvg-py pytest "${tests[@]}" -q || rc=1
             uv run "$TOOLS/build/lint_quiesce.py" || rc=1
             uv run "$TOOLS/build/lint_postgres_pins.py" || rc=1
             exit $rc
@@ -205,7 +233,8 @@ jobs:
     # exceeding it fails. Lower the threshold as duplication is paid
     # down, never raise it to admit new copy-paste.
     name: Duplication (jscpd)
-    if: format('{0}', inputs.catalog) != 'false'
+    needs: same-tree
+    if: needs.same-tree.outputs.run != 'false' && format('{0}', inputs.catalog) != 'false'
     runs-on: ${{ inputs.runner || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7

@@ -1,0 +1,142 @@
+# Test for the outline template: a user, a collection, a document and an attached file,
+# made through Outline's own Sequelize models and file storage, survive a backup, a
+# restore and the updates. The seed runs node inside the outline container, from the
+# application folder, against the compiled models in build/server (the code the server
+# runs, with the server's own environment and database connection, so no credential is
+# read or printed). It waits until the models read the database (the container's start
+# migrates first, at most 300 s), then gets or creates, each only when absent: the
+# team (the first team of the installation; one named catena-<run> with an oidc
+# authentication provider only when the installation has none), the member
+# catena-<run>@catena.test, the collection catena-<run>, the published document
+# catena-<run> holding fixture-<run> (added to the collection's structure) and the
+# attachment catena-<run>.txt, whose file the storage layer writes under
+# FILE_STORAGE_LOCAL_ROOT_DIR, the outline-data volume. A second seed changes nothing.
+# The database holds the rows and the volume the file, so the assert reads them back
+# through the same models and storage: exactly one such user, one collection, one
+# document holding fixture-<run>, and the attachment's file read through the storage
+# layer holding fixture-<run>.
+#
+# {{ run_id }} is supplied by the bench at execution time and each
+# {{ container_* }} is resolved from `docker ps` before invoking.
+
+id: outline
+description: >-
+  The document catena-<run> made through Outline's models is found exactly once in the
+  collection catena-<run> of the member catena-<run>@catena.test, and its attachment's
+  file reads back fixture-<run> through the storage layer, before and after the backup,
+  the restore and the updates.
+
+seed:
+  - name: document_and_attachment
+    type: docker_exec
+    container: "{{ container_outline }}"
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        exec node - <<'JS'
+        const root = process.cwd() + "/build/server";
+        const { Team, User, Collection, Document, Attachment } = require(root + "/models");
+        const files = require(root + "/storage/files").default;
+        const { sequelize } = require(root + "/storage/database");
+        const NAME = "catena-{{ run_id }}";
+        const TEXT = "fixture-{{ run_id }}";
+        const EMAIL = (NAME + "@catena.test").toLowerCase();
+        const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+        (async () => {
+          for (let i = 0; ; i++) {
+            try { await Team.count(); break; } catch (e) {
+              if (i === 60) throw new Error("the models could not read the database within 300 s: " + e.message);
+              await sleep(5000);
+            }
+          }
+          const team = (await Team.findOne({ order: [["createdAt", "ASC"]] })) ||
+            (await Team.create(
+              { name: NAME, authenticationProviders: [{ name: "oidc", providerId: NAME }] },
+              { include: "authenticationProviders" }
+            ));
+          const user = (await User.findOne({ where: { teamId: team.id, email: EMAIL } })) ||
+            (await User.create({ teamId: team.id, name: NAME, email: EMAIL, role: "member" }));
+          const collection = (await Collection.unscoped().findOne({ where: { teamId: team.id, name: NAME } })) ||
+            (await Collection.create({ teamId: team.id, name: NAME, createdById: user.id, permission: "read_write" }));
+          let document = await Document.unscoped().findOne({ where: { teamId: team.id, collectionId: collection.id, title: NAME } });
+          if (!document) {
+            document = await Document.create({
+              title: NAME, text: TEXT, teamId: team.id, collectionId: collection.id,
+              createdById: user.id, lastModifiedById: user.id, publishedAt: new Date(), editorVersion: "12.0.0",
+              content: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: TEXT }] }] },
+            });
+            const fresh = await Collection.findByPk(collection.id, { includeDocumentStructure: true });
+            await fresh.addDocumentToStructure(document, 0);
+          }
+          const key = "uploads/" + team.id + "/" + user.id + "/" + NAME + ".txt";
+          if (!(await Attachment.findOne({ where: { key } }))) {
+            if (!(await files.getFileExists(key))) {
+              await files.store({ body: Buffer.from(TEXT), contentType: "text/plain", key, acl: "private" });
+            }
+            await Attachment.create({
+              key, contentType: "text/plain", size: Buffer.byteLength(TEXT), acl: "private",
+              teamId: team.id, userId: user.id, documentId: document.id,
+            });
+          }
+          console.log("seeded document " + NAME + " as " + document.id);
+          await sequelize.close();
+          process.exit(0);
+        })().catch((e) => {
+          console.error(e.stack || e.message);
+          process.exit(1);
+        });
+        JS
+    expect_stdout_contains: "seeded document catena-{{ run_id }} as "
+    timeout_s: 420
+
+assert:
+  - name: document_and_attachment_through_outline
+    type: docker_exec
+    container: "{{ container_outline }}"
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        exec node - <<'JS'
+        const root = process.cwd() + "/build/server";
+        const { User, Collection, Document, Attachment } = require(root + "/models");
+        const files = require(root + "/storage/files").default;
+        const { sequelize } = require(root + "/storage/database");
+        const NAME = "catena-{{ run_id }}";
+        const TEXT = "fixture-{{ run_id }}";
+        const EMAIL = (NAME + "@catena.test").toLowerCase();
+        const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+        (async () => {
+          for (let i = 0; ; i++) {
+            try { await User.count(); break; } catch (e) {
+              if (i === 60) throw new Error("the models could not read the database within 300 s: " + e.message);
+              await sleep(5000);
+            }
+          }
+          const users = await User.findAll({ where: { email: EMAIL } });
+          if (users.length !== 1) throw new Error("Outline lists " + users.length + " users " + EMAIL + ", expected one");
+          const collections = await Collection.unscoped().findAll({ where: { name: NAME } });
+          if (collections.length !== 1) throw new Error("Outline lists " + collections.length + " collections " + NAME + ", expected one");
+          const documents = await Document.unscoped().findAll({ where: { title: NAME, collectionId: collections[0].id } });
+          if (documents.length !== 1 || !JSON.stringify(documents[0].content).includes(TEXT)) {
+            throw new Error("the collection " + NAME + " holds " + documents.length + " documents " + NAME + ", expected one holding " + TEXT);
+          }
+          const attachments = await Attachment.findAll({ where: { documentId: documents[0].id } });
+          if (attachments.length !== 1) throw new Error("the document holds " + attachments.length + " attachments, expected one");
+          const held = (await files.getFileBuffer(attachments[0].key)).toString();
+          if (held !== TEXT) throw new Error("the attachment " + attachments[0].key + " holds " + JSON.stringify(held) + ", expected " + TEXT);
+          console.log("document ok: " + NAME + " holds " + TEXT + " with its attachment");
+          await sequelize.close();
+          process.exit(0);
+        })().catch((e) => {
+          console.error(e.stack || e.message);
+          process.exit(1);
+        });
+        JS
+    expect_stdout_contains: "document ok: catena-{{ run_id }} holds fixture-{{ run_id }}"
+    timeout_s: 420

@@ -37,6 +37,8 @@ x-catena:
       managed: {expr: "{{ smtp_relay_tls | default('') }}"}
     SMTP_RELAY_SENDER:
       managed: {expr: "{{ smtp_relay_sender | default('') }}"}
+    UPDATE_LEVEL:
+      setting: {default: "major", label: {en: "Automatic updates: major, minor, patch or off", fr: "Mises à jour automatiques : major, minor, patch ou off"}}
   secrets: [beszel_oidc_client_secret, smtp_password]
   provides:
     beszel: {url: HUB_URL}
@@ -562,7 +564,7 @@ services:
       TRUSTED_AUTH_HEADER: ${TRUSTED_AUTH_HEADER:-}
       TRUSTED_PROXY_IPS: ${TRUSTED_PROXY_IPS:-}
     labels:
-      - "vps.auto-update=patch"
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
     volumes:
       - beszel-hub-data:/beszel_data
     # Host mode with the long syntax: the short form publishes through the
@@ -616,7 +618,7 @@ services:
     # or this mark.
     labels:
       - "vps.expose.none=true"
-      - "vps.auto-update=patch"
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
     # The agent saves the fingerprint the hub knows its system by in /var/lib/beszel-agent, which
     # the image declares a volume: a named one keeps it across a new container.
     volumes:

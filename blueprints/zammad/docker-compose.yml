@@ -1,6 +1,6 @@
 x-catena:
   schema: 2
-  requires_catena: 0.11.12
+  requires_catena: 0.12.2
   env:
     DOMAIN_HOST:
       setting: {default: "help.{{ cloudflare_zone }}"}
@@ -8,6 +8,8 @@ x-catena:
       setting: {default: "help.{{ cloudflare_zone }}"}
     DB_PASSWORD:
       generated: {length: 32, alphabet: alnum}
+    UPDATE_LEVEL:
+      setting: {default: "major", label: {en: "Automatic updates: major, minor, patch or off", fr: "Mises à jour automatiques : major, minor, patch ou off"}}
   images:
     zammad-init:
       rule: {kind: build_suffix, tag_pattern: '\d+\.\d+\.\d+-\d+'}
@@ -110,6 +112,8 @@ services:
       - zammad-storage:/opt/zammad/storage
     networks:
       - default
+    labels:
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
 
   zammad-railsserver:
     image: zammad/zammad:7.0.2-0000
@@ -124,7 +128,7 @@ services:
     volumes:
       - zammad-storage:/opt/zammad/storage
     labels:
-      - "vps.auto-update=patch"
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
     networks:
       - default
 
@@ -136,7 +140,7 @@ services:
     command: ["zammad-websocket"]
     environment: *zammad-env
     labels:
-      - "vps.auto-update=patch"
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
     networks:
       - default
 
@@ -153,7 +157,7 @@ services:
     volumes:
       - zammad-storage:/opt/zammad/storage
     labels:
-      - "vps.auto-update=patch"
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
     networks:
       - default
 
@@ -176,7 +180,7 @@ services:
       - "vps.auth.oidc.public=true"
       - "vps.auth.groups=staff"
       - "vps.auth.oidc.redirect_uris=https://${ZAMMAD_HOSTNAME}/auth/openid_connect/callback"
-      - "vps.auto-update=patch"
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
     cap_drop:
       - NET_RAW
     networks:

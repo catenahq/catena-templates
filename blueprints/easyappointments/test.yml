@@ -1,0 +1,142 @@
+# Test for the easyappointments template: a customer and a service, made through
+# Easy!Appointments' own models, survive a backup, a restore and the updates. The
+# seed runs in the easyappointments container as www-data (the user of the web
+# server, so nothing it writes is out of the server's reach). It first runs
+# `php index.php console migrate`, which brings the database to the latest schema and
+# changes nothing on a database that is there (the application's own command; the
+# destructive `console install` is never run), retried every 15 seconds while the
+# database does not answer (at most 20 times). It then runs a PHP script that boots
+# CodeIgniter through the application's own front controller (the command
+# `console help`, its output discarded) and, from the controller instance, uses the
+# models: customers_model->save, which finds a customer of the same email and updates
+# it, so a second seed changes nothing, and services_model->save for the service
+# catena-<run> only when none of that name is listed. The installation counts as done
+# once the users table exists, which the migrate command makes, so when the database
+# has no administrator the script first makes one through admins_model->save (the
+# email catena-<run>@catena.test, a password from DB_PASSWORD and the run id that
+# nobody is told); the installation page is then gone on that VM and the instance
+# needs a password reset for a person to sign in. The assert boots the same way and counts,
+# through customers_model->get and services_model->get, exactly one customer
+# catena-<run>@catena.test named catena <run> and exactly one service catena-<run>. A
+# failed check exits 3, which ends the retries.
+#
+# {{ run_id }} is supplied by the bench at execution time and each
+# {{ container_* }} is resolved from `docker ps` before invoking.
+
+id: easyappointments
+description: >-
+  The customer catena-<run>@catena.test and the service catena-<run> made through
+  Easy!Appointments' models are each listed exactly once, before and after the backup,
+  the restore and the updates.
+
+seed:
+  - name: customer_and_service
+    type: docker_exec
+    container: "{{ container_easyappointments }}"
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        cat > /tmp/catena-seed.php <<'PHP'
+        <?php
+        $_SERVER['argv'] = ['index.php', 'console', 'help'];
+        $_SERVER['argc'] = 3;
+        chdir('/var/www/html');
+        ob_start();
+        require '/var/www/html/index.php';
+        ob_end_clean();
+        $CI = &get_instance();
+        $name = 'catena-{{ run_id }}';
+        $email = $name . '@catena.test';
+        if (!$CI->admins_model->get()) {
+            $CI->admins_model->save([
+                'first_name' => 'catena',
+                'last_name' => '{{ run_id }}',
+                'email' => $email,
+                'phone_number' => '+10000000000',
+                'settings' => [
+                    'username' => 'catena-' . substr(md5($name), 0, 8),
+                    'password' => substr(hash('sha256', getenv('DB_PASSWORD') . ':' . $name), 0, 24),
+                    'notifications' => false,
+                    'calendar_view' => CALENDAR_VIEW_DEFAULT,
+                ],
+            ]);
+        }
+        $customer_id = $CI->customers_model->save([
+            'first_name' => 'catena',
+            'last_name' => '{{ run_id }}',
+            'email' => $email,
+            'phone_number' => '+10000000000',
+        ]);
+        if (!$CI->services_model->get(['name' => $name])) {
+            $CI->services_model->save([
+                'name' => $name,
+                'duration' => '30',
+                'price' => '0',
+                'currency' => '',
+                'slot_interval' => 15,
+                'attendants_number' => '1',
+            ]);
+        }
+        echo 'seeded customer ' . $email . ' as ' . $customer_id . PHP_EOL;
+        PHP
+        chmod 0644 /tmp/catena-seed.php
+        cd /var/www/html
+        n=0
+        while :; do
+          rc=0
+          su -m -s /bin/sh www-data -c 'cd /var/www/html && php index.php console migrate && php /tmp/catena-seed.php' || rc=$?
+          [ "$rc" -eq 0 ] && break
+          n=$((n + 1))
+          [ "$n" -lt 20 ] || exit "$rc"
+          sleep 15
+        done
+    expect_stdout_contains: "seeded customer catena-{{ run_id }}@catena.test as "
+    timeout_s: 1500
+
+assert:
+  - name: customer_and_service_through_easyappointments
+    type: docker_exec
+    container: "{{ container_easyappointments }}"
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        cat > /tmp/catena-assert.php <<'PHP'
+        <?php
+        $_SERVER['argv'] = ['index.php', 'console', 'help'];
+        $_SERVER['argc'] = 3;
+        chdir('/var/www/html');
+        ob_start();
+        require '/var/www/html/index.php';
+        ob_end_clean();
+        $CI = &get_instance();
+        $name = 'catena-{{ run_id }}';
+        $email = $name . '@catena.test';
+        $customers = $CI->customers_model->get(['email' => $email]);
+        if (count($customers) !== 1 || $customers[0]['first_name'] !== 'catena' || $customers[0]['last_name'] !== '{{ run_id }}') {
+            fwrite(STDERR, 'Easy!Appointments lists ' . count($customers) . ' customers ' . $email . ', expected one named catena {{ run_id }}' . PHP_EOL);
+            exit(3);
+        }
+        $services = $CI->services_model->get(['name' => $name]);
+        if (count($services) !== 1) {
+            fwrite(STDERR, 'Easy!Appointments lists ' . count($services) . ' services ' . $name . ', expected one' . PHP_EOL);
+            exit(3);
+        }
+        echo 'customer ok: ' . $email . ' and the service ' . $name . PHP_EOL;
+        PHP
+        chmod 0644 /tmp/catena-assert.php
+        n=0
+        while :; do
+          rc=0
+          su -m -s /bin/sh www-data -c 'cd /var/www/html && php /tmp/catena-assert.php' || rc=$?
+          [ "$rc" -eq 0 ] && break
+          [ "$rc" -ne 3 ] || exit 3
+          n=$((n + 1))
+          [ "$n" -lt 20 ] || exit "$rc"
+          sleep 15
+        done
+    expect_stdout_contains: "customer ok: catena-{{ run_id }}@catena.test and the service catena-{{ run_id }}"
+    timeout_s: 1500

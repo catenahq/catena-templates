@@ -1,5 +1,5 @@
 schema: 2
-requires_catena: 0.11.12
+requires_catena: 0.12.2
 env:
   DOMAIN_HOST:
     setting: {default: "sign.{{ cloudflare_zone }}"}
@@ -21,6 +21,8 @@ env:
     setting: {default: ""}
   SMTP_AUTH:
     setting: {default: "plain"}
+  UPDATE_LEVEL:
+    setting: {default: "major", label: {en: "Automatic updates: major, minor, patch or off", fr: "Mises à jour automatiques : major, minor, patch ou off"}}
 images:
   db:
     rule: {kind: partial_line}

@@ -1,0 +1,101 @@
+# Test for the n8n template: a workflow imported through n8n's own command line
+# survives a backup, a restore and the updates. The seed runs in the n8n container: it
+# waits until /healthz/readiness answers 200 (database connected, migrations done, at
+# most 300 s), writes a workflow file whose id is the first 16 characters of the MD5 of
+# the run id, whose name is catena-<run> and whose Code node holds fixture-<run>, and
+# runs `n8n import:workflow --input=` on it, which saves a workflow of an id that
+# exists in place, so a second seed changes nothing. The workflow, its history and its
+# owner project live in the database, so the assert waits the same way, runs
+# `n8n export:workflow --all` into a file and a node script reads it: exactly one
+# workflow is named catena-<run>, it has the derived id, and its Code node still holds
+# fixture-<run>. No credential is involved: the command line talks to the database the
+# server uses.
+#
+# {{ run_id }} is supplied by the bench at execution time and each
+# {{ container_* }} is resolved from `docker ps` before invoking.
+
+id: n8n
+description: >-
+  The workflow catena-<run>, imported with n8n's command line, is exported exactly once
+  by n8n with its Code node holding fixture-<run>, before and after the backup, the
+  restore and the updates.
+
+seed:
+  - name: import_the_workflow
+    type: docker_exec
+    container: "{{ container_n8n }}"
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        ready() { node -e "require('http').get({host: '127.0.0.1', port: 5678, path: '/healthz/readiness', timeout: 5000}, (res) => { res.resume(); process.exit(res.statusCode === 200 ? 0 : 1); }).on('error', () => process.exit(1)).on('timeout', function () { this.destroy(); });"; }
+        waited=0
+        until ready; do
+          [ "$waited" -lt 300 ] || { echo "n8n was not ready within 300 s" >&2; exit 1; }
+          sleep 5
+          waited=$((waited + 5))
+        done
+        id=$(printf '%s' '{{ run_id }}' | md5sum | cut -c1-16)
+        cat > /tmp/catena-workflow.json <<JSON
+        {
+          "id": "$id",
+          "name": "catena-{{ run_id }}",
+          "active": false,
+          "nodes": [
+            {"id": "00000000-0000-4000-8000-000000000001", "name": "Start", "type": "n8n-nodes-base.manualTrigger", "typeVersion": 1, "position": [0, 0], "parameters": {}},
+            {"id": "00000000-0000-4000-8000-000000000002", "name": "Note", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [220, 0], "parameters": {"jsCode": "return [{ json: { note: 'fixture-{{ run_id }}' } }];"}}
+          ],
+          "connections": {"Start": {"main": [[{"node": "Note", "type": "main", "index": 0}]]}},
+          "settings": {}
+        }
+        JSON
+        out=$(n8n import:workflow --input=/tmp/catena-workflow.json 2>&1) || { echo "$out" >&2; exit 1; }
+        echo "$out"
+        case "$out" in
+          *"Successfully imported 1 workflow"*) echo "seeded workflow catena-{{ run_id }} as $id" ;;
+          *) exit 1 ;;
+        esac
+    expect_stdout_contains: "seeded workflow catena-{{ run_id }} as "
+    timeout_s: 420
+
+assert:
+  - name: workflow_through_n8n
+    type: docker_exec
+    container: "{{ container_n8n }}"
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        ready() { node -e "require('http').get({host: '127.0.0.1', port: 5678, path: '/healthz/readiness', timeout: 5000}, (res) => { res.resume(); process.exit(res.statusCode === 200 ? 0 : 1); }).on('error', () => process.exit(1)).on('timeout', function () { this.destroy(); });"; }
+        waited=0
+        until ready; do
+          [ "$waited" -lt 300 ] || { echo "n8n was not ready within 300 s" >&2; exit 1; }
+          sleep 5
+          waited=$((waited + 5))
+        done
+        id=$(printf '%s' '{{ run_id }}' | md5sum | cut -c1-16)
+        n8n export:workflow --all --output=/tmp/catena-export.json > /dev/null
+        cat > /tmp/catena-check.js <<'JS'
+        const name = "catena-{{ run_id }}";
+        const text = "fixture-{{ run_id }}";
+        const workflows = JSON.parse(require("fs").readFileSync("/tmp/catena-export.json", "utf8"));
+        const found = workflows.filter((w) => w.name === name);
+        if (found.length !== 1) {
+          console.error("n8n exports " + found.length + " workflows named " + name + ", expected one");
+          process.exit(1);
+        }
+        if (found[0].id !== process.argv[2]) {
+          console.error("the workflow " + name + " has the id " + found[0].id + ", expected " + process.argv[2]);
+          process.exit(1);
+        }
+        if (!found[0].nodes.some((n) => n.parameters && String(n.parameters.jsCode || "").includes(text))) {
+          console.error("no node of the workflow " + name + " holds " + text);
+          process.exit(1);
+        }
+        console.log("workflow ok: " + name + " as " + found[0].id + " holds " + text);
+        JS
+        node /tmp/catena-check.js "$id"
+    expect_stdout_contains: "workflow ok: catena-{{ run_id }} as "
+    timeout_s: 420

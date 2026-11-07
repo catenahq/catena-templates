@@ -7,7 +7,7 @@ services:
     environment:
       NEXT_PUBLIC_API_BASE_URL: ""
     labels:
-      - "vps.auto-update=patch"
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
     networks:
       - default
 
@@ -19,7 +19,7 @@ services:
     environment:
       NEXT_PUBLIC_API_BASE_URL: ""
     labels:
-      - "vps.auto-update=patch"
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
     networks:
       - default
 
@@ -31,7 +31,7 @@ services:
     environment:
       NEXT_PUBLIC_API_BASE_URL: ""
     labels:
-      - "vps.auto-update=patch"
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
     networks:
       - default
 
@@ -76,7 +76,7 @@ services:
       USE_MINIO: "1"
       FILE_SIZE_LIMIT: "5242880"
     labels:
-      - "vps.auto-update=patch"
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
     networks:
       - default
 
@@ -88,7 +88,7 @@ services:
     command: ./bin/docker-entrypoint-worker.sh
     environment: *backend-env
     labels:
-      - "vps.auto-update=patch"
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
     networks:
       - default
 
@@ -100,7 +100,7 @@ services:
     command: ./bin/docker-entrypoint-beat.sh
     environment: *backend-env
     labels:
-      - "vps.auto-update=patch"
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
     networks:
       - default
 
@@ -114,7 +114,7 @@ services:
       LIVE_SERVER_SECRET_KEY: ${PLANE_LIVE_SECRET_KEY}
       REDIS_URL: redis://redis:6379/
     labels:
-      - "vps.auto-update=patch"
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
     networks:
       - default
 
@@ -131,7 +131,7 @@ services:
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=80"
       - "vps.auth.mode=public"
-      - "vps.auto-update=patch"
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
     cap_drop:
       - NET_RAW
     networks:
@@ -165,7 +165,7 @@ services:
       - default
 
   redis:
-    image: redis:8.10.2-alpine3.23
+    image: redis:8.10.3-alpine3.23
     deploy:
       restart_policy:
         condition: any
@@ -197,6 +197,8 @@ services:
     volumes:
       - mq-data:/var/lib/rabbitmq
     labels:
+      # RabbitMQ keeps its queues in mq-data and no data upgrade moves them, so
+      # it follows its own patch line whatever UPDATE_LEVEL is.
       - "vps.auto-update=patch"
     networks:
       - default
@@ -217,6 +219,8 @@ services:
     volumes:
       - minio-data:/data
     labels:
+      # The object store stays on its pinned image: no data upgrade moves its
+      # buckets, so no level moves it.
       - "vps.auto-update=off"
     # The proxy's Caddyfile reaches the bucket by this name.
     networks:

@@ -113,8 +113,9 @@ def test_actualbudget_export(tmp_path):
     assert doc["services"]["actual"]["ports"] == ["127.0.0.1:5006:5006"]
     assert (export.service, export.port) == ("actual", 5006)
     env = (out / ".env").read_text()
-    assert env.splitlines()[-1] == "DOMAIN_HOST="
-    assert env.splitlines()[-2].startswith("# DOMAIN_HOST:")
+    lines = env.splitlines()
+    assert lines[lines.index("DOMAIN_HOST=") - 1].startswith("# DOMAIN_HOST:")
+    assert lines[-1] == "UPDATE_LEVEL=major"
     assert stat.S_IMODE((out / ".env").stat().st_mode) == 0o600
     assert export.to_fill == ["DOMAIN_HOST"]
 

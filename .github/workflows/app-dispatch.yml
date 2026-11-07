@@ -19,11 +19,12 @@ name: app-dispatch
 # APP_CI_PAUSED to `true` stops the dispatch; no status is then posted and the
 # required `app-tests` check stays pending.
 #
-# The payload is `{sha, base, ids, ref, repo, carry, carry_state}`: the commit, the
-# commit the change is judged from, the apps it touches (comma-separated slugs),
-# the branch, the name of the repository the event comes from, and a verdict the
-# same change already has. The ops workflow validates the commit, the base, the
-# apps, the branch and the verdict again before using them, and skips a commit its
+# The payload is `{sha, base, ids, ref, repo, carry, carry_state, own_images}`: the
+# commit, the commit the change is judged from, the apps it touches
+# (comma-separated slugs), the branch, the name of the repository the event comes
+# from, a verdict the same change already has, and the caller's `own-images`. The
+# ops workflow validates the commit, the base, the apps, the branch, the verdict
+# and the images again before using them, and skips a commit its
 # branch has since moved past. The dispatch needs a token that writes to ops: the
 # catenahq-renovate GitHub App's (secrets RENOVATE_APP_CLIENT_ID and
 # RENOVATE_APP_PRIVATE_KEY).
@@ -302,6 +303,7 @@ jobs:
           BRANCH: ${{ github.ref_name }}
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
           REPO_NAME: ${{ github.event.repository.name }}
+          OWN_IMAGES: ${{ inputs.own-images }}
         run: |
           set -euo pipefail
           shopt -s inherit_errexit
@@ -345,5 +347,6 @@ jobs:
               -f "client_payload[ref]=$BRANCH" \
               -f "client_payload[repo]=$REPO_NAME" \
               -f "client_payload[carry]=$carry" \
-              -f "client_payload[carry_state]=$state"
+              -f "client_payload[carry_state]=$state" \
+              -f "client_payload[own_images]=$OWN_IMAGES"
           done 3< "$RUNNER_TEMP/payloads.txt"

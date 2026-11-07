@@ -1,6 +1,6 @@
 x-catena:
   schema: 2
-  requires_catena: 0.11.12
+  requires_catena: 0.12.2
   env:
     DOMAIN_HOST:
       setting: {default: "wiki.{{ cloudflare_zone }}"}
@@ -12,6 +12,8 @@ x-catena:
       generated: {length: 64, alphabet: hex}
     DB_PASSWORD:
       generated: {length: 32, alphabet: alnum}
+    UPDATE_LEVEL:
+      setting: {default: "major", label: {en: "Automatic updates: major, minor, patch or off", fr: "Mises à jour automatiques : major, minor, patch ou off"}}
   lifecycle:
     service: "outline"
     ready: ["node", "-e", "require('net').connect(3000, '127.0.0.1').on('connect', () => process.exit(0)).on('error', () => process.exit(1))"]
@@ -93,6 +95,10 @@ services:
       FILE_STORAGE_UPLOAD_MAX_SIZE: "262144000"
       FORCE_HTTPS: "true"
       ENABLE_UPDATES: "false"
+      # Outline reads a variable's value from <NAME>_FILE when the variable is unset, so a
+      # host-wide SSL_CERT_FILE (the CA bundle OpenSSL reads) would become its own TLS
+      # certificate, which it refuses to start without SSL_KEY. The proxy holds TLS.
+      SSL_CERT: ""
 
       # This app's own Keycloak sign-in entry, written by the settings sync
       # from the sign-in labels below. Empty until its first pass.
@@ -111,7 +117,7 @@ services:
       - "vps.auth.oidc=true"
       - "vps.auth.groups=staff"
       - "vps.auth.oidc.redirect_uris=https://${OUTLINE_HOSTNAME}/auth/oidc.callback"
-      - "vps.auto-update=patch"
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
     cap_drop:
       - NET_RAW
     networks:
@@ -145,7 +151,7 @@ services:
       - default
 
   redis:
-    image: redis:8.10.2-alpine3.23
+    image: redis:8.10.3-alpine3.23
     deploy:
       restart_policy:
         condition: any

@@ -15,7 +15,7 @@ services:
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=9000"
       - "vps.auth.mode=admin-only"
-      - "vps.auto-update=patch"
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
     cap_drop:
       - NET_RAW
     networks:

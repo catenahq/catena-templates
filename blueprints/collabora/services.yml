@@ -22,7 +22,7 @@ services:
       # an auth redirect inside that iframe lands on the Keycloak login
       # page instead of the document.
       - "vps.auth.mode=public"
-      - "vps.auto-update=patch"
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
     cap_drop:
       - NET_RAW
     networks:

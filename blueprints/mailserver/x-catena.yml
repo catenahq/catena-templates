@@ -1,5 +1,5 @@
 schema: 2
-requires_catena: 0.11.12
+requires_catena: 0.12.2
 version_from: dms
 env:
   DOMAIN_HOST:
@@ -26,6 +26,8 @@ env:
     managed: {expr: "{{ provided.antivirus.host }}"}
   ANTIVIRUS_PORT:
     managed: {expr: "{{ provided.antivirus.port }}"}
+  UPDATE_LEVEL:
+    setting: {default: "major", label: {en: "Automatic updates: major, minor, patch or off", fr: "Mises à jour automatiques : major, minor, patch ou off"}}
 capabilities: [NET_ADMIN]
 lifecycle:
   service: "roundcube"

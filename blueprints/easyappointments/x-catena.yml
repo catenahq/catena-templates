@@ -1,5 +1,5 @@
 schema: 2
-requires_catena: 0.11.12
+requires_catena: 0.12.2
 env:
   DOMAIN_HOST:
     setting: {default: "book.{{ cloudflare_zone }}"}
@@ -9,6 +9,8 @@ env:
     generated: {length: 32, alphabet: alnum}
   DB_ROOT_PASSWORD:
     generated: {length: 32, alphabet: alnum}
+  UPDATE_LEVEL:
+    setting: {default: "major", label: {en: "Automatic updates: major, minor, patch or off", fr: "Mises à jour automatiques : major, minor, patch ou off"}}
 # verify asks Apache for the root page. Before its installation wizard has run, the application answers
 # with a redirect to /installation; after it, with the booking page, whose title names the product.
 hooks:

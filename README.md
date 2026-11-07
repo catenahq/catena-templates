@@ -29,8 +29,9 @@ blueprints/              # ONE directory per template -- what a host fetches at 
                          # committed; the swarm stack file a host deploys
     app.json             # HAND-EDITED; the app's card, catalog and bench data
                          # (app.schema.json), at most 64 KiB
-    test.yml             # HAND-EDITED; optional; the state the CI harness
-                         # seeds after a deploy and checks after a restore
+    test.yml             # HAND-EDITED; optional; the first-run setup and the
+                         # state the CI harness seeds after a deploy and
+                         # checks after a restore
     logo.png             # HAND-PLACED; optional
     logo.svg             # generated placeholder, absent a logo.png
 
@@ -234,7 +235,9 @@ block.
    An app service's `vps.auto-update` label is `${UPDATE_LEVEL:-major}` and the
    block declares `UPDATE_LEVEL` as a setting with the default `major`; a
    database, a cache and a stateful service no data upgrade covers keep a
-   literal label, and `make lint` refuses a variable with no level default.
+   literal label (on a service that is no database or cache, with a comment
+   naming why), and `make lint` refuses a variable with no level default, a
+   literal label without that comment and an undeclared `UPDATE_LEVEL`.
    An application that offers access levels to invited people adds `access`
    (`access: {user: {label: {en: "Nextcloud", fr: "Nextcloud"}}}`): the panel
    shows each label, and Catena admits the level's members at the application's
@@ -307,18 +310,46 @@ block.
    Real examples: the hooks of `blueprints/erpnext` and
    `blueprints/nextcloud-s3-oidc`.
 9. `blueprints/<id>/test.yml` -- the data the bench seeds and reads back. It
-   holds `id` (the template id), `description`, and the lists `seed` and
-   `assert`. Each step has a unique `name` and a `type`: `docker_exec` runs the
-   argv `command` in `container` (`expect_exit_code`, default 0, and
-   `expect_stdout_contains`, a substring of the output, `timeout_s`, default
-   30), and `volume_file` writes (`content`) or reads (`expect_stdout_contains`)
-   one `path` in the named `volume`, for an image with no shell. `{{ run_id }}`,
-   `{{ app_name }}`, `{{ primary_container }}` and `{{ container_<service> }}`
-   are filled in. The seed writes its data through the app itself (its API or
+   holds `id` (the template id), `description`, the lists `seed` and `assert`,
+   and an optional `setup` list. Each step has a unique `name` and a `type`:
+   `docker_exec` runs the argv `command` in `container` (`expect_exit_code`,
+   default 0, and `expect_stdout_contains`, a substring of the output,
+   `timeout_s`, default 30), and `volume_file` writes (`content`) or reads
+   (`expect_stdout_contains`) one `path` in the named `volume`, for an image
+   with no shell. `{{ run_id }}`, `{{ app_name }}`, `{{ primary_container }}`,
+   `{{ container_<service> }}` and `{{ route_host_<service> }}` (the first host
+   of the service's `vps.route.host`) are filled in.
+   - `setup` does the app's first run as a person would: its first
+     administrator, and a setting only an administrator makes. It runs before
+     every seed and before a bench sign-in, never before an assert. Each step
+     gets or creates what it makes and names no `{{ run_id }}`, since what it
+     makes belongs to the instance.
+   - The credential is the harness's: every step of a test with `setup` gets
+     a throwaway password as `CATENA_TEST_PASSWORD` in its environment, the
+     same for the life of the instance. The setup gives it to the app, an
+     assert signs in with it, and no step makes a secret of its own or passes
+     the password on a command line (pass it through the environment, a file
+     or stdin).
+   - `container: "{{ helper_<service> }}"` runs the command in a throwaway
+     container with sh, busybox wget and python3 that shares the network of
+     the service's container and mounts no volume: the way to ask an image with
+     no shell or no HTTP client over HTTP at `127.0.0.1:<port>`.
+     `stdin: service_log` gives a step the last lines of its service's log on
+     stdin, for a one-time setup code the app logs.
+
+   The seed writes its data through the app itself (its API or
    command line) wherever the app allows it, so the restore proves data the
    app wrote. The asserts read that data back through the app and exercise it;
    an assert that reads only a file the seed wrote proves the volume, not the
-   app. Real example: `blueprints/erpnext`.
+   app. The seed is safe to run twice: it gets or creates each record by the
+   run id, since the `checks` leg and the bench both seed again. An assert
+   counts what the seed made, exactly one of each. `tests/test_app_tests.py`
+   refuses a step on a stand-in (a `catena_canary` table, a database server's
+   own database), asserts that only read a path, a word a seed builds from
+   the run id that no assert names, a setup step naming the run id, a helper of
+   a service the compose lacks, and a credential other than
+   `CATENA_TEST_PASSWORD`; `tests/app-tests-debt.txt` lists the apps whose test
+   is still to be rewritten. Real example: `blueprints/erpnext`.
 10. `make` -- renders, lints, and runs the tests. Commit the packed
     `blueprints/<id>/docker-compose.yml`, `catalog.json` and `index.html` with the
     source change.
@@ -421,10 +452,11 @@ input of its `workflow_call` sets another label) for every pull
 request, forks included (no secret, a read-only token). The bench lifecycle
 runs later and elsewhere. One job covers the catalog:
 
-- `make` (render, lint, tests) and `catena-applint --catalog --nodes 2` over
-  `blueprints/`, run from the public catena-admin image. The render in `make` packs
-  each app held as neat files, and the job fails when the committed
-  `docker-compose.yml` differs from that render.
+- The swarm lint (`build/lint_swarm.py`) and `catena-applint --catalog --nodes 2` over
+  `blueprints/`, run from the public catena-admin image. The unit tests, the other
+  lints and the render drift check (the render packs each app held as neat files,
+  and the committed `docker-compose.yml` must equal that render) run in
+  `build-and-verify.yml` only.
 
 Then one job per app the change touches (`blueprints/<id>/**`), each running:
 
@@ -477,10 +509,22 @@ started (`build/pack.py plain-check`, see "Run an app on bare Docker"), on the
 runs of the heavy steps and on a change of verification; the job fails when the
 export does not answer.
 
+The first job of `app-ci.yml`, `same tree (app-ci)`, runs for a pull request and
+for another repository's call. It looks for an earlier run of the workflow on the
+same tree against the same base (contracts' `same-tree` action, in the README of
+contracts, "Runs once per tree"). A found success skips `repo`, `scope`, `plan`
+and so the app jobs; a found failure fails the job, which blocks the merge where
+the job is required; no result runs everything. `build-and-verify.yml` starts the
+same way with `same tree (build-and-verify)`. A call with `sha`, as `app-main.yml`
+makes, skips the job.
+
 A push to `main` (a repository admin's direct push or a merge) runs
 `.github/workflows/app-main.yml`, which calls `app-ci.yml` once per commit of
 the push with `sha` (the commit) and `base` (its parent), so each commit is
-judged on what it introduces, as a pull request is. It posts the commit status
+judged on what it introduces, as a pull request is. A commit whose tree and
+parent tree an `app-ci` run of a pull request already judged (a single-commit
+pull request merged while up to date, as the bot pull requests are) runs
+nothing: it gets that run's result, and its `app-ci` status points at that run. It posts the commit status
 `app-ci` on each commit (success, or failure naming the jobs that failed) and
 calls `app-dispatch.yml` with the commits that passed: a push sends only
 those to the bench (the nightly run takes the head of `main`). A merge commit
@@ -506,10 +550,11 @@ layout; `app-main.yml` serves this repository alone. Their inputs are `catalog`
 (default true), `tools-ref` (default `main`) and `own-images` (default empty);
 `app-ci.yml` also takes `sha` and `base` and `app-dispatch.yml` takes `commits`
 (the commits of a push to send, default every commit of the push), all
-defaulting to empty. A caller of `app-ci.yml` grants `contents: read` and
-`statuses: read`: the `app` job reads the `app-ci` status of the app's last
-runtime change, and GitHub refuses a called workflow that asks for more than its
-caller grants. A repository that posts no `app-ci` status runs the heavy steps
+defaulting to empty. A caller of `app-ci.yml` grants `contents: read`,
+`statuses: read` and `actions: read`: the `app` job reads the `app-ci` status of
+the app's last runtime change, the `same tree` job reads earlier runs, and GitHub
+refuses a called workflow that asks for more than its caller grants. A caller of
+`build-and-verify.yml` grants `actions: read` for the same reason. A repository that posts no `app-ci` status runs the heavy steps
 every time. `app-dispatch.yml` and `app-tag.yml` take the
 secrets `RENOVATE_APP_CLIENT_ID` and `RENOVATE_APP_PRIVATE_KEY`. With `catalog`
 false a called workflow checks out catena-templates at `tools-ref` into
@@ -537,7 +582,8 @@ private runner this repository cannot reach):
   the private ops repository the event `app-test` with the commit, the commit
   the change is judged from, the apps the change touches, the branch and the
   name of the repository the event comes from (`catena-templates` here; another
-  repository calls this workflow too). On `main`, each commit of the push is sent on its own, judged from its parent,
+  repository calls this workflow too) and the caller's `own-images`, so the
+  bench knows which images the repository builds itself. On `main`, each commit of the push is sent on its own, judged from its parent,
   except a commit that changes no app or whose app `main` has changed again since. A
   branch other than `main` is judged as a whole, from where it left `main`, and
   is sent only when it changes one app or none; a newer push cancels the send of

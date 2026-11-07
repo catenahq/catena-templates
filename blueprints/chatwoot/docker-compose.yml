@@ -1,6 +1,6 @@
 x-catena:
   schema: 2
-  requires_catena: 0.11.12
+  requires_catena: 0.12.2
   env:
     DOMAIN_HOST:
       setting: {default: "support.{{ cloudflare_zone }}"}
@@ -10,6 +10,8 @@ x-catena:
       generated: {length: 128, alphabet: hex}
     DB_PASSWORD:
       generated: {length: 32, alphabet: alnum}
+    UPDATE_LEVEL:
+      setting: {default: "major", label: {en: "Automatic updates: major, minor, patch or off", fr: "Mises à jour automatiques : major, minor, patch ou off"}}
   images:
     db:
       rule: {kind: pattern, tag_pattern: '(\d+)\.(\d+)\.(\d+)-pg18-trixie'}
@@ -49,7 +51,7 @@ x-catena:
 
 services:
   rails:
-    image: chatwoot/chatwoot:v4.17.1-ce
+    image: chatwoot/chatwoot:v4.19.1-ce
     deploy:
       restart_policy:
         condition: any
@@ -86,7 +88,7 @@ services:
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=3000"
       - "vps.auth.mode=public"
-      - "vps.auto-update=patch"
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
     cap_drop:
       - NET_RAW
     networks:
@@ -94,7 +96,7 @@ services:
       default: {}
 
   sidekiq:
-    image: chatwoot/chatwoot:v4.17.1-ce
+    image: chatwoot/chatwoot:v4.19.1-ce
     deploy:
       restart_policy:
         condition: any
@@ -116,7 +118,7 @@ services:
     volumes:
       - storage-data:/app/storage
     labels:
-      - "vps.auto-update=patch"
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
     networks:
       - default
 
@@ -148,7 +150,7 @@ services:
       - default
 
   redis:
-    image: redis:8.6.7-alpine3.23
+    image: redis:8.6.8-alpine3.23
     deploy:
       restart_policy:
         condition: any
