@@ -5,7 +5,8 @@
 # still answers the installer: python3 in the harness's helper, which shares the network of the
 # mautic_web container, asks Apache at 127.0.0.1 under the site's host name and follows each
 # redirect there itself. Each installer page's form is posted with the values Mautic put in it:
-# the requirements check, the database (the image's local.php fills it from the stack's env),
+# the requirements check, the database (its password field arrives empty, so the step posts the
+# stack's DB_PASSWORD as a person types it),
 # then the administrator catena-admin with the password the harness gives as
 # CATENA_TEST_PASSWORD; the installer then writes the site URL from that host name and runs its
 # final migrations. The seed runs php in the mautic_web container as www-data, boots Mautic's
@@ -27,6 +28,7 @@ setup:
   - name: web_installer
     type: docker_exec
     container: "{{ helper_mautic_web }}"
+    env: [DB_PASSWORD]
     command:
       - python3
       - -c
@@ -123,6 +125,8 @@ setup:
                 form.update({prefix + "[firstname]": "Catena", prefix + "[lastname]": "Test",
                              prefix + "[email]": "catena-admin@example.com", prefix + "[username]": "catena-admin",
                              prefix + "[password]": password})
+            if prefix == "install_doctrine_step":
+                form[prefix + "[password]"] = os.environ["DB_PASSWORD"]
             before = path
             status, path, body = call("POST", page.action or path, form)
             if path == before:
