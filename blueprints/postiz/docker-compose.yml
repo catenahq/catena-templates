@@ -87,7 +87,7 @@ x-catena:
 
 services:
   postiz:
-    image: ghcr.io/gitroomhq/postiz-app:v2.24.0
+    image: ghcr.io/gitroomhq/postiz-app:v2.25.3
     # The orchestrator starts its Temporal workers only if Temporal answers when it boots and otherwise runs
     # without them, so the image's start runs once Temporal's default namespace answers. It is the image's
     # pm2-run script with the schema push run by the image's own prisma (a devDependency the image installs),
@@ -179,7 +179,7 @@ services:
       - default
 
   temporal:
-    image: temporalio/server:1.31.4
+    image: temporalio/server:1.32.2
     deploy:
       restart_policy:
         condition: any
@@ -209,7 +209,7 @@ services:
   # namespace once the server answers, then stays up so swarm keeps it at its replica count. Each step leaves what
   # is already done as it is; a step that fails exits and swarm starts the task again; TERM ends the wait at once.
   temporal-setup:
-    image: temporalio/admin-tools:1.31.4
+    image: temporalio/admin-tools:1.32.2
     deploy:
       restart_policy:
         condition: any
