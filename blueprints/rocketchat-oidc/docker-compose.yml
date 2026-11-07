@@ -136,7 +136,7 @@ services:
           - mongodb
 
   rocketchat:
-    image: docker.io/rocketchat/rocket.chat:8.8.1
+    image: docker.io/rocketchat/rocket.chat:8.8.2
     deploy:
       restart_policy:
         condition: any
