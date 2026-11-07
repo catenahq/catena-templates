@@ -40,7 +40,7 @@ def test_the_hook_runs_in_a_service_of_the_stack():
     assert hooks["service"] == "n8n"
     assert hooks["service"] in _compose()["services"]
     assert set(hooks) - {"service", "user", "timeout_seconds"} == {"verify"}
-    assert hooks["timeout_seconds"] <= 60
+    assert hooks["timeout_seconds"] >= 100
     assert quiesce_lint.lint_hooks(_entry()) == []
 
 
@@ -50,7 +50,10 @@ class _Stub(http.server.BaseHTTPRequestHandler):
 
     def do_GET(self):
         type(self).seen.append(dict(self.headers))
-        status, body = type(self).routes.get(self.path, (404, b""))
+        answer = type(self).routes.get(self.path, (404, b""))
+        if isinstance(answer, list):
+            answer = answer.pop(0) if len(answer) > 1 else answer[0]
+        status, body = answer
         self.send_response(status)
         self.end_headers()
         self.wfile.write(body)
@@ -59,7 +62,7 @@ class _Stub(http.server.BaseHTTPRequestHandler):
         pass
 
 
-def _run(routes: dict[str, tuple[int, bytes]], *, answer: bool = True, swap=(), env=None):
+def _run(routes: dict, *, answer: bool = True, swap=(), env=None):
     """The verify script with every address in `swap` pointed at a stub server (or at a closed port)."""
     _Stub.routes, _Stub.seen = routes, []
     server = http.server.HTTPServer(("127.0.0.1", 0), _Stub)
@@ -78,6 +81,8 @@ def _run(routes: dict[str, tuple[int, bytes]], *, answer: bool = True, swap=(), 
         server.server_close()
 
 SWAP = [("port: 5678", "port: {port}")]
+# The same script with a 2 s wait asked every 0.2 s, so a test of a starting server ends quickly.
+SHORT = [*SWAP, ("Date.now() + 90000", "Date.now() + 2000"), ("setTimeout(ask, 3000)", "setTimeout(ask, 200)")]
 
 
 def test_the_hook_asks_the_port_the_route_label_names():
@@ -92,10 +97,20 @@ def test_verify_passes_for_a_ready_server():
 
 
 @needs_interpreter
-def test_verify_fails_for_a_server_still_starting_and_for_no_answer():
-    run, _ = _run({"/healthz/readiness": (503, b'{"status":"error"}')}, swap=SWAP)
+def test_verify_waits_for_a_starting_server_to_become_ready():
+    starting = (503, b'{"status":"error"}')
+    run, seen = _run({"/healthz/readiness": [starting, starting, (200, b'{"status":"ok"}')]}, swap=SHORT)
+    assert run.returncode == 0, run.stderr
+    assert "n8n is ready" in run.stdout
+    assert len(seen) == 3
+
+
+@needs_interpreter
+def test_verify_fails_for_a_server_still_starting_after_the_wait_and_for_no_answer():
+    run, seen = _run({"/healthz/readiness": (503, b'{"status":"error"}')}, swap=SHORT)
     assert run.returncode == 1 and "answered 503" in run.stderr
-    run, _ = _run({"/healthz/readiness": (200, b"n8n is starting up. Please wait")}, swap=SWAP)
+    assert len(seen) > 1
+    run, _ = _run({"/healthz/readiness": (200, b"n8n is starting up. Please wait")}, swap=SHORT)
     assert run.returncode == 1 and "answered 200" in run.stderr
-    run, _ = _run({}, answer=False, swap=SWAP)
+    run, _ = _run({}, answer=False, swap=SHORT)
     assert run.returncode == 1 and "does not answer on 5678" in run.stderr

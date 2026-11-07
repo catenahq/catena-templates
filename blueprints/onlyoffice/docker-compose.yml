@@ -39,7 +39,7 @@ x-catena:
 
 services:
   documentserver:
-    image: onlyoffice/documentserver:9.4.0.1
+    image: onlyoffice/documentserver:10.0.0.1
     deploy:
       restart_policy:
         condition: any
