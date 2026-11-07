@@ -410,7 +410,7 @@ services:
       - default
 
   redis:
-    image: redis:7.4.11-alpine
+    image: redis:7.4.12-alpine
     # Cache and file locks only: nothing here is worth keeping, and a lock
     # restored from a backup would be stale. No snapshots, /data is memory.
     command: ["redis-server", "--save", "", "--appendonly", "no"]
