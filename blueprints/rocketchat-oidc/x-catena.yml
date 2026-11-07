@@ -52,3 +52,7 @@ hooks:
   timeout_seconds: 180
   verify:
     - hooks/verify.js
+# The workspace's usage report (collector.rocket.chat), which lifts the message
+# restriction of an unlicensed workspace, and its supported-versions check
+# (releases.rocket.chat).
+egress: [collector.rocket.chat, releases.rocket.chat]

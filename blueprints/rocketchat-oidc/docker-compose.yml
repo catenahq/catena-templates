@@ -90,6 +90,10 @@ x-catena:
             }
             console.log("Rocket.Chat " + version + " answers and the Jitsi web server answers");
           })();
+  # The workspace's usage report (collector.rocket.chat), which lifts the message
+  # restriction of an unlicensed workspace, and its supported-versions check
+  # (releases.rocket.chat).
+  egress: [collector.rocket.chat, releases.rocket.chat]
 
 services:
   mongodb:
