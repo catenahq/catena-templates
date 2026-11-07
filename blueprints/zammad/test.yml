@@ -8,6 +8,7 @@
 #
 # The setup does the getting-started wizard's two steps through the services the
 # wizard's own calls use: while the system setup is not done, Service::User::AddFirstAdmin
+# (called with the signature of the installed release: keywords to new, or to execute)
 # makes the administrator catena-admin@example.com with the password the harness gives as
 # CATENA_TEST_PASSWORD; then, when they differ, Service::System::SetSystemInformation sets
 # the system URL https://<ZAMMAD_HOSTNAME> (the address Zammad's sign-in sends Keycloak
@@ -44,10 +45,13 @@ setup:
         email = "catena-admin@example.com"
         if !Service::System::CheckSetup.done?
           request = Struct.new(:remote_ip, :env).new("127.0.0.1", {})
-          Service::User::AddFirstAdmin.new.execute(
-            user_data: { firstname: "Catena", lastname: "Test", email: email,
-                         password: ENV.fetch("CATENA_TEST_PASSWORD") },
-            request: request)
+          user_data = { firstname: "Catena", lastname: "Test", email: email,
+                        password: ENV.fetch("CATENA_TEST_PASSWORD") }
+          if Service::User::AddFirstAdmin.instance_method(:execute).parameters.empty?
+            Service::User::AddFirstAdmin.new(user_data: user_data, request: request).execute
+          else
+            Service::User::AddFirstAdmin.new.execute(user_data: user_data, request: request)
+          end
         elsif !User.find_by(email: email)
           warn "Zammad's setup was done with another administrator than #{email}"
           exit 3
