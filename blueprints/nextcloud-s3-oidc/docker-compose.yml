@@ -1,6 +1,6 @@
 x-catena:
   schema: 2
-  requires_catena: 0.11.12
+  requires_catena: 0.12.2
   env:
     DOMAIN_HOST:
       managed: {expr: "nextcloud.{{ cloudflare_zone }}"}
@@ -9,9 +9,16 @@ x-catena:
     NEXTCLOUD_ADMIN_USER:
       setting: {default: "admin"}
     NEXTCLOUD_ADMIN_PASSWORD:
-      generated: {length: 24, alphabet: alnum}
+      generated:
+        length: 24
+        alphabet: alnum
+        first_start_only: true
+        note: "Read only at Nextcloud's first start, which created the administrator account with it; this line keeps that first password. To change the password, sign in to Nextcloud as the administrator and change it in Settings, from the profile picture menu."
     DB_PASSWORD:
-      generated: {length: 32, alphabet: alnum}
+      generated:
+        length: 32
+        alphabet: alnum
+        note: "The database keeps its own copy, as the password of its user nextcloud, and Nextcloud keeps another in config.php, as dbpassword. Change both to the new value first; until all three match, Nextcloud does not start."
     NEXTCLOUD_LOGLEVEL:
       setting: {default: "3"}
     NEXTCLOUD_VERSIONS_RETENTION:
@@ -37,9 +44,17 @@ x-catena:
     SIGNALING_HOSTNAME:
       managed: {expr: "signaling.{{ cloudflare_zone }}"}
     SIGNALING_SECRET:
-      generated: {length: 64, alphabet: alnum}
+      generated:
+        length: 64
+        alphabet: alnum
+        applied_on_deploy: true
+        note: "Shared by Talk and its signaling server; both take the new value when the file is saved."
     TALK_INTERNAL_SECRET:
-      generated: {length: 64, alphabet: alnum}
+      generated:
+        length: 64
+        alphabet: alnum
+        applied_on_deploy: true
+        note: "Used inside the signaling server alone, which takes the new value when the file is saved."
     TURN_HOSTNAME:
       managed: {expr: "{{ provided.turn.host }}"}
     TURN_PORT:
@@ -72,6 +87,8 @@ x-catena:
       managed: {expr: "{{ smtp_relay_tls | default('') }}"}
     SMTP_RELAY_SENDER:
       managed: {expr: "{{ smtp_relay_sender | default('') }}"}
+    UPDATE_LEVEL:
+      setting: {default: "major", label: {en: "Automatic updates: major, minor, patch or off", fr: "Mises à jour automatiques : major, minor, patch ou off"}}
   secrets: [smtp_password]
   access:
     user:
@@ -112,6 +129,9 @@ x-catena:
       region: "S3_REGION"
       access_key: "S3_ACCESS_KEY"
       secret_key: "S3_SECRET_KEY"
+    note:
+      en: "Nextcloud stores each file in the bucket under a number, encrypted, so the bucket alone shows no file. A bucket set after the first start is refused: the files Nextcloud already holds would no longer show."
+      fr: "Nextcloud range chaque fichier dans le seau sous un numéro, chiffré, si bien que le seau seul ne montre aucun fichier. Un seau indiqué après le premier démarrage est refusé : les fichiers que Nextcloud contient déjà n'apparaîtraient plus."
     switch:
       service: "app"
       user: "www-data"
@@ -130,6 +150,7 @@ x-catena:
   # call relay application, Nextcloud's outgoing mail from the server's mail
   # relay, and the Webmail link. Talk's relay and signaling entries are written
   # only while the relay application runs, and taken away when it goes; the
+  # signaling entry waits up to 60 seconds for the signaling server to answer; the
   # mail settings follow the mail relay the same way; the entries written are
   # recorded in the app settings of "catena". It leaves with 0 whenever
   # occ cannot be used (first install running, maintenance mode on, a restore
@@ -291,6 +312,7 @@ x-catena:
             { occ config:app:delete spreed external_signaling_only || true; } &&
             occ config:app:delete catena signaling_wired
           }
+          signaling_alive() { curl -fsS --max-time 3 http://signaling:8081/api/v1/welcome >/dev/null 2>&1; }
           wire_signaling() {
             [ "$$(occ config:app:get catena signaling_wired 2>/dev/null || true)" != "$$(signaling_record)" ] || return 0
             unwire_signaling &&
@@ -480,9 +502,17 @@ x-catena:
           if ensure_app spreed; then
             if [ -n "$${TURN_HOSTNAME:-}" ] && [ -n "$${TURN_SECRET:-}" ]; then
               step "the Talk relay entries" wire_turn
-              if [ -n "$${SIGNALING_HOSTNAME:-}" ] && [ -n "$${SIGNALING_SECRET:-}" ] \
-                  && curl -fsS --max-time 3 http://signaling:8081/api/v1/welcome >/dev/null 2>&1; then
-                step "the Talk signaling entry" wire_signaling
+              if [ -n "$${SIGNALING_HOSTNAME:-}" ] && [ -n "$${SIGNALING_SECRET:-}" ]; then
+                waited=0
+                until up=1; signaling_alive || { up=0; [ "$$waited" -ge 60 ]; }; do
+                  sleep 5
+                  waited=$$((waited + 5))
+                done
+                if [ "$$up" = 1 ]; then
+                  step "the Talk signaling entry" wire_signaling
+                else
+                  echo "catena: the signaling server does not answer; the next deploy wires it" >&2
+                fi
               fi
             else
               step "the Talk relay entries removal" unwire_turn
@@ -685,6 +715,9 @@ x-catena:
             say "not in the object store: $$(head -n 5 "$$work/missing" | sed 's/^/urn:oid:/' | tr '\n' ' ')"
           fi
           echo "missing=$$missing bucket=$$bucket database=$$database"
+  # The app store's index and the GitHub release downloads it links to, from
+  # which the configure hook installs each app it enables (Talk among them).
+  egress: [apps.nextcloud.com, github.com, release-assets.githubusercontent.com]
 
 services:
   app:
@@ -1053,7 +1086,7 @@ services:
       - "vps.auth.oidc=true"
       - "vps.auth.groups=staff"
       - "vps.auth.oidc.redirect_uris=https://${NEXTCLOUD_HOSTNAME}/apps/user_oidc/code"
-      - "vps.auto-update=patch"
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
       # status.php answers 200 before the install and in maintenance; the body says which.
       - "vps.health.path=/status.php"
       - 'vps.health.expect="installed":true,"maintenance":false'
@@ -1236,6 +1269,8 @@ services:
       # Background virus scans (files_antivirus job) run here too, so
       # cron also reaches the antivirus scanner.
       - antivirus
+    labels:
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
 
   # === HPB BEGIN -- Talk High-Performance Backend ==========================
   # Comment out this single service to disable Talk + HPB. The configure
@@ -1340,7 +1375,7 @@ services:
       - "vps.route.port=8081"
       - "vps.auth.mode=public"
       - "vps.health.path=/api/v1/welcome"
-      - "vps.auto-update=patch"
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
     cap_drop:
       - NET_RAW
     networks:

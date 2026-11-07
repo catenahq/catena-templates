@@ -1,6 +1,6 @@
 x-catena:
   schema: 2
-  requires_catena: 0.11.12
+  requires_catena: 0.12.2
   env:
     DOMAIN_HOST:
       setting: {default: "time.{{ cloudflare_zone }}"}
@@ -20,6 +20,8 @@ x-catena:
       setting: {default: "time@{{ cloudflare_zone }}"}
     KIMAI_MAIL_URL:
       setting: {default: "null://localhost"}
+    UPDATE_LEVEL:
+      setting: {default: "major", label: {en: "Automatic updates: major, minor, patch or off", fr: "Mises à jour automatiques : major, minor, patch ou off"}}
   # verify asks Apache for the sign-in page, which is open to everyone, and looks for the product name.
   hooks:
     service: kimai
@@ -62,11 +64,19 @@ services:
       memory_limit: "512M"
     volumes:
       - kimai-data:/opt/kimai/var
+    # The image's own check, with a start period that outlasts the first boot's migrations:
+    # a container stopped as unhealthy midway leaves a half-built schema no restart finishes.
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://127.0.0.1:8001 || exit 1"]
+      interval: 20s
+      timeout: 10s
+      retries: 3
+      start_period: 10m
     labels:
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=8001"
       - "vps.auth.mode=public"
-      - "vps.auto-update=patch"
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
     cap_drop:
       - NET_RAW
     networks:

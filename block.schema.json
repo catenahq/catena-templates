@@ -144,6 +144,16 @@
             "secret_key": { "$ref": "#/$defs/env_key" }
           }
         },
+        "note": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["en", "fr"],
+          "description": "Words the panel shows beside the choice of where the app keeps its files.",
+          "properties": {
+            "en": { "type": "string", "minLength": 1 },
+            "fr": { "type": "string", "minLength": 1 }
+          }
+        },
         "switch": {
           "type": "object",
           "additionalProperties": false,
@@ -215,10 +225,24 @@
             "type": "object",
             "additionalProperties": false,
             "required": ["length", "alphabet"],
-            "description": "A secret the host mints on the first deploy: length characters of alphabet.",
+            "description": "A secret the host mints on the first deploy: length characters of alphabet. first_start_only, applied_on_deploy and note are words the settings file shows above the value; they lock nothing.",
             "properties": {
               "length": { "type": "integer", "minimum": 1, "maximum": 256 },
-              "alphabet": { "enum": ["alnum", "hex"] }
+              "alphabet": { "enum": ["alnum", "hex"] },
+              "first_start_only": {
+                "type": "boolean",
+                "description": "True when the app reads the value at its first start only. A comment, not a lock: the file says a later change does nothing, and a change asks no confirmation. Not with applied_on_deploy."
+              },
+              "applied_on_deploy": {
+                "type": "boolean",
+                "description": "True when every part of the app takes the new value at the next deploy. A comment, not a lock: a change asks no confirmation. Not with first_start_only."
+              },
+              "note": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "^[^\\r\\n]+$",
+                "description": "One line, in English, saying what the app does with the value and where a copy of it lives. The settings file shows it above the value, in place of the generic sentence of the value's kind."
+              }
             }
           },
           "managed": {

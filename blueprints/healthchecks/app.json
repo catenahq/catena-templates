@@ -46,6 +46,6 @@
       "healthchecks.io"
     ],
     "compose_description": "Surveillance de pouls auto-h\u00e9berg\u00e9e pour les t\u00e2ches planifi\u00e9es.\n",
-    "setup_steps": "Le serveur installe cette application et vous y connecte par sa propre connexion. Son adresse est le pr\u00e9fixe ci-dessous suivi de votre domaine.\n\n1. Ouvrez **Healthchecks** depuis la page Apps.\n2. Ajoutez un contr\u00f4le par t\u00e2che, copiez son adresse d'appel et appelez-la \u00e0 la fin de la t\u00e2che.\n3. Ajoutez des canaux d'alerte sous **Integrations**.\n\nLe courriel sortant utilise le relais choisi dans Settings."
+    "setup_steps": "Le serveur installe cette application et vous y connecte par sa propre connexion. Son adresse est le pr\u00e9fixe ci-dessous suivi de votre domaine.\n\n1. Ouvrez **Healthchecks** depuis la page Applications.\n2. Ajoutez un contr\u00f4le par t\u00e2che, copiez son adresse d'appel et appelez-la \u00e0 la fin de la t\u00e2che.\n3. Ajoutez des canaux d'alerte sous **Integrations**.\n\nLe courriel sortant utilise le relais choisi dans Param\u00e8tres."
   }
 }

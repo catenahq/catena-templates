@@ -74,6 +74,7 @@ the repository, and the checks.
   `app-tag.yml` also serve other repositories through `workflow_call`; their
   steps run unchanged for this repository (`catalog` true), and a change to
   them keeps both paths working; `app-main.yml` serves this repository alone.
+  A caller of `app-ci.yml` or `build-and-verify.yml` grants `actions: read`.
   The build tools read another tree through
   `TEMPLATES_ROOT`, and the schemas always come from this checkout.
 - A change on `main` reaches every new deploy at once, so `main` stays
@@ -113,7 +114,9 @@ the repository, and the checks.
 - An app service's `vps.auto-update` label is `${UPDATE_LEVEL:-major}` and the
   block declares `UPDATE_LEVEL` as a setting with the default `major`; a
   database, a cache and a stateful service no data upgrade covers keep a literal
-  label.
+  label, and a literal label on a service that is not a database or a cache has
+  a comment beside it naming why. `make lint` refuses a literal label without
+  one and a compose that reads `UPDATE_LEVEL` without declaring it.
 - No emojis or em-dashes in any artifact. Plain hyphens + straight
   quotes only. `npm run check:unicode` enforces, and also scans for the
   system names it lists.
@@ -295,7 +298,19 @@ README.md, "How to add a template", says how; these are the rules.
   backup or an update holds is on.
 - `test.yml` seeds through the app itself (its API or command line) wherever
   the app allows it. Its asserts exercise the app; an assert that reads only
-  data the seed itself wrote is never enough.
+  data the seed itself wrote is never enough. A seed is safe to run twice: it
+  gets or creates each record by the run id, and an assert counts exactly one.
+  No step reads or writes a stand-in (a `catena_canary` table, a database
+  server's own database). An app listed in `tests/app-tests-debt.txt` waits
+  for its rewrite; its line goes in the commit whose test meets these rules.
+- An app whose first run needs a person (a first administrator, a setup
+  code, an installer) does it in `setup`, never in a seed: get-or-create,
+  safe to run twice, no `{{ run_id }}`. Its only credential is
+  `CATENA_TEST_PASSWORD`, given to the app in `setup` and signed in with in an
+  assert; never make a password, never write one to the app's data, never put
+  it on a command line. A shell-less app is reached through
+  `{{ helper_<service> }}`, a one-time code through `stdin: service_log`, never
+  through a change to the stack.
 - An app that keeps live state a file snapshot can tear declares `quiesce`,
   one that migrates a schema declares `lifecycle` with `ready`, and one that
   keeps its files in a bucket the host can repoint declares `object_store`.

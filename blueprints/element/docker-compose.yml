@@ -1,6 +1,6 @@
 x-catena:
   schema: 2
-  requires_catena: 0.11.12
+  requires_catena: 0.12.2
   env:
     DOMAIN_HOST:
       setting: {default: "element.{{ cloudflare_zone }}"}
@@ -48,6 +48,8 @@ x-catena:
       setting: {default: ""}
     JIGASI_SIP_SERVER:
       setting: {default: ""}
+    UPDATE_LEVEL:
+      setting: {default: "major", label: {en: "Automatic updates: major, minor, patch or off", fr: "Mises à jour automatiques : major, minor, patch ou off"}}
   images:
     postgres:
       rule: {kind: partial_line}
@@ -99,7 +101,7 @@ x-catena:
           print("Synapse answers, newest Matrix version " + versions[-1] + (", call relay " + turn + " wired" if turn else ""))
 
 x-synapse-image: &synapse_image
-  image: matrixdotorg/synapse:v1.161.0
+  image: matrixdotorg/synapse:v1.164.2
 
 services:
   postgres:
@@ -344,7 +346,7 @@ services:
       - "vps.route.port=8008"
       - "vps.auth.mode=public"
       - "vps.health.path=/health"
-      - "vps.auto-update=patch"
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
     cap_drop:
       - NET_RAW
     networks:
@@ -442,7 +444,7 @@ services:
       - "vps.auth.oidc=true"
       - "vps.auth.groups=staff"
       - "vps.auth.oidc.redirect_uris=https://${MATRIX_HOSTNAME}/_synapse/client/oidc/callback"
-      - "vps.auto-update=patch"
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
     cap_drop:
       - NET_RAW
     networks:
@@ -463,7 +465,7 @@ services:
       - "vps.route.host=${SYNAPSE_ADMIN_HOSTNAME}"
       - "vps.route.port=80"
       - "vps.auth.mode=admin-only"
-      - "vps.auto-update=patch"
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
     cap_drop:
       - NET_RAW
     networks:
@@ -528,7 +530,7 @@ services:
       JIGASI_XMPP_PASSWORD: ${JIGASI_XMPP_PASSWORD}
       TZ: Etc/UTC
     labels:
-      - "vps.auto-update=patch"
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
     networks:
       default:
         aliases:
@@ -563,7 +565,7 @@ services:
       JIGASI_SIP_URI: jigasi.meet.jitsi
       TZ: Etc/UTC
     labels:
-      - "vps.auto-update=patch"
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
     networks:
       - default
 
@@ -606,7 +608,7 @@ services:
       TZ: Etc/UTC
     labels:
       - "vps.expose.udp=10010"
-      - "vps.auto-update=patch"
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
     networks:
       - default
 
@@ -641,7 +643,7 @@ services:
       - "vps.route.host=${ELEMENT_JITSI_HOSTNAME}"
       - "vps.route.port=80"
       - "vps.auth.mode=public"
-      - "vps.auto-update=patch"
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
     cap_drop:
       - NET_RAW
     networks:
@@ -687,7 +689,7 @@ services:
       ENABLE_SIP_VISUAL_NOTIFICATIONS: "1"
       TZ: Etc/UTC
     labels:
-      - "vps.auto-update=patch"
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
     networks:
       - default
   # === JITSI END ============================================================

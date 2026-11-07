@@ -55,12 +55,13 @@ def scene(tmp_path):
     gh.write_text(f'#!/bin/bash\necho "$*" >> "{calls}"\n')
     gh.chmod(0o755)
 
-    def run(lines, *, branch="main"):
+    def run(lines, *, branch="main", own_images=""):
         calls.write_text("")
         (runner / "payloads.txt").write_text("".join(f"{line}\n" for line in lines))
         step_env = {**env, "PATH": f"{bin_dir}:{env['PATH']}", "RUNNER_TEMP": str(runner),
                     "TEMPLATES_ROOT": str(repo), "TOOLS": str(ROOT), "GH_TOKEN": "x", "READ_TOKEN": "",
-                    "OWNER": "o", "BRANCH": branch, "DEFAULT_BRANCH": "main", "REPO_NAME": "r"}
+                    "OWNER": "o", "BRANCH": branch, "DEFAULT_BRANCH": "main", "REPO_NAME": "r",
+                    "OWN_IMAGES": own_images}
         done = subprocess.run(["bash", "-c", _step_script()], cwd=repo, env=step_env,
                               capture_output=True, text=True, check=False)
         assert done.returncode == 0, done.stderr
@@ -104,3 +105,12 @@ def test_a_branch_other_than_main_is_sent_without_reading_main(scene):
     done, sent = run([f"{shas['web']} {shas['root']} web - -"], branch="feat")
     assert sent == [shas["web"]]
     assert "could not be fetched" not in done.stdout
+
+
+def test_the_callers_own_images_are_sent_and_an_empty_list_is_sent_empty(scene, tmp_path):
+    run, shas, _, _ = scene
+    calls = tmp_path / "runner" / "calls.txt"
+    run([f"{shas['web']} {shas['root']} web - -"], own_images="ghcr.io/o/a,ghcr.io/o/b")
+    assert "client_payload[own_images]=ghcr.io/o/a,ghcr.io/o/b" in calls.read_text()
+    run([f"{shas['web']} {shas['root']} web - -"])
+    assert "client_payload[own_images]=" in calls.read_text().split()

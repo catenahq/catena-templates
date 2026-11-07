@@ -361,9 +361,13 @@ def test_a_sign_in_value_the_sync_writes_has_no_second_writer(
     assert f"synthetic-bad: {key} is declared in the block's env" in capsys.readouterr().out
 
 
-def _auto_update(value: str) -> str:
-    return ("services:\n  app:\n    image: acme/app:1.0.0\n    labels:\n"
-            f'      - "vps.auto-update={value}"\n')
+def _auto_update(value: str, image: str = "acme/app:1.0.0", comment: str = "# kept on purpose") -> str:
+    return (f"services:\n  app:\n    image: {image}\n    labels:\n"
+            + (f"      {comment}\n" if comment else "")
+            + f'      - "vps.auto-update={value}"\n')
+
+
+_LEVEL_ENV = {"env": {"UPDATE_LEVEL": {"setting": {"default": "major"}}}}
 
 
 @pytest.mark.parametrize("value", ["off", "patch", "minor", "patch+minor", "major", "Minor"])
@@ -385,8 +389,53 @@ def test_an_unknown_auto_update_policy_is_refused(monkeypatch, tmp_path, capsys,
 @pytest.mark.parametrize("value", ["${UPDATE_LEVEL:-major}", "${_lvl2:-patch+minor}"])
 def test_an_auto_update_variable_with_a_level_default_passes(
         monkeypatch, tmp_path, capsys, value):
-    _synthetic_sources(monkeypatch, tmp_path, {}, _auto_update(value))
+    _synthetic_sources(monkeypatch, tmp_path, {}, _auto_update(value, comment=""),
+                       block=_LEVEL_ENV)
     assert L.lint_all() == 0, capsys.readouterr().out
+
+
+def test_a_literal_level_on_a_service_that_is_no_database_needs_a_comment(
+        monkeypatch, tmp_path, capsys):
+    _synthetic_sources(monkeypatch, tmp_path, {}, _auto_update("patch", comment=""))
+    assert L.lint_all() == 1
+    out = capsys.readouterr().out
+    assert "synthetic-bad:app: vps.auto-update=patch is a literal level on a service that is not" in out
+    assert "names why the service keeps its level" in out
+
+
+@pytest.mark.parametrize("comment", ["# why it stays", ""])
+def test_a_literal_level_with_a_comment_above_or_after_it_passes(
+        monkeypatch, tmp_path, capsys, comment):
+    compose = _auto_update("off", comment=comment)
+    if not comment:
+        compose = compose.replace('off"', 'off"  # why it stays')
+    _synthetic_sources(monkeypatch, tmp_path, {}, compose)
+    assert L.lint_all() == 0, capsys.readouterr().out
+
+
+@pytest.mark.parametrize("image", [
+    "postgres:18.6-alpine", "redis:8.10.3-alpine3.23", "valkey/valkey:8.1.1", "memcached:1.6.41-alpine",
+    "mongo:8.0.4", "docker.elastic.co/elasticsearch/elasticsearch:8.17.0", "mariadb:11.8.9"])
+def test_a_literal_level_on_a_database_or_a_cache_needs_no_comment(
+        monkeypatch, tmp_path, capsys, image):
+    _synthetic_sources(monkeypatch, tmp_path, {}, _auto_update("minor", image=image, comment=""))
+    assert L.lint_all() == 0, capsys.readouterr().out
+
+
+def test_a_variable_the_block_does_not_declare_is_refused(monkeypatch, tmp_path, capsys):
+    _synthetic_sources(monkeypatch, tmp_path, {}, _auto_update("${UPDATE_LEVEL:-major}", comment=""))
+    assert L.lint_all() == 1
+    assert ("synthetic-bad: the compose reads UPDATE_LEVEL and the block's env does not declare it"
+            in capsys.readouterr().out)
+
+
+def test_the_data_tier_match_reads_the_image_name_only():
+    assert L.data_tier_image("redis:8.10.3-alpine3.23")
+    assert L.data_tier_image("ghcr.io/acme/memcached:1.6")
+    assert L.data_tier_image("postgres:18.6-alpine")
+    assert not L.data_tier_image("rabbitmq:4.1-management")
+    assert not L.data_tier_image("minio/minio:RELEASE.2025-01-01")
+    assert not L.data_tier_image("acme/app:redis")
 
 
 @pytest.mark.parametrize("value,needle", [
@@ -627,6 +676,7 @@ def test_a_hooks_script_that_parses_passes(monkeypatch, tmp_path, capsys):
     ["/usr/bin/coolwsd", "--probe", "--use-env-vars"],
     ["/app/arcane", "health", "--timeout", "10s"],
     ["/windshift", "healthcheck"],
+    ["/usr/local/bin/catena-reports", "probe"],
 ])
 def test_the_health_command_of_a_shell_less_image_is_allowed(monkeypatch, tmp_path, capsys, argv):
     _synthetic_sources(monkeypatch, tmp_path, {}, block={"hooks": {"service": "app", "verify": [argv]}})

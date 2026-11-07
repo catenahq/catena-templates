@@ -1,6 +1,6 @@
 services:
   postiz:
-    image: ghcr.io/gitroomhq/postiz-app:v2.24.0
+    image: ghcr.io/gitroomhq/postiz-app:v2.25.3
     # The orchestrator starts its Temporal workers only if Temporal answers when it boots and otherwise runs
     # without them, so the image's start runs once Temporal's default namespace answers. It is the image's
     # pm2-run script with the schema push run by the image's own prisma (a devDependency the image installs),
@@ -48,7 +48,7 @@ services:
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=5000"
       - "vps.auth.mode=public"
-      - "vps.auto-update=patch"
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
     cap_drop:
       - NET_RAW
     networks:
@@ -92,7 +92,7 @@ services:
       - default
 
   temporal:
-    image: temporalio/server:1.31.4
+    image: temporalio/server:1.32.2
     deploy:
       restart_policy:
         condition: any
@@ -114,7 +114,7 @@ services:
       SQL_VIS_MAX_CONNS: "5"
       SQL_VIS_MAX_IDLE_CONNS: "5"
     labels:
-      - "vps.auto-update=patch"
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
     networks:
       - default
 
@@ -122,7 +122,7 @@ services:
   # namespace once the server answers, then stays up so swarm keeps it at its replica count. Each step leaves what
   # is already done as it is; a step that fails exits and swarm starts the task again; TERM ends the wait at once.
   temporal-setup:
-    image: temporalio/admin-tools:1.31.4
+    image: temporalio/admin-tools:1.32.2
     deploy:
       restart_policy:
         condition: any
@@ -150,7 +150,7 @@ services:
       SQL_USER: postiz
       SQL_PASSWORD: ${DB_PASSWORD}
     labels:
-      - "vps.auto-update=patch"
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
     networks:
       - default
 

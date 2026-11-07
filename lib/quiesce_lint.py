@@ -55,7 +55,11 @@ run on every render. This module adds:
     that asks for host_network declares its ports in vps.expose labels, none
     a range of more than 1024 ports, or marks a service that listens on no
     host port with vps.expose.none=true, never both on one service.
-  - A vps.auto-update label holds a policy the update engine knows.
+  - A vps.auto-update label holds a policy the update engine knows, or a
+    variable with a level default. A service other than a database or a cache
+    carries ${UPDATE_LEVEL:-major}, or a literal level with a comment beside the
+    label that names why it keeps it, and a compose that reads UPDATE_LEVEL
+    declares it in the block's env.
   - Sign-in labels sit on the main address's service, the only service
     the host reads them from: the one service carrying vps.route.host, or,
     of several, the one also carrying vps.route.main=true. Each is one the
@@ -105,10 +109,11 @@ SWITCH_PLACEHOLDERS = frozenset({"{old_bucket}", "{new_bucket}"})
 
 # The commands a hooks body may start with: the lifecycle commands, the
 # interpreters of an inline script, and the health command of a shell-less
-# image (Collabora Online, Arcane, Windshift): each is the app's own binary and
-# asks only its own running server.
+# image (Collabora Online, Arcane, Windshift, the error-report receiver): each is
+# the app's own binary and asks only its own running server.
 ALLOWED_HOOK_COMMANDS = ALLOWED_MIGRATE_COMMANDS | {
-    "sh", "bash", "python", "python3", "/usr/bin/coolwsd", "/app/arcane", "/windshift"}
+    "sh", "bash", "python", "python3", "/usr/bin/coolwsd", "/app/arcane", "/windshift",
+    "/usr/local/bin/catena-reports"}
 
 # The argv lists a hooks block can carry.
 HOOK_LISTS = ("configure", "verify", "users", "scan", "reconcile")
@@ -572,10 +577,53 @@ AUTO_UPDATE_POLICIES = frozenset({"off", "patch", "minor", "patch+minor", "major
 AUTO_UPDATE_VARIABLE = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)(?::-([^}]*))?\}")
 
 
+# The images that run a database or a cache, matched by the start of the
+# image's name as catena-admin payload/engines/appdb IsDataTier matches them.
+DATA_TIER_NAME = re.compile(
+    r"^(postgres|postgis|timescale|pgvector|mariadb|mysql|mongo|redis|valkey|keydb|memcached"
+    r"|elasticsearch|opensearch)")
+SERVICE_KEY = re.compile(r"^  ([A-Za-z0-9_.-]+):\s*(?:#.*)?$")
+
+
+def data_tier_image(image: str) -> bool:
+    name = str(image).lower().split("@", 1)[0].rsplit("/", 1)[-1].split(":", 1)[0]
+    return database_image(image) or DATA_TIER_NAME.match(name) is not None
+
+
+def commented_auto_update(text: str) -> set[str]:
+    """The services of a compose file whose vps.auto-update line has a comment
+    on the line directly above it or after the label."""
+    commented: set[str] = set()
+    in_services = False
+    service = ""
+    previous = ""
+    for line in text.splitlines():
+        if line == "services:":
+            in_services = True
+        elif line and not line[0].isspace() and not line.startswith("#"):
+            in_services = False
+        if in_services:
+            key = SERVICE_KEY.match(line)
+            if key:
+                service = key.group(1)
+            elif "vps.auto-update=" in line and (
+                    previous.lstrip().startswith("#")
+                    or "#" in line.rsplit('"', 1)[-1]):
+                commented.add(service)
+        if line.strip():
+            previous = line
+    return commented
+
+
 def lint_auto_update(entry) -> list[str]:
-    doc = yaml.safe_load(entry.compose_path.read_text(encoding="utf-8")) or {}
+    text = entry.compose_path.read_text(encoding="utf-8")
+    doc = yaml.safe_load(text) or {}
+    commented = commented_auto_update(text)
     errors = []
     levels = ', '.join(sorted(AUTO_UPDATE_POLICIES))
+    if "${UPDATE_LEVEL" in text and "UPDATE_LEVEL" not in entry.env:
+        errors.append(f"{entry.slug}: the compose reads UPDATE_LEVEL and the block's env does not "
+                      f"declare it; add a setting with the default major")
     for name, service in (doc.get("services") or {}).items():
         value = service_labels(service or {}).get("vps.auto-update")
         if value is None:
@@ -586,6 +634,11 @@ def lint_auto_update(entry) -> list[str]:
             if value.strip().lower() not in AUTO_UPDATE_POLICIES:
                 errors.append(f"{label} is not one of {levels}; the update engine "
                               f"would ignore it")
+            elif (not data_tier_image((service or {}).get("image", ""))
+                  and name not in commented):
+                errors.append(f"{label} is a literal level on a service that is not a database "
+                              f"or a cache; write ${{UPDATE_LEVEL:-major}}, or a comment beside "
+                              f"the label that names why the service keeps its level")
         elif variable.group(2) is None:
             errors.append(f"{label} names {variable.group(1)} with no default; write "
                           f"${{{variable.group(1)}:-<level>}} with a level of {levels}")

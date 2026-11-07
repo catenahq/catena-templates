@@ -1,5 +1,5 @@
 schema: 2
-requires_catena: 0.11.12
+requires_catena: 0.12.2
 env:
   DOMAIN_HOST:
     managed: {expr: "nextcloud.{{ cloudflare_zone }}"}
@@ -8,9 +8,16 @@ env:
   NEXTCLOUD_ADMIN_USER:
     setting: {default: "admin"}
   NEXTCLOUD_ADMIN_PASSWORD:
-    generated: {length: 24, alphabet: alnum}
+    generated:
+      length: 24
+      alphabet: alnum
+      first_start_only: true
+      note: "Read only at Nextcloud's first start, which created the administrator account with it; this line keeps that first password. To change the password, sign in to Nextcloud as the administrator and change it in Settings, from the profile picture menu."
   DB_PASSWORD:
-    generated: {length: 32, alphabet: alnum}
+    generated:
+      length: 32
+      alphabet: alnum
+      note: "The database keeps its own copy, as the password of its user nextcloud, and Nextcloud keeps another in config.php, as dbpassword. Change both to the new value first; until all three match, Nextcloud does not start."
   NEXTCLOUD_LOGLEVEL:
     setting: {default: "3"}
   NEXTCLOUD_VERSIONS_RETENTION:
@@ -36,9 +43,17 @@ env:
   SIGNALING_HOSTNAME:
     managed: {expr: "signaling.{{ cloudflare_zone }}"}
   SIGNALING_SECRET:
-    generated: {length: 64, alphabet: alnum}
+    generated:
+      length: 64
+      alphabet: alnum
+      applied_on_deploy: true
+      note: "Shared by Talk and its signaling server; both take the new value when the file is saved."
   TALK_INTERNAL_SECRET:
-    generated: {length: 64, alphabet: alnum}
+    generated:
+      length: 64
+      alphabet: alnum
+      applied_on_deploy: true
+      note: "Used inside the signaling server alone, which takes the new value when the file is saved."
   TURN_HOSTNAME:
     managed: {expr: "{{ provided.turn.host }}"}
   TURN_PORT:
@@ -71,6 +86,8 @@ env:
     managed: {expr: "{{ smtp_relay_tls | default('') }}"}
   SMTP_RELAY_SENDER:
     managed: {expr: "{{ smtp_relay_sender | default('') }}"}
+  UPDATE_LEVEL:
+    setting: {default: "major", label: {en: "Automatic updates: major, minor, patch or off", fr: "Mises à jour automatiques : major, minor, patch ou off"}}
 secrets: [smtp_password]
 access:
   user:
@@ -111,6 +128,9 @@ object_store:
     region: "S3_REGION"
     access_key: "S3_ACCESS_KEY"
     secret_key: "S3_SECRET_KEY"
+  note:
+    en: "Nextcloud stores each file in the bucket under a number, encrypted, so the bucket alone shows no file. A bucket set after the first start is refused: the files Nextcloud already holds would no longer show."
+    fr: "Nextcloud range chaque fichier dans le seau sous un numéro, chiffré, si bien que le seau seul ne montre aucun fichier. Un seau indiqué après le premier démarrage est refusé : les fichiers que Nextcloud contient déjà n'apparaîtraient plus."
   switch:
     service: "app"
     user: "www-data"
@@ -129,6 +149,7 @@ images:
 # call relay application, Nextcloud's outgoing mail from the server's mail
 # relay, and the Webmail link. Talk's relay and signaling entries are written
 # only while the relay application runs, and taken away when it goes; the
+# signaling entry waits up to 60 seconds for the signaling server to answer; the
 # mail settings follow the mail relay the same way; the entries written are
 # recorded in the app settings of "catena". It leaves with 0 whenever
 # occ cannot be used (first install running, maintenance mode on, a restore
@@ -149,3 +170,6 @@ hooks:
     - hooks/verify.sh
   reconcile:
     - hooks/reconcile.sh
+# The app store's index and the GitHub release downloads it links to, from
+# which the configure hook installs each app it enables (Talk among them).
+egress: [apps.nextcloud.com, github.com, release-assets.githubusercontent.com]

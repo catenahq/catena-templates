@@ -30,8 +30,9 @@ concurrency:
 jobs:
   scanctl:
     uses: catenahq/scanctl/.github/workflows/github-reusable.yml@main
-    # The called job asks for all three; a caller granting fewer fails to start.
+    # The called job asks for all four; a caller granting fewer fails to start.
     permissions:
+      actions: read
       contents: read
       security-events: write
       pull-requests: write

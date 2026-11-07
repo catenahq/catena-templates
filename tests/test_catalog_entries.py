@@ -4,7 +4,8 @@ admin screens make, the Rocket.Chat settings its Keycloak sign-in needs, how
 WordPress's mail plugin reads its relay password, and the user_oidc release
 the Nextcloud wiring is written for, how Nextcloud's start-up keeps its
 master encryption key when the bucket changes, and that an alias named after
-its app is that app's alone.
+its app is that app's alone, and that no card names a panel button or tab
+that does not exist.
 """
 from __future__ import annotations
 
@@ -454,3 +455,47 @@ def test_the_container_managers_hold_the_socket_for_administrators_only():
         card = _entry(slug).catena
         assert "outside Catena" in card["en"]["extra_notes"]
         assert "hors de Catena" in card["fr"]["extra_notes"]
+
+
+# The words of the panel's cards
+
+REFUSED_WORDS = ("Click **Deploy**", "Cliquez **Deploy**", "Environment tab", "onglet Environment",
+                 "Start application", "Stop application", "Démarrer l'application", "Arrêter l'application")
+RELATIVE_LINK = re.compile(r"\]\(\s*(?![A-Za-z][A-Za-z0-9+.-]*:)")
+CARD_TEXTS = ("what_it_is", "setup_steps", "extra_notes")
+
+
+def _refused_in_card(slug: str, card: dict) -> list[str]:
+    """Each phrase a card's `what_it_is`, `setup_steps` and `extra_notes` carry in en and fr that
+    names a button or tab the panel lacks, another product's name (except in that product's own
+    card), or a link without a full address."""
+    found = []
+    for lang in ("en", "fr"):
+        for field in CARD_TEXTS:
+            text = card.get(lang, {}).get(field) or ""
+            words = REFUSED_WORDS + (() if slug == "portainer" else ("Portainer",))
+            found += [f"{lang}.{field}: {word}" for word in words if word in text]
+            if RELATIVE_LINK.search(text):
+                found.append(f"{lang}.{field}: a relative link")
+    return found
+
+
+def test_no_card_names_a_panel_button_or_tab_it_does_not_have():
+    for entry in model.load_sources():
+        assert _refused_in_card(entry.slug, entry.catena) == [], entry.slug
+
+
+def test_the_card_guard_refuses_each_phrase_and_a_relative_link():
+    card = {"en": {"setup_steps": "1. Click **Deploy**. Open the Environment tab. Press Start application, "
+                                  "then Stop application. See [the guide](../guide.md) and [Portainer](https://x.test)."},
+            "fr": {"what_it_is": "Cliquez **Deploy**, onglet Environment, Démarrer l'application, "
+                                 "Arrêter l'application.",
+                   "extra_notes": "Voir [le guide](/docs/guide)."}}
+    found = _refused_in_card("erpnext", card)
+    for word in REFUSED_WORDS[:1] + ("Environment tab", "Start application", "Stop application", "Portainer"):
+        assert f"en.setup_steps: {word}" in found, word
+    assert "en.setup_steps: a relative link" in found
+    for word in ("Cliquez **Deploy**", "onglet Environment", "Démarrer l'application", "Arrêter l'application"):
+        assert f"fr.what_it_is: {word}" in found, word
+    assert "fr.extra_notes: a relative link" in found
+    assert _refused_in_card("portainer", {"en": {"extra_notes": "Portainer holds [the socket](https://x.test)."}}) == []

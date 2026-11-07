@@ -93,7 +93,7 @@ services:
     labels:
       - "vps.expose.udp=3478,5349,50000-50100"
       - "vps.expose.tcp=5349"
-      - "vps.auto-update=patch"
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
     cap_drop:
       - NET_RAW
     healthcheck:

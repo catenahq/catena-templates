@@ -1,0 +1,121 @@
+# Test for the invoiceninja template: a client made through Invoice Ninja's API survives a
+# backup and a restore. Both steps run php inside the app container as www-data (the user
+# the application runs as, so no file it writes is left to root), boot the application
+# from its own bootstrap file and send the API's requests to its HTTP kernel in the same
+# process, with the administrator's system API token read through the application's own
+# models (the login answer masks the token). The administrator is the account the first
+# start made from IN_USER_EMAIL, read with getenv, so no credential reaches an argument
+# list or the output. The seed lists the clients named catena-<run> and creates one, with
+# the private notes fixture-<run>, only when none is listed, so a second seed changes
+# nothing; the assert lists them again and requires exactly one holding those notes. Each
+# step waits up to 900 s for that token, which the first start's install delays.
+#
+# {{ run_id }} is supplied by the bench at execution time so the client is unique per
+# run. Each {{ container_* }} is resolved from `docker ps` before invoking.
+
+id: invoiceninja
+description: >-
+  Invoice Ninja's API lists exactly one client named catena-<run>, holding the private
+  notes fixture-<run>, before and after the backup, the restore and the updates.
+
+seed:
+  - name: create_the_client_through_the_api
+    type: docker_exec
+    container: "{{ container_app }}"
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        exec su -s /bin/sh www-data -c php <<'PHP'
+        <?php
+        require '/var/www/html/vendor/autoload.php';
+        $app = require '/var/www/html/bootstrap/app.php';
+        $kernel = $app->make(Illuminate\Contracts\Http\Kernel::class);
+        $kernel->bootstrap();
+        $base = rtrim((string) getenv('APP_URL'), '/');
+        $token = null;
+        $deadline = time() + 900;
+        do {
+          try {
+            $user = App\Models\User::where('email', getenv('IN_USER_EMAIL'))->first();
+            $row = $user ? App\Models\CompanyToken::where('user_id', $user->id)->where('is_system', 1)->first() : null;
+            $token = $row ? $row->token : null;
+          } catch (Throwable $e) {
+            $token = null;
+          }
+          if ($token) { break; }
+          sleep(5);
+        } while (time() < $deadline);
+        if (!$token) { fwrite(STDERR, "Invoice Ninja holds no API token for the administrator within 900 s\n"); exit(1); }
+        function api($method, $path, $body = null) {
+          global $kernel, $base, $token;
+          $server = ['HTTP_X_API_TOKEN' => $token, 'HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest', 'HTTP_ACCEPT' => 'application/json'];
+          if ($body !== null) { $server['CONTENT_TYPE'] = 'application/json'; }
+          $request = Illuminate\Http\Request::create($base . $path, $method, [], [], [], $server, $body === null ? null : json_encode($body));
+          $response = $kernel->handle($request);
+          $kernel->terminate($request, $response);
+          return [$response->getStatusCode(), json_decode($response->getContent(), true)];
+        }
+        $name = 'catena-{{ run_id }}';
+        [$code, $found] = api('GET', '/api/v1/clients?per_page=100&name=' . rawurlencode($name));
+        if ($code !== 200 || !is_array($found['data'] ?? null)) { fwrite(STDERR, "listing the clients answered $code\n"); exit(1); }
+        $same = array_values(array_filter($found['data'], function ($c) use ($name) { return ($c['name'] ?? '') === $name; }));
+        if (count($same) === 0) {
+          [$code, $made] = api('POST', '/api/v1/clients', ['name' => $name, 'private_notes' => 'fixture-{{ run_id }}']);
+          if ($code !== 200 || empty($made['data']['id'])) { fwrite(STDERR, "creating the client answered $code\n"); exit(1); }
+        }
+        echo "seeded client $name\n";
+        PHP
+    expect_stdout_contains: "seeded client catena-{{ run_id }}"
+    timeout_s: 960
+
+assert:
+  - name: api_lists_exactly_one_client_of_the_run
+    type: docker_exec
+    container: "{{ container_app }}"
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        exec su -s /bin/sh www-data -c php <<'PHP'
+        <?php
+        require '/var/www/html/vendor/autoload.php';
+        $app = require '/var/www/html/bootstrap/app.php';
+        $kernel = $app->make(Illuminate\Contracts\Http\Kernel::class);
+        $kernel->bootstrap();
+        $base = rtrim((string) getenv('APP_URL'), '/');
+        $token = null;
+        $deadline = time() + 900;
+        do {
+          try {
+            $user = App\Models\User::where('email', getenv('IN_USER_EMAIL'))->first();
+            $row = $user ? App\Models\CompanyToken::where('user_id', $user->id)->where('is_system', 1)->first() : null;
+            $token = $row ? $row->token : null;
+          } catch (Throwable $e) {
+            $token = null;
+          }
+          if ($token) { break; }
+          sleep(5);
+        } while (time() < $deadline);
+        if (!$token) { fwrite(STDERR, "Invoice Ninja holds no API token for the administrator within 900 s\n"); exit(1); }
+        function api($method, $path, $body = null) {
+          global $kernel, $base, $token;
+          $server = ['HTTP_X_API_TOKEN' => $token, 'HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest', 'HTTP_ACCEPT' => 'application/json'];
+          if ($body !== null) { $server['CONTENT_TYPE'] = 'application/json'; }
+          $request = Illuminate\Http\Request::create($base . $path, $method, [], [], [], $server, $body === null ? null : json_encode($body));
+          $response = $kernel->handle($request);
+          $kernel->terminate($request, $response);
+          return [$response->getStatusCode(), json_decode($response->getContent(), true)];
+        }
+        $name = 'catena-{{ run_id }}';
+        [$code, $found] = api('GET', '/api/v1/clients?per_page=100&name=' . rawurlencode($name));
+        if ($code !== 200 || !is_array($found['data'] ?? null)) { fwrite(STDERR, "listing the clients answered $code\n"); exit(1); }
+        $same = array_values(array_filter($found['data'], function ($c) use ($name) { return ($c['name'] ?? '') === $name; }));
+        if (count($same) !== 1) { fwrite(STDERR, "Invoice Ninja lists " . count($same) . " clients named $name, expected 1\n"); exit(1); }
+        if (($same[0]['private_notes'] ?? '') !== 'fixture-{{ run_id }}') { fwrite(STDERR, "the client $name does not hold its notes\n"); exit(1); }
+        echo "clients named $name: 1, notes fixture-{{ run_id }}\n";
+        PHP
+    expect_stdout_contains: "clients named catena-{{ run_id }}: 1, notes fixture-{{ run_id }}"
+    timeout_s: 960

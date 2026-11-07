@@ -1,0 +1,207 @@
+# Test for the element template: a room with a text message and an uploaded file in it,
+# made through Synapse's client API, survive a backup, a restore and the updates. The
+# seed runs python3 inside the synapse container against its own listener on
+# 127.0.0.1:8008: it waits until /health answers, then registers a helper account with
+# Synapse's shared-secret registration endpoint (password sign-in is switched off, and
+# that endpoint answers an access token; the shared secret comes from the container's
+# environment and the helper's password is random, so neither rides an argument list or
+# is printed). Each seed and each assert registers its own helper, named
+# catena-<run>-<random>. The helper gets or creates the public room with the alias
+# #catena-<run>:<server name> (a lookup of the alias, then createRoom), joins it, and
+# posts the text fixture-<run> and, as an m.file message, the file catena-<run>.txt
+# holding fixture-<run> uploaded to the media store, each only when the room's history
+# does not hold it, so a second seed changes nothing. The room and its events live in
+# the database and the file in /data/media_store (the element-synapse-data volume), so
+# the assert resolves the alias, joins, counts exactly one text message and one file
+# message in the history, and downloads the file through the authenticated media
+# endpoint, which must return fixture-<run>.
+#
+# {{ run_id }} is supplied by the bench at execution time and each
+# {{ container_* }} is resolved from `docker ps` before invoking.
+
+id: element
+description: >-
+  The room #catena-<run> made through Synapse's client API resolves by its alias and
+  holds exactly one message fixture-<run> and exactly one file catena-<run>.txt that
+  downloads as fixture-<run>, before and after the backup, the restore and the updates.
+
+seed:
+  - name: room_with_a_message_and_a_file
+    type: docker_exec
+    container: "{{ container_synapse }}"
+    command:
+      - python3
+      - -c
+      - |
+        import hashlib, hmac, json, os, secrets, sys, time, urllib.error, urllib.parse, urllib.request
+
+        BASE = "http://127.0.0.1:8008"
+        SERVER = os.environ["SYNAPSE_SERVER_NAME"]
+        NAME = "catena-{{ run_id }}"
+        TEXT = "fixture-{{ run_id }}"
+        ALIAS = "#" + NAME.lower() + ":" + SERVER
+
+
+        def call(method, path, token=None, body=None, raw=None, ctype="application/json"):
+            data = raw if raw is not None else (json.dumps(body).encode() if body is not None else None)
+            headers = {"X-Forwarded-For": "127.0.0.1"}
+            if data is not None:
+                headers["Content-Type"] = ctype
+            if token:
+                headers["Authorization"] = "Bearer " + token
+            request = urllib.request.Request(BASE + path, data=data, headers=headers, method=method)
+            try:
+                with urllib.request.urlopen(request, timeout=30) as answer:
+                    return answer.status, answer.read()
+            except urllib.error.HTTPError as error:
+                return error.code, error.read()
+
+
+        def json_of(answer):
+            return json.loads(answer[1].decode() or "{}")
+
+
+        for _ in range(60):
+            try:
+                if call("GET", "/health")[0] == 200:
+                    break
+            except OSError:
+                pass
+            time.sleep(5)
+        else:
+            sys.exit("Synapse did not answer /health within 300 s")
+
+        nonce = json_of(call("GET", "/_synapse/admin/v1/register"))["nonce"]
+        username = NAME + "-" + secrets.token_hex(3)
+        password = secrets.token_hex(16)
+        mac = hmac.new(os.environ["SYNAPSE_REGISTRATION_SHARED_SECRET"].encode(), digestmod=hashlib.sha1)
+        for part in (nonce, username, password, "notadmin"):
+            mac.update(part.encode())
+            if part != "notadmin":
+                mac.update(b"\0")
+        registered = call("POST", "/_synapse/admin/v1/register", body={
+            "nonce": nonce, "username": username, "password": password, "admin": False, "mac": mac.hexdigest()})
+        if registered[0] != 200:
+            sys.exit("registering the helper account answered HTTP " + str(registered[0]))
+        token = json_of(registered)["access_token"]
+
+        found = call("GET", "/_matrix/client/v3/directory/room/" + urllib.parse.quote(ALIAS, safe=""), token)
+        if found[0] == 200:
+            room = json_of(found)["room_id"]
+        else:
+            made = call("POST", "/_matrix/client/v3/createRoom", token, {
+                "preset": "public_chat", "visibility": "private", "name": NAME, "room_alias_name": NAME.lower()})
+            if made[0] != 200:
+                sys.exit("createRoom answered HTTP " + str(made[0]) + ": " + made[1].decode()[:200])
+            room = json_of(made)["room_id"]
+        joined = call("POST", "/_matrix/client/v3/join/" + urllib.parse.quote(room, safe=""), token, {})
+        if joined[0] != 200:
+            sys.exit("joining the room answered HTTP " + str(joined[0]) + ": " + joined[1].decode()[:200])
+        history = call("GET", "/_matrix/client/v3/rooms/" + urllib.parse.quote(room, safe="") + "/messages?dir=b&limit=100", token)
+        if history[0] != 200:
+            sys.exit("reading the room answered HTTP " + str(history[0]))
+        events = [event.get("content", {}) for event in json_of(history)["chunk"] if event.get("type") == "m.room.message"]
+
+
+        def send(txn, content):
+            sent = call("PUT", "/_matrix/client/v3/rooms/" + urllib.parse.quote(room, safe="") + "/send/m.room.message/" + txn,
+                        token, content)
+            if sent[0] != 200:
+                sys.exit("sending " + txn + " answered HTTP " + str(sent[0]) + ": " + sent[1].decode()[:200])
+
+
+        if not any(c.get("msgtype") == "m.text" and c.get("body") == TEXT for c in events):
+            send("text-" + secrets.token_hex(4), {"msgtype": "m.text", "body": TEXT})
+        if not any(c.get("msgtype") == "m.file" and c.get("body") == NAME + ".txt" for c in events):
+            uploaded = call("POST", "/_matrix/media/v3/upload?filename=" + urllib.parse.quote(NAME + ".txt"), token,
+                            raw=TEXT.encode(), ctype="text/plain")
+            if uploaded[0] != 200:
+                sys.exit("the upload answered HTTP " + str(uploaded[0]) + ": " + uploaded[1].decode()[:200])
+            send("file-" + secrets.token_hex(4), {"msgtype": "m.file", "body": NAME + ".txt", "filename": NAME + ".txt",
+                                                   "url": json_of(uploaded)["content_uri"]})
+        print("seeded room " + NAME + " as " + room)
+    expect_stdout_contains: "seeded room catena-{{ run_id }} as !"
+    timeout_s: 420
+
+assert:
+  - name: room_message_and_file_through_synapse
+    type: docker_exec
+    container: "{{ container_synapse }}"
+    command:
+      - python3
+      - -c
+      - |
+        import hashlib, hmac, json, os, secrets, sys, time, urllib.error, urllib.parse, urllib.request
+
+        BASE = "http://127.0.0.1:8008"
+        SERVER = os.environ["SYNAPSE_SERVER_NAME"]
+        NAME = "catena-{{ run_id }}"
+        TEXT = "fixture-{{ run_id }}"
+        ALIAS = "#" + NAME.lower() + ":" + SERVER
+
+
+        def call(method, path, token=None, body=None):
+            data = json.dumps(body).encode() if body is not None else None
+            headers = {"X-Forwarded-For": "127.0.0.1"}
+            if data is not None:
+                headers["Content-Type"] = "application/json"
+            if token:
+                headers["Authorization"] = "Bearer " + token
+            request = urllib.request.Request(BASE + path, data=data, headers=headers, method=method)
+            try:
+                with urllib.request.urlopen(request, timeout=30) as answer:
+                    return answer.status, answer.read()
+            except urllib.error.HTTPError as error:
+                return error.code, error.read()
+
+
+        def json_of(answer):
+            return json.loads(answer[1].decode() or "{}")
+
+
+        for _ in range(60):
+            try:
+                if call("GET", "/health")[0] == 200:
+                    break
+            except OSError:
+                pass
+            time.sleep(5)
+        else:
+            sys.exit("Synapse did not answer /health within 300 s")
+
+        nonce = json_of(call("GET", "/_synapse/admin/v1/register"))["nonce"]
+        username = NAME + "-" + secrets.token_hex(3)
+        password = secrets.token_hex(16)
+        mac = hmac.new(os.environ["SYNAPSE_REGISTRATION_SHARED_SECRET"].encode(), digestmod=hashlib.sha1)
+        for part in (nonce, username, password, "notadmin"):
+            mac.update(part.encode())
+            if part != "notadmin":
+                mac.update(b"\0")
+        registered = call("POST", "/_synapse/admin/v1/register", body={
+            "nonce": nonce, "username": username, "password": password, "admin": False, "mac": mac.hexdigest()})
+        if registered[0] != 200:
+            sys.exit("registering the helper account answered HTTP " + str(registered[0]))
+        token = json_of(registered)["access_token"]
+
+        found = call("GET", "/_matrix/client/v3/directory/room/" + urllib.parse.quote(ALIAS, safe=""), token)
+        if found[0] != 200:
+            sys.exit("the alias " + ALIAS + " does not resolve: HTTP " + str(found[0]))
+        room = json_of(found)["room_id"]
+        joined = call("POST", "/_matrix/client/v3/join/" + urllib.parse.quote(room, safe=""), token, {})
+        if joined[0] != 200:
+            sys.exit("joining the room answered HTTP " + str(joined[0]) + ": " + joined[1].decode()[:200])
+        history = call("GET", "/_matrix/client/v3/rooms/" + urllib.parse.quote(room, safe="") + "/messages?dir=b&limit=100", token)
+        if history[0] != 200:
+            sys.exit("reading the room answered HTTP " + str(history[0]))
+        events = [event.get("content", {}) for event in json_of(history)["chunk"] if event.get("type") == "m.room.message"]
+        texts = [c for c in events if c.get("msgtype") == "m.text" and c.get("body") == TEXT]
+        files = [c for c in events if c.get("msgtype") == "m.file" and c.get("body") == NAME + ".txt"]
+        if len(texts) != 1 or len(files) != 1:
+            sys.exit("the room holds " + str(len(texts)) + " messages " + TEXT + " and " + str(len(files)) + " files " + NAME + ".txt, expected one of each")
+        mxc = urllib.parse.urlparse(files[0]["url"])
+        download = call("GET", "/_matrix/client/v1/media/download/" + mxc.netloc + mxc.path, token)
+        if download[0] != 200 or download[1].decode() != TEXT:
+            sys.exit("the file " + files[0]["url"] + " answered HTTP " + str(download[0]) + " holding " + repr(download[1][:100]) + ", expected " + TEXT)
+        print("room ok: " + NAME + " holds " + TEXT + " and " + NAME + ".txt")
+    expect_stdout_contains: "room ok: catena-{{ run_id }} holds fixture-{{ run_id }} and catena-{{ run_id }}.txt"
+    timeout_s: 420

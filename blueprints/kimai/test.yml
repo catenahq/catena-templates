@@ -1,0 +1,82 @@
+# Test for the kimai template: a customer made through Kimai's own code survives a backup
+# and a restore. Both steps run php inside the kimai container as www-data (the user
+# Apache runs as, so no cache file it writes is left to root), boot Kimai's kernel and use
+# its Doctrine entity manager and the Customer entity, as the application does. The seed
+# looks for customers named catena-<run> and makes one, with the comment fixture-<run>,
+# only when none exists, so a second seed changes nothing; the assert reads them back the
+# same way and requires exactly one holding that comment. No user is made: the customer
+# belongs to no account. Each step waits up to 900 s for the customer table, which the
+# first start's install delays.
+#
+# {{ run_id }} is supplied by the bench at execution time so the customer is unique per
+# run. Each {{ container_* }} is resolved from `docker ps` before invoking.
+
+id: kimai
+description: >-
+  Kimai lists exactly one customer named catena-<run>, holding the comment
+  fixture-<run>, before and after the backup, the restore and the updates.
+
+seed:
+  - name: create_the_customer_through_the_kernel
+    type: docker_exec
+    container: "{{ container_kimai }}"
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        exec su -s /bin/sh www-data -c php <<'PHP'
+        <?php
+        require '/opt/kimai/vendor/autoload.php';
+        $kernel = new App\Kernel('prod', false);
+        $kernel->boot();
+        $em = $kernel->getContainer()->get('doctrine')->getManager();
+        $repo = $em->getRepository(App\Entity\Customer::class);
+        $name = 'catena-{{ run_id }}';
+        $deadline = time() + 900;
+        do {
+          try { $repo->count([]); $up = true; } catch (Throwable $e) { $up = false; sleep(5); }
+        } while (!$up && time() < $deadline);
+        if (!$up) { fwrite(STDERR, "Kimai's customer table did not answer within 900 s\n"); exit(1); }
+        if (count($repo->findBy(['name' => $name])) === 0) {
+          $customer = new App\Entity\Customer($name);
+          $customer->setCountry('DE');
+          $customer->setTimezone('UTC');
+          $customer->setComment('fixture-{{ run_id }}');
+          $em->persist($customer);
+          $em->flush();
+        }
+        echo "seeded customer $name\n";
+        PHP
+    expect_stdout_contains: "seeded customer catena-{{ run_id }}"
+    timeout_s: 960
+
+assert:
+  - name: kernel_lists_exactly_one_customer_of_the_run
+    type: docker_exec
+    container: "{{ container_kimai }}"
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        exec su -s /bin/sh www-data -c php <<'PHP'
+        <?php
+        require '/opt/kimai/vendor/autoload.php';
+        $kernel = new App\Kernel('prod', false);
+        $kernel->boot();
+        $em = $kernel->getContainer()->get('doctrine')->getManager();
+        $repo = $em->getRepository(App\Entity\Customer::class);
+        $name = 'catena-{{ run_id }}';
+        $deadline = time() + 900;
+        do {
+          try { $repo->count([]); $up = true; } catch (Throwable $e) { $up = false; sleep(5); }
+        } while (!$up && time() < $deadline);
+        if (!$up) { fwrite(STDERR, "Kimai's customer table did not answer within 900 s\n"); exit(1); }
+        $found = $repo->findBy(['name' => $name]);
+        if (count($found) !== 1) { fwrite(STDERR, "Kimai lists " . count($found) . " customers named $name, expected 1\n"); exit(1); }
+        if ($found[0]->getComment() !== 'fixture-{{ run_id }}') { fwrite(STDERR, "the customer $name does not hold its comment\n"); exit(1); }
+        echo "customers named $name: 1, comment fixture-{{ run_id }}\n";
+        PHP
+    expect_stdout_contains: "customers named catena-{{ run_id }}: 1, comment fixture-{{ run_id }}"
+    timeout_s: 960

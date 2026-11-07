@@ -1,0 +1,164 @@
+# Test for the zammad template: a ticket with its first article and a file attached to
+# the article, made through Zammad's own models, survive a backup, a
+# restore and the updates. Every step runs `rails r` from /opt/zammad in the
+# zammad-railsserver container (the way zammad-init applies its sign-in settings) with
+# a script it writes to /tmp, and runs it again every 15 seconds (at most 12 times)
+# while the runner fails, because the database is not prepared yet. A failed check
+# exits 3, which ends the retries.
+#
+# The setup does the getting-started wizard's two steps through the services the
+# wizard's own calls use: while the system setup is not done, Service::User::AddFirstAdmin
+# makes the administrator catena-admin@example.com with the password the harness gives as
+# CATENA_TEST_PASSWORD; then, when they differ, Service::System::SetSystemInformation sets
+# the system URL https://<ZAMMAD_HOSTNAME> (the address Zammad's sign-in sends Keycloak
+# back to) and the organization. The seed gets or creates the ticket catena-<run> in the
+# group Users, its article holding fixture-<run> and, when none is stored, the file
+# catena-<run>.txt holding fixture-<run> on the article through Store, which keeps it
+# with the provider the storage_provider setting names (the zammad-storage volume
+# for File, the database for DB). The ticket's customer is the system user (id 1) the
+# database seeds hold. A second seed changes nothing. The assert checks that the
+# administrator signs in with the test password (Auth) and counts exactly one ticket of
+# that title and one article in it, then reads the stored file back through Store, which
+# must hold fixture-<run>.
+#
+# {{ run_id }} is supplied by the bench at execution time and each
+# {{ container_* }} is resolved from `docker ps` before invoking.
+
+id: zammad
+description: >-
+  The ticket catena-<run> made through Zammad's models is listed exactly once with one
+  article, the file stored on the article reads back fixture-<run>, and the administrator
+  signs in with the test password, before and after the backup, the restore and the updates.
+
+setup:
+  - name: getting_started
+    type: docker_exec
+    container: "{{ container_zammad_railsserver }}"
+    env: [ZAMMAD_HOSTNAME]
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        cat > /tmp/catena-setup.rb <<'RUBY'
+        email = "catena-admin@example.com"
+        if !Service::System::CheckSetup.done?
+          request = Struct.new(:remote_ip, :env).new("127.0.0.1", {})
+          Service::User::AddFirstAdmin.new.execute(
+            user_data: { firstname: "Catena", lastname: "Test", email: email,
+                         password: ENV.fetch("CATENA_TEST_PASSWORD") },
+            request: request)
+        elsif !User.find_by(email: email)
+          warn "Zammad's setup was done with another administrator than #{email}"
+          exit 3
+        end
+        host = ENV.fetch("ZAMMAD_HOSTNAME")
+        if Setting.get("fqdn") != host || Setting.get("http_type") != "https"
+          Service::System::SetSystemInformation.new(data: { url: "https://#{host}", organization: "Catena test" }).execute
+        end
+        puts "zammad setup done for #{email}"
+        RUBY
+        cd /opt/zammad
+        n=0
+        while :; do
+          rc=0
+          bundle exec rails r /tmp/catena-setup.rb || rc=$?
+          [ "$rc" -eq 0 ] && break
+          [ "$rc" -ne 3 ] || exit 3
+          n=$((n + 1))
+          [ "$n" -lt 12 ] || exit "$rc"
+          sleep 15
+        done
+    expect_stdout_contains: "zammad setup done for catena-admin@example.com"
+    timeout_s: 1200
+
+seed:
+  - name: ticket_with_a_file
+    type: docker_exec
+    container: "{{ container_zammad_railsserver }}"
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        cat > /tmp/catena-seed.rb <<'RUBY'
+        name = "catena-{{ run_id }}"
+        text = "fixture-{{ run_id }}"
+        customer = User.find(1)
+        ticket = Ticket.find_by(title: name) ||
+                 Ticket.create!(title: name, group: Group.find_by!(name: "Users"), customer: customer,
+                                state: Ticket::State.find_by!(name: "new"),
+                                priority: Ticket::Priority.find_by!(name: "2 normal"),
+                                updated_by_id: 1, created_by_id: 1)
+        article = Ticket::Article.find_by(ticket_id: ticket.id, subject: name) ||
+                  Ticket::Article.create!(ticket_id: ticket.id, type: Ticket::Article::Type.find_by!(name: "note"),
+                                          sender: Ticket::Article::Sender.find_by!(name: "Customer"),
+                                          from: "catena", to: "Users", subject: name, body: text, internal: false,
+                                          updated_by_id: 1, created_by_id: 1)
+        if Store.list(object: "Ticket::Article", o_id: article.id).none?
+          Store.create!(object: "Ticket::Article", o_id: article.id, data: text, filename: "#{name}.txt",
+                        preferences: { "Content-Type" => "text/plain" }, created_by_id: 1)
+        end
+        puts "seeded ticket #{name} as #{ticket.id}"
+        RUBY
+        cd /opt/zammad
+        n=0
+        while :; do
+          rc=0
+          bundle exec rails r /tmp/catena-seed.rb || rc=$?
+          [ "$rc" -eq 0 ] && break
+          n=$((n + 1))
+          [ "$n" -lt 12 ] || exit "$rc"
+          sleep 15
+        done
+    expect_stdout_contains: "seeded ticket catena-{{ run_id }}"
+    timeout_s: 1200
+
+assert:
+  - name: ticket_and_file_through_zammad
+    type: docker_exec
+    container: "{{ container_zammad_railsserver }}"
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        cat > /tmp/catena-assert.rb <<'RUBY'
+        name = "catena-{{ run_id }}"
+        text = "fixture-{{ run_id }}"
+        tickets = Ticket.where(title: name).to_a
+        if tickets.size != 1
+          warn "Zammad lists #{tickets.size} tickets #{name}, expected one"
+          exit 3
+        end
+        articles = Ticket::Article.where(ticket_id: tickets.first.id, subject: name).to_a
+        if articles.size != 1 || articles.first.body != text
+          warn "the ticket #{name} holds #{articles.size} articles #{name}, expected one holding #{text}"
+          exit 3
+        end
+        files = Store.list(object: "Ticket::Article", o_id: articles.first.id).to_a
+        if files.size != 1 || files.first.filename != "#{name}.txt" || files.first.content != text
+          warn "the article holds the files #{files.map(&:filename)}, expected only #{name}.txt holding #{text}"
+          exit 3
+        end
+        begin
+          Auth.new("catena-admin@example.com", ENV.fetch("CATENA_TEST_PASSWORD"), only_verify_password: true).valid!
+        rescue StandardError => e
+          warn "the administrator catena-admin@example.com does not sign in with the test password: #{e.class}"
+          exit 3
+        end
+        puts "ticket ok: #{name} with its article and file #{text}"
+        RUBY
+        cd /opt/zammad
+        n=0
+        while :; do
+          rc=0
+          bundle exec rails r /tmp/catena-assert.rb || rc=$?
+          [ "$rc" -eq 0 ] && break
+          [ "$rc" -ne 3 ] || exit 3
+          n=$((n + 1))
+          [ "$n" -lt 12 ] || exit "$rc"
+          sleep 15
+        done
+    expect_stdout_contains: "ticket ok: catena-{{ run_id }} with its article and file fixture-{{ run_id }}"
+    timeout_s: 1200

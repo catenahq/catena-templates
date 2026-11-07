@@ -1,0 +1,98 @@
+# Test for the chatwoot template: an account, a contact in it and a file attached to
+# the account, made through Chatwoot's own models, survive a backup, a restore and the
+# updates. The seed runs `rails runner` in the rails container with a script it writes
+# to /tmp, and runs it again every 15 seconds (at most 12 times) while the runner
+# fails, because the database is not prepared yet: it gets or creates the account
+# catena-<run>, the contact catena-<run>@catena.test in it and, when none is attached,
+# the file catena-<run>.txt holding fixture-<run> on the account's contacts_export
+# attachment, which Active Storage keeps in the storage-data volume (the container's
+# ACTIVE_STORAGE_SERVICE is local). A second seed changes nothing. The account and the
+# contact live in the database and the file in the volume, so the assert runs the same
+# way and counts exactly one account of that name, one contact in it and reads the
+# attachment back through Active Storage, which must hold fixture-<run>. A failed
+# check exits 3, which ends the retries.
+#
+# {{ run_id }} is supplied by the bench at execution time and each
+# {{ container_* }} is resolved from `docker ps` before invoking.
+
+id: chatwoot
+description: >-
+  The account catena-<run> made through Chatwoot's models is listed exactly once with
+  exactly one contact catena-<run>@catena.test, and its attached file reads back
+  fixture-<run>, before and after the backup, the restore and the updates.
+
+seed:
+  - name: account_contact_and_file
+    type: docker_exec
+    container: "{{ container_rails }}"
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        cat > /tmp/catena-seed.rb <<'RUBY'
+        name = "catena-{{ run_id }}"
+        text = "fixture-{{ run_id }}"
+        email = "#{name}@catena.test".downcase
+        account = Account.find_by(name: name) || Account.create!(name: name)
+        Contact.find_or_create_by!(account_id: account.id, email: email) { |contact| contact.name = name }
+        unless account.contacts_export.attached?
+          account.contacts_export.attach(io: StringIO.new(text), filename: "#{name}.txt", content_type: "text/plain")
+        end
+        puts "seeded account #{name} as #{account.id}"
+        RUBY
+        n=0
+        while :; do
+          rc=0
+          bundle exec rails runner /tmp/catena-seed.rb || rc=$?
+          [ "$rc" -eq 0 ] && break
+          n=$((n + 1))
+          [ "$n" -lt 12 ] || exit "$rc"
+          sleep 15
+        done
+    expect_stdout_contains: "seeded account catena-{{ run_id }}"
+    timeout_s: 1200
+
+assert:
+  - name: account_contact_and_file_through_chatwoot
+    type: docker_exec
+    container: "{{ container_rails }}"
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        cat > /tmp/catena-assert.rb <<'RUBY'
+        name = "catena-{{ run_id }}"
+        text = "fixture-{{ run_id }}"
+        email = "#{name}@catena.test".downcase
+        accounts = Account.where(name: name).to_a
+        if accounts.size != 1
+          warn "Chatwoot lists #{accounts.size} accounts named #{name}, expected one"
+          exit 3
+        end
+        account = accounts.first
+        contacts = Contact.where(account_id: account.id, email: email).count
+        if contacts != 1
+          warn "the account #{name} holds #{contacts} contacts #{email}, expected one"
+          exit 3
+        end
+        held = account.contacts_export.attached? ? account.contacts_export.download : nil
+        if held != text
+          warn "the account #{name} holds the file #{held.inspect}, expected #{text}"
+          exit 3
+        end
+        puts "account ok: #{name} with its contact #{name}@catena.test and file #{text}"
+        RUBY
+        n=0
+        while :; do
+          rc=0
+          bundle exec rails runner /tmp/catena-assert.rb || rc=$?
+          [ "$rc" -eq 0 ] && break
+          [ "$rc" -ne 3 ] || exit 3
+          n=$((n + 1))
+          [ "$n" -lt 12 ] || exit "$rc"
+          sleep 15
+        done
+    expect_stdout_contains: "account ok: catena-{{ run_id }} with its contact catena-{{ run_id }}@catena.test"
+    timeout_s: 1200

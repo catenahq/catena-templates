@@ -1,5 +1,5 @@
 schema: 2
-requires_catena: 0.11.12
+requires_catena: 0.12.2
 env:
   DOMAIN_HOST:
     setting: {default: "automate.{{ cloudflare_zone }}"}
@@ -13,13 +13,15 @@ env:
     generated: {length: 64, alphabet: alnum}
   DB_PASSWORD:
     generated: {length: 32, alphabet: alnum}
+  UPDATE_LEVEL:
+    setting: {default: "major", label: {en: "Automatic updates: major, minor, patch or off", fr: "Mises à jour automatiques : major, minor, patch ou off"}}
 images:
   db:
     rule: {kind: partial_line}
 # verify asks the running server for /healthz/readiness, which answers 200 once the database is
-# connected and the migrations are done.
+# connected and the migrations are done; it waits up to 90 s for a starting server.
 hooks:
   service: n8n
-  timeout_seconds: 60
+  timeout_seconds: 120
   verify:
     - hooks/verify.js

@@ -1,5 +1,5 @@
 schema: 2
-requires_catena: 0.11.12
+requires_catena: 0.12.2
 env:
   DOMAIN_HOST:
     setting: {default: "element.{{ cloudflare_zone }}"}
@@ -47,6 +47,8 @@ env:
     setting: {default: ""}
   JIGASI_SIP_SERVER:
     setting: {default: ""}
+  UPDATE_LEVEL:
+    setting: {default: "major", label: {en: "Automatic updates: major, minor, patch or off", fr: "Mises à jour automatiques : major, minor, patch ou off"}}
 images:
   postgres:
     rule: {kind: partial_line}

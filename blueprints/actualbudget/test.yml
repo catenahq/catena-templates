@@ -1,0 +1,155 @@
+# Test for the actualbudget template: a budget file registered with the sync server's own
+# routes survives a backup and a restore. Each step runs node in the server's container against
+# 127.0.0.1:5006 and waits up to 300 s for /info.
+#
+# The setup does the server's first run as a person does it: only while GET
+# /account/needs-bootstrap answers that the server is not bootstrapped, it sets the server
+# password to the one the harness gives as CATENA_TEST_PASSWORD (POST /account/bootstrap), then
+# signs in with it (POST /account/login). The data seed signs in, lists the user's files (GET
+# /sync/list-user-files) and uploads the file catena-<run> (POST /sync/upload-user-file, the id
+# derived from the run id, the bytes fixture-<run>) only when the id is not listed, so a second
+# seed changes nothing. The assert signs in with the test password, lists the files: exactly one
+# named catena-<run>, and downloads it (GET /sync/download-user-file) to compare its bytes. The
+# password reaches no argument list and no output.
+#
+# {{ run_id }} is supplied by the bench at execution time so the file is unique per run.
+# Each {{ container_* }} is resolved from `docker ps` before invoking.
+
+id: actualbudget
+description: >-
+  The sync server lists exactly one budget file named catena-<run>, downloads it with the
+  bytes fixture-<run>, and signs in with the test password, before and after the backup, the
+  restore and the updates.
+
+setup:
+  - name: server_password
+    type: docker_exec
+    container: "{{ container_actual }}"
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        exec node - <<'JS'
+        const BASE = 'http://127.0.0.1:5006';
+        const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+        async function call(method, path, headers, body) {
+          const r = await fetch(BASE + path, { method, headers, body });
+          const text = await r.text();
+          let json = null;
+          try { json = JSON.parse(text); } catch (e) {}
+          return { status: r.status, json };
+        }
+        async function up() {
+          for (let i = 0; i < 60; i++) {
+            try { if ((await fetch(BASE + '/info')).status === 200) return; } catch (e) {}
+            await sleep(5000);
+          }
+          throw new Error('Actual Budget did not answer /info within 300 s');
+        }
+        (async () => {
+          await up();
+          const pw = process.env.CATENA_TEST_PASSWORD;
+          const json = { 'content-type': 'application/json' };
+          const n = await call('GET', '/account/needs-bootstrap', {});
+          if (n.status !== 200 || !n.json || !n.json.data) throw new Error('GET /account/needs-bootstrap answered ' + n.status);
+          if (!n.json.data.bootstrapped) {
+            const b = await call('POST', '/account/bootstrap', json, JSON.stringify({ password: pw }));
+            if (b.status !== 200 || !b.json || b.json.status !== 'ok') throw new Error('POST /account/bootstrap answered ' + b.status);
+          }
+          const a = await call('POST', '/account/login', json, JSON.stringify({ password: pw }));
+          if (a.status !== 200 || !a.json || !a.json.data || !a.json.data.token) throw new Error('the server refused the test password: ' + a.status);
+          console.log('actual budget server password set');
+        })().catch((e) => { console.error(String(e.message || e)); process.exit(1); });
+        JS
+    expect_stdout_contains: "actual budget server password set"
+    timeout_s: 360
+
+seed:
+  - name: register_the_budget_file
+    type: docker_exec
+    container: "{{ container_actual }}"
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        exec node - <<'JS'
+        const crypto = require('crypto');
+        const BASE = 'http://127.0.0.1:5006';
+        const RUN = '{{ run_id }}';
+        async function call(method, path, headers, body) {
+          const r = await fetch(BASE + path, { method, headers, body });
+          const text = await r.text();
+          let json = null;
+          try { json = JSON.parse(text); } catch (e) {}
+          return { status: r.status, json };
+        }
+        function fileId() {
+          const h = crypto.createHash('sha1').update('catena-' + RUN).digest('hex');
+          return h.slice(0, 8) + '-' + h.slice(8, 12) + '-4' + h.slice(13, 16) + '-8' + h.slice(17, 20) + '-' + h.slice(20, 32);
+        }
+        (async () => {
+          const a = await call('POST', '/account/login', { 'content-type': 'application/json' },
+            JSON.stringify({ password: process.env.CATENA_TEST_PASSWORD }));
+          const token = a.status === 200 && a.json && a.json.data && a.json.data.token;
+          if (!token) throw new Error('the server refused the test password: ' + a.status);
+          const id = fileId();
+          const l = await call('GET', '/sync/list-user-files', { 'x-actual-token': token });
+          if (l.status !== 200 || !l.json || !Array.isArray(l.json.data)) throw new Error('GET /sync/list-user-files answered ' + l.status);
+          if (!l.json.data.some((f) => f.fileId === id)) {
+            const u = await call('POST', '/sync/upload-user-file', {
+              'x-actual-token': token, 'x-actual-file-id': id, 'x-actual-name': 'catena-' + RUN,
+              'content-type': 'application/encrypted-file' }, Buffer.from('fixture-' + RUN));
+            if (u.status !== 200 || !u.json || u.json.status !== 'ok') throw new Error('POST /sync/upload-user-file answered ' + u.status);
+          }
+          console.log('seeded budget file catena-' + RUN);
+        })().catch((e) => { console.error(String(e.message || e)); process.exit(1); });
+        JS
+    expect_stdout_contains: "seeded budget file catena-{{ run_id }}"
+    timeout_s: 120
+
+assert:
+  - name: server_lists_exactly_one_budget_file_of_the_run
+    type: docker_exec
+    container: "{{ container_actual }}"
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        exec node - <<'JS'
+        const BASE = 'http://127.0.0.1:5006';
+        const RUN = '{{ run_id }}';
+        const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+        async function call(method, path, headers, body) {
+          const r = await fetch(BASE + path, { method, headers, body });
+          const buf = Buffer.from(await r.arrayBuffer());
+          let json = null;
+          try { json = JSON.parse(buf.toString('utf8')); } catch (e) {}
+          return { status: r.status, json, text: buf.toString('utf8') };
+        }
+        async function up() {
+          for (let i = 0; i < 60; i++) {
+            try { if ((await fetch(BASE + '/info')).status === 200) return; } catch (e) {}
+            await sleep(5000);
+          }
+          throw new Error('Actual Budget did not answer /info within 300 s');
+        }
+        (async () => {
+          await up();
+          const a = await call('POST', '/account/login', { 'content-type': 'application/json' },
+            JSON.stringify({ password: process.env.CATENA_TEST_PASSWORD }));
+          const token = a.status === 200 && a.json && a.json.data && a.json.data.token;
+          if (!token) throw new Error('the server refused the test password: ' + a.status);
+          const l = await call('GET', '/sync/list-user-files', { 'x-actual-token': token });
+          if (l.status !== 200 || !l.json || !Array.isArray(l.json.data)) throw new Error('GET /sync/list-user-files answered ' + l.status);
+          const mine = l.json.data.filter((f) => f.name === 'catena-' + RUN);
+          if (mine.length !== 1) throw new Error('the server lists ' + mine.length + ' files named catena-' + RUN + ', expected 1');
+          const d = await call('GET', '/sync/download-user-file', { 'x-actual-token': token, 'x-actual-file-id': mine[0].fileId });
+          if (d.status !== 200 || d.text !== 'fixture-' + RUN) throw new Error('the file does not download as it was uploaded: ' + d.status);
+          console.log('budget files named catena-' + RUN + ': 1, bytes fixture-' + RUN);
+        })().catch((e) => { console.error(String(e.message || e)); process.exit(1); });
+        JS
+    expect_stdout_contains: "budget files named catena-{{ run_id }}: 1, bytes fixture-{{ run_id }}"
+    timeout_s: 360

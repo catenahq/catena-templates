@@ -333,6 +333,110 @@ def test_verdict_fails_a_commit_with_a_missing_job_and_names_it(scratch):
     assert _reads(scratch) == 10
 
 
+# reused results
+
+URL_A = "https://github.com/o/r/actions/runs/11"
+URL_B = "https://github.com/o/r/actions/runs/12"
+
+
+def test_list_writes_each_commit_with_its_parent_for_the_lookup(scratch):
+    _, _, commit, runner = scratch
+    root = commit("a.txt")
+    one = commit("b.txt")
+    two = commit("c.txt")
+    done, _ = _list(scratch, root, two)
+    assert done.returncode == 0, done.stderr
+    text = (runner / "output.txt").read_text()
+    assert f"pairs<<PAIRS_END\n{one} {root}\n{two} {one}\nPAIRS_END\n" in text
+
+
+def test_a_named_apps_run_writes_no_pairs_so_the_lookup_is_skipped(scratch):
+    _two_apps(scratch)
+    done, _ = _again(scratch, "web")
+    assert done.returncode == 0, done.stderr
+    assert "pairs<<PAIRS_END\nPAIRS_END\n" in (scratch[3] / "output.txt").read_text()
+    lookup = _step("app-main.yml", "list", "Earlier app-ci results")
+    assert lookup["if"] == "github.event_name == 'push' && steps.commits.outputs.pairs != ''"
+
+
+def _split(scratch, results):
+    run, *_ = scratch
+    commits = f"[{_entry(SHA_A, SHA_C)},{_entry(SHA_B, SHA_A)}]"
+    return run(_step("app-main.yml", "list", "The commits still")["run"], COMMITS=commits,
+               SHAS=f"{SHA_A} {SHA_B}", RESULTS=results)
+
+
+def test_split_keeps_every_commit_when_no_result_was_found(scratch):
+    done, out = _split(scratch, "")
+    assert done.returncode == 0, done.stderr
+    assert out["commits"] == f"[{_entry(SHA_A, SHA_C)},{_entry(SHA_B, SHA_A)}]"
+    assert out["shas"] == f"{SHA_A} {SHA_B}"
+    assert out["all"] == f"{SHA_A} {SHA_B}"
+
+
+def test_split_leaves_the_commit_with_a_result_out_of_the_checks(scratch):
+    done, out = _split(scratch, f"{SHA_A} success {URL_A}")
+    assert done.returncode == 0, done.stderr
+    assert out["commits"] == f"[{_entry(SHA_B, SHA_A)}]"
+    assert out["shas"] == SHA_B
+    assert out["all"] == f"{SHA_A} {SHA_B}"
+    assert (scratch[3] / "output.txt").read_text().count(f"{SHA_A} success {URL_A}") == 1
+
+
+def test_split_leaves_nothing_to_check_when_every_commit_has_a_result(scratch):
+    done, out = _split(scratch, f"{SHA_A} success {URL_A}\n{SHA_B} failure {URL_B}")
+    assert done.returncode == 0, done.stderr
+    assert out["commits"] == "[]" and out["shas"] == ""
+
+
+def test_verdict_posts_a_reused_success_naming_its_run_and_checks_the_rest(scratch):
+    jobs = _jobs((f"app-ci {SHA_B} / scope", "success"), (f"app-ci {SHA_B} / app-checks", "success"))
+    done, out, posted = _verdict(scratch, jobs, shas=(SHA_B,), ALL=f"{SHA_A} {SHA_B}",
+                                 REUSED=f"{SHA_A} success {URL_A}")
+    assert done.returncode == 0, done.stderr
+    assert out["passed"] == f"{SHA_A} {SHA_B}"
+    assert len(posted) == 2
+    assert f"statuses/{SHA_A}" in posted[0] and "state=success" in posted[0] and "context=app-ci" in posted[0]
+    assert f"description=app-ci passed: the same change as {URL_A}" in posted[0]
+    assert f"target_url={URL_A}" in posted[0]
+    assert f"target_url={RUN}" in posted[1]
+
+
+def test_verdict_reads_no_jobs_when_every_commit_is_reused(scratch):
+    done, out, posted = _verdict(scratch, "", shas=(), ALL=f"{SHA_A} {SHA_B}",
+                                 REUSED=f"{SHA_A} success {URL_A}\n{SHA_B} success {URL_B}")
+    assert done.returncode == 0, done.stderr
+    assert not (scratch[3] / "jobs-reads").exists()
+    assert out["passed"] == f"{SHA_A} {SHA_B}"
+    assert [f"target_url={u}" in p for u, p in zip((URL_A, URL_B), posted)] == [True, True]
+
+
+def test_verdict_posts_a_reused_failure_and_passes_nothing_to_the_bench(scratch):
+    done, out, posted = _verdict(scratch, "", shas=(), ALL=SHA_A, REUSED=f"{SHA_A} failure {URL_A}")
+    assert done.returncode == 0, done.stderr
+    assert out["passed"] == ""
+    assert len(posted) == 1 and "state=failure" in posted[0]
+    assert f"description=app-ci failed: the same change as {URL_A}" in posted[0]
+
+
+def test_verdict_runs_for_reused_commits_alone_and_the_lookup_job_reads_runs():
+    jobs = _app_main()["jobs"]
+    assert jobs["verdict"]["if"] == ("always() && needs.list.result == 'success' "
+                                     "&& (needs.list.outputs.shas != '' || needs.list.outputs.reused != '')")
+    assert jobs["list"]["permissions"] == {"contents": "read", "actions": "read"}
+    assert jobs["checks"]["if"] == "needs.list.outputs.commits != '[]'"
+
+
+def test_the_lookup_judges_the_change_as_app_ci_records_it():
+    lookup = _step("app-main.yml", "list", "Earlier app-ci results")
+    assert lookup["uses"] == "catenahq/contracts/.github/actions/same-tree@main"
+    assert lookup["with"] == {
+        "name": "app-ci", "workflow": ".github/workflows/app-ci.yml",
+        "commits": "${{ steps.commits.outputs.pairs }}", "judge-change": True,
+        "siblings": "catenahq/contracts", "record": False, "wait-minutes": 0}
+    assert _doc("app-ci.yml")["jobs"]["same-tree"]["steps"][0]["with"]["siblings"] == lookup["with"]["siblings"]
+
+
 # shape
 
 def _app_main():
@@ -345,7 +449,7 @@ def test_checks_is_a_matrix_of_local_calls_that_do_not_cancel_each_other():
     assert checks["uses"] == "./.github/workflows/app-ci.yml"
     assert checks["with"] == {"sha": "${{ matrix.commit.check }}", "base": "${{ matrix.commit.parent }}",
                               "apps": "${{ matrix.commit.apps }}"}
-    assert checks["permissions"] == {"contents": "read", "statuses": "read"}
+    assert checks["permissions"] == {"actions": "read", "contents": "read", "statuses": "read"}
     assert checks["name"] == "app-ci ${{ matrix.commit.sha }}"
 
 
@@ -397,19 +501,13 @@ def test_app_ci_groups_runs_by_the_checked_commit_and_checks_it_out():
     assert base["env"]["BASE_SHA"] == "${{ inputs.base }}" and '${BASE_SHA:-$(git rev-parse HEAD^1)}' in base["run"]
     assert doc["jobs"]["repo"]["steps"][0]["with"]["fetch-depth"] == 2
     nfo = [s for s in doc["jobs"]["repo"]["steps"] if "new-failures-only" in s.get("uses", "")]
-    assert len(nfo) == 4 and all(s["with"]["base"] == "${{ steps.base.outputs.sha }}" for s in nfo)
-    # Render drift is its own step per path, after the checks, judged by the files it names, with
-    # files the render adds shown in the diff.
-    drift = [s for s in nfo if "match their inputs" in s["name"]]
-    assert [s["if"] for s in drift] == ["env.TEMPLATES_ROOT == ''", "env.TEMPLATES_ROOT != ''"]
-    steps = doc["jobs"]["repo"]["steps"]
-    assert all(steps.index(s) > steps.index(c) for s in drift for c in nfo if s not in drift)
-    for s in drift:
-        assert s["with"]["failure-lines"] == r"^diff --git a/blueprints/\S+"
-        run = [line.strip() for line in s["with"]["run"].splitlines()]
-        assert "render" in run[0]
-        assert run[1:] == ["git add -N blueprints", "git diff --exit-code blueprints"]
-    assert all("git diff" not in s["with"]["run"] for s in nfo if s not in drift)
+    # The catalog's unit tests, the other lints and the render drift run in build-and-verify only.
+    assert [s["if"] for s in nfo] == ["env.TEMPLATES_ROOT == ''", "env.TEMPLATES_ROOT != ''"]
+    assert all(s["with"]["base"] == "${{ steps.base.outputs.sha }}" for s in nfo)
+    for s in nfo:
+        assert "make" not in s["with"]["run"] and "git diff" not in s["with"]["run"]
+        assert "lint_swarm.py" in s["with"]["run"] and "catena-applint" in s["with"]["run"]
+    assert "uv run build/lint_swarm.py" in nfo[0]["with"]["run"]
 
 
 def test_app_dispatch_leaves_main_to_app_main_and_takes_the_commits():
@@ -492,10 +590,11 @@ def test_a_catalog_without_images_adds_nothing(scratch):
     assert _provenance(scratch, [], "") == ""
 
 
-@pytest.mark.parametrize("name,job", [("app-ci.yml", "repo"), ("build-and-verify.yml", "lint-quiesce-tests")])
-def test_the_catalog_s_tests_find_contracts_beside_the_checkout(name, job):
-    # tests/test_monitoring_apps.py and tests/test_quiesce_lint.py read ../contracts/default-apps/wiring.json.
-    steps = _doc(name)["jobs"][job]["steps"]
+def test_the_catalog_s_tests_find_contracts_beside_the_checkout():
+    # tests/test_monitoring_apps.py and tests/test_quiesce_lint.py read ../contracts/default-apps/wiring.json;
+    # only build-and-verify runs them, so app-ci's repo job holds no clone.
+    assert not [s for s in _doc("app-ci.yml")["jobs"]["repo"]["steps"] if "git clone" in s.get("run", "")]
+    steps = _doc("build-and-verify.yml")["jobs"]["lint-quiesce-tests"]["steps"]
     clone = next(i for i, s in enumerate(steps) if s.get("name") == "Check out contracts beside this repository")
     assert steps[clone]["if"] == "env.TEMPLATES_ROOT == ''"
     assert steps[clone]["run"] == ('git clone --quiet --depth 1 https://github.com/catenahq/contracts.git '
