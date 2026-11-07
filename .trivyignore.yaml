@@ -14,7 +14,7 @@ secrets:
     statement: mautic test fixtures compiled into the image's twig cache
     expired_at: 2027-04-19
   # zammad/zammad 7.2.x ships the openid_connect gem's own spec fixtures, among
-  # them a sample private key. It is not a credential.
+  # them a sample private key that signs only the gem's mock responses.
   - id: private-key
     paths:
       - /usr/local/bundle/ruby/3.4.0/gems/openid_connect-2.5.0/spec/mock_response/public_keys/private_key.pem
@@ -57,6 +57,48 @@ vulnerabilities:
     purls:
       - pkg:npm/%40azure/msal-node@5.6.0
     statement: "no fixed upstream image: n8nio/n8n 3.1.0 is the newest 3.x tag and carries msal-node 5.6.0 (fixed in 7.1.0); the engine bump takes the fix"
+    expired_at: 2026-12-07
+  # rocketchat/rocket.chat 8.8.1 and 8.8.2 ship this npm package unfixed under
+  # xml-crypto and xml-encryption, named with its installed version as a purl.
+  - id: CVE-2026-83605
+    purls:
+      - pkg:npm/%40xmldom/xmldom@0.8.13
+    statement: "rocketchat/rocket.chat 8.8.2 carries, as 8.8.1 does, @xmldom/xmldom 0.8.13 (fixed in 0.8.14); the engine bump takes the fix"
+    expired_at: 2026-12-07
+  - id: CVE-2026-83607
+    purls:
+      - pkg:npm/%40xmldom/xmldom@0.8.13
+    statement: "rocketchat/rocket.chat 8.8.2 carries, as 8.8.1 does, @xmldom/xmldom 0.8.13 (fixed in 0.8.14); the engine bump takes the fix"
+    expired_at: 2026-12-07
+  - id: CVE-2026-83608
+    purls:
+      - pkg:npm/%40xmldom/xmldom@0.8.13
+    statement: "rocketchat/rocket.chat 8.8.2 carries, as 8.8.1 does, @xmldom/xmldom 0.8.13 (fixed in 0.8.15); the engine bump takes the fix"
+    expired_at: 2026-12-07
+  - id: CVE-2026-83613
+    purls:
+      - pkg:npm/%40xmldom/xmldom@0.8.13
+    statement: "rocketchat/rocket.chat 8.8.2 carries, as 8.8.1 does, @xmldom/xmldom 0.8.13 (fixed in 0.8.15); the engine bump takes the fix"
+    expired_at: 2026-12-07
+  - id: CVE-2026-83614
+    purls:
+      - pkg:npm/%40xmldom/xmldom@0.8.13
+    statement: "rocketchat/rocket.chat 8.8.2 carries, as 8.8.1 does, @xmldom/xmldom 0.8.13 (fixed in 0.8.15); the engine bump takes the fix"
+    expired_at: 2026-12-07
+  - id: CVE-2026-83615
+    purls:
+      - pkg:npm/%40xmldom/xmldom@0.8.13
+    statement: "rocketchat/rocket.chat 8.8.2 carries, as 8.8.1 does, @xmldom/xmldom 0.8.13 (fixed in 0.8.15); the engine bump takes the fix"
+    expired_at: 2026-12-07
+  - id: CVE-2026-83616
+    purls:
+      - pkg:npm/%40xmldom/xmldom@0.8.13
+    statement: "rocketchat/rocket.chat 8.8.2 carries, as 8.8.1 does, @xmldom/xmldom 0.8.13 (fixed in 0.8.15); the engine bump takes the fix"
+    expired_at: 2026-12-07
+  - id: CVE-2026-83619
+    purls:
+      - pkg:npm/%40xmldom/xmldom@0.8.13
+    statement: "rocketchat/rocket.chat 8.8.2 carries, as 8.8.1 does, @xmldom/xmldom 0.8.13 (fixed in 0.8.15); the engine bump takes the fix"
     expired_at: 2026-12-07
   # twinproduction/gatus v5.38.0 is the registry's newest tag and its Go binary
   # carries these modules unfixed. Each entry names the module and its version as

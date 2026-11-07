@@ -7,8 +7,8 @@
   "frappe": {
     "repo": "https://github.com/frappe/frappe",
     "tags": "^v16\\.\\d+\\.\\d+$",
-    "version": "v16.53.0",
-    "sha": "e8d41dd0061a32ee781caefe5d0b0d2bb7c15362"
+    "version": "v16.54.0",
+    "sha": "2fcb9397a1f1da353b21e53d2f97ec56653acd02"
   },
   "apps": [
     {

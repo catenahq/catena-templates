@@ -19,9 +19,9 @@ images:
   db:
     rule: {kind: partial_line}
 # verify asks the running server for /healthz/readiness, which answers 200 once the database is
-# connected and the migrations are done.
+# connected and the migrations are done; it waits up to 90 s for a starting server.
 hooks:
   service: n8n
-  timeout_seconds: 60
+  timeout_seconds: 120
   verify:
     - hooks/verify.js
