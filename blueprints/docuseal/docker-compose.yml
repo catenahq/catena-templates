@@ -60,7 +60,7 @@ x-catena:
 
 services:
   docuseal:
-    image: docuseal/docuseal:3.2.6
+    image: docuseal/docuseal:3.3.5
     deploy:
       restart_policy:
         condition: any
