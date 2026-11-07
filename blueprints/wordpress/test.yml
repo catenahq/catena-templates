@@ -5,8 +5,8 @@
 # not installed (is_blog_installed()): once the database answers it posts the wizard's last
 # step to the stack's nginx under the site's host name, as the proxy sends it, with the
 # administrator catena-admin and the password the harness gives as CATENA_TEST_PASSWORD, read
-# inside php so no argument list or output carries it. The host name is the one wp-config.php
-# gives WP_CACHE_KEY_SALT. The data seed loads wp-load.php and inserts the post catena-<run>
+# inside php so no argument list or output carries it. The host name is the one the site's
+# WP_CACHE_KEY_SALT carries. The data seed loads wp-load.php and inserts the post catena-<run>
 # with wp_insert_post only when get_posts finds none; the assert checks that catena-admin signs
 # in with the test password (wp_authenticate) and counts the post with get_posts: exactly one,
 # holding fixture-<run>.
@@ -44,8 +44,8 @@ setup:
           sleep(5);
         }
         if (is_blog_installed()) { echo "wordpress install wizard done\n"; exit(0); }
-        if (!preg_match("/define\\(\\s*'WP_CACHE_KEY_SALT',\\s*'([^']+)_'/", (string) file_get_contents('/var/www/html/wp-config.php'), $m)) {
-          fwrite(STDERR, "wp-config.php holds no WP_CACHE_KEY_SALT to take the host name from\n"); exit(1);
+        if (!defined('WP_CACHE_KEY_SALT') || !preg_match('/^(.+)_$/', WP_CACHE_KEY_SALT, $m)) {
+          fwrite(STDERR, "the site defines no WP_CACHE_KEY_SALT to take the host name from\n"); exit(1);
         }
         $pw = (string) getenv('CATENA_TEST_PASSWORD');
         if ($pw === '') { fwrite(STDERR, "the step was given no CATENA_TEST_PASSWORD\n"); exit(1); }
