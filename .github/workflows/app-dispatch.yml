@@ -45,9 +45,14 @@ name: app-dispatch
 # candidate and reads its pull requests and statuses. The status description must
 # name exactly the commit's app. Without the read token every commit runs in full.
 #
-# Another repository with the same layout calls this workflow with
-# `catalog: false`: its tools come from a checkout of catena-templates at
-# `tools-ref` into .tools, and TEMPLATES_ROOT names the caller's tree.
+# The tools (`build/*.py`) always come from a checkout of catena-templates into
+# .tools: at its default branch for this repository's own runs, and at
+# `tools-ref` for another repository with the same layout, which calls this
+# workflow with `catalog: false`. TEMPLATES_ROOT names the pushed tree, which
+# the tools read as data; this workflow file itself is the pushed commit's own,
+# as on every push. UV_NO_CONFIG keeps uv from reading a pyproject.toml, uv.toml or
+# .python-version of the pushed tree, and setup-uv reads its version files from
+# .tools.
 
 on:
   push:
@@ -84,8 +89,9 @@ permissions:
   contents: read
 
 env:
-  TEMPLATES_ROOT: ${{ format('{0}', inputs.catalog) == 'false' && github.workspace || '' }}
-  TOOLS: ${{ format('{0}', inputs.catalog) == 'false' && '.tools' || '.' }}
+  TEMPLATES_ROOT: ${{ github.workspace }}
+  TOOLS: .tools
+  UV_NO_CONFIG: '1'
 
 jobs:
   dispatch:
@@ -104,15 +110,18 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
       - name: Check out the tools
-        if: env.TEMPLATES_ROOT != ''
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
           repository: catenahq/catena-templates
-          ref: ${{ inputs.tools-ref }}
+          ref: >-
+            ${{ format('{0}', inputs.catalog) == 'false' && inputs.tools-ref
+            || github.event.repository.default_branch }}
           path: .tools
           persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          working-directory: .tools
       - name: The apps the push changes
         id: scope
         env:

@@ -525,6 +525,23 @@ def test_app_dispatch_sends_a_branch_s_pushes_one_at_a_time_and_each_send_of_mai
         "&& format(':{0}', github.run_id) || github.ref_name }}")
 
 
+def test_app_dispatch_runs_the_tools_of_the_default_branch_over_the_pushed_tree():
+    doc = _doc("app-dispatch.yml")
+    assert doc["env"] == {"TEMPLATES_ROOT": "${{ github.workspace }}", "TOOLS": ".tools", "UV_NO_CONFIG": "1"}
+    steps = doc["jobs"]["dispatch"]["steps"]
+    tools = next(i for i, s in enumerate(steps) if s.get("name") == "Check out the tools")
+    assert "if" not in steps[tools]
+    checkout = steps[tools]["with"]
+    assert checkout["repository"] == "catenahq/catena-templates" and checkout["path"] == ".tools"
+    assert " ".join(checkout["ref"].split()) == (
+        "${{ format('{0}', inputs.catalog) == 'false' && inputs.tools-ref "
+        "|| github.event.repository.default_branch }}")
+    uv = next(i for i, s in enumerate(steps) if "setup-uv" in s.get("uses", ""))
+    assert tools < uv and steps[uv]["with"] == {"working-directory": ".tools"}
+    calls = [line for s in steps for line in s.get("run", "").splitlines() if "uv run" in line]
+    assert calls and all('uv run "$TOOLS/build/' in line for line in calls)
+
+
 # the image scan
 
 def _scan(scratch, base):

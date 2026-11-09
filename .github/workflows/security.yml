@@ -6,14 +6,15 @@ name: security
 # CVEs it introduces in the blueprints it touches, and the daily run fails on
 # every CVE with a fix in any catalog image, which is where a CVE published
 # against an untouched image surfaces. The Docker Hub login keeps that sweep under the account's pull
-# limit; without the secrets the pulls run anonymously.
+# limit; without the secrets the pulls run anonymously, as they do for an
+# agent/** branch and its pull request, which get blank secrets.
 
 on:
   pull_request:
-  # Every pushed branch. Renovate, engine-bump and image-pin branches always
-  # carry a pull request, which tests each push to them.
+  # Every pushed branch. Renovate, engine-bump, image-pin and agent branches
+  # always carry a pull request, which tests each push to them.
   push:
-    branches-ignore: ['renovate/**', 'engine-bump/**', 'image-pin/**', 'scanctl/**']
+    branches-ignore: ['renovate/**', 'engine-bump/**', 'image-pin/**', 'scanctl/**', 'agent/**']
   schedule:
     - cron: '17 6 * * *'
 
@@ -41,5 +42,5 @@ jobs:
       # The self-hosted runner group excludes public repos.
       runner: ubuntu-latest
     secrets:
-      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+      DOCKERHUB_USERNAME: ${{ !startsWith(github.head_ref || github.ref_name, 'agent/') && secrets.DOCKERHUB_USERNAME || '' }}
+      DOCKERHUB_TOKEN: ${{ !startsWith(github.head_ref || github.ref_name, 'agent/') && secrets.DOCKERHUB_TOKEN || '' }}
