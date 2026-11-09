@@ -9,7 +9,7 @@
 # again, list the channels named catena-<run> and count exactly one, and list that
 # channel's messages and count exactly one holding fixture-<run>. The login comes
 # from the container's environment, so it rides no argument list and is printed
-# nowhere.
+# nowhere. A refused call names its HTTP status and the answer's body.
 #
 # {{ run_id }} is supplied by the bench at execution time and each
 # {{ container_* }} is resolved from `docker ps` before invoking.
@@ -35,6 +35,7 @@ seed:
         const NAME = "catena-{{ run_id }}";
         const TEXT = "fixture-{{ run_id }}";
         const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+        const said = (res) => "HTTP " + res.status + " " + JSON.stringify(res.body);
 
         async function call(method, path, auth, body) {
           const headers = { ...auth };
@@ -63,14 +64,14 @@ seed:
           let info = await call("GET", "/channels.info?roomName=" + encodeURIComponent(NAME), auth);
           if (info.status !== 200) {
             info = await call("POST", "/channels.create", auth, { name: NAME });
-            if (info.status !== 200) throw new Error("channels.create answered HTTP " + info.status);
+            if (info.status !== 200) throw new Error("channels.create answered " + said(info));
           }
           const roomId = info.body.channel._id;
           const listed = await call("GET", "/channels.messages?count=100&roomId=" + roomId, auth);
-          if (listed.status !== 200) throw new Error("channels.messages answered HTTP " + listed.status);
+          if (listed.status !== 200) throw new Error("channels.messages answered " + said(listed));
           if (!listed.body.messages.some((m) => m.msg === TEXT)) {
             const posted = await call("POST", "/chat.postMessage", auth, { roomId, text: TEXT });
-            if (posted.status !== 200) throw new Error("chat.postMessage answered HTTP " + posted.status);
+            if (posted.status !== 200) throw new Error("chat.postMessage answered " + said(posted));
           }
           await call("POST", "/logout", auth);
           console.log("seeded channel " + NAME + " as " + roomId);
@@ -97,6 +98,7 @@ assert:
         const NAME = "catena-{{ run_id }}";
         const TEXT = "fixture-{{ run_id }}";
         const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+        const said = (res) => "HTTP " + res.status + " " + JSON.stringify(res.body);
 
         async function call(method, path, auth, body) {
           const headers = { ...auth };
@@ -122,16 +124,16 @@ assert:
               await sleep(5000);
             }
           }
-          const query = encodeURIComponent(JSON.stringify({ name: NAME }));
-          const channels = await call("GET", "/channels.list?query=" + query, auth);
-          if (channels.status !== 200 || channels.body.channels.length !== 1) {
-            throw new Error("channels.list answered HTTP " + channels.status + " with "
-              + (channels.body && channels.body.channels ? channels.body.channels.length : "no")
-              + " channels named " + NAME + ", expected one");
+          // channels.list answers every channel the administrator sees; the name is matched here.
+          const channels = await call("GET", "/channels.list?count=100", auth);
+          if (channels.status !== 200) throw new Error("channels.list answered " + said(channels));
+          const named = channels.body.channels.filter((c) => c.name === NAME);
+          if (named.length !== 1) {
+            throw new Error("channels.list holds " + named.length + " channels named " + NAME + ", expected one");
           }
-          const roomId = channels.body.channels[0]._id;
+          const roomId = named[0]._id;
           const listed = await call("GET", "/channels.messages?count=100&roomId=" + roomId, auth);
-          if (listed.status !== 200) throw new Error("channels.messages answered HTTP " + listed.status);
+          if (listed.status !== 200) throw new Error("channels.messages answered " + said(listed));
           const found = listed.body.messages.filter((m) => m.msg === TEXT);
           if (found.length !== 1) {
             throw new Error("the channel " + NAME + " holds " + found.length + " messages " + TEXT + ", expected one");

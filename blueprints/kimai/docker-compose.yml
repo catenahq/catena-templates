@@ -44,7 +44,7 @@ x-catena:
 
 services:
   kimai:
-    image: kimai/kimai2:2.67.0
+    image: kimai/kimai2:2.71.0
     deploy:
       restart_policy:
         condition: any
@@ -64,6 +64,14 @@ services:
       memory_limit: "512M"
     volumes:
       - kimai-data:/opt/kimai/var
+    # The image's own check, with a start period that outlasts the first boot's migrations:
+    # a container stopped as unhealthy midway leaves a half-built schema no restart finishes.
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://127.0.0.1:8001 || exit 1"]
+      interval: 20s
+      timeout: 10s
+      retries: 3
+      start_period: 10m
     labels:
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=8001"

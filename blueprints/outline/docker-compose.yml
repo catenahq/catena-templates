@@ -57,7 +57,7 @@ x-catena:
 
 services:
   outline:
-    image: outlinewiki/outline:1.10.1
+    image: outlinewiki/outline:1.12.0
     deploy:
       restart_policy:
         condition: any
@@ -95,6 +95,10 @@ services:
       FILE_STORAGE_UPLOAD_MAX_SIZE: "262144000"
       FORCE_HTTPS: "true"
       ENABLE_UPDATES: "false"
+      # Outline reads a variable's value from <NAME>_FILE when the variable is unset, so a
+      # host-wide SSL_CERT_FILE (the CA bundle OpenSSL reads) would become its own TLS
+      # certificate, which it refuses to start without SSL_KEY. The proxy holds TLS.
+      SSL_CERT: ""
 
       # This app's own Keycloak sign-in entry, written by the settings sync
       # from the sign-in labels below. Empty until its first pass.

@@ -132,11 +132,21 @@ if cmd == "files:object:list":
 if cmd == "app:getpath":
     sys.exit(0 if rest[0] in apps else 1)
 if cmd == "app:install":
+    if "settings/appstore-fetcher-lastFailure" in appconfig:
+        print(f"Could not download app {rest[0]}, it was not found on the appstore")
+        sys.exit(1)
+    if rest[0] in state.get("store_fails_once", []):
+        state["store_fails_once"].remove(rest[0])
+        appconfig["settings/appstore-fetcher-lastFailure"] = "1"
+        save()
+        print("cURL error 28: Operation timed out")
+        sys.exit(1)
     if rest[0] in state["store"] and rest[0] not in apps:
         apps[rest[0]] = "enabled"
         appconfig[rest[0] + "/installed_version"] = state["store"][rest[0]]
         save()
         sys.exit(0)
+    print(f"Could not download app {rest[0]}, it was not found on the appstore")
     sys.exit(1)
 if cmd == "app:enable":
     if rest[0] in apps:
@@ -501,7 +511,17 @@ def test_an_app_the_app_store_does_not_have_is_left_for_the_next_deploy(nc):
     run = nc.run("configure")
     assert run.returncode == 0, run.stderr
     assert "could not be installed from the app store" in run.stderr
+    assert "It answered: Could not download app spreed, it was not found on the appstore" in run.stderr
     assert nc.state["apps"] == {} and nc.state["providers"] == {}
+
+
+def test_a_failed_app_store_fetch_is_asked_again_rather_than_held_for_nextcloud_s_300_s(nc):
+    nc.state["store_fails_once"] = ["spreed"]
+    run = nc.run("configure")
+    assert run.returncode == 0, run.stderr
+    assert nc.state["apps"]["spreed"] == "enabled"
+    assert "settings/appstore-fetcher-lastFailure" not in nc.state["appconfig"]
+    assert "config:app:delete settings appstore-fetcher-lastFailure" in nc.calls()
 
 
 def test_the_sign_in_provider_is_refused_over_another_major_version_of_user_oidc(nc):

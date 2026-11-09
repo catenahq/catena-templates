@@ -122,6 +122,19 @@ services:
     volumes:
       - app_public:/var/www/html/public
       - app_storage:/var/www/html/storage
+    # The image's own check, with a start period that outlasts the first boot's migrations:
+    # a container stopped as unhealthy midway leaves a half-built schema no restart finishes.
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          REMOTE_ADDR=127.0.0.1 REQUEST_URI=/health REQUEST_METHOD=GET
+          SCRIPT_FILENAME=/var/www/html/public/index.php
+          cgi-fcgi -bind -connect 127.0.0.1:9000 | grep '{"status":"ok","message":"API is healthy"}'
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10m
     labels:
       - "vps.auto-update=${UPDATE_LEVEL:-major}"
     # nginx joins catena-network too, where `app` names other applications' services

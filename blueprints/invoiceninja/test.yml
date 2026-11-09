@@ -1,7 +1,8 @@
 # Test for the invoiceninja template: a client made through Invoice Ninja's API survives a
 # backup and a restore. Both steps run php inside the app container as www-data (the user
 # the application runs as, so no file it writes is left to root), boot the application
-# from its own bootstrap file and send the API's requests to its HTTP kernel in the same
+# from its own bootstrap file (with a request for APP_URL bound first, which the URL generator
+# needs) and send the API's requests to its HTTP kernel in the same
 # process, with the administrator's system API token read through the application's own
 # models (the login answer masks the token). The administrator is the account the first
 # start made from IN_USER_EMAIL, read with getenv, so no credential reaches an argument
@@ -32,8 +33,9 @@ seed:
         require '/var/www/html/vendor/autoload.php';
         $app = require '/var/www/html/bootstrap/app.php';
         $kernel = $app->make(Illuminate\Contracts\Http\Kernel::class);
-        $kernel->bootstrap();
         $base = rtrim((string) getenv('APP_URL'), '/');
+        $app->instance('request', Illuminate\Http\Request::create($base . '/', 'GET'));
+        $kernel->bootstrap();
         $token = null;
         $deadline = time() + 900;
         do {
@@ -84,8 +86,9 @@ assert:
         require '/var/www/html/vendor/autoload.php';
         $app = require '/var/www/html/bootstrap/app.php';
         $kernel = $app->make(Illuminate\Contracts\Http\Kernel::class);
-        $kernel->bootstrap();
         $base = rtrim((string) getenv('APP_URL'), '/');
+        $app->instance('request', Illuminate\Http\Request::create($base . '/', 'GET'));
+        $kernel->bootstrap();
         $token = null;
         $deadline = time() + 900;
         do {
