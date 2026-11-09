@@ -720,7 +720,9 @@ x-catena:
           echo "missing=$$missing bucket=$$bucket database=$$database"
   # The app store's index and the GitHub release downloads it links to, from
   # which the configure hook installs each app it enables (Talk among them).
-  egress: [apps.nextcloud.com, github.com, release-assets.githubusercontent.com]
+  # apps.nextcloud.com answers most requests itself and redirects the rest to
+  # its mirrors garm1 to garm7.nextcloud.com.
+  egress: [apps.nextcloud.com, garm1.nextcloud.com, garm2.nextcloud.com, garm3.nextcloud.com, garm4.nextcloud.com, garm5.nextcloud.com, garm6.nextcloud.com, garm7.nextcloud.com, github.com, release-assets.githubusercontent.com]
 
 services:
   app:
