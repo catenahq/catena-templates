@@ -17,10 +17,10 @@ name: build-and-verify
 # failure fails the job.
 
 on:
-  # Every pushed branch. Renovate, engine-bump and image-pin branches always
-  # carry a pull request, which tests each push to them.
+  # Every pushed branch. Renovate, engine-bump, image-pin and agent branches
+  # always carry a pull request, which tests each push to them.
   push:
-    branches-ignore: ['renovate/**', 'engine-bump/**', 'image-pin/**', 'scanctl/**']
+    branches-ignore: ['renovate/**', 'engine-bump/**', 'image-pin/**', 'scanctl/**', 'agent/**']
   pull_request:
     branches: [main]
   workflow_call:

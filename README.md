@@ -621,7 +621,10 @@ private runner this repository cannot reach):
   is what a maintainer reads before merging the pull request.
 
 `app-dispatch.yml`, `adopt-fork.yml` and `app-tag.yml` use the CI GitHub App's
-secrets (`RENOVATE_APP_CLIENT_ID`, `RENOVATE_APP_PRIVATE_KEY`). The path end to end, the secrets and how to pause it
+secrets (`RENOVATE_APP_CLIENT_ID`, `RENOVATE_APP_PRIVATE_KEY`). `app-dispatch.yml`
+takes its tools from `.tools` for this repository too, checked out at the default
+branch, and reads the pushed tree through `TEMPLATES_ROOT` as data; the workflow
+file that runs is the pushed commit's own. The path end to end, the secrets and how to pause it
 are in ops `internal_docs/tools/app-ci.md`.
 
 ## Versions
