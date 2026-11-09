@@ -19,7 +19,8 @@
 # an install that fails for the next deploy, so when either is missing the step prints
 # what `occ app:install` answers. An update leg starts at a tag whose hook may have left
 # Talk uninstalled: when Talk is still not on disk after 300 s, the seed prints the time
-# of the app store's last failure and Nextcloud's log lines about the app store, clears
+# of the app store's last failure and Nextcloud's log lines about the app store with the
+# exception each names (a timeout, an HTTP answer or a refused connection), clears
 # that time (Nextcloud skips the app store for 300 s after a failed fetch) and installs
 # Talk once. When the provider keycloak is not listed, the step prints what occ answers,
 # the providers listed and occ status. On a test VM the sign-in address auth.<zone> is a
@@ -136,7 +137,7 @@ seed:
           [ -n "$log" ] || log="$(occ config:system:get datadirectory 2>/dev/null || echo /var/www/html/data)/nextcloud.log"
           echo "the app store's last failure: $(occ config:app:get settings appstore-fetcher-lastFailure 2>/dev/null || echo none), now $(date +%s); its log lines:"
           grep -iE 'appstore|apps\.nextcloud\.com|Fetcher' "$log" 2>/dev/null | tail -n 3 \
-            | php -r 'while (($l = fgets(STDIN)) !== false) { $d = json_decode($l, true); echo substr(is_array($d) ? (($d["time"] ?? "") . " " . ($d["message"] ?? "")) : $l, 0, 400), "\n"; }' || true
+            | php -r 'while (($l = fgets(STDIN)) !== false) { $d = json_decode($l, true); $e = is_array($d) && is_array($d["exception"] ?? null) ? $d["exception"] : []; echo substr(is_array($d) ? (($d["time"] ?? "") . " " . ($d["message"] ?? "") . ($e ? " [" . ($e["Exception"] ?? "") . ": " . ($e["Message"] ?? "") . "]" : "")) : $l, 0, 600), "\n"; }' || true
         }
         waited=0
         tried=0
