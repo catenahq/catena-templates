@@ -3,11 +3,11 @@
 # UMAMI_ADMIN_PASSWORD from the umami container's environment, trying again every 15 seconds (at
 # most 40 times) until the start script has set it, and gets or creates the account catena-test
 # with CATENA_TEST_PASSWORD. The seed signs in as catena-test, gets or creates the website
-# catena-<run> (domain catena-<run>.test) and sends one page view of /catena-<run> to
-# COLLECT_API_ENDPOINT with a browser User-Agent, only when the website's pages list none. The
-# website lives in the database, so the assert signs in as catena-test and counts exactly one
-# website of that name and exactly one page view of /catena-<run>. A failed check exits 3, which
-# ends the retries.
+# catena-<run> (domain catena-<run>.test, in lower case as Umami requires) and sends one page
+# view of /catena-<run> to COLLECT_API_ENDPOINT with a browser User-Agent, only when the
+# website's statistics count none. The website and its page view live in the database, so the
+# assert signs in as catena-test and counts exactly one website of that name and, in that
+# website's statistics, exactly one page view. A failed check exits 3, which ends the retries.
 #
 # {{ run_id }} is supplied by the bench at execution time and each
 # {{ container_* }} is resolved from `docker ps` before invoking.
@@ -67,7 +67,7 @@ seed:
       - |
         const api = "http://127.0.0.1:3000";
         const NAME = "catena-{{ run_id }}";
-        const DOMAIN = "catena-{{ run_id }}.test";
+        const DOMAIN = "catena-{{ run_id }}.test".toLowerCase();
         const PAGE = "/catena-{{ run_id }}";
         const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
         async function call(method, path, body, token) {
@@ -89,9 +89,9 @@ seed:
             site = made.body;
           }
           const range = "startAt=0&endAt=" + (Date.now() + 86400000);
-          const pages = await call("GET", "/api/websites/" + site.id + "/metrics?type=path&" + range, null, token);
-          if (pages.status !== 200) throw new Error("page list answered " + pages.status);
-          if (!pages.body.some((p) => p.x === PAGE)) {
+          const stats = await call("GET", "/api/websites/" + site.id + "/stats?" + range, null, token);
+          if (stats.status !== 200) throw new Error("statistics answered " + stats.status);
+          if (Number(stats.body.pageviews) === 0) {
             const sent = await call("POST", process.env.COLLECT_API_ENDPOINT, {
               type: "event",
               payload: { website: site.id, hostname: DOMAIN, url: PAGE, title: NAME, language: "en-US", screen: "1280x720" },
@@ -124,7 +124,7 @@ assert:
       - |
         const api = "http://127.0.0.1:3000";
         const NAME = "catena-{{ run_id }}";
-        const DOMAIN = "catena-{{ run_id }}.test";
+        const DOMAIN = "catena-{{ run_id }}.test".toLowerCase();
         const PAGE = "/catena-{{ run_id }}";
         const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
         const wrong = (m) => {
@@ -147,11 +147,10 @@ assert:
           if (sites.length !== 1) wrong("Umami lists " + sites.length + " websites named " + NAME + ", expected one");
           if (sites[0].domain !== DOMAIN) wrong("the website " + NAME + " has the domain " + sites[0].domain + ", expected " + DOMAIN);
           const range = "startAt=0&endAt=" + (Date.now() + 86400000);
-          const pages = await call("GET", "/api/websites/" + sites[0].id + "/metrics?type=path&" + range, null, token);
-          if (pages.status !== 200) throw new Error("page list answered " + pages.status);
-          const views = pages.body.filter((p) => p.x === PAGE);
-          if (views.length !== 1 || Number(views[0].y) !== 1) {
-            wrong("the website " + NAME + " lists " + JSON.stringify(pages.body) + " as its pages, expected one view of " + PAGE);
+          const stats = await call("GET", "/api/websites/" + sites[0].id + "/stats?" + range, null, token);
+          if (stats.status !== 200) throw new Error("statistics answered " + stats.status);
+          if (Number(stats.body.pageviews) !== 1) {
+            wrong("the website " + NAME + " counts " + stats.body.pageviews + " page views, expected one");
           }
           console.log("website ok: " + NAME + " with one page view of " + PAGE);
         }

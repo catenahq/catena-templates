@@ -9,6 +9,7 @@ import shutil
 import subprocess
 import sys
 import threading
+import time
 from pathlib import Path
 
 import pytest
@@ -104,6 +105,8 @@ class _Umami(http.server.BaseHTTPRequestHandler):
     default_works = True
     # Statuses the first login attempts answer with before the real answer.
     login_first: list[int] = []
+    # Statuses the first heartbeats answer with before the real answer.
+    heartbeat_first: list[int] = []
     calls: list[tuple[str, dict, str]] = []
 
     def log_message(self, *args):
@@ -118,7 +121,11 @@ class _Umami(http.server.BaseHTTPRequestHandler):
         self.wfile.write(data)
 
     def do_GET(self):
-        self._send(200, {"ok": True})
+        self.calls.append((self.path, {}, ""))
+        if self.heartbeat_first:
+            self._send(self.heartbeat_first.pop(0), {})
+        else:
+            self._send(200, {"ok": True})
 
     def do_POST(self):
         body = json.loads(self.rfile.read(int(self.headers["content-length"])))
@@ -138,9 +145,11 @@ def _admin_script(port: int) -> str:
     return script.replace("127.0.0.1:3000", f"127.0.0.1:{port}").replace("const base = 3000;", "const base = 10;")
 
 
-def _run_admin_script(default_works: bool, login_first: tuple[int, ...] = ()) -> list[tuple[str, dict, str]]:
+def _run_admin_script(default_works: bool, login_first: tuple[int, ...] = (),
+                      heartbeat_first: tuple[int, ...] = ()) -> list[tuple[str, dict, str]]:
     handler = type("Handler", (_Umami,), {"default_works": default_works, "calls": [],
-                                          "login_first": list(login_first)})
+                                          "login_first": list(login_first),
+                                          "heartbeat_first": list(heartbeat_first)})
     server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
@@ -150,7 +159,7 @@ def _run_admin_script(default_works: bool, login_first: tuple[int, ...] = ()) ->
         assert run.returncode == 0, run.stderr
     finally:
         server.shutdown()
-    return handler.calls
+    return [call for call in handler.calls if call[0] != "/api/heartbeat"]
 
 
 @needs_node
@@ -172,6 +181,14 @@ def test_the_script_retries_every_answer_but_401_until_it_signs_in():
     calls = _run_admin_script(default_works=True, login_first=(500, 429))
     assert [c[0] for c in calls] == ["/api/auth/login"] * 3 + ["/api/me/password"]
     assert calls[3][1]["newPassword"] == "N3wPassw0rd"
+
+
+@needs_node
+def test_the_script_polls_the_heartbeat_at_the_base_wait_until_the_server_answers():
+    started = time.monotonic()
+    calls = _run_admin_script(default_works=True, heartbeat_first=(503,) * 8)
+    assert [c[0] for c in calls] == ["/api/auth/login", "/api/me/password"]
+    assert time.monotonic() - started < 1.5
 
 
 @needs_node
@@ -220,7 +237,7 @@ class _Server(http.server.BaseHTTPRequestHandler):
 
 
 def _run(*, answer: bool = True, heartbeat=(200, b'{"ok":true}'), tracker=(200, b"fetch('/api/data')"),
-         login_status=401):
+         login_status=401, script_name="app.js"):
     handler = type("Handler", (_Server,), {"heartbeat": heartbeat, "tracker": tracker, "login_status": login_status})
     server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
     port = server.server_port if answer else 1
@@ -231,7 +248,7 @@ def _run(*, answer: bool = True, heartbeat=(200, b'{"ok":true}'), tracker=(200, 
         script = argv[-1].replace("$$", "$")
         assert "127.0.0.1:3000" in script
         script = script.replace("127.0.0.1:3000", f"127.0.0.1:{port}")
-        env = {"PATH": os.environ["PATH"], "TRACKER_SCRIPT_NAME": "app.js", "COLLECT_API_ENDPOINT": "/api/data"}
+        env = {"PATH": os.environ["PATH"], "TRACKER_SCRIPT_NAME": script_name, "COLLECT_API_ENDPOINT": "/api/data"}
         return subprocess.run([*argv[:-1], script], capture_output=True, text=True, timeout=60, env=env)
     finally:
         if answer:
@@ -276,3 +293,10 @@ def test_verify_fails_for_a_script_without_the_collect_path_and_for_a_missing_sc
 def test_verify_fails_when_the_server_does_not_answer():
     run = _run(answer=False)
     assert run.returncode == 1 and "does not answer on 3000" in run.stderr
+
+
+@needs_node
+@pytest.mark.parametrize("name", ["/app.js", "app.js,other.js", ""])
+def test_verify_refuses_a_script_name_the_sign_in_gate_would_not_leave_public(name):
+    run = _run(script_name=name)
+    assert run.returncode == 1 and "TRACKER_SCRIPT_NAME must be one file name" in run.stderr

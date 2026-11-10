@@ -3,7 +3,11 @@ const fail = (m) => {
   process.exit(1);
 };
 const base = 'http://127.0.0.1:3000';
-const script = '/' + String(process.env.TRACKER_SCRIPT_NAME).split(',')[0].trim().replace(/^\/+/, '');
+const name = String(process.env.TRACKER_SCRIPT_NAME);
+if (!name || name.startsWith('/') || name.includes(',')) {
+  fail('TRACKER_SCRIPT_NAME must be one file name with no leading / and no comma, found ' + name);
+}
+const script = '/' + name;
 const collect = process.env.COLLECT_API_ENDPOINT;
 const call = (path, init) => fetch(base + path, { ...init, signal: AbortSignal.timeout(15000) });
 (async () => {

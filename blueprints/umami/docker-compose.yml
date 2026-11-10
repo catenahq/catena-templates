@@ -41,7 +41,11 @@ x-catena:
             process.exit(1);
           };
           const base = 'http://127.0.0.1:3000';
-          const script = '/' + String(process.env.TRACKER_SCRIPT_NAME).split(',')[0].trim().replace(/^\/+/, '');
+          const name = String(process.env.TRACKER_SCRIPT_NAME);
+          if (!name || name.startsWith('/') || name.includes(',')) {
+            fail('TRACKER_SCRIPT_NAME must be one file name with no leading / and no comma, found ' + name);
+          }
+          const script = '/' + name;
           const collect = process.env.COLLECT_API_ENDPOINT;
           const call = (path, init) => fetch(base + path, { ...init, signal: AbortSignal.timeout(15000) });
           (async () => {
@@ -99,12 +103,16 @@ services:
           const res = await fetch(api + path, { method: "POST", headers, body: JSON.stringify(body) });
           return { status: res.status, body: await res.json().catch(() => null) };
         }
-        // Only a 401 on the default password ends the script: every other answer
-        // and every error is tried again, with a growing wait of at most 5 minutes.
+        // The heartbeat is polled every base milliseconds until the server first
+        // answers. Then only a 401 on the default password ends the script: every
+        // other answer and every error is tried again, with a growing wait of at
+        // most 5 minutes.
         (async () => {
-          for (let wait = base; ; wait = Math.min(wait * 2, 300000)) {
+          let up = false;
+          for (let wait = base; ; wait = up ? Math.min(wait * 2, 300000) : base) {
             try {
-              if ((await fetch(api + "/heartbeat")).ok) {
+              up = up || (await fetch(api + "/heartbeat")).ok;
+              if (up) {
                 const login = await post("/auth/login", { username: "admin", password: "umami" });
                 if (login.status === 401) return log("the default password does not sign in; nothing changed");
                 if (login.status < 300) {
