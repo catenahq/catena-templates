@@ -471,6 +471,7 @@ Then one job per app the change touches (`blueprints/<id>/**`), each running:
   above that has a fixed version, or a secret in an image, fails when the change
   adds it, as in the security scan of a pull request; the ones already there do
   not fail the step and are counted among the job summary's advisory findings.
+  A finding accepted in `.scanctl/baseline.sarif` does not fail it either.
   A change that leaves the compose file as it is scans no image.
 - Provenance (`lib/provenance.py`): each image's `org.opencontainers.image.source`
   repository on GitHub is at least a year old and has three releases, or

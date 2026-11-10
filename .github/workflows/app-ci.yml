@@ -408,6 +408,8 @@ jobs:
         # with a fix, or a secret in an image, fails only when the change adds it,
         # as in security.yml's pull request scan; the ones already there do not
         # fail the step and are counted among the summary's advisory findings.
+        # A finding accepted in .scanctl/baseline.sarif (-baseline) does not fail
+        # it either, as in security.yml.
         env:
           BASE_SHA: ${{ inputs.base }}
         run: |
@@ -435,6 +437,7 @@ jobs:
           "$(go env GOPATH)/bin/scanctl" run \
             -config "$RUNNER_TEMP/scanctl-app.yml" \
             -baseline-ref "$base" \
+            -baseline .scanctl/baseline.sarif \
             -out "$RUNNER_TEMP/scanctl.sarif" \
             -summary "$RUNNER_TEMP/scanctl-summary.md" .
       - name: Scan summary
