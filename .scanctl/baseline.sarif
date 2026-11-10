@@ -6533,6 +6533,17 @@
           }
         },
         {
+          "ruleId": "CVE-2026-109383/ghcr.io/umami-software/umami",
+          "level": "error",
+          "message": {
+            "text": "Package: undici\nInstalled Version: 6.28.0\nVulnerability CVE-2026-109383\nSeverity: HIGH\nFixed Version: 6.29.1, 7.30.1, 8.12.2\nLink: [CVE-2026-109383](https://avd.aquasec.com/nvd/cve-2026-109383)"
+          },
+          "properties": {
+            "acceptedUntil": "2026-12-06",
+            "image": "ghcr.io/umami-software/umami:3.4.1"
+          }
+        },
+        {
           "ruleId": "CVE-2026-109383/makeplane/plane-live",
           "level": "error",
           "message": {
@@ -7586,6 +7597,17 @@
           "properties": {
             "acceptedUntil": "2026-12-06",
             "image": "ghcr.io/immich-app/immich-server:v3.2.2"
+          }
+        },
+        {
+          "ruleId": "CVE-2026-109869/ghcr.io/umami-software/umami",
+          "level": "error",
+          "message": {
+            "text": "Package: undici\nInstalled Version: 6.28.0\nVulnerability CVE-2026-109869\nSeverity: HIGH\nFixed Version: 6.29.1, 7.30.1, 8.12.2\nLink: [CVE-2026-109869](https://avd.aquasec.com/nvd/cve-2026-109869)"
+          },
+          "properties": {
+            "acceptedUntil": "2026-12-06",
+            "image": "ghcr.io/umami-software/umami:3.4.1"
           }
         },
         {
@@ -14728,6 +14750,17 @@
           }
         },
         {
+          "ruleId": "CVE-2026-19534/ghcr.io/umami-software/umami",
+          "level": "error",
+          "message": {
+            "text": "Package: undici\nInstalled Version: 6.28.0\nVulnerability CVE-2026-19534\nSeverity: HIGH\nFixed Version: 6.28.1, 7.29.1, 8.10.2\nLink: [CVE-2026-19534](https://avd.aquasec.com/nvd/cve-2026-19534)"
+          },
+          "properties": {
+            "acceptedUntil": "2026-12-06",
+            "image": "ghcr.io/umami-software/umami:3.4.1"
+          }
+        },
+        {
           "ruleId": "CVE-2026-19534/makeplane/plane-live",
           "level": "error",
           "message": {
@@ -20852,6 +20885,17 @@
           "properties": {
             "acceptedUntil": "2027-01-17",
             "image": "chatwoot/chatwoot:v4.17.1-ce"
+          }
+        },
+        {
+          "ruleId": "CVE-2026-40345/ghcr.io/umami-software/umami",
+          "level": "error",
+          "message": {
+            "text": "Package: deepmerge-ts\nInstalled Version: 7.1.5\nVulnerability CVE-2026-40345\nSeverity: HIGH\nFixed Version: 8.0.0\nLink: [CVE-2026-40345](https://avd.aquasec.com/nvd/cve-2026-40345)"
+          },
+          "properties": {
+            "acceptedUntil": "2026-12-06",
+            "image": "ghcr.io/umami-software/umami:3.4.1"
           }
         },
         {
@@ -38158,6 +38202,17 @@
           }
         },
         {
+          "ruleId": "CVE-2026-87018/ghcr.io/umami-software/umami",
+          "level": "error",
+          "message": {
+            "text": "Package: undici\nInstalled Version: 6.28.0\nVulnerability CVE-2026-87018\nSeverity: HIGH\nFixed Version: 6.29.1, 7.30.1, 8.12.2\nLink: [CVE-2026-87018](https://avd.aquasec.com/nvd/cve-2026-87018)"
+          },
+          "properties": {
+            "acceptedUntil": "2026-12-06",
+            "image": "ghcr.io/umami-software/umami:3.4.1"
+          }
+        },
+        {
           "ruleId": "CVE-2026-87018/makeplane/plane-live",
           "level": "error",
           "message": {
@@ -39860,6 +39915,28 @@
           "properties": {
             "acceptedUntil": "2027-01-17",
             "image": "ghcr.io/immich-app/immich-server:v3.2.2"
+          }
+        },
+        {
+          "ruleId": "CVE-2026-92392/ghcr.io/umami-software/umami",
+          "level": "error",
+          "message": {
+            "text": "Package: curl\nInstalled Version: 8.22.0-r0\nVulnerability CVE-2026-92392\nSeverity: HIGH\nFixed Version: 8.23.0-r0\nLink: [CVE-2026-92392](https://avd.aquasec.com/nvd/cve-2026-92392)"
+          },
+          "properties": {
+            "acceptedUntil": "2026-12-06",
+            "image": "ghcr.io/umami-software/umami:3.4.1"
+          }
+        },
+        {
+          "ruleId": "CVE-2026-92392/ghcr.io/umami-software/umami",
+          "level": "error",
+          "message": {
+            "text": "Package: libcurl\nInstalled Version: 8.22.0-r0\nVulnerability CVE-2026-92392\nSeverity: HIGH\nFixed Version: 8.23.0-r0\nLink: [CVE-2026-92392](https://avd.aquasec.com/nvd/cve-2026-92392)"
+          },
+          "properties": {
+            "acceptedUntil": "2026-12-06",
+            "image": "ghcr.io/umami-software/umami:3.4.1"
           }
         },
         {
@@ -42456,6 +42533,17 @@
           "properties": {
             "acceptedUntil": "2027-01-17",
             "image": "ghcr.io/gitroomhq/postiz-app:v2.24.0"
+          }
+        },
+        {
+          "ruleId": "GHSA-3f6p-5ww8-9rcr/ghcr.io/umami-software/umami",
+          "level": "error",
+          "message": {
+            "text": "Package: mysql2\nInstalled Version: 3.15.3\nVulnerability GHSA-3f6p-5ww8-9rcr\nSeverity: HIGH\nFixed Version: 3.22.0\nLink: [GHSA-3f6p-5ww8-9rcr](https://github.com/advisories/GHSA-3f6p-5ww8-9rcr)"
+          },
+          "properties": {
+            "acceptedUntil": "2026-12-06",
+            "image": "ghcr.io/umami-software/umami:3.4.1"
           }
         },
         {

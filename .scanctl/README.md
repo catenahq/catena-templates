@@ -117,6 +117,10 @@ Image findings accepted for 30 days sit in `.scanctl/baseline.sarif`; `scanctl a
 
 - `twentycrm/twenty:v2.39.5`: a newer tag exists, v2.56.1, and no engine-bump pull request moves it yet. Remaining: undici 7.29.0 (fixed in 6.29.1) and follow-redirects 1.16.0 (fixed in 1.16.1).
 
+## umami
+
+- `ghcr.io/umami-software/umami:3.4.1`: no fixed upstream image: it is the newest tag of its line (2026-11-10) and carries undici 6.28.0 (fixed in 6.29.1) and curl 8.22.0-r0 (fixed in 8.23.0-r0).
+
 ## windshift
 
 - `ghcr.io/windshiftapp/windshift:v0.8.9`: a newer tag carries fixes: v0.9.3, moving through https://github.com/catenahq/catena-templates/pull/201. Remaining: stdlib v1.27.0 (fixed in 1.27.3).
