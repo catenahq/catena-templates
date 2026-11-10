@@ -13,6 +13,14 @@
 # of each, and downloads the file. The password comes from the container's
 # environment, so it rides no argument list and is printed nowhere.
 #
+# The sign_in entries run in the sign-in leg, in the backend through Frappe as the seed
+# does. unknown_staff_refused: a staff account ERPNext has no user for ends on
+# ERPNext's own 403 (Signup is Disabled). customer_access: a client account given the
+# customer level signs in as a website user (system_user no); a sync gives its user
+# the Customer role, and taking the level back disables the user and removes the role.
+# Each step reads the Has Role and User rows of {{ sign_in_email }} and exits 1 until
+# they hold what the step names; the cleanup deletes the user.
+#
 # {{ run_id }} is supplied by the bench at execution time and each
 # {{ container_* }} is resolved from `docker ps` before invoking.
 
@@ -111,3 +119,104 @@ assert:
         print(f"site documents ok: note {TITLE} and its file {FILE_URL}")
     expect_stdout_contains: "site documents ok: note catena-{{ run_id }}"
     timeout_s: 120
+
+sign_in:
+  - name: unknown_staff_refused
+    group: staff
+    expect: refused
+    status: 403
+
+  - name: customer_access
+    group: client
+    access: customer
+    facts:
+      system_user: "no"
+    granted:
+      - name: customer_role_held
+        type: docker_exec
+        container: "{{ container_backend }}"
+        command:
+          - bash
+          - -c
+          - |
+            set -eu
+            cd /home/frappe/frappe-bench/sites
+            exec ../env/bin/python - <<'PY'
+            import os
+            import sys
+
+            import frappe
+
+            EMAIL = "{{ sign_in_email }}"
+
+            frappe.init(os.environ["SITE_NAME"])
+            try:
+                frappe.connect()
+                roles = frappe.get_all("Has Role", filters={"parent": EMAIL, "parenttype": "User"}, pluck="role")
+                if "Customer" not in roles:
+                    sys.exit(f"{EMAIL} holds {roles}, expected Customer")
+                print("customer role held by " + EMAIL)
+            finally:
+                frappe.destroy()
+            PY
+        expect_stdout_contains: "customer role held by {{ sign_in_email }}"
+        timeout_s: 120
+    removed:
+      - name: customer_user_disabled_without_the_role
+        type: docker_exec
+        container: "{{ container_backend }}"
+        command:
+          - bash
+          - -c
+          - |
+            set -eu
+            cd /home/frappe/frappe-bench/sites
+            exec ../env/bin/python - <<'PY'
+            import os
+            import sys
+
+            import frappe
+
+            EMAIL = "{{ sign_in_email }}"
+
+            frappe.init(os.environ["SITE_NAME"])
+            try:
+                frappe.connect()
+                enabled = frappe.db.get_value("User", EMAIL, "enabled")
+                roles = frappe.get_all("Has Role", filters={"parent": EMAIL, "parenttype": "User"}, pluck="role")
+                if enabled is None or enabled or "Customer" in roles:
+                    sys.exit(f"{EMAIL} is enabled={enabled} and holds {roles}, expected a disabled user without Customer")
+                print("customer closed for " + EMAIL)
+            finally:
+                frappe.destroy()
+            PY
+        expect_stdout_contains: "customer closed for {{ sign_in_email }}"
+        timeout_s: 120
+    cleanup:
+      - name: delete_the_user
+        type: docker_exec
+        container: "{{ container_backend }}"
+        command:
+          - bash
+          - -c
+          - |
+            set -eu
+            cd /home/frappe/frappe-bench/sites
+            exec ../env/bin/python - <<'PY'
+            import os
+
+            import frappe
+
+            EMAIL = "{{ sign_in_email }}"
+
+            frappe.init(os.environ["SITE_NAME"])
+            try:
+                frappe.connect()
+                frappe.delete_doc("User", EMAIL, force=1)
+                frappe.db.commit()
+                print("user deleted " + EMAIL)
+            finally:
+                frappe.destroy()
+            PY
+        expect_stdout_contains: "user deleted {{ sign_in_email }}"
+        timeout_s: 120
