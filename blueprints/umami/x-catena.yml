@@ -1,0 +1,35 @@
+schema: 2
+requires_catena: 0.12.6
+env:
+  DOMAIN_HOST:
+    setting: {default: "visits.{{ cloudflare_zone }}", label: {en: "Address of Umami", fr: "Adresse d'Umami"}}
+  TRACKER_SCRIPT_NAME:
+    setting: {default: "app.js", label: {en: "File name of the tracking script", fr: "Nom du fichier du script de suivi"}}
+  COLLECT_API_ENDPOINT:
+    setting: {default: "/api/data", label: {en: "Path where sites send their visits", fr: "Chemin où les sites envoient leurs visites"}}
+  APP_SECRET:
+    generated: {length: 64, alphabet: hex}
+  TWO_FACTOR_ENCRYPTION_KEY:
+    generated: {length: 64, alphabet: hex}
+  UMAMI_ADMIN_PASSWORD:
+    generated: {length: 32, alphabet: alnum, first_start_only: true, note: "Password of the Umami account admin, set at the first start; a later change here does nothing"}
+  DB_PASSWORD:
+    generated: {length: 32, alphabet: alnum}
+  UPDATE_LEVEL:
+    setting: {default: "major", label: {en: "Automatic updates: major, minor, patch or off", fr: "Mises à jour automatiques : major, minor, patch ou off"}}
+lifecycle:
+  service: "umami"
+  ready: ["node", "-e", "require('net').connect(3000, '127.0.0.1').on('connect', () => process.exit(0)).on('error', () => process.exit(1))"]
+  migrate:
+    - ["node", "node_modules/prisma/build/index.js", "migrate", "deploy"]
+  timeout_seconds: 900
+images:
+  db:
+    rule: {kind: partial_line}
+# verify asks the running server for its heartbeat, its tracking script and the default sign-in, which a database that
+# answers refuses.
+hooks:
+  service: umami
+  timeout_seconds: 60
+  verify:
+    - hooks/verify.js

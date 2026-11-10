@@ -1,0 +1,51 @@
+{
+  "schema": 1,
+  "app_name": "catena-umami",
+  "upstream_url": "https://umami.is",
+  "categories": [
+    "Marketing",
+    "Website"
+  ],
+  "logo": {
+    "source": "https://raw.githubusercontent.com/umami-software/umami/559e3c607c23d2c72d9bd4f6481bda428255323c/src/assets/logo.svg",
+    "notice": "Umami logo, MIT"
+  },
+  "sso_mode": "none",
+  "bench": {
+    "pack": "postgres",
+    "hostname_baked": false
+  },
+  "sizing": {
+    "peak_ram_mb": 600,
+    "notes": "Estimate until measured: the Next.js server plus Postgres.",
+    "notes_fr": "Estimation en attendant une mesure : le serveur Next.js et Postgres."
+  },
+  "en": {
+    "display_name": "Umami",
+    "summary": "Count the visits to your websites without cookies or personal data.",
+    "what_it_is": "Website visit statistics that set no cookie and keep no personal data. Each website you add gets a small script to place in its pages; the pages, referrers, countries and devices of its visits show in Umami. The visit data stays on your server.",
+    "replaces": [
+      "Google Analytics",
+      "Plausible",
+      "Matomo",
+      "Fathom"
+    ],
+    "compose_description": "Open-source, cookie-free website statistics. Replaces Google Analytics.\n",
+    "setup_steps": "1. Press **Deploy application**. Wait ~2 min for the first deploy; the **Logs** section shows the progress.\n2. Open the Umami address. The Catena sign-in comes first and admits administrators only; then Umami asks for its own login: the user `admin` and the password `UMAMI_ADMIN_PASSWORD`, found in the settings file (**Settings**, **Open the settings**).\n3. Turn on two-factor sign-in for the admin account in Umami's profile page.\n4. In Umami, add each website under **Websites** and copy its ID.\n5. Place the script in each website's pages: `<script defer src=\"https://<DOMAIN_HOST>/<TRACKER_SCRIPT_NAME>\" data-website-id=\"<ID>\"></script>`, where `DOMAIN_HOST` and `TRACKER_SCRIPT_NAME` are the values in the settings file.\n",
+    "extra_notes": "### Who can reach what\n\nThe Catena sign-in protects the whole address except two paths: the tracking script (`TRACKER_SCRIPT_NAME`) and the path where sites send their visits (`COLLECT_API_ENDPOINT`). Visitors of your websites reach only those two; the statistics need an administrator.\n\n### Admin password\n\n`UMAMI_ADMIN_PASSWORD` is the password of the Umami account `admin`, set at the first start. A later change of the value in the settings file does nothing; change the password in Umami's profile page.\n\n### Visit data\n\nUmami keeps each website's statistics. Resetting a website in its settings erases all of its statistics, so reset one only when you mean to start over.\n"
+  },
+  "fr": {
+    "display_name": "Umami",
+    "summary": "Comptez les visites de vos sites web sans témoin ni donnée personnelle.",
+    "what_it_is": "Statistiques de visites de sites web qui ne posent aucun témoin et ne gardent aucune donnée personnelle. Chaque site ajouté reçoit un petit script à placer dans ses pages ; les pages, les provenances, les pays et les appareils de ses visites s'affichent dans Umami. Les données de visites restent sur votre serveur.",
+    "replaces": [
+      "Google Analytics",
+      "Plausible",
+      "Matomo",
+      "Fathom"
+    ],
+    "compose_description": "Statistiques de sites web open-source, sans témoin. Remplace Google Analytics.\n",
+    "setup_steps": "1. Appuyez sur **Déployer l'application**. Patientez ~2 min pour le premier déploiement ; la section **Journaux** montre la progression.\n2. Ouvrez l'adresse d'Umami. La connexion Catena vient d'abord et n'admet que les administrateurs ; Umami demande ensuite sa propre connexion : l'utilisateur `admin` et le mot de passe `UMAMI_ADMIN_PASSWORD`, dans le fichier de réglages (**Réglages**, **Ouvrir les paramètres**).\n3. Activez la connexion à deux facteurs du compte admin dans la page de profil d'Umami.\n4. Dans Umami, ajoutez chaque site sous **Sites web** et copiez son identifiant.\n5. Placez le script dans les pages de chaque site : `<script defer src=\"https://<DOMAIN_HOST>/<TRACKER_SCRIPT_NAME>\" data-website-id=\"<ID>\"></script>`, où `DOMAIN_HOST` et `TRACKER_SCRIPT_NAME` sont les valeurs du fichier de réglages.\n",
+    "extra_notes": "### Qui accède à quoi\n\nLa connexion Catena protège toute l'adresse sauf deux chemins : le script de suivi (`TRACKER_SCRIPT_NAME`) et le chemin où les sites envoient leurs visites (`COLLECT_API_ENDPOINT`). Les visiteurs de vos sites n'atteignent que ces deux chemins ; les statistiques demandent un administrateur.\n\n### Mot de passe admin\n\n`UMAMI_ADMIN_PASSWORD` est le mot de passe du compte Umami `admin`, fixé au premier démarrage. Changer la valeur dans le fichier de réglages plus tard ne fait rien ; changez le mot de passe dans la page de profil d'Umami.\n\n### Données de visites\n\nUmami garde les statistiques de chaque site. Réinitialiser un site dans ses réglages efface toutes ses statistiques ; ne le faites que si vous voulez repartir de zéro.\n"
+  }
+}
