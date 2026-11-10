@@ -20,7 +20,7 @@ services:
   # on each request, so they need no restart for them. A step that fails
   # exits, and swarm starts the task again; TERM ends the wait at once.
   zammad-init:
-    image: zammad/zammad:7.0.2-0000
+    image: zammad/zammad:7.2.2-0048
     deploy:
       restart_policy:
         condition: any
@@ -68,7 +68,7 @@ services:
       - "vps.auto-update=${UPDATE_LEVEL:-major}"
 
   zammad-railsserver:
-    image: zammad/zammad:7.0.2-0000
+    image: zammad/zammad:7.2.2-0048
     deploy:
       restart_policy:
         condition: any
@@ -85,7 +85,7 @@ services:
       - default
 
   zammad-websocket:
-    image: zammad/zammad:7.0.2-0000
+    image: zammad/zammad:7.2.2-0048
     deploy:
       restart_policy:
         condition: any
@@ -97,7 +97,7 @@ services:
       - default
 
   zammad-scheduler:
-    image: zammad/zammad:7.0.2-0000
+    image: zammad/zammad:7.2.2-0048
     deploy:
       restart_policy:
         condition: any
@@ -115,7 +115,7 @@ services:
 
   # Public-facing: fronts railsserver + websocket under a single vhost.
   zammad-nginx:
-    image: zammad/zammad:7.0.2-0000
+    image: zammad/zammad:7.2.2-0048
     deploy:
       restart_policy:
         condition: any
