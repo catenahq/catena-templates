@@ -17,7 +17,19 @@
 # passes before the install), then runs curl inside the app container against its own
 # Apache. The configure hook installs Talk and user_oidc from the app store and leaves
 # an install that fails for the next deploy, so when either is missing the step prints
-# what `occ app:install` answers. The administrator's login comes from the container's
+# what `occ app:install` answers. An update leg starts at a tag whose hook may have left
+# Talk uninstalled: when Talk is still not on disk after 300 s, the seed prints the time
+# of the app store's last failure and Nextcloud's log lines about the app store with the
+# exception each names (a timeout, an HTTP answer or a refused connection), clears
+# that time (Nextcloud skips the app store for 300 s after a failed fetch) and installs
+# Talk once. When the provider keycloak is not listed, the step prints what occ answers,
+# the providers listed and occ status. On a test VM the sign-in address auth.<zone> is a
+# line of /etc/hosts pointing at the test edge's private address, and Nextcloud resolves
+# the host of an address it calls through DNS alone and refuses a private one, then
+# checks its certificate against a bundle of its own. When /etc/hosts names it, the first
+# seed step sets allow_local_remote_servers and points default_certificates_bundle_path at
+# the container's system bundle, which holds the edge's CA, so user_oidc reads the
+# provider's discovery document. The administrator's login comes from the container's
 # environment and reaches
 # curl on stdin, so it is printed nowhere and rides no argument list. The OCS answers
 # carry their own status in the body, which the steps read with php.
@@ -35,6 +47,33 @@ description: >-
   before and after the backup, the restore and the updates.
 
 seed:
+  - name: reach_the_test_edge_sign_in_address
+    type: docker_exec
+    container: "{{ container_app }}"
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        ready() { php -r '$s = json_decode(@file_get_contents("http://localhost/status.php")); exit($s && $s->installed === true && $s->maintenance === false ? 0 : 1);'; }
+        occ() { if [ "$(id -u)" -eq 0 ]; then su -s /bin/sh www-data -c "php /var/www/html/occ $*"; else php /var/www/html/occ "$@"; fi; }
+        auth="auth.${NEXTCLOUD_TRUSTED_DOMAINS#*.}"
+        if ! grep -qw "$auth" /etc/hosts; then
+          echo "test edge settings skipped: $auth is not in /etc/hosts"
+          exit 0
+        fi
+        waited=0
+        until ready; do
+          [ "$waited" -lt 600 ] || { echo "Nextcloud was not installed and out of maintenance mode within 600 s" >&2; exit 1; }
+          sleep 5
+          waited=$((waited + 5))
+        done
+        occ config:system:set allow_local_remote_servers --value=true --type=boolean
+        occ config:system:set default_certificates_bundle_path --value=/etc/ssl/certs/ca-certificates.crt
+        echo "test edge settings set for $auth"
+    expect_stdout_contains: "test edge settings "
+    timeout_s: 660
+
   - name: upload_the_file_and_share_it_by_public_link
     type: docker_exec
     container: "{{ container_app }}"
@@ -93,11 +132,26 @@ seed:
           sleep 5
           waited=$((waited + 5))
         done
+        store_log() {
+          log=$(occ config:system:get logfile 2>/dev/null || true)
+          [ -n "$log" ] || log="$(occ config:system:get datadirectory 2>/dev/null || echo /var/www/html/data)/nextcloud.log"
+          echo "the app store's last failure: $(occ config:app:get settings appstore-fetcher-lastFailure 2>/dev/null || echo none), now $(date +%s); its log lines:"
+          grep -iE 'appstore|apps\.nextcloud\.com|Fetcher' "$log" 2>/dev/null | tail -n 3 \
+            | php -r 'while (($l = fgets(STDIN)) !== false) { $d = json_decode($l, true); $e = is_array($d) && is_array($d["exception"] ?? null) ? $d["exception"] : []; echo substr(is_array($d) ? (($d["time"] ?? "") . " " . ($d["message"] ?? "") . ($e ? " [" . ($e["Exception"] ?? "") . ": " . ($e["Message"] ?? "") . "]" : "")) : $l, 0, 600), "\n"; }' || true
+        }
         waited=0
+        tried=0
         until listed=$(nc --fail "$api?format=json" 2>/dev/null); do
-          if [ "$waited" -ge 300 ]; then
+          if [ "$waited" -ge 300 ] && [ "$tried" -eq 0 ] && ! occ app:getpath spreed >/dev/null 2>&1; then
+            store_log >&2
+            occ config:app:delete settings appstore-fetcher-lastFailure >/dev/null 2>&1 || true
+            echo "Talk is not installed; installing it answers: $(occ app:install spreed 2>&1 | tail -n 3)" >&2
+            tried=1
+            waited=180
+          elif [ "$waited" -ge 300 ]; then
             echo "Talk did not list conversations within 300 s; what installing it answers:" >&2
             occ app:install spreed >&2 2>&1 || true
+            store_log >&2
             exit 1
           fi
           sleep 5
@@ -235,8 +289,21 @@ assert:
           echo "user_oidc $have is installed; expected a release of major 8 from 8.11.0" >&2
           exit 1
         fi
-        shown=$(occ user_oidc:provider keycloak --output=json 2>/dev/null) || shown=""
-        printf '%s' "$shown" | grep -q keycloak || { echo "the provider keycloak is not listed" >&2; exit 1; }
+        named() { php -r '$d = json_decode(stream_get_contents(STDIN), true); $all = isset($d["identifier"]) ? [$d] : (is_array($d) ? $d : []); $ids = []; foreach ($all as $p) { if (isset($p["identifier"])) $ids[] = $p["identifier"]; } echo implode(" ", $ids); exit(in_array("keycloak", $ids, true) ? 0 : 1);'; }
+        shown=$(occ user_oidc:provider keycloak --output=json 2>&1) || true
+        if ! printf '%s' "$shown" | named >/dev/null; then
+          {
+            echo "the provider keycloak is not listed; asking for it answers: $(printf '%s\n' "$shown" | tail -n 5)"
+            list=$(occ user_oidc:provider --output=json 2>&1) || true
+            if printf '%s' "$list" | php -r 'exit(json_decode(stream_get_contents(STDIN)) === null ? 0 : 1);'; then
+              echo "listing the providers answers: $(printf '%s\n' "$list" | tail -n 3)"
+            else
+              echo "the providers listed: $(printf '%s' "$list" | named || true)"
+            fi
+            echo "occ status: $(occ status --output=json 2>&1 | tail -n 3)"
+          } >&2
+          exit 1
+        fi
         echo "user_oidc check ok: version $have, provider keycloak listed"
     expect_stdout_contains: "user_oidc check "
     timeout_s: 660
