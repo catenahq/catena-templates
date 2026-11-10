@@ -15,7 +15,7 @@
 </head>
 <body>
   <h1>Catena template catalog</h1>
-  <p>32 templates. Generated from each app's metadata file; do not edit.</p>
+  <p>33 templates. Generated from each app's metadata file; do not edit.</p>
   <table>
     <caption>Sizing measured on dev1 (1 vCPU / 2 GB OVH VPS), last 2026-04-29.</caption>
     <thead><tr><th>id</th><th>Name</th><th>What it is</th><th>Categories</th><th>SSO</th><th>Upstream</th></tr></thead>
@@ -42,6 +42,7 @@
       <tr><td><code>postiz</code></td><td>Postiz</td><td>Requires Catena 0.12.2 or later. Schedule and publish social media posts across Twitter/X, LinkedIn, Facebook, Instagram, YouTube, TikTok, and more.</td><td>Marketing, Social</td><td>none</td><td><a href="https://postiz.com/">upstream</a></td></tr>
       <tr><td><code>easyappointments</code></td><td>Easy!Appointments</td><td>Requires Catena 0.12.2 or later. Customer-facing booking app for one or many providers (clinic, salon, lessons, repair shop). Public booking page; staff calendars; email + SMS reminders; ICS export.</td><td>Scheduling</td><td>none</td><td><a href="https://easyappointments.org/">upstream</a></td></tr>
       <tr><td><code>mautic</code></td><td>Mautic</td><td>Requires Catena 0.12.2 or later. Open-source marketing automation. Contact segments, email campaigns, drip sequences, landing pages, forms, lead scoring. Replaces Mailchimp / ActiveCampaign / HubSpot Marketing.</td><td>Marketing, Automation</td><td>none</td><td><a href="https://www.mautic.org/">upstream</a></td></tr>
+      <tr><td><code>umami</code></td><td>Umami</td><td>Requires Catena 0.12.6 or later. Website visit statistics that set no cookie and keep no personal data. Each website you add gets a small script to place in its pages; the pages, referrers, countries and devices of its visits show in Umami. The visit data stays on your server.</td><td>Marketing, Website</td><td>none</td><td><a href="https://umami.is">upstream</a></td></tr>
       <tr><td><code>kimai</code></td><td>Kimai</td><td>Requires Catena 0.12.2 or later. Open-source time tracker. Customers, projects, activities, timesheets, multi-user teams, invoice generation from tracked time. SAML federates with Keycloak via the post-deploy admin UI.</td><td>Time tracking, Business</td><td>post-deploy-ui</td><td><a href="https://www.kimai.org/">upstream</a></td></tr>
       <tr><td><code>invoiceninja</code></td><td>Invoice Ninja</td><td>Requires Catena 0.12.2 or later. Open-source invoicing with Stripe + PayPal payment gateways, recurring billing, expense tracking, client portal for online payment. Self-hosted gets all Pro + Enterprise features.</td><td>Finance, Invoicing</td><td>post-deploy-ui</td><td><a href="https://www.invoiceninja.com/">upstream</a></td></tr>
       <tr><td><code>mailserver</code></td><td>Mail server + webmail</td><td>Requires Catena 0.12.2 or later. Self-hosted email -- inbox storage on the VPS (Postfix + Dovecot + Rspamd) with Roundcube webmail and Keycloak single sign-on. Outbound requires an SMTP relay through a reputable provider (set up before deploy) so messages are not flagged as spam.</td><td>Email, Infrastructure</td><td>auto</td><td><a href="https://docker-mailserver.github.io/">upstream</a></td></tr>

@@ -1,0 +1,101 @@
+services:
+  # Umami's first migration makes the account admin with a known default
+  # password. The script UMAMI_ADMIN_JS, started beside the server, changes that
+  # password to UMAMI_ADMIN_PASSWORD while the default still signs in, and leaves
+  # a password someone set alone.
+  umami:
+    image: ghcr.io/umami-software/umami:3.4.1
+    deploy:
+      restart_policy:
+        condition: any
+    command: ["sh", "-c", "node -e \"$$UMAMI_ADMIN_JS\" & exec sh scripts/start-docker.sh"]
+    environment:
+      DATABASE_URL: postgresql://umami:${DB_PASSWORD}@db:5432/umami
+      APP_SECRET: ${APP_SECRET}
+      UMAMI_ADMIN_PASSWORD: ${UMAMI_ADMIN_PASSWORD}
+      TWO_FACTOR_ENCRYPTION_KEY: ${TWO_FACTOR_ENCRYPTION_KEY}
+      TRACKER_SCRIPT_NAME: ${TRACKER_SCRIPT_NAME}
+      COLLECT_API_ENDPOINT: ${COLLECT_API_ENDPOINT}
+      PRIVATE_MODE: "1"
+      DISABLE_TELEMETRY: "1"
+      DISABLE_UPDATES: "1"
+      UMAMI_ADMIN_JS: |
+        const env = process.env;
+        const api = "http://127.0.0.1:3000/api";
+        const log = (m) => console.log("catena admin: " + m);
+        const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+        const base = 3000;
+        async function post(path, body, token) {
+          const headers = { "content-type": "application/json" };
+          if (token) headers.authorization = "Bearer " + token;
+          const res = await fetch(api + path, { method: "POST", headers, body: JSON.stringify(body) });
+          return { status: res.status, body: await res.json().catch(() => null) };
+        }
+        // Only a 401 on the default password ends the script: every other answer
+        // and every error is tried again, with a growing wait of at most 5 minutes.
+        (async () => {
+          for (let wait = base; ; wait = Math.min(wait * 2, 300000)) {
+            try {
+              if ((await fetch(api + "/heartbeat")).ok) {
+                const login = await post("/auth/login", { username: "admin", password: "umami" });
+                if (login.status === 401) return log("the default password does not sign in; nothing changed");
+                if (login.status < 300) {
+                  const done = await post("/me/password", { currentPassword: "umami", newPassword: env.UMAMI_ADMIN_PASSWORD }, login.body.token);
+                  if (done.status < 300) return log("administrator password set");
+                  log("password change answered " + done.status + "; trying again");
+                } else {
+                  log("sign-in answered " + login.status + "; trying again");
+                }
+              }
+            } catch (e) {
+              log(e.message);
+            }
+            await sleep(wait);
+          }
+        })();
+    labels:
+      - "vps.route.host=${DOMAIN_HOST}"
+      - "vps.route.port=3000"
+      - "vps.auth.mode=admin-only"
+      - "vps.auth.public_paths=/${TRACKER_SCRIPT_NAME},${COLLECT_API_ENDPOINT}"
+      - "vps.health.path=/api/heartbeat"
+      - "vps.health.expect=ok"
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
+    cap_drop:
+      - NET_RAW
+    networks:
+      catena-network: {}
+      default: {}
+
+  db:
+    image: postgres:18.6-alpine
+    deploy:
+      restart_policy:
+        condition: any
+      placement:
+        constraints:
+          - node.labels.catena.role==data
+    environment:
+      POSTGRES_USER: umami
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: umami
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U umami"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 10m
+    labels:
+      - "vps.auto-update=minor"
+    networks:
+      - default
+
+volumes:
+  db-data:
+
+networks:
+  catena-network:
+    external: true

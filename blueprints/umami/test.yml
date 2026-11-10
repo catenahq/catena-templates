@@ -1,0 +1,170 @@
+# Test for the umami template: a website and one page view of it, made through Umami's own API,
+# survive a backup, a restore and the updates. The setup signs in as admin with
+# UMAMI_ADMIN_PASSWORD from the umami container's environment, trying again every 15 seconds (at
+# most 40 times) until the start script has set it, and gets or creates the account catena-test
+# with CATENA_TEST_PASSWORD. The seed signs in as catena-test, gets or creates the website
+# catena-<run> (domain catena-<run>.test) and sends one page view of /catena-<run> to
+# COLLECT_API_ENDPOINT with a browser User-Agent, only when the website's pages list none. The
+# website lives in the database, so the assert signs in as catena-test and counts exactly one
+# website of that name and exactly one page view of /catena-<run>. A failed check exits 3, which
+# ends the retries.
+#
+# {{ run_id }} is supplied by the bench at execution time and each
+# {{ container_* }} is resolved from `docker ps` before invoking.
+
+id: umami
+description: >-
+  The website catena-<run> made through Umami's API is listed exactly once and holds exactly one
+  page view of /catena-<run>, before and after the backup, the restore and the updates.
+
+setup:
+  - name: test_account
+    type: docker_exec
+    container: "{{ container_umami }}"
+    command:
+      - node
+      - -e
+      - |
+        const api = "http://127.0.0.1:3000";
+        const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+        async function post(path, body, token) {
+          const headers = { "content-type": "application/json" };
+          if (token) headers.authorization = "Bearer " + token;
+          const res = await fetch(api + path, { method: "POST", headers, body: JSON.stringify(body), signal: AbortSignal.timeout(15000) });
+          return { status: res.status, body: await res.json().catch(() => null) };
+        }
+        async function ensure() {
+          const own = await post("/api/auth/login", { username: "catena-test", password: process.env.CATENA_TEST_PASSWORD });
+          if (own.status === 200) return "present";
+          const admin = await post("/api/auth/login", { username: "admin", password: process.env.UMAMI_ADMIN_PASSWORD });
+          if (admin.status !== 200) throw new Error("admin sign-in answered " + admin.status);
+          const made = await post("/api/users", { username: "catena-test", password: process.env.CATENA_TEST_PASSWORD, role: "user" }, admin.body.token);
+          if (made.status !== 200) throw new Error("account creation answered " + made.status);
+          return "created";
+        }
+        (async () => {
+          for (let n = 1; ; n++) {
+            try {
+              console.log("account catena-test " + (await ensure()));
+              return;
+            } catch (e) {
+              console.error(e.message);
+              if (n >= 40) process.exit(1);
+              await sleep(15000);
+            }
+          }
+        })();
+    expect_stdout_contains: "account catena-test"
+    timeout_s: 900
+
+seed:
+  - name: website_and_page_view
+    type: docker_exec
+    container: "{{ container_umami }}"
+    command:
+      - node
+      - -e
+      - |
+        const api = "http://127.0.0.1:3000";
+        const NAME = "catena-{{ run_id }}";
+        const DOMAIN = "catena-{{ run_id }}.test";
+        const PAGE = "/catena-{{ run_id }}";
+        const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+        async function call(method, path, body, token) {
+          const headers = { "content-type": "application/json", "user-agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36" };
+          if (token) headers.authorization = "Bearer " + token;
+          const res = await fetch(api + path, { method, headers, body: body ? JSON.stringify(body) : undefined, signal: AbortSignal.timeout(15000) });
+          return { status: res.status, body: await res.json().catch(() => null) };
+        }
+        async function seed() {
+          const login = await call("POST", "/api/auth/login", { username: "catena-test", password: process.env.CATENA_TEST_PASSWORD });
+          if (login.status !== 200) throw new Error("sign-in answered " + login.status);
+          const token = login.body.token;
+          const listed = await call("GET", "/api/websites?pageSize=100&search=" + encodeURIComponent(NAME), null, token);
+          if (listed.status !== 200) throw new Error("website list answered " + listed.status);
+          let site = listed.body.data.find((s) => s.name === NAME);
+          if (!site) {
+            const made = await call("POST", "/api/websites", { name: NAME, domain: DOMAIN }, token);
+            if (made.status !== 200) throw new Error("website creation answered " + made.status);
+            site = made.body;
+          }
+          const range = "startAt=0&endAt=" + (Date.now() + 86400000);
+          const pages = await call("GET", "/api/websites/" + site.id + "/metrics?type=path&" + range, null, token);
+          if (pages.status !== 200) throw new Error("page list answered " + pages.status);
+          if (!pages.body.some((p) => p.x === PAGE)) {
+            const sent = await call("POST", process.env.COLLECT_API_ENDPOINT, {
+              type: "event",
+              payload: { website: site.id, hostname: DOMAIN, url: PAGE, title: NAME, language: "en-US", screen: "1280x720" },
+            });
+            if (sent.status !== 200) throw new Error("page view answered " + sent.status);
+          }
+          console.log("seeded website " + NAME + " as " + site.id);
+        }
+        (async () => {
+          for (let n = 1; ; n++) {
+            try {
+              return await seed();
+            } catch (e) {
+              console.error(e.message);
+              if (n >= 12) process.exit(1);
+              await sleep(15000);
+            }
+          }
+        })();
+    expect_stdout_contains: "seeded website catena-{{ run_id }}"
+    timeout_s: 600
+
+assert:
+  - name: website_and_page_view_through_umami
+    type: docker_exec
+    container: "{{ container_umami }}"
+    command:
+      - node
+      - -e
+      - |
+        const api = "http://127.0.0.1:3000";
+        const NAME = "catena-{{ run_id }}";
+        const DOMAIN = "catena-{{ run_id }}.test";
+        const PAGE = "/catena-{{ run_id }}";
+        const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+        const wrong = (m) => {
+          console.error(m);
+          process.exit(3);
+        };
+        async function call(method, path, body, token) {
+          const headers = { "content-type": "application/json" };
+          if (token) headers.authorization = "Bearer " + token;
+          const res = await fetch(api + path, { method, headers, body: body ? JSON.stringify(body) : undefined, signal: AbortSignal.timeout(15000) });
+          return { status: res.status, body: await res.json().catch(() => null) };
+        }
+        async function check() {
+          const login = await call("POST", "/api/auth/login", { username: "catena-test", password: process.env.CATENA_TEST_PASSWORD });
+          if (login.status !== 200) throw new Error("sign-in answered " + login.status);
+          const token = login.body.token;
+          const listed = await call("GET", "/api/websites?pageSize=100&search=" + encodeURIComponent(NAME), null, token);
+          if (listed.status !== 200) throw new Error("website list answered " + listed.status);
+          const sites = listed.body.data.filter((s) => s.name === NAME);
+          if (sites.length !== 1) wrong("Umami lists " + sites.length + " websites named " + NAME + ", expected one");
+          if (sites[0].domain !== DOMAIN) wrong("the website " + NAME + " has the domain " + sites[0].domain + ", expected " + DOMAIN);
+          const range = "startAt=0&endAt=" + (Date.now() + 86400000);
+          const pages = await call("GET", "/api/websites/" + sites[0].id + "/metrics?type=path&" + range, null, token);
+          if (pages.status !== 200) throw new Error("page list answered " + pages.status);
+          const views = pages.body.filter((p) => p.x === PAGE);
+          if (views.length !== 1 || Number(views[0].y) !== 1) {
+            wrong("the website " + NAME + " lists " + JSON.stringify(pages.body) + " as its pages, expected one view of " + PAGE);
+          }
+          console.log("website ok: " + NAME + " with one page view of " + PAGE);
+        }
+        (async () => {
+          for (let n = 1; ; n++) {
+            try {
+              return await check();
+            } catch (e) {
+              console.error(e.message);
+              if (n >= 12) process.exit(1);
+              await sleep(15000);
+            }
+          }
+        })();
+    expect_stdout_contains: "website ok: catena-{{ run_id }} with one page view of /catena-{{ run_id }}"
+    timeout_s: 600
