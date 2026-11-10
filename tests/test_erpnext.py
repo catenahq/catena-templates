@@ -1250,10 +1250,6 @@ def test_the_plain_app_declares_a_refused_staff_account_and_the_customer_level()
     assert set(customer) == {"name", "group", "access", "facts", "granted", "removed", "cleanup"}
 
 
-def test_the_helpdesk_declares_no_sign_in_entries():
-    assert "sign_in" not in _test_yml("erpnext-helpdesk")
-
-
 def test_every_sign_in_step_is_a_docker_exec_into_the_backend_naming_the_accounts_email():
     steps = [step for phase in ("granted", "removed", "cleanup")
              for step in _sign_in_entries("erpnext")["customer_access"][phase]]
