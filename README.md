@@ -283,7 +283,7 @@ block.
    written since, as a database dump's replay does. An application that
    upgrades such a volume as it starts declares `service`,
    `versioned_volumes` and `timeout_seconds` alone. Real examples: the
-   `x-catena.yml` of `blueprints/outline`, `blueprints/nextcloud-s3-oidc`,
+   `x-catena.yml` of `blueprints/outline`, `blueprints/nextcloud`,
    `blueprints/erpnext` and `blueprints/actualbudget`.
    An application that keeps its files in an object-store bucket the host can
    point at another bucket adds `object_store`: `env` names the stack env keys
@@ -292,7 +292,7 @@ block.
    argv `commands`, which may carry the placeholders `{old_bucket}` and
    `{new_bucket}`) runs once the app runs on the new bucket. `make lint`
    checks that the compose reads each key and that `switch` runs in one of its
-   services. Real example: `blueprints/nextcloud-s3-oidc`.
+   services. Real example: `blueprints/nextcloud`.
 7. If the entry works only on a Catena release newer than some servers
    run, `requires_catena` (a key of `x-catena.yml`) names the oldest one it
    works on (`0.11.0`). The render carries it to `catalog.json` and the row of
@@ -308,7 +308,7 @@ block.
    when the server runs it and what a good check asks are in
    [Declare a verify check](https://docs.catena.run/en/configure-apps/#declare-a-verify-check-optional).
    Real examples: the hooks of `blueprints/erpnext` and
-   `blueprints/nextcloud-s3-oidc`.
+   `blueprints/nextcloud`.
 9. `blueprints/<id>/test.yml` -- the data the bench seeds and reads back. It
    holds `id` (the template id), `description`, the lists `seed` and `assert`,
    and an optional `setup` list. Each step has a unique `name` and a `type`:
@@ -647,7 +647,7 @@ are in ops `internal_docs/tools/app-ci.md`.
 ## Versions
 
 No file holds a version string: versions are git tags. A tested app is tagged
-`<app>/<version>-<revision>` (`nextcloud-s3-oidc/31.0.8-1`).
+`<app>/<version>-<revision>` (`nextcloud/31.0.8-1`).
 
 - **Version.** The numeric part of the image tag of the app's main address
   service: the compose block's `version_from` service when it has one, else the

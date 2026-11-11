@@ -13,7 +13,7 @@
         "Files",
         "Collaboration"
       ],
-      "compose_file": "blueprints/nextcloud-s3-oidc/docker-compose.yml",
+      "compose_file": "blueprints/nextcloud/docker-compose.yml",
       "domain_host": "nextcloud.{{ cloudflare_zone }}",
       "domain_port": 80,
       "domain_service": "app",
@@ -268,7 +268,7 @@
         "what_it_is": "Partage de fichiers et collaboration auto-h\u00e9berg\u00e9s -- le hub auquel d'autres templates se connectent. Les appels fonctionnent sans le relais ; ajouter l'application Relais d'appels permet les appels depuis des r\u00e9seaux restrictifs et donne \u00e0 Talk son serveur haute performance pour les appels plus nombreux."
       },
       "hostname_baked": false,
-      "id": "nextcloud-s3-oidc",
+      "id": "nextcloud",
       "lifecycle": {
         "migrate": [
           [

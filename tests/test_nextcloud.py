@@ -18,7 +18,7 @@ sys.path.insert(0, str(ROOT))
 
 from lib import model, quiesce_lint  # noqa: E402
 
-BLUEPRINT = ROOT / "blueprints" / "nextcloud-s3-oidc"
+BLUEPRINT = ROOT / "blueprints" / "nextcloud"
 
 ENV = {
     "OIDC_CLIENT_ID": "nextcloud", "OIDC_CLIENT_SECRET": "s3cr3t",
@@ -222,7 +222,7 @@ sys.exit(1)
 
 
 def _entry() -> model.Entry:
-    return next(e for e in model.load_sources() if e.slug == "nextcloud-s3-oidc")
+    return next(e for e in model.load_sources() if e.slug == "nextcloud")
 
 
 def _compose() -> dict:

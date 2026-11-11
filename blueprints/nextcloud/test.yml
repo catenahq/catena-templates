@@ -1,4 +1,4 @@
-# Test for the nextcloud-s3-oidc template: a file written through Nextcloud and its
+# Test for the nextcloud template: a file written through Nextcloud and its
 # public link share survive a backup and a restore, Talk keeps its conversation, the
 # signaling server answers, the file-version and trash retention settings are applied
 # (occ answers auto, 7 and 30, 30), and the sign-in provider is still wired. The seed uploads
@@ -39,7 +39,7 @@
 # content and the conversation name are unique per run. Each {{ container_* }} is
 # resolved from `docker ps` before invoking.
 
-id: nextcloud-s3-oidc
+id: nextcloud
 description: >-
   The file catena-<run>.txt uploaded through Nextcloud's WebDAV is read back with its
   content, the file carries exactly one public link share and Talk lists exactly one
