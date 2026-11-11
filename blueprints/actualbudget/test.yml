@@ -12,6 +12,13 @@
 # named catena-<run>, and downloads it (GET /sync/download-user-file) to compare its bytes. The
 # password reaches no argument list and no output.
 #
+# The writer uploads one file after another (catena-writer-<run>-<n>) while the backup stops
+# and continues the server, and prints `ack <n>` for each upload the server answered ok. Its
+# after step uploads the record {{ writer_id }} once the backup is over. The check runs after
+# the restore: SQLite's integrity check passes on a copy (journals kept) of each .sqlite file
+# of /data, every file acknowledged before the backup is listed and downloads with the bytes
+# sent, and the record is not listed.
+#
 # {{ run_id }} is supplied by the bench at execution time so the file is unique per run.
 # Each {{ container_* }} is resolved from `docker ps` before invoking.
 
@@ -19,7 +26,8 @@ id: actualbudget
 description: >-
   The sync server lists exactly one budget file named catena-<run>, downloads it with the
   bytes fixture-<run>, and signs in with the test password, before and after the backup, the
-  restore and the updates.
+  restore and the updates. Files uploaded while the backup runs come back from the restore as
+  sent, and the server's SQLite files open whole.
 
 setup:
   - name: server_password
@@ -153,3 +161,176 @@ assert:
         JS
     expect_stdout_contains: "budget files named catena-{{ run_id }}: 1, bytes fixture-{{ run_id }}"
     timeout_s: 360
+
+writer:
+  container: "{{ container_actual }}"
+  command:
+    - sh
+    - -c
+    - |
+      set -eu
+      exec node - <<'JS'
+      const crypto = require('crypto');
+      const BASE = 'http://127.0.0.1:5006';
+      const RUN = '{{ run_id }}';
+      const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+      function fileId(key) {
+        const h = crypto.createHash('sha1').update(key).digest('hex');
+        return h.slice(0, 8) + '-' + h.slice(8, 12) + '-4' + h.slice(13, 16) + '-8' + h.slice(17, 20) + '-' + h.slice(20, 32);
+      }
+      async function login() {
+        for (let i = 0; i < 60; i++) {
+          try {
+            const r = await fetch(BASE + '/account/login', { method: 'POST', headers: { 'content-type': 'application/json' },
+              body: JSON.stringify({ password: process.env.CATENA_TEST_PASSWORD }) });
+            const j = await r.json();
+            if (r.status === 200 && j.data && j.data.token) return j.data.token;
+          } catch (e) {}
+          await sleep(5000);
+        }
+        throw new Error('the server gave no token');
+      }
+      async function put(token, n) {
+        const body = Buffer.from(('budget-' + RUN + '-' + n + '-').repeat(20000));
+        try {
+          const r = await fetch(BASE + '/sync/upload-user-file', { method: 'POST', body, headers: {
+            'x-actual-token': token, 'x-actual-file-id': fileId('writer-' + RUN + '-' + n),
+            'x-actual-name': 'catena-writer-' + RUN + '-' + n, 'content-type': 'application/encrypted-file' } });
+          const j = await r.json();
+          return r.status === 200 && j.status === 'ok';
+        } catch (e) { return false; }
+      }
+      (async () => {
+        const token = await login();
+        for (let n = 0; ;) {
+          if (await put(token, n)) console.log('ack ' + n++);
+          else await sleep(1000);
+        }
+      })().catch((e) => { console.error(String(e.message || e)); process.exit(1); });
+      JS
+  after:
+    - name: record_after_the_backup
+      type: docker_exec
+      container: "{{ container_actual }}"
+      command:
+        - sh
+        - -c
+        - |
+          set -eu
+          exec node - <<'JS'
+          const crypto = require('crypto');
+          const BASE = 'http://127.0.0.1:5006';
+          const ID = '{{ writer_id }}';
+          async function call(method, path, headers, body) {
+            const r = await fetch(BASE + path, { method, headers, body });
+            const text = await r.text();
+            let json = null;
+            try { json = JSON.parse(text); } catch (e) {}
+            return { status: r.status, json };
+          }
+          function fileId(key) {
+            const h = crypto.createHash('sha1').update(key).digest('hex');
+            return h.slice(0, 8) + '-' + h.slice(8, 12) + '-4' + h.slice(13, 16) + '-8' + h.slice(17, 20) + '-' + h.slice(20, 32);
+          }
+          (async () => {
+            const a = await call('POST', '/account/login', { 'content-type': 'application/json' },
+              JSON.stringify({ password: process.env.CATENA_TEST_PASSWORD }));
+            const token = a.status === 200 && a.json && a.json.data && a.json.data.token;
+            if (!token) throw new Error('the server refused the test password: ' + a.status);
+            const u = await call('POST', '/sync/upload-user-file', {
+              'x-actual-token': token, 'x-actual-file-id': fileId(ID), 'x-actual-name': 'catena-' + ID,
+              'content-type': 'application/encrypted-file' }, Buffer.from('record-' + ID));
+            if (u.status !== 200 || !u.json || u.json.status !== 'ok') throw new Error('POST /sync/upload-user-file answered ' + u.status);
+            console.log('recorded ' + ID);
+          })().catch((e) => { console.error(String(e.message || e)); process.exit(1); });
+          JS
+      expect_stdout_contains: "recorded {{ writer_id }}"
+      timeout_s: 120
+  check:
+    - sh
+    - -c
+    - |
+      set -eu
+      cat > /tmp/appci-writer-check.js <<'JS'
+      const crypto = require('crypto');
+      const fs = require('fs');
+      const os = require('os');
+      const path = require('path');
+      const BASE = 'http://127.0.0.1:5006';
+      const RUN = '{{ run_id }}';
+      const DATA = '/data';
+      const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+      async function call(method, path, headers, body) {
+        const r = await fetch(BASE + path, { method, headers, body });
+        const buf = Buffer.from(await r.arrayBuffer());
+        let json = null;
+        try { json = JSON.parse(buf.toString('utf8')); } catch (e) {}
+        return { status: r.status, json, text: buf.toString('utf8') };
+      }
+      async function up() {
+        for (let i = 0; i < 60; i++) {
+          try { if ((await fetch(BASE + '/info')).status === 200) return; } catch (e) {}
+          await sleep(5000);
+        }
+        throw new Error('Actual Budget did not answer /info within 300 s');
+      }
+      function fileId(key) {
+        const h = crypto.createHash('sha1').update(key).digest('hex');
+        return h.slice(0, 8) + '-' + h.slice(8, 12) + '-4' + h.slice(13, 16) + '-8' + h.slice(17, 20) + '-' + h.slice(20, 32);
+      }
+      function integrity() {
+        const Database = require(require.resolve('better-sqlite3', { paths: ['/app'] }));
+        const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'appci-'));
+        const bad = [];
+        let account = false;
+        let count = 0;
+        try {
+          for (const dir of ['server-files', 'user-files']) {
+            let names = [];
+            try { names = fs.readdirSync(DATA + '/' + dir); } catch (e) {}
+            for (const name of names.filter((x) => x.endsWith('.sqlite'))) {
+              const src = DATA + '/' + dir + '/' + name;
+              const dst = path.join(tmp, count++ + '.sqlite');
+              for (const tail of ['', '-journal', '-wal', '-shm']) {
+                if (fs.existsSync(src + tail)) fs.copyFileSync(src + tail, dst + tail);
+              }
+              const db = new Database(dst);
+              const answer = db.prepare('PRAGMA integrity_check').all().map((r) => Object.values(r)[0]).join(';');
+              db.close();
+              if (name === 'account.sqlite') account = true;
+              if (answer !== 'ok') bad.push(src + ': integrity_check says ' + answer);
+            }
+          }
+        } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+        if (!account) bad.push('the data folder holds no account.sqlite to check');
+        return { bad, count };
+      }
+      (async () => {
+        let input = '';
+        for await (const c of process.stdin) input += c;
+        const { before, after } = JSON.parse(input);
+        await up();
+        const problems = [];
+        const checked = integrity();
+        problems.push(...checked.bad);
+        const a = await call('POST', '/account/login', { 'content-type': 'application/json' },
+          JSON.stringify({ password: process.env.CATENA_TEST_PASSWORD }));
+        const token = a.status === 200 && a.json && a.json.data && a.json.data.token;
+        if (!token) throw new Error('the server refused the test password: ' + a.status);
+        const l = await call('GET', '/sync/list-user-files', { 'x-actual-token': token });
+        if (l.status !== 200 || !l.json || !Array.isArray(l.json.data)) throw new Error('GET /sync/list-user-files answered ' + l.status);
+        const listed = new Set(l.json.data.map((f) => f.fileId));
+        for (const n of before) {
+          const id = fileId('writer-' + RUN + '-' + n);
+          if (!listed.has(id)) { problems.push('file ' + n + ' was acknowledged before the backup and is not listed'); continue; }
+          const d = await call('GET', '/sync/download-user-file', { 'x-actual-token': token, 'x-actual-file-id': id });
+          if (d.status !== 200 || d.text !== ('budget-' + RUN + '-' + n + '-').repeat(20000)) {
+            problems.push('file ' + n + ' does not download as it was uploaded: ' + d.status);
+          }
+        }
+        if (listed.has(fileId(after))) problems.push('the record ' + after + ', written after the backup, is listed after the restore');
+        if (problems.length) throw new Error(problems.join('; '));
+        console.log('writer check ok: ' + before.length + ' files as sent, ' + checked.count + ' sqlite files whole, record absent');
+      })().catch((e) => { console.error(String(e.message || e)); process.exit(1); });
+      JS
+      exec node /tmp/appci-writer-check.js
