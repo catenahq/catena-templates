@@ -227,7 +227,11 @@ def problems(doc: dict, services: frozenset[str] = frozenset()) -> list[str]:
     setup, seed, checks = doc.get("setup") or [], doc.get("seed") or [], doc.get("assert") or []
     sign_in = [step for entry in doc.get("sign_in") or []
                for key in ("granted", "after", "removed", "cleanup") for step in entry.get(key) or []]
-    steps = [*setup, *seed, *checks, *sign_in]
+    writer = doc.get("writer") or {}
+    # The writer's command and check run in its container like a step's command.
+    writer_steps = [{"name": f"writer {key}", "type": "docker_exec", "container": writer.get("container", ""),
+                     "command": writer[key]} for key in ("command", "check") if writer.get(key)]
+    steps = [*setup, *seed, *checks, *sign_in, *writer_steps, *(writer.get("after") or [])]
     found = []
     for step in steps:
         if CANARY.search(_text(step)):
@@ -441,6 +445,34 @@ def test_the_steps_of_a_sign_in_entry_are_held_to_the_contract(key):
 def test_a_sign_in_step_that_passes_the_test_password_on_a_command_line_is_refused():
     entry = {"name": "client", "after": [_exec("leak", "sh", "-c", 'app-cli login "$CATENA_TEST_PASSWORD"')]}
     assert problems({**SET_UP, "sign_in": [entry]}) == ["step leak passes CATENA_TEST_PASSWORD on a command line"]
+
+
+WRITER = {"container": "{{ container_app }}", "command": ["sh", "-c", "write-loop"],
+          "after": [_exec("record", "sh", "-c", "app-cli put {{ writer_id }}")], "check": ["sh", "-c", "check-writes"]}
+
+
+@pytest.mark.parametrize("key", ["command", "check"])
+def test_the_command_and_the_check_of_a_writer_are_held_to_the_contract(key):
+    writer = {**WRITER, key: ["sh", "-c", "SELECT 1 FROM catena_canary"]}
+    assert problems({**GOOD, "writer": writer}) == [f"step writer {key} names a catena_canary table"]
+
+
+def test_the_after_steps_of_a_writer_are_held_to_the_contract():
+    writer = {**WRITER, "after": [_exec("canary", "sh", "-c", "SELECT 1 FROM catena_canary")]}
+    assert problems({**GOOD, "writer": writer}) == ["step canary names a catena_canary table"]
+
+
+def test_a_writer_that_passes_the_test_password_on_a_command_line_is_refused():
+    writer = {**WRITER, "command": ["sh", "-c", 'write-loop --password "$CATENA_TEST_PASSWORD"']}
+    assert problems({**SET_UP, "writer": writer}) == [
+        "step writer command passes CATENA_TEST_PASSWORD on a command line"]
+
+
+def test_a_writer_in_a_helper_of_no_service_is_refused():
+    writer = {**WRITER, "container": "{{ helper_web }}"}
+    assert problems({**GOOD, "writer": writer}, frozenset({"app"})) == [
+        "step writer command runs in a helper of web, which is no service of the compose",
+        "step writer check runs in a helper of web, which is no service of the compose"]
 
 
 def test_a_test_without_setup_never_names_the_test_password():
