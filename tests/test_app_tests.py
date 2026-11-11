@@ -225,7 +225,9 @@ def problems(doc: dict, services: frozenset[str] = frozenset()) -> list[str]:
     """Why a test.yml does not prove the app's own data. `services` are the
     compose services of the app, spelled as a placeholder (`-` as `_`)."""
     setup, seed, checks = doc.get("setup") or [], doc.get("seed") or [], doc.get("assert") or []
-    steps = [*setup, *seed, *checks]
+    sign_in = [step for entry in doc.get("sign_in") or []
+               for key in ("granted", "after", "removed", "cleanup") for step in entry.get(key) or []]
+    steps = [*setup, *seed, *checks, *sign_in]
     found = []
     for step in steps:
         if CANARY.search(_text(step)):
@@ -427,6 +429,18 @@ def test_a_helper_of_a_service_the_compose_lacks_is_refused():
 def test_a_helper_named_outside_a_steps_container_is_refused():
     doc = {**GOOD, "assert": [*GOOD["assert"], _exec("probe", "sh", "-c", "curl http://{{ helper_app }}/")]}
     assert problems(doc, frozenset({"app"})) == ["step probe names a helper outside its container"]
+
+
+@pytest.mark.parametrize("key", ["granted", "after", "removed", "cleanup"])
+def test_the_steps_of_a_sign_in_entry_are_held_to_the_contract(key):
+    entry = {"name": "client", "group": "client", "access": "member",
+             key: [_exec("canary", "sh", "-c", "SELECT 1 FROM catena_canary")]}
+    assert problems({**GOOD, "sign_in": [entry]}) == ["step canary names a catena_canary table"]
+
+
+def test_a_sign_in_step_that_passes_the_test_password_on_a_command_line_is_refused():
+    entry = {"name": "client", "after": [_exec("leak", "sh", "-c", 'app-cli login "$CATENA_TEST_PASSWORD"')]}
+    assert problems({**SET_UP, "sign_in": [entry]}) == ["step leak passes CATENA_TEST_PASSWORD on a command line"]
 
 
 def test_a_test_without_setup_never_names_the_test_password():
