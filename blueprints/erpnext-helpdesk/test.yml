@@ -17,6 +17,21 @@
 # each, and downloads the file. The password comes from the container's environment,
 # so it rides no argument list and is printed nowhere.
 #
+# While ERPNEXT_WEB_FORMS is off (the step reads it from the app's .env), the assert
+# web_forms_closed reads block_endpoints as 1 in the site config, finds /issues/new
+# and /tasks/new answering 403 or 404 without a redirect, and a visitor's web_form
+# accept refused with 403 "Not permitted"; with it on, the step passes and says so.
+#
+# The sign_in entry client_customer runs in the sign-in leg: a client account signs
+# in as a website user (system_user no) and holds HD Customer. The steps that speak
+# as the customer run in the frontend's helper, which reaches nginx at 127.0.0.1:8080
+# with the session's cookies on stdin (one Cookie line, never printed): the guard
+# refuses a call outside the helpdesk's list, the portal opens and carries a
+# csrf_token, the customer's web_form accept is refused while the forms are closed,
+# and the customer raises a ticket and rates it. The role is read in the backend
+# through Frappe; the cleanup deletes the ticket and the user. The realm admits every
+# client account, so no refusal is checked around the sign-in.
+#
 # {{ run_id }} is supplied by the bench at execution time and each
 # {{ container_* }} is resolved from `docker ps` before invoking.
 
@@ -189,3 +204,252 @@ assert:
         print(f"helpdesk ticket ok: {SUBJECT} is ticket {tickets[0]['name']}")
     expect_stdout_contains: "helpdesk ticket ok: catena-{{ run_id }}"
     timeout_s: 120
+
+  - name: web_forms_closed
+    type: docker_exec
+    container: "{{ container_backend }}"
+    env: [ERPNEXT_WEB_FORMS]
+    command:
+      - python3
+      - -c
+      - |
+        import json, os, sys, urllib.error, urllib.parse, urllib.request
+
+        if (os.environ.get("ERPNEXT_WEB_FORMS") or "off").strip().lower() == "on":
+            print("web forms closed: skipped, ERPNEXT_WEB_FORMS is on")
+            sys.exit(0)
+        site = os.environ["SITE_NAME"]
+        with open(f"/home/frappe/frappe-bench/sites/{site}/site_config.json") as config:
+            guard = json.load(config).get("block_endpoints")
+        if guard != 1:
+            sys.exit(f"block_endpoints reads {guard!r} in the site config, expected 1")
+
+
+        class NoRedirect(urllib.request.HTTPRedirectHandler):
+            def redirect_request(self, *args, **kwargs):
+                return None
+
+
+        opener = urllib.request.build_opener(NoRedirect)
+
+
+        def call(path, data=None):
+            request = urllib.request.Request("http://127.0.0.1:8000" + path, data=data, headers={"Host": site})
+            try:
+                with opener.open(request, timeout=30) as answer:
+                    return answer.status, answer.read().decode()
+            except urllib.error.HTTPError as error:
+                return error.code, error.read().decode()
+
+
+        for name in ("issues", "tasks"):
+            status, text = call(f"/{name}/new")
+            if status not in (403, 404):
+                sys.exit(f"GET /{name}/new answered HTTP {status}, expected 404 or 403: {text.strip()[:200]!r}")
+            form = urllib.parse.urlencode({"web_form": name, "data": json.dumps({"subject": "bench", "title": "bench"})})
+            status, text = call("/api/method/frappe.website.doctype.web_form.web_form.accept", form.encode())
+            if status != 403 or "Not permitted" not in text:
+                sys.exit(f"a visitor's accept on the {name} form got HTTP {status}, expected 403 Not permitted: {text.strip()[:200]!r}")
+        print("web forms closed: block_endpoints 1, /issues/new and /tasks/new gone, accept refused")
+    expect_stdout_contains: "web forms closed: "
+    timeout_s: 120
+
+sign_in:
+  - name: client_customer
+    group: client
+    facts:
+      system_user: "no"
+    after:
+      - name: hd_customer_role_held
+        type: docker_exec
+        container: "{{ container_backend }}"
+        command:
+          - bash
+          - -c
+          - |
+            set -eu
+            cd /home/frappe/frappe-bench/sites
+            exec ../env/bin/python - <<'PY'
+            import os
+            import sys
+
+            import frappe
+
+            EMAIL = "{{ sign_in_email }}"
+
+            frappe.init(os.environ["SITE_NAME"])
+            try:
+                frappe.connect()
+                roles = frappe.get_all("Has Role", filters={"parent": EMAIL, "parenttype": "User"}, pluck="role")
+                if "HD Customer" not in roles:
+                    sys.exit(f"{EMAIL} holds {roles}, expected HD Customer")
+                print("hd customer role held by " + EMAIL)
+            finally:
+                frappe.destroy()
+            PY
+        expect_stdout_contains: "hd customer role held by {{ sign_in_email }}"
+        timeout_s: 120
+
+      - name: guard_refuses_a_call_outside_the_list
+        type: docker_exec
+        container: "{{ helper_frontend }}"
+        stdin: sign_in_cookies
+        command:
+          - python3
+          - -c
+          - |
+            import sys, urllib.error, urllib.request
+
+            cookie = sys.stdin.read().strip()
+            if not cookie.startswith("Cookie:"):
+                sys.exit("the sign-in gave no Cookie line")
+            request = urllib.request.Request("http://127.0.0.1:8080/api/method/frappe.auth.get_logged_user",
+                                             headers={"Cookie": cookie[len("Cookie:"):].strip()})
+            try:
+                with urllib.request.urlopen(request, timeout=30) as answer:
+                    status, text = answer.status, answer.read().decode()
+            except urllib.error.HTTPError as error:
+                status, text = error.code, error.read().decode()
+            if status != 403:
+                sys.exit(f"get_logged_user answered HTTP {status} to the customer, expected the guard's 403: {text.strip()[:200]!r}")
+            print("guard refused get_logged_user")
+        expect_stdout_contains: "guard refused get_logged_user"
+        timeout_s: 120
+
+      - name: portal_opens_and_forms_are_refused
+        type: docker_exec
+        container: "{{ helper_frontend }}"
+        stdin: sign_in_cookies
+        env: [ERPNEXT_WEB_FORMS]
+        command:
+          - python3
+          - -c
+          - |
+            import json, os, re, sys, urllib.error, urllib.parse, urllib.request
+
+            cookie = sys.stdin.read().strip()
+            if not cookie.startswith("Cookie:"):
+                sys.exit("the sign-in gave no Cookie line")
+            cookie = cookie[len("Cookie:"):].strip()
+
+
+            def call(path, data=None, headers=None):
+                request = urllib.request.Request("http://127.0.0.1:8080" + path, data=data,
+                                                 headers={"Cookie": cookie, **(headers or {})})
+                try:
+                    with urllib.request.urlopen(request, timeout=30) as answer:
+                        return answer.status, answer.geturl(), answer.read().decode()
+                except urllib.error.HTTPError as error:
+                    return error.code, path, error.read().decode()
+
+
+            status, url, page = call("/helpdesk/my-tickets")
+            if status != 200 or not urllib.parse.urlsplit(url).path.startswith("/helpdesk"):
+                sys.exit(f"the customer portal answered HTTP {status} at {url}")
+            token = re.search(r"""csrf_token["']?\]?\s*[:=]\s*["']([^"']+)["']""", page)
+            if not token:
+                sys.exit("the customer portal page carries no csrf_token in its boot data")
+            if (os.environ.get("ERPNEXT_WEB_FORMS") or "off").strip().lower() == "on":
+                print("portal ok: forms not checked, ERPNEXT_WEB_FORMS is on")
+                sys.exit(0)
+            for name in ("issues", "tasks"):
+                form = urllib.parse.urlencode({"web_form": name, "data": json.dumps({"subject": "bench", "title": "bench"})})
+                status, _, text = call("/api/method/frappe.website.doctype.web_form.web_form.accept", form.encode(),
+                                       {"X-Frappe-CSRF-Token": token.group(1)})
+                if status != 403 or "Not permitted" not in text:
+                    sys.exit(f"the customer's accept on the {name} form got HTTP {status}, expected 403 Not permitted: {text.strip()[:200]!r}")
+            print("portal ok: forms refused to the customer")
+        expect_stdout_contains: "portal ok: "
+        timeout_s: 120
+
+      - name: customer_raises_and_rates_a_ticket
+        type: docker_exec
+        container: "{{ helper_frontend }}"
+        stdin: sign_in_cookies
+        command:
+          - python3
+          - -c
+          - |
+            import json, re, sys, urllib.error, urllib.parse, urllib.request
+
+            SUBJECT = "Bench ticket {{ sign_in_email }}"
+            cookie = sys.stdin.read().strip()
+            if not cookie.startswith("Cookie:"):
+                sys.exit("the sign-in gave no Cookie line")
+            cookie = cookie[len("Cookie:"):].strip()
+
+
+            def call(path, body=None, headers=None):
+                data = None if body is None else json.dumps(body).encode()
+                request = urllib.request.Request(
+                    "http://127.0.0.1:8080" + path, data=data,
+                    headers={"Cookie": cookie, **({"Content-Type": "application/json"} if data else {}), **(headers or {})})
+                try:
+                    with urllib.request.urlopen(request, timeout=30) as answer:
+                        return answer.status, answer.read().decode()
+                except urllib.error.HTTPError as error:
+                    return error.code, error.read().decode()
+
+
+            def message(what, status, text):
+                if not 200 <= status < 300:
+                    sys.exit(f"{what} answered HTTP {status}: {text.strip()[:200]!r}")
+                return json.loads(text).get("message")
+
+
+            status, page = call("/helpdesk/my-tickets")
+            token = re.search(r"""csrf_token["']?\]?\s*[:=]\s*["']([^"']+)["']""", page)
+            if status != 200 or not token:
+                sys.exit(f"the customer portal answered HTTP {status} with no csrf_token")
+            headers = {"X-Frappe-CSRF-Token": token.group(1)}
+            ticket = (message("hd_ticket.api.new", *call(
+                "/api/method/helpdesk.helpdesk.doctype.hd_ticket.api.new",
+                {"doc": {"subject": SUBJECT, "description": "Created by the app test."}, "attachments": []},
+                headers)) or {}).get("name")
+            if not ticket:
+                sys.exit("hd_ticket.api.new returned no ticket name")
+            query = urllib.parse.urlencode({"doctype": "HD Ticket Feedback Option", "fields": json.dumps(["name"]),
+                                            "limit_page_length": "1"})
+            options = message("get_list of the feedback options", *call("/api/method/frappe.client.get_list?" + query))
+            if not options:
+                sys.exit("the helpdesk lists no feedback option")
+            message(f"the feedback on ticket {ticket}", *call(
+                "/api/method/frappe.client.set_value",
+                {"doctype": "HD Ticket", "name": ticket,
+                 "fieldname": {"status": "Closed", "feedback": options[0]["name"], "feedback_extra": "Feedback of the app test"}},
+                headers))
+            print(f"ticket {ticket} raised and rated by the customer")
+        expect_stdout_contains: "raised and rated by the customer"
+        timeout_s: 120
+    cleanup:
+      - name: delete_the_ticket_and_the_user
+        type: docker_exec
+        container: "{{ container_backend }}"
+        command:
+          - bash
+          - -c
+          - |
+            set -eu
+            cd /home/frappe/frappe-bench/sites
+            exec ../env/bin/python - <<'PY'
+            import os
+
+            import frappe
+
+            EMAIL = "{{ sign_in_email }}"
+            SUBJECT = "Bench ticket {{ sign_in_email }}"
+
+            frappe.init(os.environ["SITE_NAME"])
+            try:
+                frappe.connect()
+                for ticket in frappe.get_all("HD Ticket", filters={"subject": SUBJECT}, pluck="name"):
+                    frappe.delete_doc("HD Ticket", ticket, force=1)
+                if frappe.db.exists("User", EMAIL):
+                    frappe.delete_doc("User", EMAIL, force=1)
+                frappe.db.commit()
+                print("cleaned up " + EMAIL)
+            finally:
+                frappe.destroy()
+            PY
+        expect_stdout_contains: "cleaned up {{ sign_in_email }}"
+        timeout_s: 120
