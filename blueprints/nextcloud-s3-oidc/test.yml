@@ -1,6 +1,7 @@
 # Test for the nextcloud-s3-oidc template: a file written through Nextcloud and its
 # public link share survive a backup and a restore, Talk keeps its conversation, the
-# signaling server answers, and the sign-in provider is still wired. The seed uploads
+# signaling server answers, the file-version and trash retention settings are applied
+# (occ answers auto, 7 and 30, 30), and the sign-in provider is still wired. The seed uploads
 # the file with WebDAV as the administrator, so with a bucket it goes through the app
 # into the object store and without one into the data volume, then makes a public link
 # share of it with the OCS Share API only when the file has none, and a Talk
@@ -42,7 +43,8 @@ id: nextcloud-s3-oidc
 description: >-
   The file catena-<run>.txt uploaded through Nextcloud's WebDAV is read back with its
   content, the file carries exactly one public link share and Talk lists exactly one
-  conversation named catena-<run>, the signaling server answers its welcome, and where
+  conversation named catena-<run>, the signaling server answers its welcome, the version
+  and trash retention settings read auto, 7 and 30, 30, and where
   the sign-in domain resolves the user_oidc app at major 8 holds the keycloak provider,
   before and after the backup, the restore and the updates.
 
@@ -256,6 +258,30 @@ assert:
           || { echo "the signaling welcome body held no Welcome and version" >&2; exit 1; }
     expect_stdout_contains: "signaling"
     timeout_s: 60
+
+  - name: file_versions_and_trash_retention_are_applied
+    type: docker_exec
+    container: "{{ container_app }}"
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        ready() { php -r '$s = json_decode(@file_get_contents("http://localhost/status.php")); exit($s && $s->installed === true && $s->maintenance === false ? 0 : 1);'; }
+        occ() { if [ "$(id -u)" -eq 0 ]; then su -s /bin/sh www-data -c "php /var/www/html/occ $*"; else php /var/www/html/occ "$@"; fi; }
+        waited=0
+        until ready; do
+          [ "$waited" -lt 600 ] || { echo "Nextcloud was not installed and out of maintenance mode within 600 s" >&2; exit 1; }
+          sleep 5
+          waited=$((waited + 5))
+        done
+        versions=$(occ config:system:get versions_retention_obligation 2>&1) || true
+        [ "$versions" = "auto, 7" ] || { echo "versions_retention_obligation is '$versions', expected 'auto, 7'" >&2; exit 1; }
+        trash=$(occ config:system:get trashbin_retention_obligation 2>&1) || true
+        [ "$trash" = "30, 30" ] || { echo "trashbin_retention_obligation is '$trash', expected '30, 30'" >&2; exit 1; }
+        echo "retention applied: versions $versions, trash $trash"
+    expect_stdout_contains: "retention applied: versions auto, 7, trash 30, 30"
+    timeout_s: 660
 
   - name: sign_in_provider_is_wired_where_the_edge_resolves
     type: docker_exec
