@@ -347,6 +347,11 @@ block.
      account's address. The leg also walks each access level the block
      declares. The section's format is ops
      `automation/test_bench/appci/README.md` "test.yml of a pull request".
+   - `writer`, for an app whose block declares a backup mode: a long-running
+     `command` in a `container` that prints `ack <n>` per write the app
+     acknowledged, `after` steps that write `{{ writer_id }}` once the backup is
+     over, and a `check` that, after the restore, finds every write acknowledged
+     before the backup and not the `after` one. Same format reference.
 
    The seed writes its data through the app itself (its API or
    command line) wherever the app allows it, so the restore proves data the
@@ -359,7 +364,7 @@ block.
    own database), asserts that only read a path, a word a seed builds from
    the run id that no assert names, a setup step naming the run id, a helper of
    a service the compose lacks, and a credential other than
-   `CATENA_TEST_PASSWORD`, in every step list, `sign_in` entries' included; `tests/app-tests-debt.txt` lists the apps whose test
+   `CATENA_TEST_PASSWORD`, in every step list, `sign_in` entries' and the `writer`'s included; `tests/app-tests-debt.txt` lists the apps whose test
    is still to be rewritten. Real example: `blueprints/erpnext`.
 10. `make` -- renders, lints, and runs the tests. Commit the packed
     `blueprints/<id>/docker-compose.yml`, `catalog.json` and `index.html` with the
