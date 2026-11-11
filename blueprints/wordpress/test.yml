@@ -11,14 +11,24 @@
 # in with the test password (wp_authenticate) and counts the post with get_posts: exactly one,
 # holding fixture-<run>.
 #
+# The harness deploys the app once after the setup, so the configure hook has run on the installed site
+# before the seed: the asserts read what it wrote. The seed's administrator_edits step changes a cache
+# option and WP Mail SMTP's sender name the way an administrator does; the asserts hold both edits, so
+# every deploy after it (the update and rollback legs) is proven to keep them. The cache options and
+# the sender are seeded once per site, the relay follows the outgoing mail saved on the host
+# ({{ mail_relay_* }}), and the relay's password is a constant of wp-config, compared by its sha256
+# and never printed.
+#
 # {{ run_id }} is supplied by the bench at execution time so the post is unique per run.
 # Each {{ container_* }} is resolved from `docker ps` before invoking.
 
 id: wordpress
 description: >-
   WordPress lists exactly one post titled catena-<run>, holding fixture-<run>, on an
-  installed site whose administrator signs in with the test password, before and after the
-  backup, the restore and the updates.
+  installed site whose administrator signs in with the test password; the curated plugins are
+  active, the Redis object cache is on and the cache options are seeded once; WP Mail SMTP holds
+  the saved relay and sender, its password is a constant and not in the option, and an
+  administrator's edits stay; all before and after the backup, the restore and the updates.
 
 setup:
   - name: install_wizard
@@ -86,6 +96,30 @@ seed:
         PHP
     expect_stdout_contains: "seeded post catena-{{ run_id }}"
     timeout_s: 120
+  - name: administrator_edits
+    type: docker_exec
+    container: "{{ container_wp }}"
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        exec su -s /bin/sh www-data -c php <<'PHP'
+        <?php
+        require '/var/www/html/wp-load.php';
+        $npp = get_option('nginx_cache_settings');
+        if (!is_array($npp)) { fwrite(STDERR, "the option nginx_cache_settings is not there\n"); exit(1); }
+        $npp['nginx_cache_preload_sitemap'] = '/edited-sitemap.xml';
+        update_option('nginx_cache_settings', $npp);
+        $o = get_option('wp_mail_smtp');
+        if (!is_array($o) || empty($o['mail'])) { fwrite(STDERR, "the option wp_mail_smtp is not there\n"); exit(1); }
+        $o['mail']['from_name'] = 'Edited by the site administrator';
+        $o['general']['summary_report_email_disabled'] = true;
+        update_option('wp_mail_smtp', $o);
+        echo "administrator edits written\n";
+        PHP
+    expect_stdout_contains: "administrator edits written"
+    timeout_s: 120
 
 assert:
   - name: wordpress_lists_exactly_one_post_of_the_run
@@ -109,4 +143,96 @@ assert:
         echo "posts titled $title: 1, content fixture-{{ run_id }}\n";
         PHP
     expect_stdout_contains: "posts titled catena-{{ run_id }}: 1, content fixture-{{ run_id }}"
+    timeout_s: 120
+
+  - name: curated_plugins_cache_and_seeds_are_in_place
+    type: docker_exec
+    container: "{{ container_wp }}"
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        exec su -s /bin/sh www-data -c php <<'PHP'
+        <?php
+        require '/var/www/html/wp-load.php';
+        $fail = array();
+        $active = (array) get_option('active_plugins', array());
+        foreach (array('wp-mail-smtp', 'redis-cache', 'kadence-blocks', 'fluentform') as $slug) {
+          $on = false;
+          foreach ($active as $file) { if (strpos((string) $file, $slug . '/') === 0) { $on = true; } }
+          if (!$on) { $fail[] = "the plugin $slug is not active"; }
+        }
+        global $wp_object_cache;
+        if (!wp_using_ext_object_cache()) { $fail[] = 'the Redis object cache is not on'; }
+        elseif (method_exists($wp_object_cache, 'redis_status') && !$wp_object_cache->redis_status()) { $fail[] = 'the Redis object cache is not connected'; }
+        $npp = get_option('nginx_cache_settings');
+        if (!is_array($npp) || ($npp['nginx_cache_method'] ?? '') !== 'unlink') { $fail[] = 'nginx_cache_settings holds no seeded cache method'; }
+        elseif (($npp['nginx_cache_preload_sitemap'] ?? '') !== '/edited-sitemap.xml') { $fail[] = 'the administrator edit of nginx_cache_settings did not stay'; }
+        if ((string) get_option('catena_npp_seeded') !== '1') { $fail[] = 'the option catena_npp_seeded is not set'; }
+        if ($fail) { fwrite(STDERR, implode('; ', $fail) . "\n"); exit(1); }
+        echo "plugins active, redis cache on, cache options seeded once\n";
+        PHP
+    expect_stdout_contains: "plugins active, redis cache on, cache options seeded once"
+    timeout_s: 120
+
+  - name: wp_mail_smtp_holds_the_saved_relay
+    type: docker_exec
+    container: "{{ container_wp }}"
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        exec su -s /bin/sh www-data -c php <<'PHP'
+        <?php
+        require '/var/www/html/wp-load.php';
+        $fail = array();
+        $o = get_option('wp_mail_smtp');
+        if (!is_array($o)) { $o = array(); }
+        $mail = (isset($o['mail']) && is_array($o['mail'])) ? $o['mail'] : array();
+        $smtp = (isset($o['smtp']) && is_array($o['smtp'])) ? $o['smtp'] : array();
+        $port = (int) '{{ mail_relay_port }}';
+        $want = array(
+          'mail.mailer' => array($mail['mailer'] ?? null, 'smtp'),
+          'mail.from_email' => array($mail['from_email'] ?? null, '{{ mail_relay_sender }}'),
+          'smtp.host' => array($smtp['host'] ?? null, '{{ mail_relay_host }}'),
+          'smtp.port' => array($smtp['port'] ?? null, $port),
+          'smtp.user' => array($smtp['user'] ?? null, '{{ mail_relay_user }}'),
+          'smtp.encryption' => array($smtp['encryption'] ?? null, $port === 465 ? 'ssl' : 'tls'),
+        );
+        foreach ($want as $key => $pair) {
+          if ($pair[0] !== $pair[1]) { $fail[] = "$key is " . var_export($pair[0], true) . ', want ' . var_export($pair[1], true); }
+        }
+        if (($mail['from_name'] ?? '') !== 'Edited by the site administrator') { $fail[] = 'the administrator edit of the sender name did not stay'; }
+        if (empty($o['general']['summary_report_email_disabled'])) { $fail[] = 'the key the plugin added to its option did not stay'; }
+        if ((string) get_option('catena_mail_seeded') !== '1') { $fail[] = 'the option catena_mail_seeded is not set'; }
+        if ($fail) { fwrite(STDERR, implode('; ', $fail) . "\n"); exit(1); }
+        echo "wp mail smtp holds the saved relay and sender\n";
+        PHP
+    expect_stdout_contains: "wp mail smtp holds the saved relay and sender"
+    timeout_s: 120
+
+  - name: relay_password_is_a_constant_and_not_in_the_option
+    type: docker_exec
+    container: "{{ container_wp }}"
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        exec su -s /bin/sh www-data -c php <<'PHP'
+        <?php
+        require '/var/www/html/wp-load.php';
+        $fail = array();
+        if (!defined('WPMS_ON') || WPMS_ON !== true) { $fail[] = 'WPMS_ON is not defined true'; }
+        if (!defined('WPMS_SMTP_PASS') || hash('sha256', (string) WPMS_SMTP_PASS) !== '{{ mail_relay_password_sha256 }}') {
+          $fail[] = 'the constant WPMS_SMTP_PASS does not hold the saved relay password (its sha256 differs)';
+        }
+        $o = get_option('wp_mail_smtp');
+        if (is_array($o) && !empty($o['smtp']['pass'])) { $fail[] = 'the option wp_mail_smtp holds a password'; }
+        if ($fail) { fwrite(STDERR, implode('; ', $fail) . "\n"); exit(1); }
+        echo "relay password held by the constant, none in the option\n";
+        PHP
+    expect_stdout_contains: "relay password held by the constant, none in the option"
     timeout_s: 120

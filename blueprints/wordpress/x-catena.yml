@@ -44,3 +44,6 @@ hooks:
   # content path.
   verify:
     - hooks/verify.php
+# The configure hook fetches wp-cli from GitHub and the plugins from the WordPress.org
+# plugin directory (its API and its download host).
+egress: [raw.githubusercontent.com, downloads.wordpress.org, api.wordpress.org]
