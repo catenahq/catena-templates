@@ -1,20 +1,38 @@
-# Test for the espocrm template: an Account made through EspoCRM's REST API survives a
-# backup and a restore. The seed lists the Accounts named catena-<run> and creates one,
-# with the description fixture-<run>, only when none is listed, so a second seed
-# changes nothing. The assert lists them again and requires exactly one holding that
-# description. Both steps run php inside the espocrm container against its own Apache
-# on 127.0.0.1, signed in as the administrator with the container's
-# ESPOCRM_ADMIN_USERNAME and ESPOCRM_ADMIN_PASSWORD (read with getenv, so no
-# credential reaches an argument list or the output), and first wait until the API
-# accepts that sign-in, which the install behind the first start delays.
+# Test for the espocrm template: what an administrator builds survives a backup and a
+# restore, and the job runner runs scheduled jobs.
 #
-# {{ run_id }} is supplied by the bench at execution time so the Account is unique per
-# run. Each {{ container_* }} is resolved from `docker ps` before invoking.
+# An Account made through EspoCRM's REST API: the seed lists the Accounts named
+# catena-<run> and creates one, with the description fixture-<run>, only when none is
+# listed, so a second seed changes nothing. The assert lists them again and requires
+# exactly one holding that description.
+#
+# A custom field cBenchNote on Account and a row for it in Account's detail layout,
+# made through the admin API (a field or a row that is there stays as it is), and the
+# file custom/catena-bench-marker, written into the custom volume with the content
+# catena-custom-<run>. The asserts read the field and the layout back through the API
+# and the file and the two files EspoCRM keeps the field and the layout in through the
+# container.
+#
+# The job runner: the cron service's daemon runs EspoCRM's scheduled jobs, so an assert
+# waits until the API lists a scheduled job whose last run is after the step began.
+#
+# The API steps run php inside the espocrm container against its own Apache on
+# 127.0.0.1, signed in as the administrator with the container's ESPOCRM_ADMIN_USERNAME
+# and ESPOCRM_ADMIN_PASSWORD (read with getenv, so no credential reaches an argument
+# list or the output), and first wait until the API accepts that sign-in, which the
+# install behind the first start delays.
+#
+# {{ run_id }} is supplied by the bench at execution time so the Account and the file's
+# content are unique per run. Each {{ container_* }} is resolved from `docker ps` before
+# invoking.
 
 id: espocrm
 description: >-
   EspoCRM's REST API lists exactly one Account named catena-<run>, holding the
-  description fixture-<run>, before and after the backup, the restore and the updates.
+  description fixture-<run>, serves the custom field cBenchNote and its row in the
+  Account detail layout, custom/catena-bench-marker reads catena-custom-<run>, and
+  the job runner has run a scheduled job, before and after the backup, the restore
+  and the updates.
 
 seed:
   - name: create_the_account_through_the_api
@@ -59,6 +77,77 @@ seed:
     expect_stdout_contains: "seeded account catena-{{ run_id }}"
     timeout_s: 960
 
+  - name: create_the_custom_field_and_its_layout_row_through_the_admin_api
+    type: docker_exec
+    container: "{{ container_espocrm }}"
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        php <<'PHP'
+        <?php
+        function call($method, $path, $body = null) {
+          $auth = base64_encode(getenv('ESPOCRM_ADMIN_USERNAME') . ':' . getenv('ESPOCRM_ADMIN_PASSWORD'));
+          $opts = ['method' => $method, 'header' => "Authorization: Basic $auth\r\nContent-Type: application/json\r\n",
+                   'ignore_errors' => true, 'timeout' => 120];
+          if ($body !== null) { $opts['content'] = json_encode($body); }
+          $raw = @file_get_contents('http://127.0.0.1' . $path, false, stream_context_create(['http' => $opts]));
+          $code = 0;
+          foreach (($http_response_header ?? []) as $line) {
+            if (preg_match('#^HTTP/\S+ (\d+)#', $line, $m)) { $code = (int) $m[1]; }
+          }
+          return [$code, $raw === false ? '' : $raw];
+        }
+        $deadline = time() + 900;
+        do {
+          [$code] = call('GET', '/api/v1/App/user');
+          if ($code === 200) { break; }
+          sleep(5);
+        } while (time() < $deadline);
+        if ($code !== 200) { fwrite(STDERR, "the EspoCRM API did not accept the administrator within 900 s, last answer $code\n"); exit(1); }
+        [$code, $raw] = call('GET', '/api/v1/Metadata');
+        $meta = json_decode($raw, true);
+        if ($code !== 200 || !is_array($meta)) { fwrite(STDERR, "reading the metadata answered $code\n"); exit(1); }
+        if (!isset($meta['entityDefs']['Account']['fields']['cBenchNote'])) {
+          [$code, $raw] = call('POST', '/api/v1/Admin/fieldManager/Account', ['name' => 'benchNote', 'type' => 'varchar', 'label' => 'Bench note']);
+          if ($code !== 200) { fwrite(STDERR, "creating the field answered $code: " . substr($raw, 0, 300) . "\n"); exit(1); }
+        }
+        [$code, $raw] = call('GET', '/api/v1/Account/layout/detail');
+        $layout = json_decode($raw);
+        if ($code !== 200 || !is_array($layout) || !isset($layout[0]->rows) || !is_array($layout[0]->rows)) {
+          fwrite(STDERR, "the Account detail layout is not a list of panels with rows, answer $code\n"); exit(1);
+        }
+        $listed = false;
+        foreach ($layout as $panel) {
+          foreach (($panel->rows ?? []) as $row) {
+            foreach ($row as $cell) {
+              if (is_object($cell) && ($cell->name ?? '') === 'cBenchNote') { $listed = true; }
+            }
+          }
+        }
+        if (!$listed) {
+          $layout[0]->rows[] = [(object) ['name' => 'cBenchNote'], false];
+          [$code, $raw] = call('PUT', '/api/v1/Account/layout/detail', $layout);
+          if ($code !== 200) { fwrite(STDERR, "saving the layout answered $code: " . substr($raw, 0, 300) . "\n"); exit(1); }
+        }
+        echo "seeded custom field cBenchNote\n";
+        PHP
+    expect_stdout_contains: "seeded custom field cBenchNote"
+    timeout_s: 960
+
+  - name: write_a_file_into_the_custom_folder
+    type: docker_exec
+    container: "{{ container_espocrm }}"
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        echo catena-custom-{{ run_id }} > /var/www/html/custom/catena-bench-marker
+        echo "wrote custom/catena-bench-marker"
+    expect_stdout_contains: "wrote custom/catena-bench-marker"
+
 assert:
   - name: api_lists_exactly_one_account_of_the_run
     type: docker_exec
@@ -98,3 +187,110 @@ assert:
         PHP
     expect_stdout_contains: "Accounts named catena-{{ run_id }}: 1, description fixture-{{ run_id }}"
     timeout_s: 960
+
+  - name: api_serves_the_custom_field_and_its_layout_row
+    type: docker_exec
+    container: "{{ container_espocrm }}"
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        php <<'PHP'
+        <?php
+        function call($method, $path) {
+          $auth = base64_encode(getenv('ESPOCRM_ADMIN_USERNAME') . ':' . getenv('ESPOCRM_ADMIN_PASSWORD'));
+          $opts = ['method' => $method, 'header' => "Authorization: Basic $auth\r\n", 'ignore_errors' => true, 'timeout' => 120];
+          $raw = @file_get_contents('http://127.0.0.1' . $path, false, stream_context_create(['http' => $opts]));
+          $code = 0;
+          foreach (($http_response_header ?? []) as $line) {
+            if (preg_match('#^HTTP/\S+ (\d+)#', $line, $m)) { $code = (int) $m[1]; }
+          }
+          return [$code, $raw === false ? '' : $raw];
+        }
+        $deadline = time() + 900;
+        do {
+          [$code] = call('GET', '/api/v1/App/user');
+          if ($code === 200) { break; }
+          sleep(5);
+        } while (time() < $deadline);
+        if ($code !== 200) { fwrite(STDERR, "the EspoCRM API did not accept the administrator within 900 s, last answer $code\n"); exit(1); }
+        [$code, $raw] = call('GET', '/api/v1/Metadata');
+        $meta = json_decode($raw, true);
+        if ($code !== 200 || !is_array($meta)) { fwrite(STDERR, "reading the metadata answered $code\n"); exit(1); }
+        if (!isset($meta['entityDefs']['Account']['fields']['cBenchNote'])) { fwrite(STDERR, "the metadata has no field cBenchNote on Account\n"); exit(1); }
+        [$code, $raw] = call('GET', '/api/v1/Account/layout/detail');
+        $layout = json_decode($raw);
+        if ($code !== 200 || !is_array($layout)) { fwrite(STDERR, "reading the Account detail layout answered $code\n"); exit(1); }
+        $listed = false;
+        foreach ($layout as $panel) {
+          foreach (($panel->rows ?? []) as $row) {
+            foreach ($row as $cell) {
+              if (is_object($cell) && ($cell->name ?? '') === 'cBenchNote') { $listed = true; }
+            }
+          }
+        }
+        if (!$listed) { fwrite(STDERR, "the Account detail layout has no row for cBenchNote\n"); exit(1); }
+        echo "custom field cBenchNote and its layout row are served\n";
+        PHP
+    expect_stdout_contains: "custom field cBenchNote and its layout row are served"
+    timeout_s: 960
+
+  - name: custom_folder_holds_the_files_the_admin_made
+    type: docker_exec
+    container: "{{ container_espocrm }}"
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        test -f /var/www/html/custom/Espo/Custom/Resources/metadata/entityDefs/Account.json
+        test -f /var/www/html/custom/Espo/Custom/Resources/layouts/Account/detail.json
+        cat /var/www/html/custom/catena-bench-marker
+    expect_stdout_contains: "catena-custom-{{ run_id }}"
+
+  - name: job_runner_runs_a_scheduled_job
+    type: docker_exec
+    container: "{{ container_espocrm }}"
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        php <<'PHP'
+        <?php
+        function call($method, $path) {
+          $auth = base64_encode(getenv('ESPOCRM_ADMIN_USERNAME') . ':' . getenv('ESPOCRM_ADMIN_PASSWORD'));
+          $opts = ['method' => $method, 'header' => "Authorization: Basic $auth\r\n", 'ignore_errors' => true, 'timeout' => 120];
+          $raw = @file_get_contents('http://127.0.0.1' . $path, false, stream_context_create(['http' => $opts]));
+          $code = 0;
+          foreach (($http_response_header ?? []) as $line) {
+            if (preg_match('#^HTTP/\S+ (\d+)#', $line, $m)) { $code = (int) $m[1]; }
+          }
+          return [$code, json_decode($raw === false ? '' : $raw, true)];
+        }
+        $since = gmdate('Y-m-d H:i:s');
+        $deadline = time() + 900;
+        do {
+          [$code] = call('GET', '/api/v1/App/user');
+          if ($code === 200) { break; }
+          sleep(5);
+        } while (time() < $deadline);
+        if ($code !== 200) { fwrite(STDERR, "the EspoCRM API did not accept the administrator within 900 s, last answer $code\n"); exit(1); }
+        $query = http_build_query(['select' => 'name,lastRun', 'maxSize' => 100, 'where' => [
+          ['type' => 'isNotNull', 'attribute' => 'lastRun'],
+          ['type' => 'greaterThan', 'attribute' => 'lastRun', 'value' => $since]]]);
+        $deadline = time() + 420;
+        do {
+          [$code, $found] = call('GET', '/api/v1/ScheduledJob?' . $query);
+          if ($code === 200 && !empty($found['list'])) {
+            echo "scheduled job " . $found['list'][0]['name'] . " ran after $since\n";
+            exit(0);
+          }
+          sleep(10);
+        } while (time() < $deadline);
+        fwrite(STDERR, "no scheduled job ran after $since within 420 s, last answer $code: the job runner is not running them\n");
+        exit(1);
+        PHP
+    expect_stdout_contains: "ran after"
+    timeout_s: 1500
