@@ -172,6 +172,9 @@ x-catena:
             exit(1);
           }
           echo "WordPress answers through nginx and PHP\n";
+  # The configure hook fetches wp-cli from GitHub and the plugins from the WordPress.org
+  # plugin directory (its API and its download host).
+  egress: [raw.githubusercontent.com, downloads.wordpress.org, api.wordpress.org]
 
 services:
   wp:

@@ -107,6 +107,27 @@ def test_the_hook_runs_in_the_wp_service_as_www_data():
     assert quiesce_lint.lint_block(_entry()) == []
 
 
+def test_the_hook_reaches_only_the_declared_hosts():
+    assert _entry().block["egress"] == ["raw.githubusercontent.com", "downloads.wordpress.org",
+                                        "api.wordpress.org"]
+    body = _body()
+    assert "https://raw.githubusercontent.com/" in body
+
+
+def test_the_test_yml_asserts_the_hook_and_the_mail_wiring():
+    doc = yaml.safe_load((BLUEPRINT / "test.yml").read_text(encoding="utf-8"))
+    assert "administrator_edits" in [s["name"] for s in doc["seed"]]
+    text = {s["name"]: s["command"][-1] for s in doc["assert"]}
+    plugins = text["curated_plugins_cache_and_seeds_are_in_place"]
+    assert all(slug in plugins for slug in ("wp-mail-smtp", "redis-cache", "kadence-blocks", "fluentform"))
+    assert "catena_npp_seeded" in plugins and "nginx_cache_settings" in plugins
+    relay = text["wp_mail_smtp_holds_the_saved_relay"]
+    for name in ("mail_relay_host", "mail_relay_port", "mail_relay_user", "mail_relay_sender"):
+        assert "{{ " + name + " }}" in relay
+    password = text["relay_password_is_a_constant_and_not_in_the_option"]
+    assert "{{ mail_relay_password_sha256 }}" in password
+
+
 def test_the_body_parses_in_sh():
     subprocess.run(["sh", "-n", "-c", _body()], check=True)
 
