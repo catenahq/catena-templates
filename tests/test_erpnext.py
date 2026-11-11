@@ -850,9 +850,10 @@ def test_every_step_is_a_docker_exec_into_a_service_of_the_stack(slug):
 
 def test_the_helpdesk_test_holds_every_step_of_erpnexts_plus_its_ticket():
     plain, desk = _test_yml("erpnext"), _test_yml("erpnext-helpdesk")
-    for phase, ticket in (("seed", "helpdesk_ticket"), ("assert", "ticket_through_the_site")):
+    for phase, extra in (("seed", ["helpdesk_ticket"]), ("assert", ["ticket_through_the_site", "web_forms_closed"])):
         steps = {step["name"]: step for step in desk[phase]}
-        assert steps.pop(ticket)
+        for name in extra:
+            assert steps.pop(name)
         assert list(steps.values()) == plain[phase], phase
 
 
@@ -1077,6 +1078,10 @@ def _seeded_site() -> tuple[dict, dict]:
     return docs, {"/private/files/catena-r1.txt": "fixture-r1"}
 
 
+def _logged_in_asserts(slug: str) -> list[dict]:
+    return [step for step in _test_yml(slug)["assert"] if step["name"] != "web_forms_closed"]
+
+
 def _asserts(slug: str, docs: dict, files: dict,
              password: str = PASSWORD) -> list[tuple[dict, subprocess.CompletedProcess]]:
     _FrappeSite.docs, _FrappeSite.files, _FrappeSite.seen = docs, files, []
@@ -1084,7 +1089,7 @@ def _asserts(slug: str, docs: dict, files: dict,
     threading.Thread(target=server.serve_forever, daemon=True).start()
     try:
         runs = []
-        for step in _test_yml(slug)["assert"]:
+        for step in _logged_in_asserts(slug):
             python, flag, script = _rendered(step)
             assert (python, flag) == ("python3", "-c")
             script = script.replace("http://127.0.0.1:8000", f"http://127.0.0.1:{server.server_port}")
@@ -1164,7 +1169,319 @@ def test_the_asserts_fail_when_the_administrator_cannot_sign_in(slug):
     for _, run in _asserts(slug, docs, files, password="wrong"):
         assert run.returncode != 0
         assert "/api/method/login answered HTTP 401" in run.stderr
-    assert [method for method, _, _ in _FrappeSite.seen] == ["POST"] * len(_test_yml(slug)["assert"])
+    assert [method for method, _, _ in _FrappeSite.seen] == ["POST"] * len(_logged_in_asserts(slug))
+
+
+# test.yml of the helpdesk: the closures assert and the sign_in entry.
+
+def _step_named(steps: list[dict], name: str) -> dict:
+    [step] = [step for step in steps if step["name"] == name]
+    return step
+
+
+def _sign_in_entry(slug: str, name: str) -> dict:
+    [entry] = [entry for entry in _test_yml(slug)["sign_in"] if entry["name"] == name]
+    return entry
+
+
+def _after(name: str) -> dict:
+    return _step_named(_sign_in_entry("erpnext-helpdesk", "client_customer")["after"], name)
+
+
+class _Listener(http.server.BaseHTTPRequestHandler):
+    """The backend's or the frontend's listener as the closure and customer steps ask it: each
+    (method, path) answers a (status, body) or a redirect."""
+    routes: dict = {}
+    seen: list = []
+
+    def _serve(self):
+        length = int(self.headers.get("Content-Length") or 0)
+        body = self.rfile.read(length).decode() if length else ""
+        type(self).seen.append((self.command, self.path, {key.lower(): value for key, value in self.headers.items()}, body))
+        answer = type(self).routes.get((self.command, self.path.split("?")[0]), (404, "{}"))
+        if answer[0] in (301, 302):
+            self.send_response(answer[0])
+            self.send_header("Location", answer[1])
+            self.end_headers()
+            return
+        self.send_response(answer[0])
+        self.end_headers()
+        self.wfile.write(answer[1].encode())
+
+    do_GET = do_POST = _serve
+
+    def log_message(self, *args):
+        pass
+
+
+def _listener(routes: dict):
+    _Listener.routes, _Listener.seen = routes, []
+    server = http.server.HTTPServer(("127.0.0.1", 0), _Listener)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    return server
+
+
+def _python_step(step: dict, port: int, old_port: str, stdin: str = "", **env: str) -> subprocess.CompletedProcess:
+    python, flag, script = [part.replace("{{ sign_in_email }}", "ana@client.example") for part in step["command"]]
+    assert (python, flag) == ("python3", "-c")
+    return subprocess.run([sys.executable, flag, script.replace(old_port, f"127.0.0.1:{port}")], input=stdin,
+                          capture_output=True, text=True, timeout=60,
+                          env={"PATH": os.environ["PATH"], "SITE_NAME": SITE_NAME, **env})
+
+
+ACCEPT = "/api/method/frappe.website.doctype.web_form.web_form.accept"
+NOT_PERMITTED = (403, '{"exc_type": "PermissionError", "_server_messages": "Not permitted"}')
+CLOSED = {("GET", "/issues/new"): (404, ""), ("GET", "/tasks/new"): (403, ""), ("POST", ACCEPT): NOT_PERMITTED}
+
+
+def _run_closures(tmp_path: Path, routes: dict, guard=1, forms: str | None = None) -> subprocess.CompletedProcess:
+    config = tmp_path / SITE_NAME
+    config.mkdir(exist_ok=True)
+    (config / "site_config.json").write_text(json.dumps({} if guard is None else {"block_endpoints": guard}))
+    step = _step_named(_test_yml("erpnext-helpdesk")["assert"], "web_forms_closed")
+    assert step["env"] == ["ERPNEXT_WEB_FORMS"]
+    step = {"command": [part.replace("/home/frappe/frappe-bench/sites", str(tmp_path)) for part in step["command"]]}
+    server = _listener(routes)
+    try:
+        return _python_step(step, server.server_port, "127.0.0.1:8000",
+                            **({} if forms is None else {"ERPNEXT_WEB_FORMS": forms}))
+    finally:
+        server.shutdown()
+
+
+@pytest.mark.parametrize("forms", [None, "", "off", "OFF"])
+def test_the_closures_assert_passes_on_a_site_with_closed_forms_and_the_guard(forms, tmp_path):
+    run = _run_closures(tmp_path, CLOSED, forms=forms)
+    assert run.returncode == 0, run.stderr
+    assert "web forms closed: block_endpoints 1" in run.stdout
+    assert {(method, path) for method, path, _, _ in _Listener.seen} == set(CLOSED)
+    assert {headers["host"] for _, _, headers, _ in _Listener.seen} == {SITE_NAME}
+    assert "web_form=issues" in [body for method, _, _, body in _Listener.seen if method == "POST"][0]
+
+
+@pytest.mark.parametrize("forms", ["on", " On "])
+def test_the_closures_assert_passes_without_asking_the_site_while_the_forms_are_on(forms, tmp_path):
+    run = _run_closures(tmp_path, {}, guard=None, forms=forms)
+    assert run.returncode == 0, run.stderr
+    assert "skipped, ERPNEXT_WEB_FORMS is on" in run.stdout
+    assert _Listener.seen == []
+
+
+@pytest.mark.parametrize("damage, why", [
+    ({"guard": 0}, "block_endpoints reads 0"),
+    ({"guard": None}, "block_endpoints reads None"),
+    ({"routes": {**CLOSED, ("GET", "/issues/new"): (200, "<form>")}}, "GET /issues/new answered HTTP 200"),
+    ({"routes": {**CLOSED, ("GET", "/tasks/new"): (302, "/login")}}, "GET /tasks/new answered HTTP 302"),
+    ({"routes": {**CLOSED, ("POST", ACCEPT): (200, "{}")}}, "accept on the issues form got HTTP 200"),
+    ({"routes": {**CLOSED, ("POST", ACCEPT): (403, "{}")}}, "accept on the issues form got HTTP 403"),
+])
+def test_the_closures_assert_fails_on_an_open_form_or_a_missing_guard(damage, why, tmp_path):
+    run = _run_closures(tmp_path, damage.get("routes", CLOSED), guard=damage.get("guard", 1))
+    assert run.returncode != 0
+    assert why in run.stderr
+    assert "web forms closed" not in run.stdout
+
+
+def test_the_helpdesk_declares_one_client_entry_for_the_customer_it_makes_and_cleans_up():
+    [entry] = _test_yml("erpnext-helpdesk")["sign_in"]
+    assert {key: value for key, value in entry.items() if key not in ("after", "cleanup")} == {
+        "name": "client_customer", "group": "client", "facts": {"system_user": "no"}}
+    assert [step["name"] for step in entry["after"]] == [
+        "hd_customer_role_held", "guard_refuses_a_call_outside_the_list", "portal_opens_and_forms_are_refused",
+        "customer_raises_and_rates_a_ticket"]
+    assert [step["name"] for step in entry["cleanup"]] == ["delete_the_ticket_and_the_user"]
+
+
+def test_every_customer_step_runs_in_the_frontends_helper_with_the_cookies_on_stdin_and_none_on_its_command_line():
+    entry = _sign_in_entry("erpnext-helpdesk", "client_customer")
+    services = {name.replace("-", "_") for name in _compose("erpnext-helpdesk")["services"]}
+    assert "frontend" in services
+    for step in entry["after"] + entry["cleanup"]:
+        assert step["type"] == "docker_exec"
+        assert "{{ sign_in_email }}" in " ".join(step["command"]) or step["stdin"] == "sign_in_cookies"
+        assert "{{ sign_in_email }}" in step["expect_stdout_contains"] or step["stdin"] == "sign_in_cookies"
+        assert "CATENA_TEST_PASSWORD" not in " ".join(step["command"])
+        if step.get("stdin"):
+            assert step["container"] == "{{ helper_frontend }}" and step["stdin"] == "sign_in_cookies"
+        else:
+            assert step["container"] == "{{ container_backend }}"
+        if step["command"][0] == "bash":
+            subprocess.run(["bash", "-n", "-c", step["command"][2]], check=True)
+        else:
+            compile(step["command"][2], step["name"], "exec")
+
+
+COOKIE = "Cookie: sid=zzz-session; csrf=qqq"
+PORTAL = '<script>window["csrf_token"] = "tok123";</script>'
+TICKET_CALL = "/api/method/helpdesk.helpdesk.doctype.hd_ticket.api.new"
+OPTIONS = "/api/method/frappe.client.get_list"
+RATE = "/api/method/frappe.client.set_value"
+CUSTOMER = {("GET", "/helpdesk/my-tickets"): (200, PORTAL), ("GET", "/api/method/frappe.auth.get_logged_user"): (403, "{}"),
+            ("POST", ACCEPT): NOT_PERMITTED, ("POST", TICKET_CALL): (200, '{"message": {"name": 41}}'),
+            ("GET", OPTIONS): (200, '{"message": [{"name": "Fixed"}]}'), ("POST", RATE): (200, '{"message": {}}')}
+
+
+def _customer(name: str, routes: dict, stdin: str = COOKIE + "\n", **env: str) -> subprocess.CompletedProcess:
+    server = _listener(routes)
+    try:
+        return _python_step(_after(name), server.server_port, "127.0.0.1:8080", stdin, **env)
+    finally:
+        server.shutdown()
+
+
+def test_the_guard_step_wants_the_helpdesks_403_for_a_call_outside_its_list():
+    run = _customer("guard_refuses_a_call_outside_the_list", CUSTOMER)
+    assert run.returncode == 0, run.stderr
+    assert "guard refused get_logged_user" in run.stdout
+    assert [headers["cookie"] for _, _, headers, _ in _Listener.seen] == ["sid=zzz-session; csrf=qqq"]
+    run = _customer("guard_refuses_a_call_outside_the_list",
+                    {**CUSTOMER, ("GET", "/api/method/frappe.auth.get_logged_user"): (200, '{"message": "ana"}')})
+    assert run.returncode != 0 and "answered HTTP 200 to the customer" in run.stderr
+
+
+@pytest.mark.parametrize("name", ["guard_refuses_a_call_outside_the_list", "portal_opens_and_forms_are_refused",
+                                  "customer_raises_and_rates_a_ticket"])
+def test_a_customer_step_without_the_cookie_line_ends_before_asking_the_site(name):
+    run = _customer(name, CUSTOMER, stdin="")
+    assert run.returncode != 0 and "no Cookie line" in run.stderr
+    assert _Listener.seen == []
+
+
+def test_no_customer_step_prints_the_cookies():
+    for name in ("guard_refuses_a_call_outside_the_list", "portal_opens_and_forms_are_refused",
+                 "customer_raises_and_rates_a_ticket"):
+        run = _customer(name, {**CUSTOMER, ("GET", "/api/method/frappe.auth.get_logged_user"): (200, "x"),
+                               ("GET", "/helpdesk/my-tickets"): (500, "x")})
+        assert run.returncode != 0
+        assert "zzz-session" not in run.stdout + run.stderr
+
+
+@pytest.mark.parametrize("forms", [None, "off"])
+def test_the_portal_step_opens_the_portal_and_has_the_customers_accept_refused(forms):
+    run = _customer("portal_opens_and_forms_are_refused", CUSTOMER, **({} if forms is None else {"ERPNEXT_WEB_FORMS": forms}))
+    assert run.returncode == 0, run.stderr
+    assert "portal ok: forms refused to the customer" in run.stdout
+    posts = [(path, headers["x-frappe-csrf-token"]) for method, path, headers, _ in _Listener.seen if method == "POST"]
+    assert posts == [(ACCEPT, "tok123")] * 2
+
+
+def test_the_portal_step_leaves_the_forms_unchecked_while_they_are_on():
+    run = _customer("portal_opens_and_forms_are_refused", CUSTOMER, ERPNEXT_WEB_FORMS="on")
+    assert run.returncode == 0, run.stderr
+    assert "forms not checked" in run.stdout
+    assert [method for method, *_ in _Listener.seen] == ["GET"]
+
+
+@pytest.mark.parametrize("damage, why", [
+    ({("GET", "/helpdesk/my-tickets"): (403, "")}, "portal answered HTTP 403"),
+    ({("GET", "/helpdesk/my-tickets"): (302, "/login")}, "portal answered HTTP"),
+    ({("GET", "/helpdesk/my-tickets"): (200, "<html></html>")}, "no csrf_token"),
+    ({("POST", ACCEPT): (200, "{}")}, "accept on the issues form got HTTP 200"),
+])
+def test_the_portal_step_fails_on_a_closed_portal_or_an_open_form(damage, why):
+    run = _customer("portal_opens_and_forms_are_refused", {**CUSTOMER, **damage})
+    assert run.returncode != 0 and why in run.stderr
+
+
+def test_the_ticket_step_raises_the_ticket_and_rates_it_as_the_customer():
+    run = _customer("customer_raises_and_rates_a_ticket", CUSTOMER)
+    assert run.returncode == 0, run.stderr
+    assert "ticket 41 raised and rated by the customer" in run.stdout
+    calls = {path: (headers, body) for _, path, headers, body in _Listener.seen}
+    assert json.loads(calls[TICKET_CALL][1])["doc"]["subject"] == "Bench ticket ana@client.example"
+    rated = json.loads(calls[RATE][1])
+    assert (rated["doctype"], rated["name"], rated["fieldname"]["status"], rated["fieldname"]["feedback"]) == (
+        "HD Ticket", 41, "Closed", "Fixed")
+    assert calls[TICKET_CALL][0]["x-frappe-csrf-token"] == calls[RATE][0]["x-frappe-csrf-token"] == "tok123"
+
+
+@pytest.mark.parametrize("damage, why", [
+    ({("POST", TICKET_CALL): (403, "{}")}, "hd_ticket.api.new answered HTTP 403"),
+    ({("POST", TICKET_CALL): (200, '{"message": {}}')}, "returned no ticket name"),
+    ({("GET", OPTIONS): (200, '{"message": []}')}, "lists no feedback option"),
+    ({("POST", RATE): (417, "{}")}, "feedback on ticket 41 answered HTTP 417"),
+])
+def test_the_ticket_step_fails_when_a_call_of_the_customers_is_refused(damage, why):
+    run = _customer("customer_raises_and_rates_a_ticket", {**CUSTOMER, **damage})
+    assert run.returncode != 0 and why in run.stderr
+
+
+DESK_STUB = '''
+import json
+import os
+
+_path = os.environ["STUB_STATE"]
+_state = json.load(open(_path))
+
+
+class _Db:
+    def exists(self, doctype, name):
+        return name in _state.get(doctype, {})
+
+    def commit(self):
+        json.dump(_state, open(_path, "w"))
+
+
+db = _Db()
+
+
+def init(site):
+    assert site == os.environ["SITE_NAME"]
+
+
+def connect():
+    pass
+
+
+def destroy():
+    pass
+
+
+def get_all(doctype, filters, pluck):
+    if doctype == "Has Role":
+        assert (filters["parenttype"], pluck) == ("User", "role")
+        return list(_state.get("Roles", {}).get(filters["parent"], []))
+    assert (doctype, pluck) == ("HD Ticket", "name")
+    return [name for name, doc in _state.get(doctype, {}).items() if doc["subject"] == filters["subject"]]
+
+
+def delete_doc(doctype, name, force):
+    assert force == 1
+    _state[doctype].pop(name)
+'''
+
+
+def _desk(step: dict, tmp_path: Path, state: dict) -> tuple[subprocess.CompletedProcess, dict]:
+    (tmp_path / "stubs").mkdir(exist_ok=True)
+    (tmp_path / "stubs" / "frappe.py").write_text(DESK_STUB, encoding="utf-8")
+    (tmp_path / "state.json").write_text(json.dumps(state))
+    shell, flag, body = [part.replace("{{ sign_in_email }}", "ana@client.example") for part in step["command"]]
+    body = body.replace("/home/frappe/frappe-bench/sites", str(tmp_path)).replace("../env/bin/python", sys.executable)
+    run = subprocess.run([shell, flag, body], capture_output=True, text=True, timeout=30,
+                         env={"PATH": os.environ["PATH"], "PYTHONPATH": str(tmp_path / "stubs"), "SITE_NAME": SITE_NAME,
+                              "STUB_STATE": str(tmp_path / "state.json")})
+    return run, json.loads((tmp_path / "state.json").read_text())
+
+
+@pytest.mark.parametrize("roles, passes", [(["HD Customer"], True), (["Customer", "Sales User"], False), ([], False)])
+def test_the_role_step_passes_only_while_the_user_holds_hd_customer(roles, passes, tmp_path):
+    run, _ = _desk(_after("hd_customer_role_held"), tmp_path, {"Roles": {"ana@client.example": roles}})
+    assert (run.returncode == 0) == passes, run.stderr
+    assert ("hd customer role held by ana@client.example" in run.stdout) == passes
+
+
+def test_the_cleanup_deletes_the_customers_tickets_and_the_user_and_nothing_else(tmp_path):
+    step = _sign_in_entry("erpnext-helpdesk", "client_customer")["cleanup"][0]
+    state = {"User": {"ana@client.example": {}, "bo@client.example": {}},
+             "HD Ticket": {"41": {"subject": "Bench ticket ana@client.example"},
+                           "42": {"subject": "Bench ticket bo@client.example"}, "7": {"subject": "catena-r1"}}}
+    run, after = _desk(step, tmp_path, state)
+    assert run.returncode == 0, run.stderr
+    assert after["User"] == {"bo@client.example": {}}
+    assert set(after["HD Ticket"]) == {"42", "7"}
+    run, again = _desk(step, tmp_path, after)
+    assert run.returncode == 0, run.stderr
+    assert again == after
 
 
 # test.yml: the sign_in entries.

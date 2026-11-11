@@ -336,6 +336,17 @@ block.
      no shell or no HTTP client over HTTP at `127.0.0.1:<port>`.
      `stdin: service_log` gives a step the last lines of its service's log on
      stdin, for a one-time setup code the app logs.
+   - `sign_in` lists accounts the app-tests sign-in leg signs in beyond its
+     throwaway staff account: each entry names its `group` (`staff`, `client`
+     or `admin`), an optional access level of the block (`access`), whether the
+     account signs in or is refused (`expect`, with the refusal's `status`),
+     the `facts` the sign-in must read, and steps run once the level is given
+     (`granted`), after the sign-in (`after`, which may read the session's
+     cookies with `stdin: sign_in_cookies`), once the level is taken back
+     (`removed`) and last (`cleanup`). Its steps get `{{ sign_in_email }}`, the
+     account's address. The leg also walks each access level the block
+     declares. The section's format is ops
+     `automation/test_bench/appci/README.md` "test.yml of a pull request".
 
    The seed writes its data through the app itself (its API or
    command line) wherever the app allows it, so the restore proves data the
@@ -348,7 +359,7 @@ block.
    own database), asserts that only read a path, a word a seed builds from
    the run id that no assert names, a setup step naming the run id, a helper of
    a service the compose lacks, and a credential other than
-   `CATENA_TEST_PASSWORD`; `tests/app-tests-debt.txt` lists the apps whose test
+   `CATENA_TEST_PASSWORD`, in every step list, `sign_in` entries' included; `tests/app-tests-debt.txt` lists the apps whose test
    is still to be rewritten. Real example: `blueprints/erpnext`.
 10. `make` -- renders, lints, and runs the tests. Commit the packed
     `blueprints/<id>/docker-compose.yml`, `catalog.json` and `index.html` with the
