@@ -60,6 +60,9 @@ run on every render. This module adds:
     carries ${UPDATE_LEVEL:-major}, or a literal level with a comment beside the
     label that names why it keeps it, and a compose that reads UPDATE_LEVEL
     declares it in the block's env.
+  - A vps.auth.mode label on an address holds a mode the host knows, or a
+    variable with a mode default that the block's env declares as a setting
+    with the same default.
   - Sign-in labels sit on the main address's service, the only service
     the host reads them from: the one service carrying vps.route.host, or,
     of several, the one also carrying vps.route.main=true. Each is one the
@@ -590,10 +593,11 @@ def data_tier_image(image: str) -> bool:
     return database_image(image) or DATA_TIER_NAME.match(name) is not None
 
 
-def commented_auto_update(text: str) -> set[str]:
-    """The services of a compose file whose vps.auto-update line has a comment
+def commented_label(text: str, key: str) -> set[str]:
+    """The services of a compose file whose `key` label line has a comment
     on the line directly above it or after the label."""
     commented: set[str] = set()
+    key_text = key + "="
     in_services = False
     service = ""
     previous = ""
@@ -606,7 +610,7 @@ def commented_auto_update(text: str) -> set[str]:
             key = SERVICE_KEY.match(line)
             if key:
                 service = key.group(1)
-            elif "vps.auto-update=" in line and (
+            elif key_text in line and (
                     previous.lstrip().startswith("#")
                     or "#" in line.rsplit('"', 1)[-1]):
                 commented.add(service)
@@ -618,7 +622,7 @@ def commented_auto_update(text: str) -> set[str]:
 def lint_auto_update(entry) -> list[str]:
     text = entry.compose_path.read_text(encoding="utf-8")
     doc = yaml.safe_load(text) or {}
-    commented = commented_auto_update(text)
+    commented = commented_label(text, "vps.auto-update")
     errors = []
     levels = ', '.join(sorted(AUTO_UPDATE_POLICIES))
     if "${UPDATE_LEVEL" in text and "UPDATE_LEVEL" not in entry.env:
@@ -645,6 +649,48 @@ def lint_auto_update(entry) -> list[str]:
         elif variable.group(2).strip().lower() not in AUTO_UPDATE_POLICIES:
             errors.append(f"{label} has the default {variable.group(2)!r}, which is not one "
                           f"of {levels}; the update engine would ignore it")
+    return errors
+
+
+# The values of the vps.auth.mode label the host knows (catena-admin
+# payload/lib/labels_schema.py resolve_auth_mode, payload/engines/applint
+# catena.go K7); any other value it reads as unknown and fails closed.
+AUTH_MODES = frozenset({"public", "private", "admin-only"})
+
+
+def lint_auth_mode(entry) -> list[str]:
+    """The vps.auth.mode label of an address is a mode the host knows, or a
+    variable with a mode default that the block declares as a setting with
+    the same default."""
+    doc = yaml.safe_load(entry.compose_path.read_text(encoding="utf-8")) or {}
+    errors = []
+    modes = ', '.join(sorted(AUTH_MODES))
+    for name, service in (doc.get("services") or {}).items():
+        labels = service_labels(service or {})
+        value = labels.get("vps.auth.mode")
+        if value is None or not labels.get("vps.route.host", "").strip():
+            continue
+        label = f"{entry.slug}:{name}: vps.auth.mode={value}"
+        variable = AUTO_UPDATE_VARIABLE.fullmatch(value.strip())
+        if variable is None:
+            if value.strip() not in AUTH_MODES:
+                errors.append(f"{label} is not one of {modes}; the host reads it as unknown")
+            continue
+        key, default = variable.group(1), variable.group(2)
+        if default is None:
+            errors.append(f"{label} names {key} with no default; write ${{{key}:-<mode>}} "
+                          f"with a mode of {modes}")
+            continue
+        default = default.strip()
+        if default not in AUTH_MODES:
+            errors.append(f"{label} has the default {default!r}, which is not one of {modes}")
+        spec = entry.env.get(key)
+        if not isinstance(spec, dict) or "setting" not in spec:
+            errors.append(f"{label} reads {key} and the block's env does not declare it as a "
+                          f"setting; add a setting with the default {default}")
+        elif str(spec["setting"].get("default", "")).strip() != default:
+            errors.append(f"{label} reads {default} while {key} is not set, and a new deploy "
+                          f"writes {spec['setting'].get('default')!r}; the two defaults must be equal")
     return errors
 
 
@@ -744,6 +790,7 @@ def lint_all() -> int:
         all_errors.extend(lint_host_paths(entry))
         all_errors.extend(lint_capabilities(entry))
         all_errors.extend(lint_auto_update(entry))
+        all_errors.extend(lint_auth_mode(entry))
         all_errors.extend(lint_object_store(entry))
         all_errors.extend(lint_hooks(entry))
         all_errors.extend(lint_antivirus_scan(entry))

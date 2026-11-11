@@ -453,6 +453,74 @@ def test_an_auto_update_variable_without_a_level_default_is_refused(
     assert needle in out
 
 
+def _auth_mode(value: str, comment: str = "") -> str:
+    return ("services:\n  app:\n    image: acme/app:1.0.0\n    labels:\n"
+            '      - "vps.route.host=${DOMAIN_HOST}"\n'
+            '      - "vps.route.port=80"\n'
+            + (f"      {comment}\n" if comment else "")
+            + f'      - "vps.auth.mode={value}"\n'
+            '      - "vps.auto-update=${UPDATE_LEVEL:-major}"\n')
+
+
+def _mode_env(default: str) -> dict:
+    return {"env": {"UPDATE_LEVEL": {"setting": {"default": "major"}},
+                    "AUTH_MODE": {"setting": {"default": default}}}}
+
+
+@pytest.mark.parametrize("value,default", [
+    ("${AUTH_MODE:-public}", "public"),
+    ("${AUTH_MODE:-admin-only}", "admin-only"),
+    ("${AUTH_MODE:-private}", "private"),
+])
+def test_an_auth_mode_variable_with_a_matching_setting_passes(
+        monkeypatch, tmp_path, capsys, value, default):
+    block = _mode_env(default)
+    block["env"]["DOMAIN_HOST"] = {"setting": {"default": "x.example.com"}}
+    _synthetic_sources(monkeypatch, tmp_path, {}, _auth_mode(value), block=block)
+    assert L.lint_all() == 0, capsys.readouterr().out
+
+
+@pytest.mark.parametrize("value", ["public", "private", "admin-only"])
+@pytest.mark.parametrize("comment", ["", "# kept on purpose"])
+def test_a_literal_auth_mode_the_host_knows_passes_with_or_without_a_comment(
+        monkeypatch, tmp_path, capsys, value, comment):
+    _synthetic_sources(monkeypatch, tmp_path, {}, _auth_mode(value, comment), block=_LEVEL_ENV)
+    assert L.lint_all() == 0, capsys.readouterr().out
+
+
+@pytest.mark.parametrize("value,env,needle", [
+    ("${AUTH_MODE}", _mode_env("public"), "names AUTH_MODE with no default"),
+    ("${AUTH_MODE:-publik}", _mode_env("publik"),
+     "has the default 'publik', which is not one of admin-only, private, public"),
+    ("${AUTH_MODE:-public}", _LEVEL_ENV,
+     "reads AUTH_MODE and the block's env does not declare it as a setting"),
+    ("${AUTH_MODE:-public}", _mode_env("admin-only"),
+     "reads public while AUTH_MODE is not set, and a new deploy writes 'admin-only'"),
+    ("publik", _LEVEL_ENV, "is not one of admin-only, private, public; the host reads it as unknown"),
+])
+def test_an_auth_mode_the_host_cannot_read_is_refused(
+        monkeypatch, tmp_path, capsys, value, env, needle):
+    _synthetic_sources(monkeypatch, tmp_path, {}, _auth_mode(value), block=env)
+    assert L.lint_all() == 1
+    out = capsys.readouterr().out
+    assert f"synthetic-bad:app: vps.auth.mode={value}" in out
+    assert needle in out
+
+
+def test_a_mode_label_on_a_service_with_no_address_is_not_read(monkeypatch, tmp_path, capsys):
+    compose = _auth_mode("publik").replace(
+        '      - "vps.route.host=${DOMAIN_HOST}"\n      - "vps.route.port=80"\n', "")
+    _synthetic_sources(monkeypatch, tmp_path, {}, compose, block=_LEVEL_ENV)
+    assert L.lint_all() == 0, capsys.readouterr().out
+
+
+def test_a_label_comment_is_found_above_or_after_the_label_of_its_key():
+    text = _auth_mode("public", "# why") + "  other:\n    labels:\n" \
+        '      - "vps.auth.mode=public"  # why too\n  bare:\n    labels:\n      - "vps.auth.mode=public"\n'
+    assert L.commented_label(text, "vps.auth.mode") == {"app", "other"}
+    assert L.commented_label(text, "vps.auto-update") == set()
+
+
 def test_a_block_with_no_dollar_and_no_image_passes(monkeypatch, tmp_path, capsys):
     _synthetic_sources(monkeypatch, tmp_path, {}, block={
         "env": {"DOMAIN_HOST": {"managed": {"expr": "x.{{ cloudflare_zone }}"}}}})

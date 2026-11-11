@@ -34,6 +34,17 @@ def _service(slug: str, service: str) -> dict:
     return compose["services"][service]
 
 
+def _label_default(labels: list[str], key: str) -> str | None:
+    """A label's value as an app reads it while its setting is unset: the
+    literal, or the default of `${NAME:-default}`."""
+    for label in labels:
+        name, _, value = label.partition("=")
+        if name == key:
+            found = re.fullmatch(r"\$\{[A-Za-z_][A-Za-z0-9_]*:-([^}]*)\}", value.strip())
+            return found.group(1) if found else value
+    return None
+
+
 def _names(compose: dict) -> tuple[set[str], set[str]]:
     """The service keys of a compose, and the aliases its services carry on any network."""
     aliases = set()
@@ -445,7 +456,7 @@ def test_the_container_managers_hold_the_socket_for_administrators_only():
         service = compose["services"][slug]
         assert service["image"].startswith(image) and "latest" not in service["image"]
         assert "/var/run/docker.sock:/var/run/docker.sock" in service["volumes"]
-        assert "vps.auth.mode=admin-only" in service["labels"]
+        assert _label_default(service["labels"], "vps.auth.mode") == "admin-only"
         assert not [label for label in service["labels"] if label.startswith("vps.auth.oidc")]
         for name, other in compose["services"].items():
             if name != slug:
