@@ -2,8 +2,8 @@
 # public link share survive a backup and a restore, Talk keeps its conversation, the
 # signaling server answers, the file-version and trash retention settings are applied
 # (occ answers auto, 7 and 30, 30), and the sign-in provider is still wired. The seed uploads
-# the file with WebDAV as the administrator, so with a bucket it goes through the app
-# into the object store and without one into the data volume, then makes a public link
+# the file with WebDAV as the administrator, so it goes through the app into its data
+# folder, then makes a public link
 # share of it with the OCS Share API only when the file has none, and a Talk
 # conversation through Talk's OCS API only when none of that name is listed, so a
 # second seed changes nothing. The asserts read the file back the same way, list the
