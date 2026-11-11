@@ -31,38 +31,6 @@ try {
 }
 PHP
 }
-# 0 when the storages table holds the object store of the configured bucket
-# (named object::store:amazon::<bucket>, or the md5 of that name when it is
-# longer than 64 characters), 1 when it holds none, which is an instance that
-# keeps its files on disk, 2 when the database does not answer or has no
-# storages table.
-object_store_state() {
-  id="object::store:amazon::${S3_BUCKET}"
-  if [ "${#id}" -gt 64 ]; then
-    id=$(printf '%s' "$id" | md5sum | cut -d' ' -f1)
-  fi
-  CATENA_STORE_ID="$id" php <<'PHP'
-<?php
-include "/var/www/html/config/config.php";
-$prefix = !empty($CONFIG["dbtableprefix"]) ? $CONFIG["dbtableprefix"] : "oc_";
-try {
-  $db = new PDO(
-    "pgsql:host=".getenv("POSTGRES_HOST").";dbname=".getenv("POSTGRES_DB"),
-    getenv("POSTGRES_USER"), getenv("POSTGRES_PASSWORD"),
-    [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
-  );
-  $found = $db->query("SELECT count(*) FROM information_schema.tables WHERE table_name = " . $db->quote($prefix . "storages"))->fetchColumn();
-  if ($found == 0) {
-    exit(2);
-  }
-  $held = $db->prepare("SELECT count(*) FROM " . $prefix . "storages WHERE id = ?");
-  $held->execute([getenv("CATENA_STORE_ID")]);
-  exit($held->fetchColumn() > 0 ? 0 : 1);
-} catch (Throwable $e) {
-  exit(2);
-}
-PHP
-}
 app_present() { occ app:getpath "$1" >/dev/null 2>&1; }
 app_enabled() {
   occ app:list --output=json 2>/dev/null | php -r '$d = json_decode(stream_get_contents(STDIN), true); exit(isset($d["enabled"][$argv[1]]) ? 0 : 1);' "$1"
@@ -246,34 +214,6 @@ unwire_mail() {
   done
   occ config:app:delete catena mail_wired
 }
-
-# The object store reads the OBJECTSTORE_S3_* variables of the container
-# through the image's s3.config.php, which a restored config volume may lack.
-# The file is put back only for an instance whose database holds the object
-# store of the bucket. On any other installed instance, which keeps its files
-# on disk, the file is removed: with a bucket in the environment it would
-# switch the instance to an empty object store. The image copies it only into
-# an empty config folder, so an image update does not bring it back.
-if [ -n "${S3_BUCKET:-}" ] && [ -f "$CONFIG/config.php" ]; then
-  state=0
-  object_store_state || state=$?
-  case "$state" in
-    0)
-      if [ ! -f "$CONFIG/s3.config.php" ] && [ -f /usr/src/nextcloud/config/s3.config.php ]; then
-        cp /usr/src/nextcloud/config/s3.config.php "$CONFIG/s3.config.php"
-        say "the object store file was put back from the image"
-      fi
-      ;;
-    1)
-      if installed && ! maintenance; then
-        say "this instance keeps its files on disk; the bucket setting is ignored"
-        if [ -f "$CONFIG/s3.config.php" ]; then
-          rm -f "$CONFIG/s3.config.php" && say "the object store file was removed"
-        fi
-      fi
-      ;;
-  esac
-fi
 
 waited=0
 until occ status --exit-code >/dev/null 2>&1; do

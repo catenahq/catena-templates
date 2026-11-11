@@ -6,7 +6,7 @@ services:
         condition: any
       placement:
         constraints:
-          # nc-config / nc-apps / nc-data are node-local named volumes. Off
+          # nc-config / nc-apps / nc-data (by default) are node-local named volumes. Off
           # this node swarm would create them empty rather than fail.
           - node.labels.catena.role==data
     # Two-stage delivery for the Catena config overlay (zz-catena.config.php):
@@ -24,8 +24,8 @@ services:
     # The hook runs after upstream's populate.sh because populate.sh
     # skips rsync'ing /var/www/html/config when the dir is already
     # non-empty (`directory_empty` check): a wrapper that wrote our
-    # file there first would keep autoconfig.php / redis.config.php /
-    # s3.config.php from landing in the volume and Apache would 503.
+    # file there first would keep autoconfig.php / redis.config.php from
+    # landing in the volume and Apache would 503.
     #
     # `$$X` -> `$X` after compose interpolation. The outer
     # `<<'HOOK'` is single-quoted so the wrapper writes the hook
@@ -79,77 +79,6 @@ services:
         # PUT and every upload over 100 MB fails at the edge.
         php occ config:system:set --type int \
           --value "$${NEXTCLOUD_MAX_CHUNK_SIZE}" files.chunked_upload.max_size
-        # Server-side encryption (SSE), master-key mode. Encrypts file
-        # content before it is handed to the S3 object-store driver, so
-        # the storage provider only ever sees ciphertext at rest.
-        # Master-key mode encrypts against a single, operator-recoverable
-        # key (held in DB + the config `secret`) -- NOT per-user keys,
-        # which would put files out of reach of an operator restore.
-        # Idempotent: this hook runs on every container start, but
-        # master-key SELECTION runs only once -- on the fresh install,
-        # before any file is encrypted. Switching modes on already-
-        # encrypted data is destructive, hence the useMasterKey guard.
-        # `encryption:enable-master-key` prompts y/n and treats
-        # --no-interaction as "no", so the confirmation is fed on stdin.
-        php occ app:enable encryption
-        # Force-set the useMasterKey config flag BEFORE any path that
-        # might trigger the encryption module's per-user-mode bootstrap.
-        # With master_<id>.{pub,priv}Key in S3 but useMasterKey empty in
-        # oc_appconfig, Nextcloud's KeyManager::getPrivateKey takes the
-        # per-user branch (isMasterKeyEnabled returns false when
-        # useMasterKey != "1") and throws PrivateKeyMissingException for
-        # admin, who has no per-user key. occ encryption:enable-master-key
-        # shorts out with "Master key already enabled" when the FILES
-        # exist, whatever the config flag says, so it cannot set the flag.
-        # Setting the flag idempotently FIRST puts KeyManager into
-        # master-key mode for every subsequent occ and Apache request.
-        php occ config:app:set encryption useMasterKey --value=1
-        # The encryption commands exit 1 while maintenance mode is on, as it
-        # is in config copied from a backup; they run on the next start
-        # after maintenance is off.
-        if [ "$$(php occ config:system:get maintenance 2>/dev/null)" = "true" ]; then
-          echo "catena: maintenance mode is on; skipping encryption setup" >&2
-        else
-          if [ "$$(php occ config:app:get encryption useMasterKey 2>/dev/null)" != "1" ]; then
-            printf 'y\n' | php occ encryption:enable-master-key
-          fi
-          php occ encryption:enable
-        fi
-        # --- Catena SSE diagnostic sentinel ------------------------------
-        # Captures the bytes that would diverge under the three Bad-
-        # Signature theories (secret rotation, hook ordering, S3 master-
-        # key corruption) so the bench / operator can compare runtime
-        # state against install-time state when WebDAV PUT 503s with
-        # "Encryption not ready". Hashes never leak the secret in
-        # clear -- only sha256 prints land in the sentinel. The file
-        # sits under the local nc-data volume (NOT objectstore), so it
-        # survives container recreate but goes away with the VM disk.
-        # Rewritten on every container boot so a redeploy that bumps
-        # the secret would show in a fresh capture.
-        diag_inst="$$(php occ config:system:get instanceid 2>/dev/null | tr -d '\n')"
-        diag_secret="$$(php occ config:system:get secret 2>/dev/null)"
-        diag_salt="$$(php occ config:system:get passwordsalt 2>/dev/null)"
-        diag_secret_h="$$(printf '%s' "$$diag_secret" | sha256sum | cut -d' ' -f1)"
-        diag_salt_h="$$(printf '%s' "$$diag_salt" | sha256sum | cut -d' ' -f1)"
-        diag_useMK="$$(php occ config:app:get encryption useMasterKey 2>/dev/null | tr -d '\n')"
-        diag_encE="$$(php occ config:app:get core encryption_enabled 2>/dev/null | tr -d '\n')"
-        diag_defM="$$(php occ config:app:get core default_encryption_module 2>/dev/null | tr -d '\n')"
-        diag_apps_enc="$$(php occ app:list 2>/dev/null | awk '/^- encryption:/{getline; print $$2}' | tr -d '\n')"
-        diag_now="$$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-        mkdir -p /var/www/html/data
-        cat > /var/www/html/data/.catena-encryption-setup.json <<EOF_DIAG
-        {
-          "captured_at": "$$diag_now",
-          "container_hostname": "$$(hostname)",
-          "instanceid": "$$diag_inst",
-          "secret_sha256": "$$diag_secret_h",
-          "passwordsalt_sha256": "$$diag_salt_h",
-          "encryption_app_useMasterKey": "$$diag_useMK",
-          "core_encryption_enabled": "$$diag_encE",
-          "core_default_encryption_module": "$$diag_defM",
-          "encryption_app_version": "$$diag_apps_enc"
-        }
-        EOF_DIAG
         HOOK
         chmod 0755 /docker-entrypoint-hooks.d/before-starting/zz-catena.sh
         # Wait for postgres before handing over to the upstream entrypoint.
@@ -186,69 +115,6 @@ services:
           fi
           sleep 2
         done
-        # Nextcloud names the storage that holds its object store after the
-        # bucket (oc_storages id object::store:amazon::<bucket>, or the md5 of
-        # that when it is longer than 64 characters), and the master encryption
-        # key files live on that storage. A start on a bucket whose name matches
-        # no storage creates an empty one and generates a new master key that
-        # cannot open the existing share keys. So, before the upstream
-        # entrypoint can touch the object store, the lone root storage is
-        # renamed to the configured bucket's id. The root storage is found by
-        # its id prefix, or, when the id is hashed, as the storage that holds
-        # the appdata folder of this instance. The UPDATE changes a row only
-        # while no storage has the new id, so a restart changes nothing.
-        # When two root storages exist (a start on the new bucket already made
-        # one), neither is changed and the start is refused (exit 3): running
-        # on the new, empty one would write files under a master key that
-        # cannot read the old ones. The log names the ids and the choice.
-        # The cron service renames nothing: it runs its jobs only while the
-        # configured bucket's storage is the one root storage.
-        root_store_id() {
-          id="object::store:amazon::$${OBJECTSTORE_S3_BUCKET}"
-          if [ "$${#id}" -gt 64 ]; then
-            id="$$(printf '%s' "$$id" | md5sum | cut -d' ' -f1)"
-          fi
-          printf '%s' "$$id"
-        }
-        rename_root_storage() {
-          CATENA_ROOT_STORE_ID="$$(root_store_id)" php -r '
-            $$bucket = getenv("OBJECTSTORE_S3_BUCKET");
-            if ($$bucket === false || $$bucket === "") { exit(0); }
-            $$cfg = "/var/www/html/config/config.php";
-            if (!is_file($$cfg)) { exit(0); }
-            include $$cfg;
-            if (empty($$CONFIG["instanceid"])) { exit(0); }
-            $$prefix = !empty($$CONFIG["dbtableprefix"]) ? $$CONFIG["dbtableprefix"] : "oc_";
-            $$t = $$prefix . "storages";
-            $$f = $$prefix . "filecache";
-            $$new = getenv("CATENA_ROOT_STORE_ID");
-            $$refuse = function ($$ids) use ($$bucket, $$prefix, $$t) {
-              fwrite(STDERR, "catena: refusing to start: " . count($$ids) . " root object stores exist (" . implode(", ", $$ids) . ") and the configured bucket is " . $$bucket . ". The master encryption key of each store opens only the files written under it, so the files of the old store are unreadable while the new one is in use, and every file written meanwhile widens the split. To choose: count the rows of " . $$prefix . "filecache per store (" . $$prefix . "filecache.storage = " . $$t . ".numeric_id), delete the rows of the store you do not keep from " . $$prefix . "filecache and from " . $$t . ", and set the bucket to the one the kept store belongs to. A kept store under another bucket name is renamed to the configured bucket at the next start.\n");
-              exit(3);
-            };
-            try {
-              $$db = new PDO(
-                "pgsql:host=".getenv("POSTGRES_HOST").";dbname=".getenv("POSTGRES_DB"),
-                getenv("POSTGRES_USER"), getenv("POSTGRES_PASSWORD"),
-                [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
-              );
-              $$sel = $$db->prepare("SELECT s.id, s.numeric_id FROM $$t s WHERE s.id LIKE ? OR (s.id NOT LIKE ? AND LENGTH(s.id) = 32 AND EXISTS (SELECT 1 FROM $$f f WHERE f.storage = s.numeric_id AND f.path_hash = ?))");
-              $$sel->execute(["object::store:amazon::%", "%:%", md5("appdata_" . $$CONFIG["instanceid"])]);
-              $$rows = $$sel->fetchAll(PDO::FETCH_NUM);
-              if (count($$rows) > 1) {
-                $$refuse(array_column($$rows, 0));
-              } elseif (count($$rows) === 1 && $$rows[0][0] !== $$new) {
-                $$up = $$db->prepare("UPDATE $$t SET id = ? WHERE numeric_id = ? AND NOT EXISTS (SELECT 1 FROM $$t WHERE id = ?)");
-                $$up->execute([$$new, $$rows[0][1], $$new]);
-                if ($$up->rowCount() !== 1) { $$refuse([$$rows[0][0], $$new]); }
-                echo "catena: root object store " . $$rows[0][0] . " renamed to " . $$new . "\n";
-              }
-            } catch (Throwable $$e) {
-              fwrite(STDERR, "catena: root object store rename skipped: " . $$e->getMessage() . "\n");
-            }
-          '
-        }
-        rename_root_storage || { rc=$$?; [ "$$rc" -ne 3 ] || exit 3; echo "catena: root object store rename failed" >&2; }
         exec /entrypoint.sh "$$@"
       - --
     command: ["apache2-foreground"]
@@ -274,7 +140,7 @@ services:
       # the operator-controlled max-age cap. Default `auto, 7` keeps
       # ~50-70% less storage than the upstream default 30-day cap;
       # raise to `auto, 14` or `auto, 30` for clients who routinely
-      # need deeper undo. Direct lever on hot+cold bucket storage cost.
+      # need deeper undo. Direct lever on the disk the files use.
       #
       # NEXTCLOUD_TRASH_RETENTION: passed verbatim into the
       # `trashbin_retention_obligation` config key, `<min>, <max>` in
@@ -317,22 +183,6 @@ services:
       POSTGRES_USER: nextcloud
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       REDIS_HOST: redis
-
-      OBJECTSTORE_S3_BUCKET: ${S3_BUCKET}
-      OBJECTSTORE_S3_REGION: ${S3_REGION}
-      OBJECTSTORE_S3_HOST: ${S3_HOST}
-      # Endpoint transport. Prod S3 (OVH/eazybackup/AWS) is TLS on 443,
-      # the defaults here. A self-hosted S3 (MinIO) on a client's own
-      # network -- and the test bench's MinIO VM -- may serve plain HTTP
-      # on a non-443 port, so both are overridable from the env. The
-      # bench injects S3_SSL=false + S3_PORT=9000; a real deploy leaves
-      # them unset and gets TLS/443.
-      OBJECTSTORE_S3_PORT: ${S3_PORT:-443}
-      OBJECTSTORE_S3_SSL: ${S3_SSL:-true}
-      OBJECTSTORE_S3_USEPATH_STYLE: "true"
-      OBJECTSTORE_S3_AUTOCREATE: "false"
-      OBJECTSTORE_S3_KEY: ${S3_ACCESS_KEY}
-      OBJECTSTORE_S3_SECRET: ${S3_SECRET_KEY}
     volumes:
       # THE CODE TREE MUST SURVIVE THE CONTAINER. The entrypoint reads
       # /var/www/html/version.php to tell an existing installation from a
@@ -347,16 +197,13 @@ services:
       - nc-html:/var/www/html
       - nc-config:/var/www/html/config
       - nc-apps:/var/www/html/custom_apps
-      # Even with S3 primary storage, /var/www/html/data still holds
-      # appdata_<instance>/ residue, nextcloud.log, audit.log, .ocdata,
-      # sqlite caches for some apps -- everything Nextcloud writes
-      # outside the objectstore driver. Explicit named volume so the
-      # path lives at /srv/catena/docker/volumes/<compose>_nc-data/_data
-      # (predictable, visible in `docker volume ls`, captured by
-      # restic's docker/volumes/ rule). Without this mount, Docker
-      # creates an anonymous volume from the image's VOLUME directive
-      # -- still backed up but with an opaque sha256 name.
-      - nc-data:/var/www/html/data
+      # The files Nextcloud keeps for its users: the named volume nc-data, or a
+      # folder on a disk the administrator listed under Other folders to back
+      # up. A folder runs only once it is listed, and one that does not exist
+      # keeps the task from starting, so nothing is written to the root disk.
+      # The volume lives at /srv/catena/docker/volumes/<compose>_nc-data/_data
+      # and is captured by restic's docker/volumes/ rule.
+      - ${NEXTCLOUD_DATA_LOCATION}:/var/www/html/data
     labels:
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=80"
@@ -460,52 +307,10 @@ services:
           sleep 2
         done
         # The image's cron.sh only starts crond, so the ticks run from this
-        # loop, as the image's crontab does (every 5 minutes, as www-data), with
-        # a guard in front: a tick runs only while the configured bucket's
-        # storage is the one root object store (see the app service's
-        # entrypoint). A cron task started before or after an update, with
-        # either bucket in its env, therefore never creates a root storage for
-        # a bucket that is not the live one. The guard reads and never writes.
-        root_store_id() {
-          id="object::store:amazon::$${OBJECTSTORE_S3_BUCKET}"
-          if [ "$${#id}" -gt 64 ]; then
-            id="$$(printf '%s' "$$id" | md5sum | cut -d' ' -f1)"
-          fi
-          printf '%s' "$$id"
-        }
-        cron_guard() {
-          CATENA_ROOT_STORE_ID="$$(root_store_id)" php -r '
-            $$cfg = "/var/www/html/config/config.php";
-            if (!is_file($$cfg)) { fwrite(STDERR, "catena: background jobs skipped: not installed yet\n"); exit(4); }
-            include $$cfg;
-            if (empty($$CONFIG["instanceid"])) { fwrite(STDERR, "catena: background jobs skipped: not installed yet\n"); exit(4); }
-            $$prefix = !empty($$CONFIG["dbtableprefix"]) ? $$CONFIG["dbtableprefix"] : "oc_";
-            $$t = $$prefix . "storages";
-            $$f = $$prefix . "filecache";
-            $$new = getenv("CATENA_ROOT_STORE_ID");
-            try {
-              $$db = new PDO(
-                "pgsql:host=".getenv("POSTGRES_HOST").";dbname=".getenv("POSTGRES_DB"),
-                getenv("POSTGRES_USER"), getenv("POSTGRES_PASSWORD"),
-                [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
-              );
-              $$sel = $$db->prepare("SELECT s.id, s.numeric_id FROM $$t s WHERE s.id LIKE ? OR (s.id NOT LIKE ? AND LENGTH(s.id) = 32 AND EXISTS (SELECT 1 FROM $$f f WHERE f.storage = s.numeric_id AND f.path_hash = ?))");
-              $$sel->execute(["object::store:amazon::%", "%:%", md5("appdata_" . $$CONFIG["instanceid"])]);
-              $$ids = array_column($$sel->fetchAll(PDO::FETCH_NUM), 0);
-            } catch (Throwable $$e) {
-              fwrite(STDERR, "catena: background jobs skipped: " . $$e->getMessage() . "\n");
-              exit(4);
-            }
-            if ($$ids === [$$new]) { exit(0); }
-            fwrite(STDERR, "catena: background jobs skipped: the root object stores are [" . implode(", ", $$ids) . "] and the configured one is " . $$new . "\n");
-            exit(4);
-          '
-        }
+        # loop, as the image's crontab does (every 5 minutes, as www-data).
         trap 'exit 0' TERM INT
         while true; do
-          if cron_guard; then
-            su -s /bin/sh www-data -c 'php -f /var/www/html/cron.php' || echo "catena: background job run failed" >&2
-          fi
+          su -s /bin/sh www-data -c 'php -f /var/www/html/cron.php' || echo "catena: background job run failed" >&2
           sleep 300 & wait $$!
         done
     environment:
@@ -514,20 +319,6 @@ services:
       POSTGRES_USER: nextcloud
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       REDIS_HOST: redis
-      OBJECTSTORE_S3_BUCKET: ${S3_BUCKET}
-      OBJECTSTORE_S3_REGION: ${S3_REGION}
-      OBJECTSTORE_S3_HOST: ${S3_HOST}
-      # Endpoint transport. Prod S3 (OVH/eazybackup/AWS) is TLS on 443,
-      # the defaults here. A self-hosted S3 (MinIO) on a client's own
-      # network -- and the test bench's MinIO VM -- may serve plain HTTP
-      # on a non-443 port, so both are overridable from the env. The
-      # bench injects S3_SSL=false + S3_PORT=9000; a real deploy leaves
-      # them unset and gets TLS/443.
-      OBJECTSTORE_S3_PORT: ${S3_PORT:-443}
-      OBJECTSTORE_S3_SSL: ${S3_SSL:-true}
-      OBJECTSTORE_S3_USEPATH_STYLE: "true"
-      OBJECTSTORE_S3_KEY: ${S3_ACCESS_KEY}
-      OBJECTSTORE_S3_SECRET: ${S3_SECRET_KEY}
     volumes:
       # Same tree the app service runs from, for the same reason: cron execs
       # occ, which needs the code, and a cron container that populates its
@@ -535,10 +326,12 @@ services:
       - nc-html:/var/www/html
       - nc-config:/var/www/html/config
       - nc-apps:/var/www/html/custom_apps
-      # Cron and app must share the data volume -- background jobs
-      # (file scanning, preview generation, etc.) write to the same
-      # /var/www/html/data tree the app reads from.
-      - nc-data:/var/www/html/data
+      # The files Nextcloud keeps for its users, shared with `app`: the
+      # named volume nc-data, or a folder on a disk the administrator listed
+      # under Other folders to back up. A folder runs only once it is listed,
+      # and one that does not exist keeps the task from starting.
+      # Background jobs (file scanning, previews) write to the same tree.
+      - ${NEXTCLOUD_DATA_LOCATION}:/var/www/html/data
     # No command override on cron: the entrypoint above waits and then runs
     # the background-job loop. The app service writes zz-catena.config.php
     # into the shared nc-config volume on its own startup; cron picks it up

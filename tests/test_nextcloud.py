@@ -21,7 +21,6 @@ from lib import model, quiesce_lint  # noqa: E402
 BLUEPRINT = ROOT / "blueprints" / "nextcloud-s3-oidc"
 
 ENV = {
-    "S3_BUCKET": "files-bucket", "S3_HOST": "s3.example.test", "S3_PORT": "443", "S3_SSL": "true",
     "OIDC_CLIENT_ID": "nextcloud", "OIDC_CLIENT_SECRET": "s3cr3t",
     "OIDC_ISSUER_URL": "https://auth.example.test/realms/vps/",
     "SIGNALING_HOSTNAME": "signaling.example.test", "SIGNALING_SECRET": "sig-secret",
@@ -97,22 +96,12 @@ if tool == "curl":
         save()
         up = state["signaling_up"] and state["signaling_probes"] > state["signaling_after"]
     else:
-        up = state["s3_up"]
+        up = False
     sys.exit(0 if up else 7)
 
 # php
 if not argv:
     script = sys.stdin.read()
-    if "mimetypes" in script:
-        if state["filecache_down"]:
-            print("catena: connection refused", file=sys.stderr)
-            sys.exit(2)
-        print("\n".join(str(i) for i in state["filecache_ids"]))
-        sys.exit(0)
-    if "CATENA_STORE_ID" in script:
-        if state["storages_down"]:
-            sys.exit(2)
-        sys.exit(0 if os.environ["CATENA_STORE_ID"] in state["storage_ids"] else 1)
     sys.exit(state["db_rc"])
 cmd, rest = argv[1], argv[2:]
 line = " ".join(argv[1:])
@@ -124,11 +113,6 @@ if state.get("fail") and line.startswith(state["fail"]):
 
 if cmd == "status":
     sys.exit(0 if state["ready"] else 1)
-if cmd == "files:object:list":
-    print("+-----------+\n| Object    |\n+-----------+")
-    for urn in state["bucket"]:
-        print("| " + urn + " |")
-    sys.exit(0)
 if cmd == "app:getpath":
     sys.exit(0 if rest[0] in apps else 1)
 if cmd == "app:install":
@@ -261,12 +245,12 @@ def test_the_hooks_run_in_the_app_service_as_www_data():
     hooks = _entry().block["hooks"]
     assert hooks["service"] in _compose()["services"]
     assert hooks["user"] == "www-data"
-    assert set(hooks) - {"service", "user", "timeout_seconds"} == {"configure", "verify", "reconcile"}
+    assert set(hooks) - {"service", "user", "timeout_seconds"} == {"configure", "verify"}
     assert quiesce_lint.lint_hooks(_entry()) == []
     assert quiesce_lint.lint_block(_entry()) == []
 
 
-@pytest.mark.parametrize("name", ["configure", "verify", "reconcile"])
+@pytest.mark.parametrize("name", ["configure", "verify"])
 def test_each_body_parses_in_sh(name):
     subprocess.run(["sh", "-n", "-c", _body(name)], check=True)
 
@@ -304,9 +288,6 @@ class Instance:
     def __init__(self, tmp_path: Path):
         self.root = tmp_path / "html"
         (self.root / "config").mkdir(parents=True)
-        self.image = tmp_path / "image"
-        (self.image / "config").mkdir(parents=True)
-        (self.image / "config" / "s3.config.php").write_text("<?php // image copy\n")
         self.bin = tmp_path / "bin"
         self.bin.mkdir()
         for tool in ("php", "curl", "getent"):
@@ -320,9 +301,8 @@ class Instance:
             "talk": {"turn": [], "stun": [], "signaling": []},
             "store": {"user_oidc": "8.11.3", "mail": "5.0", "files_antivirus": "6.0", "spreed": "21.0",
                       "external": "5.4", "richdocuments": "9.0", "onlyoffice": "9.0"},
-            "ready": True, "signaling_up": True, "signaling_after": 0, "signaling_probes": 0, "roundcube": True, "s3_up": True, "office_up": True,
-            "db_rc": 1, "bucket": [], "filecache_ids": [], "filecache_down": False,
-            "storage_ids": ["object::store:amazon::files-bucket"], "storages_down": False,
+            "ready": True, "signaling_up": True, "signaling_after": 0, "signaling_probes": 0, "roundcube": True, "office_up": True,
+            "db_rc": 1,
             "status_php": {"installed": True, "maintenance": False, "needsDbUpgrade": False, "version": "34.0.5"},
         }
         self.installed()
@@ -340,8 +320,7 @@ class Instance:
 
     def run(self, name: str, **env) -> subprocess.CompletedProcess:
         self.state_path.write_text(json.dumps(self.state))
-        body = (_body(name).replace("/var/www/html", str(self.root))
-                .replace("/usr/src/nextcloud", str(self.image)))
+        body = _body(name).replace("/var/www/html", str(self.root))
         body = re.sub(r"^WAIT=\d+$", "WAIT=10", body, flags=re.M)
         environ = {"PATH": f"{self.bin}:/usr/bin:/bin", "FAKE_STATE": str(self.state_path)}
         environ.update({**ENV, **env})
@@ -795,108 +774,7 @@ def test_onlyoffice_without_a_jwt_secret_is_not_wired(nc):
     assert "onlyoffice" not in nc.state["apps"]
 
 
-def test_the_object_store_file_is_put_back_from_the_image(nc):
-    assert nc.run("configure").returncode == 0
-    assert (nc.root / "config" / "s3.config.php").read_text() == "<?php // image copy\n"
-
-
-def test_an_object_store_file_already_there_is_kept(nc):
-    (nc.root / "config" / "s3.config.php").write_text("<?php // mine\n")
-    assert nc.run("configure").returncode == 0
-    assert (nc.root / "config" / "s3.config.php").read_text() == "<?php // mine\n"
-
-
-def test_no_object_store_file_is_written_into_a_config_directory_that_is_not_installed_yet(nc):
-    (nc.root / "config" / "config.php").unlink()
-    nc.state["ready"] = False
-    nc.run("configure")
-    assert not (nc.root / "config" / "s3.config.php").exists()
-
-
-def test_no_object_store_file_is_written_without_a_bucket(nc):
-    assert nc.run("configure", S3_BUCKET="").returncode == 0
-    assert not (nc.root / "config" / "s3.config.php").exists()
-
-
-DISK = "this instance keeps its files on disk; the bucket setting is ignored"
-
-
-def test_an_instance_on_disk_gets_no_object_store_file_and_is_told_so(nc):
-    nc.state["storage_ids"] = ["home::admin", "local::/var/www/html/data/"]
-    run = nc.run("configure")
-    assert run.returncode == 0, run.stderr
-    assert not (nc.root / "config" / "s3.config.php").exists()
-    assert DISK in run.stdout
-    assert "put back" not in run.stdout
-
-
-def test_an_instance_on_disk_loses_the_object_store_file_the_image_copied_at_its_first_start(nc):
-    nc.state["storage_ids"] = []
-    (nc.root / "config" / "s3.config.php").write_text("<?php // first start\n")
-    run = nc.run("configure")
-    assert run.returncode == 0, run.stderr
-    assert not (nc.root / "config" / "s3.config.php").exists()
-    assert DISK in run.stdout and "the object store file was removed" in run.stdout
-
-
-def test_the_object_store_file_stays_while_the_instance_is_not_installed_or_in_maintenance(nc):
-    nc.state["storage_ids"] = []
-    (nc.root / "config" / "s3.config.php").write_text("<?php // mid-install\n")
-    nc.installed(maintenance=True)
-    assert nc.run("configure").returncode == 0
-    assert (nc.root / "config" / "s3.config.php").exists()
-    (nc.root / "config" / "config.php").write_text("<?php\n$CONFIG = array (\n  'instanceid' => 'x',\n);\n")
-    assert nc.run("configure").returncode == 0
-    assert (nc.root / "config" / "s3.config.php").exists()
-
-
-def test_an_object_store_instance_keeps_its_file_and_is_not_told_it_keeps_its_files_on_disk(nc):
-    (nc.root / "config" / "s3.config.php").write_text("<?php // mine\n")
-    run = nc.run("configure")
-    assert run.returncode == 0, run.stderr
-    assert (nc.root / "config" / "s3.config.php").read_text() == "<?php // mine\n"
-    assert DISK not in run.stdout
-
-
-def test_a_bucket_name_too_long_for_a_storage_id_is_found_by_its_hash(nc):
-    import hashlib
-
-    bucket = "b" * 60
-    nc.state["storage_ids"] = [hashlib.md5(f"object::store:amazon::{bucket}".encode()).hexdigest()]
-    run = nc.run("configure", S3_BUCKET=bucket)
-    assert run.returncode == 0, run.stderr
-    assert (nc.root / "config" / "s3.config.php").exists()
-    assert DISK not in run.stdout
-
-
-def test_a_database_that_does_not_answer_decides_nothing_about_the_object_store_file(nc):
-    nc.state["storages_down"] = True
-    run = nc.run("configure")
-    assert run.returncode == 0, run.stderr
-    assert not (nc.root / "config" / "s3.config.php").exists()
-    assert DISK not in run.stdout
-
-
 # verify
-
-def _healthy(nc: Instance):
-    nc.state["system"].update({"objectstore/class": "\\OC\\Files\\ObjectStore\\S3",
-                               "objectstore/arguments/bucket": "files-bucket"})
-
-
-def test_verify_passes_for_an_instance_on_its_bucket_with_the_endpoint_answering(nc):
-    _healthy(nc)
-    run = nc.run("verify")
-    assert run.returncode == 0, run.stderr
-    assert "uses the bucket files-bucket" in run.stdout
-    assert "curl https://s3.example.test:443/" in nc.calls()
-
-
-def test_verify_asks_a_plain_http_endpoint_over_http(nc):
-    _healthy(nc)
-    assert nc.run("verify", S3_SSL="false", S3_PORT="9000").returncode == 0
-    assert "curl http://s3.example.test:9000/" in nc.calls()
-
 
 def test_verify_fails_when_nextcloud_does_not_answer(nc):
     nc.state["ready"] = False
@@ -911,178 +789,33 @@ def test_verify_passes_during_a_backup_window(nc):
     assert run.returncode == 0 and "maintenance mode" in run.stdout
 
 
-def test_verify_fails_when_the_object_store_is_not_configured(nc):
+def test_verify_passes_when_nextcloud_and_apache_answer(nc):
     run = nc.run("verify")
-    assert run.returncode == 1 and "the object store is not configured" in run.stderr
-
-
-def test_verify_fails_when_nextcloud_uses_another_bucket(nc):
-    _healthy(nc)
-    nc.state["system"]["objectstore/arguments/bucket"] = "old-bucket"
-    run = nc.run("verify")
-    assert run.returncode == 1
-    assert "uses the bucket 'old-bucket' while the environment names 'files-bucket'" in run.stderr
-
-
-def test_verify_fails_when_the_endpoint_does_not_answer(nc):
-    _healthy(nc)
-    nc.state["s3_up"] = False
-    run = nc.run("verify")
-    assert run.returncode == 1 and "s3.example.test:443 does not answer" in run.stderr
-
-
-def test_verify_fails_naming_the_disk_when_a_bucket_is_set_on_an_instance_on_disk(nc):
-    nc.state["storage_ids"] = ["home::admin"]
-    run = nc.run("verify")
-    assert run.returncode == 1
-    assert DISK in run.stderr
-    assert "the object store is not configured" not in run.stderr
-
-
-def test_verify_still_checks_the_object_store_when_the_database_does_not_answer(nc):
-    nc.state["storages_down"] = True
-    run = nc.run("verify")
-    assert run.returncode == 1 and "the object store is not configured" in run.stderr
-
-
-def test_verify_without_a_bucket_only_asks_nextcloud_to_answer(nc):
-    run = nc.run("verify", S3_BUCKET="")
-    assert run.returncode == 0 and run.stdout.strip() == "Nextcloud answers and Apache serves status.php"
+    assert run.returncode == 0, run.stderr
+    assert run.stdout.strip() == "Nextcloud answers and Apache serves status.php"
 
 
 def test_verify_asks_apache_for_status_php_on_the_address_the_boot_probe_uses(nc):
-    _healthy(nc)
     assert nc.run("verify").returncode == 0
     assert "curl http://localhost/status.php" in nc.calls()
 
 
 def test_verify_fails_when_apache_does_not_answer_status_php(nc):
-    _healthy(nc)
     nc.state["status_php"] = None
     run = nc.run("verify")
     assert run.returncode == 1 and "Apache does not answer status.php" in run.stderr
 
 
 def test_verify_fails_when_status_php_reports_an_instance_that_is_not_installed(nc):
-    _healthy(nc)
     nc.state["status_php"] = {"installed": False, "maintenance": False, "version": "34.0.5"}
     run = nc.run("verify")
     assert run.returncode == 1 and "Apache does not answer status.php with an installed instance" in run.stderr
 
 
 def test_verify_passes_when_status_php_reports_the_maintenance_mode_a_backup_holds(nc):
-    _healthy(nc)
     nc.state["status_php"] = {"installed": True, "maintenance": True, "version": "34.0.5"}
     run = nc.run("verify")
     assert run.returncode == 0 and "maintenance mode" in run.stdout
-
-
-# the declarations the engines read
-
-def test_the_block_declares_the_object_store_the_hooks_check():
-    entry = _entry()
-    assert entry.object_store["env"]["bucket"] == "S3_BUCKET"
-    assert quiesce_lint.lint_object_store(entry) == []
-    for key in ("S3_BUCKET", "S3_HOST", "S3_PORT", "S3_SSL"):
-        assert key in entry.env
-
-
-# reconcile
-
-def _indexed(nc: Instance, ids, held):
-    nc.state["filecache_ids"] = list(ids)
-    nc.state["bucket"] = [f"urn:oid:{i}" for i in held]
-
-
-def test_reconcile_counts_the_files_the_bucket_lacks(nc):
-    _indexed(nc, [3, 4, 5, 6, 10], [3, 5, 10, 11])
-    run = nc.run("reconcile")
-    assert run.returncode == 0, run.stderr
-    assert run.stdout.splitlines()[-1] == "missing=2 bucket=4 database=5"
-    assert "urn:oid:4 urn:oid:6" in run.stdout
-
-
-def test_reconcile_of_a_complete_bucket_says_zero_missing(nc):
-    _indexed(nc, [3, 4], [3, 4])
-    run = nc.run("reconcile")
-    assert run.returncode == 0, run.stderr
-    assert run.stdout.splitlines()[-1] == "missing=0 bucket=2 database=2"
-
-
-def test_reconcile_of_an_empty_bucket_reports_every_row_as_missing(nc):
-    _indexed(nc, [3, 4], [])
-    run = nc.run("reconcile")
-    assert run.returncode == 0, run.stderr
-    assert run.stdout.splitlines()[-1] == "missing=2 bucket=0 database=2"
-
-
-def test_reconcile_in_maintenance_mode_prints_no_count(nc):
-    _indexed(nc, [3], [3])
-    nc.installed(maintenance=True)
-    nc.state["ready"] = False
-    run = nc.run("reconcile")
-    assert run.returncode == 0, run.stderr
-    assert "missing=" not in run.stdout
-    assert "maintenance mode is on" in run.stdout
-
-
-def test_reconcile_fails_when_the_bucket_cannot_be_listed(nc):
-    _indexed(nc, [3], [3])
-    nc.state["fail"] = "files:object:list"
-    run = nc.run("reconcile")
-    assert run.returncode == 1
-    assert "missing=" not in run.stdout
-    assert "files:object:list failed" in run.stderr
-
-
-def test_reconcile_fails_when_the_database_cannot_be_read(nc):
-    _indexed(nc, [3], [3])
-    nc.state["filecache_down"] = True
-    run = nc.run("reconcile")
-    assert run.returncode == 1
-    assert "missing=" not in run.stdout
-    assert "the filecache query failed" in run.stderr
-
-
-@pytest.mark.parametrize("tool,call", [("sort", 1), ("sort", 2), ("comm", 1)])
-def test_reconcile_prints_no_count_when_a_sort_or_the_comparison_fails(nc, tool, call):
-    """A tool that cannot write its result (a full /tmp) must not leave a
-    short file that reads as a count."""
-    _indexed(nc, [3, 4], [3])
-    counter = nc.bin / f"{tool}.calls"
-    (nc.bin / tool).write_text(
-        f'#!/bin/sh\nn=$(cat "{counter}" 2>/dev/null || echo 0)\nn=$((n + 1))\n'
-        f'echo $n >"{counter}"\n[ "$n" -eq {call} ] && exit 1\nexec /usr/bin/{tool} "$@"\n')
-    (nc.bin / tool).chmod(0o755)
-    run = nc.run("reconcile")
-    assert run.returncode == 1, run.stdout
-    assert "missing=" not in run.stdout
-    assert run.stderr.strip()
-
-
-def test_reconcile_fails_when_the_database_lists_no_object_backed_file(nc):
-    _indexed(nc, [], [3, 4])
-    run = nc.run("reconcile")
-    assert run.returncode == 1
-    assert "missing=" not in run.stdout
-    assert "lists no object-backed file" in run.stderr
-
-
-def test_reconcile_fails_when_nextcloud_never_answers(nc):
-    nc.state["ready"] = False
-    run = nc.run("reconcile")
-    assert run.returncode == 1
-    assert "did not answer within 10s" in run.stderr
-    assert "missing=" not in run.stdout
-
-
-def test_reconcile_of_an_instance_on_disk_has_no_object_store_to_count(nc):
-    _indexed(nc, [3], [3])
-    run = nc.run("reconcile", S3_BUCKET="")
-    assert run.returncode == 1
-    assert "keeps its files on disk" in run.stderr
-    assert "missing=" not in run.stdout
-    assert not any(c.startswith("files:object:list") for c in nc.calls())
 
 
 # the boot probe
@@ -1098,9 +831,27 @@ def test_the_probe_starts_the_app_service_and_asks_for_an_installed_instance():
     assert quiesce_lint.lint_probe(entry) == []
 
 
-def test_the_block_declares_the_reconcile_hook():
+def test_the_block_declares_where_the_files_live_and_no_object_store():
     entry = _entry()
-    assert entry.block["hooks"]["reconcile"]
+    setting = entry.block["env"]["NEXTCLOUD_DATA_LOCATION"]["setting"]
+    assert setting["default"] == "nc-data" and setting["first_start_only"] is True
+    assert setting["label"]["en"] and setting["label"]["fr"]
+    assert "object_store" not in entry.block and "reconcile" not in entry.block["hooks"]
+    assert not any(k.startswith("S3_") for k in entry.block["env"])
+
+
+@pytest.mark.parametrize("service", ["app", "cron"])
+def test_the_data_folder_is_the_setting_in_app_and_cron(service):
+    volumes = _compose()["services"][service]["volumes"]
+    assert "${NEXTCLOUD_DATA_LOCATION}:/var/www/html/data" in volumes
+    assert "nc-data" in _compose()["volumes"]
+    assert not any("OBJECTSTORE" in k for k in _compose()["services"][service]["environment"])
+
+
+def test_the_overlay_hook_sets_up_no_encryption():
+    entrypoint = _compose()["services"]["app"]["entrypoint"][2]
+    assert "zz-catena.sh" in entrypoint and "encryption" not in entrypoint
+    assert "s3.config.php" not in entrypoint and "OBJECTSTORE" not in entrypoint
 
 
 # talk-hpb
@@ -1164,17 +915,3 @@ def test_each_generated_value_says_what_a_change_does():
         passed = env[key]["generated"]
         assert passed["applied_on_deploy"] is True and "first_start_only" not in passed, key
         assert "when the file is saved" in passed["note"], key
-
-
-def test_the_object_store_note_is_in_both_languages():
-    note = _entry().block["object_store"]["note"]
-    assert note["en"] and note["fr"]
-    assert "after the first start is refused" in note["en"]
-
-
-def test_the_bucket_settings_are_first_start_only_and_the_keys_are_not():
-    env = _entry().block["env"]
-    for key in ("S3_BUCKET", "S3_HOST", "S3_PORT", "S3_SSL", "S3_REGION"):
-        assert env[key]["setting"]["first_start_only"] is True, key
-    for key in ("S3_ACCESS_KEY", "S3_SECRET_KEY"):
-        assert "first_start_only" not in env[key]["setting"], key
