@@ -271,7 +271,7 @@ def test_the_checker_command_prints_the_image(tmp_path, monkeypatch, capsys):
 
 def test_the_checker_command_runs_in_the_script_s_own_uv_environment():
     done = subprocess.run(
-        ["uv", "run", "--quiet", str(ROOT / "build" / "app_check.py"), "checker", "nextcloud-s3-oidc"],
+        ["uv", "run", "--quiet", str(ROOT / "build" / "app_check.py"), "checker", "nextcloud"],
         cwd=ROOT.parent, capture_output=True, text=True, check=False,
         env={k: v for k, v in os.environ.items() if k != "PYTHONPATH"})
     assert done.returncode == 0, done.stderr
@@ -334,16 +334,16 @@ def test_provenance_errors_leave_the_age_out_when_the_environment_says_false(tmp
 
 def test_changed_paths_reduce_to_app_ids():
     paths = [
-        "blueprints/nextcloud-s3-oidc/docker-compose.yml",
-        "blueprints/nextcloud-s3-oidc/README.md",
-        "blueprints/nextcloud-s3-oidc/app.json",
+        "blueprints/nextcloud/docker-compose.yml",
+        "blueprints/nextcloud/README.md",
+        "blueprints/nextcloud/app.json",
         "catalog-meta.json",
         "lib/model.py",
         "blueprints/outline/logo.png",
         "blueprints/stray.txt",
         "",
     ]
-    assert changes.app_ids(paths) == ["nextcloud-s3-oidc", "outline"]
+    assert changes.app_ids(paths) == ["nextcloud", "outline"]
 
 
 def test_a_card_file_belongs_to_its_app_and_the_catalogs_root_files_to_none():

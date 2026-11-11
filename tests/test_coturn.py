@@ -176,7 +176,7 @@ def test_what_the_relay_provides_is_all_the_readers_ask_for():
                for e in entries}
     assert {slug: names for slug, names in readers.items() if names} == {
         "element": {"host", "port", "secret", "tls_port"},
-        "nextcloud-s3-oidc": {"host", "port", "secret", "tls_port"}}
+        "nextcloud": {"host", "port", "secret", "tls_port"}}
 
 
 # --- the start script ---------------------------------------------------------

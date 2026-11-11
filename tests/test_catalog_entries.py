@@ -186,7 +186,7 @@ def test_wordpress_mail_authenticates_with_the_relay_password_from_its_env():
 
 
 def _wrapper(service: str) -> str:
-    return _service("nextcloud-s3-oidc", service)["entrypoint"][2]
+    return _service("nextcloud", service)["entrypoint"][2]
 
 
 def _shell(script: str) -> str:
@@ -197,7 +197,7 @@ def _shell(script: str) -> str:
 def test_nextcloud_app_service_is_stop_first():
     """Swarm's default update order is stop-first and the app has no
     update_config, so no second app task runs beside the one being replaced."""
-    assert "update_config" not in _service("nextcloud-s3-oidc", "app")["deploy"]
+    assert "update_config" not in _service("nextcloud", "app")["deploy"]
 
 
 def _cron_loop() -> str:

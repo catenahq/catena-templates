@@ -75,7 +75,7 @@ Image findings accepted for 30 days sit in `.scanctl/baseline.sarif`; `scanctl a
 
 - `n8nio/n8n:2.41.7`: a newer tag carries fixes: 3.1.0, moving through https://github.com/catenahq/catena-templates/pull/197. Remaining: undici 6.28.0 (fixed in 6.29.1) and follow-redirects 1.16.0 (fixed in 1.16.1).
 
-## nextcloud-s3-oidc
+## nextcloud
 
 - `ghcr.io/nextcloud-releases/aio-talk:20261029_171813`: no fixed upstream image: it is the newest tag of its line (2026-11-06) and carries stdlib v1.26.1 (fixed in 1.26.10) and github.com/klauspost/compress v1.18.4 (fixed in 1.18.7).
 - `nextcloud:34.0.5-apache`: a newer tag exists, 35.0.2-apache, and no engine-bump pull request moves it yet. Remaining: symfony/http-foundation v6.4.42 (fixed in 6.4.46).
@@ -140,4 +140,4 @@ Image findings accepted for 30 days sit in `.scanctl/baseline.sarif`; `scanctl a
 - `mariadb:11.8.9`: no fixed upstream image: it is the newest 11.8 tag of its line (2026-11-06) and carries apt 2.8.3 (fixed in 2.8.4ubuntu0.1) and stdlib v1.24.6 (fixed in 1.26.10). Pinned by erpnext, erpnext-helpdesk.
 - `mariadb:12.3.3`: no fixed upstream image: it is the newest 12.3 tag of its line (2026-11-06) and carries apt 2.8.3 (fixed in 2.8.4ubuntu0.1) and stdlib v1.24.6 (fixed in 1.26.10). Pinned by espocrm, kimai, mautic, wordpress.
 - `mariadb:13.0.2`: no fixed upstream image: it is the newest 13.0 tag of its line (2026-11-06) and carries apt 3.2.0 (fixed in 3.2.1ubuntu0.1) and stdlib v1.24.6 (fixed in 1.26.10). Pinned by easyappointments, invoiceninja.
-- `postgres:18.6-alpine`: no fixed upstream image: it is the newest 18 tag of its line (2026-11-06) and carries stdlib v1.24.6 (fixed in 1.26.10). Pinned by docuseal, element, n8n, nextcloud-s3-oidc, outline, plane, postiz, twenty, windshift, zammad.
+- `postgres:18.6-alpine`: no fixed upstream image: it is the newest 18 tag of its line (2026-11-06) and carries stdlib v1.24.6 (fixed in 1.26.10). Pinned by docuseal, element, n8n, nextcloud, outline, plane, postiz, twenty, windshift, zammad.

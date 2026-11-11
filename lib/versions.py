@@ -1,6 +1,6 @@
 """App versions are git tags, not strings in files.
 
-A tested app is tagged `<app>/<version>-<revision>` (`nextcloud-s3-oidc/31.0.8-1`).
+A tested app is tagged `<app>/<version>-<revision>` (`nextcloud/31.0.8-1`).
 The version is the numeric part of the image tag of the app's main address
 service: the compose block's `version_from` service when it names one, else the
 service the compose labels as the main address (the only one carrying
