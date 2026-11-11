@@ -1482,3 +1482,132 @@ def test_the_cleanup_deletes_the_customers_tickets_and_the_user_and_nothing_else
     run, again = _desk(step, tmp_path, after)
     assert run.returncode == 0, run.stderr
     assert again == after
+
+
+# test.yml: the sign_in entries.
+
+SIGN_IN_EMAIL = "ana@client.example"
+SIGN_IN_STUB = '''
+import json
+import os
+
+_path = os.environ["STUB_STATE"]
+_state = json.load(open(_path))
+
+
+def _save():
+    json.dump(_state, open(_path, "w"))
+
+
+class _Db:
+    def get_value(self, doctype, name, fieldname):
+        assert (doctype, fieldname) == ("User", "enabled")
+        return _state["users"].get(name, {}).get("enabled")
+
+    def commit(self):
+        _save()
+
+
+db = _Db()
+
+
+def init(site):
+    assert site == os.environ["SITE_NAME"]
+
+
+def connect():
+    pass
+
+
+def destroy():
+    pass
+
+
+def get_all(doctype, filters, pluck):
+    assert (doctype, filters["parenttype"], pluck) == ("Has Role", "User", "role")
+    return list(_state["users"].get(filters["parent"], {}).get("roles", []))
+
+
+def delete_doc(doctype, name, force):
+    assert (doctype, force) == ("User", 1)
+    _state["users"].pop(name, None)
+'''
+
+
+def _sign_in_entries(slug: str) -> dict[str, dict]:
+    return {entry["name"]: entry for entry in _test_yml(slug)["sign_in"]}
+
+
+def _run_sign_in_step(step: dict, tmp_path: Path, users: dict) -> tuple[subprocess.CompletedProcess, dict]:
+    (tmp_path / "stubs").mkdir(exist_ok=True)
+    (tmp_path / "stubs" / "frappe.py").write_text(SIGN_IN_STUB, encoding="utf-8")
+    state = tmp_path / "state.json"
+    state.write_text(json.dumps({"users": users}))
+    shell, flag, body = [part.replace("{{ sign_in_email }}", SIGN_IN_EMAIL) for part in step["command"]]
+    body = body.replace("/home/frappe/frappe-bench/sites", str(tmp_path)).replace("../env/bin/python", sys.executable)
+    run = subprocess.run([shell, flag, body], capture_output=True, text=True, timeout=30,
+                         env={"PATH": os.environ["PATH"], "PYTHONPATH": str(tmp_path / "stubs"),
+                              "SITE_NAME": "erp.a.example", "STUB_STATE": str(state)})
+    return run, json.loads(state.read_text())["users"]
+
+
+def _step(entry: str, phase: str) -> dict:
+    [step] = _sign_in_entries("erpnext")[entry][phase]
+    return step
+
+
+def test_the_plain_app_declares_a_refused_staff_account_and_the_customer_level():
+    entries = _sign_in_entries("erpnext")
+    assert list(entries) == ["unknown_staff_refused", "customer_access"]
+    assert {key: value for key, value in entries["unknown_staff_refused"].items() if key != "name"} == {
+        "group": "staff", "expect": "refused", "status": 403}
+    customer = entries["customer_access"]
+    assert (customer["group"], customer["access"], customer["facts"]) == ("client", "customer", {"system_user": "no"})
+    assert customer["access"] in _entry("erpnext").block["access"]
+    assert set(customer) == {"name", "group", "access", "facts", "granted", "removed", "cleanup"}
+
+
+def test_every_sign_in_step_is_a_docker_exec_into_the_backend_naming_the_accounts_email():
+    steps = [step for phase in ("granted", "removed", "cleanup")
+             for step in _sign_in_entries("erpnext")["customer_access"][phase]]
+    names = [step["name"] for step in steps]
+    assert len(names) == len(set(names)) == 3
+    for step in steps:
+        assert step["type"] == "docker_exec" and step["container"] == "{{ container_backend }}"
+        assert "{{ sign_in_email }}" in step["command"][2]
+        assert "{{ sign_in_email }}" in step["expect_stdout_contains"]
+        assert "CATENA_TEST_PASSWORD" not in " ".join(step["command"])
+        subprocess.run(["bash", "-n", "-c", step["command"][2]], check=True)
+
+
+def test_the_granted_step_passes_only_while_the_user_holds_the_customer_role(tmp_path):
+    step = _step("customer_access", "granted")
+    run, _ = _run_sign_in_step(step, tmp_path, {SIGN_IN_EMAIL: {"enabled": 1, "roles": ["Customer"]}})
+    assert run.returncode == 0, run.stderr
+    assert f"customer role held by {SIGN_IN_EMAIL}" in run.stdout
+    for users in ({}, {SIGN_IN_EMAIL: {"enabled": 1, "roles": ["Sales User"]}}):
+        run, _ = _run_sign_in_step(step, tmp_path, users)
+        assert run.returncode != 0 and "expected Customer" in run.stderr
+
+
+@pytest.mark.parametrize("user, passes", [
+    ({"enabled": 0, "roles": []}, True),
+    ({"enabled": 0, "roles": ["Sales User"]}, True),
+    ({"enabled": 1, "roles": []}, False),
+    ({"enabled": 0, "roles": ["Customer"]}, False),
+    (None, False),
+])
+def test_the_removed_step_wants_a_disabled_user_without_the_customer_role(user, passes, tmp_path):
+    run, _ = _run_sign_in_step(_step("customer_access", "removed"), tmp_path,
+                               {} if user is None else {SIGN_IN_EMAIL: user})
+    assert (run.returncode == 0) == passes, run.stderr
+    assert (f"customer closed for {SIGN_IN_EMAIL}" in run.stdout) == passes
+
+
+def test_the_cleanup_step_deletes_the_user_and_only_that_user(tmp_path):
+    other = {"enabled": 1, "roles": []}
+    run, users = _run_sign_in_step(_step("customer_access", "cleanup"), tmp_path,
+                                   {SIGN_IN_EMAIL: {"enabled": 0, "roles": []}, "other@x.example": other})
+    assert run.returncode == 0, run.stderr
+    assert f"user deleted {SIGN_IN_EMAIL}" in run.stdout
+    assert users == {"other@x.example": other}
