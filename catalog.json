@@ -3859,6 +3859,15 @@
         "what_it_is": "A modern web console for Docker: manage containers, images, volumes, networks and Compose projects on this server."
       },
       "env": {
+        "AUTH_MODE": {
+          "setting": {
+            "default": "admin-only",
+            "label": {
+              "en": "Access: public, private or admin-only",
+              "fr": "Acc\u00e8s : public, private ou admin-only"
+            }
+          }
+        },
         "DOMAIN_HOST": {
           "setting": {
             "default": "arcane.{{ cloudflare_zone }}"
@@ -3883,6 +3892,7 @@
       "env_defaults": [
         "DOMAIN_HOST=arcane.{{ cloudflare_zone }}",
         "ENCRYPTION_KEY={{ lookup('password', '/dev/null length=64 chars=hexdigits') | lower }}",
+        "AUTH_MODE=admin-only",
         "UPDATE_LEVEL=major"
       ],
       "fr": {
