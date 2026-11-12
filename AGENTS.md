@@ -117,6 +117,12 @@ the repository, and the checks.
   label, and a literal label on a service that is not a database or a cache has
   a comment beside it naming why. `make lint` refuses a literal label without
   one and a compose that reads `UPDATE_LEVEL` without declaring it.
+- An app's main address reads who may open it from the setting `AUTH_MODE`: its
+  `vps.auth.mode` label is `${AUTH_MODE:-<mode>}` and the block declares
+  `AUTH_MODE` as a setting with the same default. Another address whose protocol
+  needs one access keeps a literal label with a comment beside it naming why.
+  `make lint` refuses a literal without that comment, a variable with no mode
+  default, and a default the setting does not share.
 - No emojis or em-dashes in any artifact. Plain hyphens + straight
   quotes only. `npm run check:unicode` enforces, and also scans for the
   system names it lists.

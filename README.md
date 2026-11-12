@@ -238,6 +238,11 @@ block.
    literal label (on a service that is no database or cache, with a comment
    naming why), and `make lint` refuses a variable with no level default, a
    literal label without that comment and an undeclared `UPDATE_LEVEL`.
+   The main address's `vps.auth.mode` label is `${AUTH_MODE:-<mode>}` (`public`,
+   `private` or `admin-only`) with the block's setting `AUTH_MODE` at the same
+   default; the panel lists it with the app's settings. Another address keeps a
+   literal label only with a comment naming why, and `make lint` refuses the
+   rest.
    An application that offers access levels to invited people adds `access`
    (`access: {user: {label: {en: "Nextcloud", fr: "Nextcloud"}}}`): the panel
    shows each label, and Catena admits the level's members at the application's

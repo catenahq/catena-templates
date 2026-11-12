@@ -334,16 +334,18 @@ services:
     labels:
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=80"
-      - "vps.auth.mode=public"
+      - "vps.auth.mode=${AUTH_MODE:-public}"
       - "vps.auth.oidc=true"
       - "vps.auth.oidc.redirect_uris=https://${DOMAIN_HOST}/cb"
   worker:
     image: acme/app:1.0.0
 """
+_SIGNIN_ENV = {"DOMAIN_HOST": {"setting": {"default": "x.example.com"}},
+               "AUTH_MODE": {"setting": {"default": "public"}}}
 
 
 def test_a_template_that_asks_for_a_sign_in_entry_passes(monkeypatch, tmp_path, capsys):
-    _synthetic_sources(monkeypatch, tmp_path, {}, _SIGNIN_COMPOSE)
+    _synthetic_sources(monkeypatch, tmp_path, {}, _SIGNIN_COMPOSE, block={"env": _SIGNIN_ENV})
     assert L.lint_all() == 0, capsys.readouterr().out
 
 
@@ -356,7 +358,7 @@ def test_a_sign_in_value_the_sync_writes_has_no_second_writer(
     same key from somewhere else."""
     spec = {"managed": {"expr": "x"}} if managed else {"setting": {"default": "from-the-catalog"}}
     _synthetic_sources(monkeypatch, tmp_path, {}, _SIGNIN_COMPOSE, block={
-        "env": {"DOMAIN_HOST": {"setting": {"default": "x.example.com"}}, key: spec}})
+        "env": {**_SIGNIN_ENV, key: spec}})
     assert L.lint_all() == 1
     assert f"synthetic-bad: {key} is declared in the block's env" in capsys.readouterr().out
 
@@ -481,11 +483,24 @@ def test_an_auth_mode_variable_with_a_matching_setting_passes(
 
 
 @pytest.mark.parametrize("value", ["public", "private", "admin-only"])
-@pytest.mark.parametrize("comment", ["", "# kept on purpose"])
-def test_a_literal_auth_mode_the_host_knows_passes_with_or_without_a_comment(
-        monkeypatch, tmp_path, capsys, value, comment):
-    _synthetic_sources(monkeypatch, tmp_path, {}, _auth_mode(value, comment), block=_LEVEL_ENV)
+def test_a_literal_auth_mode_with_a_comment_above_it_passes(monkeypatch, tmp_path, capsys, value):
+    _synthetic_sources(monkeypatch, tmp_path, {}, _auth_mode(value, "# why it stays"), block=_LEVEL_ENV)
     assert L.lint_all() == 0, capsys.readouterr().out
+
+
+def test_a_literal_auth_mode_with_a_comment_after_it_passes(monkeypatch, tmp_path, capsys):
+    compose = _auth_mode("public").replace('public"', 'public"  # why it stays')
+    _synthetic_sources(monkeypatch, tmp_path, {}, compose, block=_LEVEL_ENV)
+    assert L.lint_all() == 0, capsys.readouterr().out
+
+
+@pytest.mark.parametrize("value", ["public", "private", "admin-only"])
+def test_a_literal_auth_mode_with_no_comment_is_refused(monkeypatch, tmp_path, capsys, value):
+    _synthetic_sources(monkeypatch, tmp_path, {}, _auth_mode(value), block=_LEVEL_ENV)
+    assert L.lint_all() == 1
+    out = capsys.readouterr().out
+    assert f"synthetic-bad:app: vps.auth.mode={value} is a literal mode; write ${{AUTH_MODE:-<mode>}}, " \
+           "or a comment beside the label that names why the address keeps its access" in out
 
 
 @pytest.mark.parametrize("value,env,needle", [
@@ -558,7 +573,8 @@ def test_a_block_with_a_dollar_or_an_image_is_refused(
 ])
 def test_a_sign_in_label_the_host_cannot_use_is_refused(
         monkeypatch, tmp_path, capsys, edit, needle):
-    _synthetic_sources(monkeypatch, tmp_path, {}, _SIGNIN_COMPOSE.replace(*edit))
+    _synthetic_sources(monkeypatch, tmp_path, {}, _SIGNIN_COMPOSE.replace(*edit),
+                       block={"env": _SIGNIN_ENV})
     assert L.lint_all() == 1
     assert needle in capsys.readouterr().out
 
@@ -584,9 +600,9 @@ def _compose(services: dict[str, list[str]]) -> str:
 
 def test_sign_in_labels_on_the_marked_main_address_pass(monkeypatch, tmp_path, capsys):
     _synthetic_sources(monkeypatch, tmp_path, {}, _compose({
-        "app": [_HOST, _MAIN, "vps.auth.mode=public", *_SIGNIN],
-        "admin": [_ADMIN_HOST, "vps.auth.mode=admin-only"],
-    }))
+        "app": [_HOST, _MAIN, "vps.auth.mode=${AUTH_MODE:-public}", *_SIGNIN],
+        "admin": [_ADMIN_HOST],
+    }), block={"env": _SIGNIN_ENV})
     assert L.lint_all() == 0, capsys.readouterr().out
 
 

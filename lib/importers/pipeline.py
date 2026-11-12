@@ -1016,7 +1016,8 @@ class Importer:
                            for name, svc in stack.doc["services"].items())
         to_choose = stack.to_choose + c.to_choose + licence_checks + [
             f"pinned version: {images}",
-            f"access mode: no vps.auth.mode label, so only administrators reach {slug}.<domain>",
+            f"access mode: no vps.auth.mode label, so only administrators reach {slug}.<domain>; "
+            f"the address reads ${{AUTH_MODE:-<mode>}} with an AUTH_MODE setting",
             f"host name: {slug}.<domain> is a placeholder",
             f"upstream URL: {c.upstream_url} comes from the registry; the project's home page "
             f"belongs there",

@@ -62,7 +62,8 @@ run on every render. This module adds:
     declares it in the block's env.
   - A vps.auth.mode label on an address holds a mode the host knows, or a
     variable with a mode default that the block's env declares as a setting
-    with the same default.
+    with the same default. A literal mode carries a comment beside the label
+    that names why the address keeps its access.
   - Sign-in labels sit on the main address's service, the only service
     the host reads them from: the one service carrying vps.route.host, or,
     of several, the one also carrying vps.route.main=true. Each is one the
@@ -662,7 +663,9 @@ def lint_auth_mode(entry) -> list[str]:
     """The vps.auth.mode label of an address is a mode the host knows, or a
     variable with a mode default that the block declares as a setting with
     the same default."""
-    doc = yaml.safe_load(entry.compose_path.read_text(encoding="utf-8")) or {}
+    text = entry.compose_path.read_text(encoding="utf-8")
+    doc = yaml.safe_load(text) or {}
+    commented = commented_label(text, "vps.auth.mode")
     errors = []
     modes = ', '.join(sorted(AUTH_MODES))
     for name, service in (doc.get("services") or {}).items():
@@ -675,6 +678,9 @@ def lint_auth_mode(entry) -> list[str]:
         if variable is None:
             if value.strip() not in AUTH_MODES:
                 errors.append(f"{label} is not one of {modes}; the host reads it as unknown")
+            elif name not in commented:
+                errors.append(f"{label} is a literal mode; write ${{AUTH_MODE:-<mode>}}, or a "
+                              f"comment beside the label that names why the address keeps its access")
             continue
         key, default = variable.group(1), variable.group(2)
         if default is None:
