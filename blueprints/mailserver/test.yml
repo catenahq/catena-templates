@@ -16,8 +16,10 @@
 # (`stdin: acme_root`), which no container trusts: Roundcube verifies the mail server's
 # certificate, so without it the sign-in leg ends at the IMAP login. The root goes into
 # Roundcube's config volume with a php file, sorted after the template's own, that adds it
-# as `cafile` to both connection options; verification stays on. A host with no such root
-# gives an empty stdin, and the setup then changes nothing.
+# as `cafile` to both connection options; verification stays on. The image includes the
+# volume's php files in its generated config.docker.inc.php only when the container starts,
+# so the setup also adds the include to that file of the running container. A host with no
+# such root gives an empty stdin, and the setup then changes nothing.
 #
 # {{ run_id }} is supplied by the bench at execution time so the mailbox and the message are
 # unique per run. Each {{ container_* }} is resolved from `docker ps` before invoking.
@@ -51,6 +53,10 @@ setup:
         $config['imap_conn_options']['ssl']['cafile'] = '/var/roundcube/config/appci-acme-root.pem';
         $config['smtp_conn_options']['ssl']['cafile'] = '/var/roundcube/config/appci-acme-root.pem';
         EOF
+        running=/var/www/html/config/config.docker.inc.php
+        if ! grep -qF zz-appci-acme-root.inc.php "$running"; then
+          echo "include('$dir/zz-appci-acme-root.inc.php');" >> "$running"
+        fi
         echo "webmail trust: the ACME root"
     expect_stdout_contains: "webmail trust:"
     timeout_s: 60
