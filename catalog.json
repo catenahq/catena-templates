@@ -2126,6 +2126,15 @@
         "what_it_is": "Full open-source ERP suite -- accounting, inventory, HR/payroll, CRM, manufacturing, projects and a built-in website/e-commerce module."
       },
       "env": {
+        "AUTH_MODE": {
+          "setting": {
+            "default": "public",
+            "label": {
+              "en": "Access: public, private or admin-only",
+              "fr": "Acc\u00e8s : public, private ou admin-only"
+            }
+          }
+        },
         "DB_ROOT_PASSWORD": {
           "generated": {
             "alphabet": "alnum",
@@ -2163,6 +2172,7 @@
         "ERPNEXT_HOSTNAME=erp.{{ cloudflare_zone }}",
         "ERPNEXT_ADMIN_PASSWORD={{ lookup('password', '/dev/null length=24 chars=ascii_letters,digits') }}",
         "DB_ROOT_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
+        "AUTH_MODE=public",
         "UPDATE_LEVEL=major"
       ],
       "fr": {
