@@ -4,6 +4,8 @@ privileges: [docker_socket]
 env:
   DOMAIN_HOST:
     setting: {default: "portainer.{{ cloudflare_zone }}"}
+  AUTH_MODE:
+    setting: {default: "admin-only", label: {en: "Access: public, private or admin-only", fr: "Accès : public, private ou admin-only"}}
   UPDATE_LEVEL:
     setting: {default: "major", label: {en: "Automatic updates: major, minor, patch or off", fr: "Mises à jour automatiques : major, minor, patch ou off"}}
 # The Portainer image holds only the binary: no shell, curl or wget. verify
