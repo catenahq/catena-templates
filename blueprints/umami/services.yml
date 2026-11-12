@@ -4,7 +4,7 @@ services:
   # password to UMAMI_ADMIN_PASSWORD while the default still signs in, and leaves
   # a password someone set alone.
   umami:
-    image: ghcr.io/umami-software/umami:3.4.1
+    image: ghcr.io/umami-software/umami:3.5.0
     deploy:
       restart_policy:
         condition: any
