@@ -20,6 +20,8 @@ x-catena:
       setting: {default: "time@{{ cloudflare_zone }}"}
     KIMAI_MAIL_URL:
       setting: {default: "null://localhost"}
+    AUTH_MODE:
+      setting: {default: "public", label: {en: "Access: public, private or admin-only", fr: "Accès : public, private ou admin-only"}}
     UPDATE_LEVEL:
       setting: {default: "major", label: {en: "Automatic updates: major, minor, patch or off", fr: "Mises à jour automatiques : major, minor, patch ou off"}}
   # verify asks Apache for the sign-in page, which is open to everyone, and looks for the product name.
@@ -75,7 +77,7 @@ services:
     labels:
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=8001"
-      - "vps.auth.mode=public"
+      - "vps.auth.mode=${AUTH_MODE:-public}"
       - "vps.auto-update=${UPDATE_LEVEL:-major}"
     cap_drop:
       - NET_RAW
