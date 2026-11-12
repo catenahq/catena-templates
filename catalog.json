@@ -1606,6 +1606,15 @@
         "what_it_is": "Work management with test runs, time tracking, and branded customer portals."
       },
       "env": {
+        "AUTH_MODE": {
+          "setting": {
+            "default": "public",
+            "label": {
+              "en": "Access: public, private or admin-only",
+              "fr": "Acc\u00e8s : public, private ou admin-only"
+            }
+          }
+        },
         "DB_PASSWORD": {
           "generated": {
             "alphabet": "alnum",
@@ -1643,6 +1652,7 @@
         "WINDSHIFT_HOSTNAME=work.{{ cloudflare_zone }}",
         "SSO_SECRET={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}",
         "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
+        "AUTH_MODE=public",
         "UPDATE_LEVEL=major"
       ],
       "env_managed_keys": [
