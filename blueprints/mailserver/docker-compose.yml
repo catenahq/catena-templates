@@ -27,6 +27,8 @@ x-catena:
       managed: {expr: "{{ provided.antivirus.host }}"}
     ANTIVIRUS_PORT:
       managed: {expr: "{{ provided.antivirus.port }}"}
+    AUTH_MODE:
+      setting: {default: "public", label: {en: "Access: public, private or admin-only", fr: "Accès : public, private ou admin-only"}}
     UPDATE_LEVEL:
       setting: {default: "major", label: {en: "Automatic updates: major, minor, patch or off", fr: "Mises à jour automatiques : major, minor, patch ou off"}}
   capabilities: [NET_ADMIN]
@@ -599,9 +601,9 @@ services:
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=80"
       - "vps.route.main=true"
-      # Roundcube does its OWN Keycloak login (not behind oauth2-proxy);
-      # public at the proxy layer, OIDC enforced by the app.
-      - "vps.auth.mode=public"
+      # Roundcube does its own Keycloak sign-in, so the default is public at
+      # the proxy layer, with the app enforcing OIDC.
+      - "vps.auth.mode=${AUTH_MODE:-public}"
       - "vps.auth.oidc=true"
       - "vps.auth.oidc.introspect=true"
       - "vps.auth.groups=staff,client"
@@ -658,9 +660,9 @@ services:
       retries: 5
       start_period: 10s
     labels:
-      # Any sending mail server reads the policy, so the address is public.
       - "vps.route.host=mta-sts.${MAIL_DOMAIN}"
       - "vps.route.port=80"
+      # Any sending mail server reads the policy, so the address is public.
       - "vps.auth.mode=public"
       - "vps.health.path=/.well-known/mta-sts.txt"
       - "vps.health.expect=STSv1"
