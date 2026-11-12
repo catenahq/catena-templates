@@ -1,6 +1,6 @@
 services:
   mongodb:
-    image: mongo:8.3.13
+    image: mongo:8.3.17
     deploy:
       restart_policy:
         condition: any
