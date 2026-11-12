@@ -1392,6 +1392,15 @@
         "what_it_is": "Modern open-source CRM. Contacts, companies, opportunities, email sync, pipelines. Alternative to EspoCRM (the default CRM)."
       },
       "env": {
+        "AUTH_MODE": {
+          "setting": {
+            "default": "public",
+            "label": {
+              "en": "Access: public, private or admin-only",
+              "fr": "Acc\u00e8s : public, private ou admin-only"
+            }
+          }
+        },
         "DB_PASSWORD": {
           "generated": {
             "alphabet": "alnum",
@@ -1429,6 +1438,7 @@
         "TWENTY_HOSTNAME=twenty.{{ cloudflare_zone }}",
         "TWENTY_APP_SECRET={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}",
         "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
+        "AUTH_MODE=public",
         "UPDATE_LEVEL=major"
       ],
       "fr": {
