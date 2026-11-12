@@ -658,6 +658,15 @@
             "default": "admin"
           }
         },
+        "AUTH_MODE": {
+          "setting": {
+            "default": "public",
+            "label": {
+              "en": "Access: public, private or admin-only",
+              "fr": "Acc\u00e8s : public, private ou admin-only"
+            }
+          }
+        },
         "DOMAIN_HOST": {
           "setting": {
             "default": "chat.{{ cloudflare_zone }}"
@@ -717,6 +726,7 @@
         "JITSI_JICOFO_AUTH_PASSWORD={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}",
         "JITSI_JICOFO_COMPONENT_SECRET={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}",
         "JITSI_JVB_AUTH_PASSWORD={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}",
+        "AUTH_MODE=public",
         "UPDATE_LEVEL=major"
       ],
       "env_managed_keys": [
