@@ -6,7 +6,9 @@ id, a helper container serves a service of the app's compose, and the
 credential is the harness's CATENA_TEST_PASSWORD alone: a test with setup steps
 gives it to the app in its setup, signs in with it in an assert and makes no
 secret of its own, a test without them never names it, and no step passes it on
-a command line. An app listed in app-tests-debt.txt is held to none of it until
+a command line. A setup step that reads a certificate authority of the test VM
+on its stdin (edge_ca, acme_root) sets up trust, not a credential, and counts as
+no setup step for the credential. An app listed in app-tests-debt.txt is held to none of it until
 its test is rewritten, and its line goes once the test meets the contract."""
 from __future__ import annotations
 
@@ -49,6 +51,9 @@ BUILTINS = {"printf", "echo", "test", "[", "read", ":"}
 # Calls that make a random secret.
 MAKES_SECRET = re.compile(r"/dev/u?random|openssl\s+rand|\bsecrets\.(?:token_\w+|choice)|\bpwgen\b|SecureRandom"
                           r"|random_bytes|randomBytes|kernel/random/uuid|\buuidgen\b")
+# The stdin of a setup step that makes the app trust a certificate authority of the test VM: such a step
+# sets up no credential.
+TRUST_SOURCES = {"edge_ca", "acme_root"}
 
 
 def _debt() -> dict[str, str]:
@@ -204,6 +209,7 @@ def _password_argument(command: list[str]) -> bool:
 
 
 def _credential_problems(setup: list[dict], steps: list[dict], checks: list[dict]) -> list[str]:
+    setup = [step for step in setup if step.get("stdin") not in TRUST_SOURCES]
     found = []
     for step in steps:
         if _password_argument(step.get("command") or []):
@@ -483,6 +489,20 @@ def test_a_test_without_setup_never_names_the_test_password():
 def test_a_setup_that_never_gives_the_app_the_test_password_is_refused():
     doc = {**SET_UP, "setup": [_exec("admin", "sh", "-c", "app-cli admin create")]}
     assert problems(doc) == ["no setup step gives the app CATENA_TEST_PASSWORD"]
+
+
+@pytest.mark.parametrize("source", ["edge_ca", "acme_root"])
+def test_a_setup_step_that_imports_a_test_ca_sets_up_no_credential(source):
+    trust = {**_exec("trust", "sh", "-c", "cat > /config/ca.pem"), "stdin": source}
+    own = _exec("own", "sh", "-c", "app-cli user add $(openssl rand -hex 16)")
+    assert problems({**GOOD, "setup": [trust], "seed": [*GOOD["seed"], own]}) == []
+    assert problems({**SET_UP, "setup": [trust, *SET_UP["setup"]]}) == []
+
+
+def test_a_setup_step_that_reads_the_service_log_still_sets_up_a_credential():
+    code = {**_exec("code", "sh", "-c", "read code; app-cli claim $code"), "stdin": "service_log"}
+    assert problems({**GOOD, "setup": [code]}) == ["no setup step gives the app CATENA_TEST_PASSWORD",
+                                                    "no assert signs in with CATENA_TEST_PASSWORD"]
 
 
 def test_a_test_with_setup_signs_in_with_the_test_password_in_an_assert():

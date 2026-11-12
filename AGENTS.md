@@ -335,7 +335,9 @@ README.md, "How to add a template", says how; these are the rules.
   assert; never make a password, never write one to the app's data, never put
   it on a command line. A shell-less app is reached through
   `{{ helper_<service> }}`, a one-time code through `stdin: service_log`, never
-  through a change to the stack.
+  through a change to the stack. A `setup` step that makes the app trust a
+  certificate authority of the test VM (`stdin: edge_ca` or `acme_root`) sets
+  up no credential.
 - An app that keeps live state a file snapshot can tear declares `quiesce`,
   one that migrates a schema declares `lifecycle` with `ready`, and one that
   keeps its files in a bucket the host can repoint declares `object_store`.

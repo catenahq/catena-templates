@@ -340,7 +340,10 @@ block.
      the service's container and mounts no volume: the way to ask an image with
      no shell or no HTTP client over HTTP at `127.0.0.1:<port>`.
      `stdin: service_log` gives a step the last lines of its service's log on
-     stdin, for a one-time setup code the app logs.
+     stdin, for a one-time setup code the app logs; `stdin: acme_root` gives
+     it the root that signs the test ACME server's certificates (empty on a
+     host without one), for a client that verifies a certificate the app's
+     `needs` issue.
    - `sign_in` lists accounts the app-tests sign-in leg signs in beyond its
      throwaway staff account: each entry names its `group` (`staff`, `client`
      or `admin`), an optional access level of the block (`access`), whether the

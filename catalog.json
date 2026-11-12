@@ -3486,6 +3486,15 @@
             "expr": "{{ provided.antivirus.port }}"
           }
         },
+        "AUTH_MODE": {
+          "setting": {
+            "default": "public",
+            "label": {
+              "en": "Access: public, private or admin-only",
+              "fr": "Acc\u00e8s : public, private ou admin-only"
+            }
+          }
+        },
         "DOMAIN_HOST": {
           "setting": {
             "default": "webmail.{{ cloudflare_zone }}"
@@ -3567,6 +3576,7 @@
         "SPAMHAUS_DQS_KEY=",
         "ANTIVIRUS_HOST={{ provided.antivirus.host }}",
         "ANTIVIRUS_PORT={{ provided.antivirus.port }}",
+        "AUTH_MODE=public",
         "UPDATE_LEVEL=major"
       ],
       "env_managed_keys": [

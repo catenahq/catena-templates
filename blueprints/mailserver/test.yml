@@ -12,6 +12,15 @@
 # read its subject and body back through `doveadm fetch`. Every step runs inside the dms
 # container and waits for the server, bounded.
 #
+# The setup gives the webmail the root that signs the test ACME server's certificates
+# (`stdin: acme_root`), which no container trusts: Roundcube verifies the mail server's
+# certificate, so without it the sign-in leg ends at the IMAP login. The root goes into
+# Roundcube's config volume with a php file, sorted after the template's own, that adds it
+# as `cafile` to both connection options; verification stays on. The image includes the
+# volume's php files in its generated config.docker.inc.php only when the container starts,
+# so the setup also adds the include to that file of the running container. A host with no
+# such root gives an empty stdin, and the setup then changes nothing.
+#
 # {{ run_id }} is supplied by the bench at execution time so the mailbox and the message are
 # unique per run. Each {{ container_* }} is resolved from `docker ps` before invoking.
 
@@ -20,6 +29,37 @@ description: >-
   The mailbox catena-<run> is listed by the server and holds exactly one message with the
   subject catena-<run> and the body fixture-<run>, before and after the backup, the restore
   and the updates.
+
+setup:
+  - name: webmail_trusts_the_acme_root
+    type: docker_exec
+    container: "{{ container_roundcube }}"
+    stdin: acme_root
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        dir=/var/roundcube/config
+        cat > "$dir/appci-acme-root.pem.new"
+        if [ ! -s "$dir/appci-acme-root.pem.new" ]; then
+          rm -f "$dir/appci-acme-root.pem.new"
+          echo "webmail trust: no ACME root on this host"
+          exit 0
+        fi
+        mv "$dir/appci-acme-root.pem.new" "$dir/appci-acme-root.pem"
+        cat > "$dir/zz-appci-acme-root.inc.php" <<'EOF'
+        <?php
+        $config['imap_conn_options']['ssl']['cafile'] = '/var/roundcube/config/appci-acme-root.pem';
+        $config['smtp_conn_options']['ssl']['cafile'] = '/var/roundcube/config/appci-acme-root.pem';
+        EOF
+        running=/var/www/html/config/config.docker.inc.php
+        if ! grep -qF zz-appci-acme-root.inc.php "$running"; then
+          echo "include('$dir/zz-appci-acme-root.inc.php');" >> "$running"
+        fi
+        echo "webmail trust: the ACME root"
+    expect_stdout_contains: "webmail trust:"
+    timeout_s: 60
 
 seed:
   - name: make_the_mailbox
