@@ -48,6 +48,8 @@ static preview `index.html`.
 | Every `app.json` matches `app.schema.json`, and every compose block and every `x-catena.yml` matches `block.schema.json` | `workflow:build-and-verify.yml` |
 | A hand-placed logo is a square PNG the control panel keeps, and its source names where it comes from | `workflow:build-and-verify.yml` |
 | An entry imported from a third-party registry names its source, that source's licence and notice, and the published catalog marks it untested | `workflow:build-and-verify.yml` |
+| Access to each catalog app's main URL is set by the app's Access setting (`AUTH_MODE`), which starts at the catalog's choice and can be changed by an administrator | `workflow:build-and-verify.yml` |
+| When an app has another URL that only works with one fixed access, such as the mail policy page that every sending mail server reads, that URL keeps its fixed access, and the reason is written next to it | `workflow:build-and-verify.yml` |
 | Every catalog image reference is CVE-scanned | `workflow:security.yml`, `scanctl:trivy` |
 | Source is scanned on every change (secrets, vulnerable deps, static analysis, rendered config) | `workflow:security.yml`, `scanctl:gitleaks`, `scanctl:osv-scanner`, `scanctl:semgrep`, `scanctl:trivy` |
 | A push to `main` sends only the commits that passed the app checks to the bench, and an app is tagged only when they passed at its last change | `workflow:app-main.yml`, `workflow:app-tag.yml` |
