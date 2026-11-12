@@ -36,7 +36,7 @@ services:
     labels:
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=3000"
-      - "vps.auth.mode=public"
+      - "vps.auth.mode=${AUTH_MODE:-public}"
       - "vps.auto-update=${UPDATE_LEVEL:-major}"
     cap_drop:
       - NET_RAW
