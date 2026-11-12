@@ -2400,6 +2400,15 @@
         "what_it_is": "Self-hosted personal finance. Envelope budgeting, bank account syncing via SimpleFIN or GoCardless, encrypted end-to-end."
       },
       "env": {
+        "AUTH_MODE": {
+          "setting": {
+            "default": "public",
+            "label": {
+              "en": "Access: public, private or admin-only",
+              "fr": "Acc\u00e8s : public, private ou admin-only"
+            }
+          }
+        },
         "DOMAIN_HOST": {
           "managed": {
             "expr": "budget.{{ cloudflare_zone }}"
@@ -2417,6 +2426,7 @@
       },
       "env_defaults": [
         "DOMAIN_HOST=budget.{{ cloudflare_zone }}",
+        "AUTH_MODE=public",
         "UPDATE_LEVEL=major"
       ],
       "env_managed_keys": [
