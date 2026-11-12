@@ -3150,6 +3150,15 @@
         "what_it_is": "Open-source invoicing with Stripe + PayPal payment gateways, recurring billing, expense tracking, client portal for online payment. Self-hosted gets all Pro + Enterprise features."
       },
       "env": {
+        "AUTH_MODE": {
+          "setting": {
+            "default": "public",
+            "label": {
+              "en": "Access: public, private or admin-only",
+              "fr": "Acc\u00e8s : public, private ou admin-only"
+            }
+          }
+        },
         "DB_PASSWORD": {
           "generated": {
             "alphabet": "alnum",
@@ -3242,6 +3251,7 @@
         "INVOICENINJA_SMTP_PASSWORD=",
         "INVOICENINJA_MAIL_FROM=invoice@{{ cloudflare_zone }}",
         "INVOICENINJA_MAIL_FROM_NAME=Invoicing",
+        "AUTH_MODE=public",
         "UPDATE_LEVEL=major"
       ],
       "fr": {
