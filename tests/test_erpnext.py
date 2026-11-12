@@ -246,7 +246,7 @@ def _without_the_differences(slug: str) -> dict:
     """The compose with what the two apps differ in set aside: every image
     (the engine bump moves each app's pins on its own) and the Frappe tag
     rules, FRAPPE_APPS and the install-app line, the
-    address defaults, what the sign-in differs in (the access level, the users
+    address defaults, the AUTH_MODE setting and the main address's access label, what the sign-in differs in (the access level, the users
     hook, the groups the main address admits, the name and description labels
     and the sign-ups the entry is made
     with) and what the helpdesk closes (the web forms setting and its start
@@ -259,7 +259,7 @@ def _without_the_differences(slug: str) -> dict:
     block["hooks"].pop("users", None)
     frontend = compose["services"]["frontend"]
     frontend["labels"] = [label for label in frontend["labels"]
-                          if not label.startswith(("vps.auth.groups", "vps.homepage."))]
+                          if not label.startswith(("vps.auth.groups", "vps.auth.mode", "vps.homepage."))]
     scheduler = compose["services"]["scheduler"]
     scheduler["environment"].pop("SIGNIN_SIGN_UPS")
     scheduler["environment"].pop("ERPNEXT_WEB_FORMS", None)
@@ -267,6 +267,7 @@ def _without_the_differences(slug: str) -> dict:
     scheduler["command"] = "start"
     block["env"].pop("FRAPPE_APPS", None)
     block["env"].pop("ERPNEXT_WEB_FORMS", None)
+    block["env"].pop("AUTH_MODE", None)
     for key in ("DOMAIN_HOST", "ERPNEXT_HOSTNAME"):
         block["env"][key] = "address"
     for service in compose["services"].values():
