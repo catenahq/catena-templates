@@ -3619,6 +3619,15 @@
         "what_it_is": "A web console for Docker: deploy, inspect and manage containers, volumes and networks on this server."
       },
       "env": {
+        "AUTH_MODE": {
+          "setting": {
+            "default": "admin-only",
+            "label": {
+              "en": "Access: public, private or admin-only",
+              "fr": "Acc\u00e8s : public, private ou admin-only"
+            }
+          }
+        },
         "DOMAIN_HOST": {
           "setting": {
             "default": "portainer.{{ cloudflare_zone }}"
@@ -3636,6 +3645,7 @@
       },
       "env_defaults": [
         "DOMAIN_HOST=portainer.{{ cloudflare_zone }}",
+        "AUTH_MODE=admin-only",
         "UPDATE_LEVEL=major"
       ],
       "fr": {
