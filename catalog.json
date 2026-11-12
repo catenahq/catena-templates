@@ -1973,6 +1973,15 @@
         "what_it_is": "Production-ready public CMS / website platform with FastCGI cache, Redis object cache, and a curated free-tier plugin set pre-installed. The site serves anonymously; admin sign-in runs on /wp-admin and can be wired to Keycloak via a plugin."
       },
       "env": {
+        "AUTH_MODE": {
+          "setting": {
+            "default": "public",
+            "label": {
+              "en": "Access: public, private or admin-only",
+              "fr": "Acc\u00e8s : public, private ou admin-only"
+            }
+          }
+        },
         "DB_PASSWORD": {
           "generated": {
             "alphabet": "alnum",
@@ -2046,6 +2055,7 @@
         "SMTP_RELAY_USER={{ smtp_relay_user | default('') }}",
         "SMTP_RELAY_TLS={{ smtp_relay_tls | default('') }}",
         "SMTP_RELAY_SENDER={{ smtp_relay_sender | default('') }}",
+        "AUTH_MODE=public",
         "UPDATE_LEVEL=major"
       ],
       "env_managed_keys": [
