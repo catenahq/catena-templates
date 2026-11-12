@@ -812,6 +812,15 @@
             "default": "false"
           }
         },
+        "AUTH_MODE": {
+          "setting": {
+            "default": "public",
+            "label": {
+              "en": "Access: public, private or admin-only",
+              "fr": "Acc\u00e8s : public, private ou admin-only"
+            }
+          }
+        },
         "DB_PASSWORD": {
           "generated": {
             "alphabet": "alnum",
@@ -964,6 +973,7 @@
         "JIGASI_SIP_URI=",
         "JIGASI_SIP_PASSWORD=",
         "JIGASI_SIP_SERVER=",
+        "AUTH_MODE=public",
         "UPDATE_LEVEL=major"
       ],
       "env_managed_keys": [
