@@ -2661,6 +2661,15 @@
         "what_it_is": "Customer-facing booking app for one or many providers (clinic, salon, lessons, repair shop). Public booking page; staff calendars; email + SMS reminders; ICS export."
       },
       "env": {
+        "AUTH_MODE": {
+          "setting": {
+            "default": "public",
+            "label": {
+              "en": "Access: public, private or admin-only",
+              "fr": "Acc\u00e8s : public, private ou admin-only"
+            }
+          }
+        },
         "DB_PASSWORD": {
           "generated": {
             "alphabet": "alnum",
@@ -2698,6 +2707,7 @@
         "EASYAPPOINTMENTS_HOSTNAME=book.{{ cloudflare_zone }}",
         "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
         "DB_ROOT_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
+        "AUTH_MODE=public",
         "UPDATE_LEVEL=major"
       ],
       "fr": {
