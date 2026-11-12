@@ -10,6 +10,8 @@ x-catena:
       generated: {length: 24, alphabet: alnum}
     DB_ROOT_PASSWORD:
       generated: {length: 32, alphabet: alnum}
+    AUTH_MODE:
+      setting: {default: "public", label: {en: "Access: public, private or admin-only", fr: "Accès : public, private ou admin-only"}}
     UPDATE_LEVEL:
       setting: {default: "major", label: {en: "Automatic updates: major, minor, patch or off", fr: "Mises à jour automatiques : major, minor, patch ou off"}}
   access:
@@ -274,7 +276,7 @@ services:
     labels:
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=8080"
-      - "vps.auth.mode=public"
+      - "vps.auth.mode=${AUTH_MODE:-public}"
       - "vps.health.path=/api/method/ping"
       - "vps.health.expect=pong"
       - "vps.auth.oidc=true"
