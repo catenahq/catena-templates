@@ -48,7 +48,7 @@ services:
     labels:
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=80"
-      - "vps.auth.mode=public"
+      - "vps.auth.mode=${AUTH_MODE:-public}"
       - "vps.auth.oidc=true"
       - "vps.auth.groups=staff"
       - "vps.auth.oidc.redirect_uris=https://${ESPOCRM_HOSTNAME}/oauth-callback.php"

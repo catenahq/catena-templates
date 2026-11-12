@@ -4,6 +4,8 @@ x-catena:
   env:
     DOMAIN_HOST:
       managed: {expr: "budget.{{ cloudflare_zone }}"}
+    AUTH_MODE:
+      setting: {default: "public", label: {en: "Access: public, private or admin-only", fr: "Accès : public, private ou admin-only"}}
     UPDATE_LEVEL:
       setting: {default: "major", label: {en: "Automatic updates: major, minor, patch or off", fr: "Mises à jour automatiques : major, minor, patch ou off"}}
   lifecycle:
@@ -78,7 +80,7 @@ services:
     labels:
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=5006"
-      - "vps.auth.mode=public"
+      - "vps.auth.mode=${AUTH_MODE:-public}"
       - "vps.auto-update=${UPDATE_LEVEL:-major}"
     cap_drop:
       - NET_RAW

@@ -6,6 +6,8 @@ env:
     setting: {default: "arcane.{{ cloudflare_zone }}"}
   ENCRYPTION_KEY:
     generated: {length: 64, alphabet: hex}
+  AUTH_MODE:
+    setting: {default: "admin-only", label: {en: "Access: public, private or admin-only", fr: "Accès : public, private ou admin-only"}}
   UPDATE_LEVEL:
     setting: {default: "major", label: {en: "Automatic updates: major, minor, patch or off", fr: "Mises à jour automatiques : major, minor, patch ou off"}}
 # The image has no shell, curl or wget. verify runs Arcane's own health

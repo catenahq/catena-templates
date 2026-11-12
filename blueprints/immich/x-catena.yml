@@ -13,6 +13,8 @@ env:
     setting: {default: "{{ admin_email }}"}
   IMMICH_ADMIN_PASSWORD:
     generated: {length: 32, alphabet: alnum}
+  AUTH_MODE:
+    setting: {default: "public", label: {en: "Access: public, private or admin-only", fr: "Accès : public, private ou admin-only"}}
   UPDATE_LEVEL:
     setting: {default: "major", label: {en: "Automatic updates: major, minor, patch or off", fr: "Mises à jour automatiques : major, minor, patch ou off"}}
 host_paths: [/mnt, /media]
