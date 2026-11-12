@@ -16,6 +16,8 @@ x-catena:
       generated: {length: 32, alphabet: alnum, first_start_only: true, note: "Password of the Umami account admin, set at the first start; a later change here does nothing"}
     DB_PASSWORD:
       generated: {length: 32, alphabet: alnum}
+    AUTH_MODE:
+      setting: {default: "admin-only", label: {en: "Access: public, private or admin-only", fr: "Accès : public, private ou admin-only"}}
     UPDATE_LEVEL:
       setting: {default: "major", label: {en: "Automatic updates: major, minor, patch or off", fr: "Mises à jour automatiques : major, minor, patch ou off"}}
   lifecycle:
@@ -132,7 +134,7 @@ services:
     labels:
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=3000"
-      - "vps.auth.mode=admin-only"
+      - "vps.auth.mode=${AUTH_MODE:-admin-only}"
       - "vps.auth.public_paths=/${TRACKER_SCRIPT_NAME},${COLLECT_API_ENDPOINT}"
       - "vps.health.path=/api/heartbeat"
       - "vps.health.expect=ok"

@@ -2957,6 +2957,15 @@
             "length": 64
           }
         },
+        "AUTH_MODE": {
+          "setting": {
+            "default": "admin-only",
+            "label": {
+              "en": "Access: public, private or admin-only",
+              "fr": "Acc\u00e8s : public, private ou admin-only"
+            }
+          }
+        },
         "COLLECT_API_ENDPOINT": {
           "setting": {
             "default": "/api/data",
@@ -3022,6 +3031,7 @@
         "TWO_FACTOR_ENCRYPTION_KEY={{ lookup('password', '/dev/null length=64 chars=hexdigits') | lower }}",
         "UMAMI_ADMIN_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
         "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
+        "AUTH_MODE=admin-only",
         "UPDATE_LEVEL=major"
       ],
       "fr": {
