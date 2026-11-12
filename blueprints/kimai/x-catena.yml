@@ -19,6 +19,8 @@ env:
     setting: {default: "time@{{ cloudflare_zone }}"}
   KIMAI_MAIL_URL:
     setting: {default: "null://localhost"}
+  AUTH_MODE:
+    setting: {default: "public", label: {en: "Access: public, private or admin-only", fr: "Accès : public, private ou admin-only"}}
   UPDATE_LEVEL:
     setting: {default: "major", label: {en: "Automatic updates: major, minor, patch or off", fr: "Mises à jour automatiques : major, minor, patch ou off"}}
 # verify asks Apache for the sign-in page, which is open to everyone, and looks for the product name.

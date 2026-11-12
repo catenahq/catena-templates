@@ -2963,6 +2963,15 @@
         "what_it_is": "Open-source time tracker. Customers, projects, activities, timesheets, multi-user teams, invoice generation from tracked time. SAML federates with Keycloak via the post-deploy admin UI."
       },
       "env": {
+        "AUTH_MODE": {
+          "setting": {
+            "default": "public",
+            "label": {
+              "en": "Access: public, private or admin-only",
+              "fr": "Acc\u00e8s : public, private ou admin-only"
+            }
+          }
+        },
         "DB_PASSWORD": {
           "generated": {
             "alphabet": "alnum",
@@ -3032,6 +3041,7 @@
         "DB_ROOT_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
         "KIMAI_MAIL_FROM=time@{{ cloudflare_zone }}",
         "KIMAI_MAIL_URL=null://localhost",
+        "AUTH_MODE=public",
         "UPDATE_LEVEL=major"
       ],
       "fr": {
