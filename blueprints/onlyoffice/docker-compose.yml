@@ -47,10 +47,6 @@ services:
         constraints:
           - node.labels.catena.role==data
     environment:
-      # Nextcloud authenticates to the document server with a JWT, so
-      # the route carries no auth proxy (vps.auth.mode=public below):
-      # the editor loads in an iframe, and an auth redirect inside that
-      # iframe lands on the Keycloak login page instead of the document.
       JWT_ENABLED: "true"
       JWT_SECRET: ${JWT_SECRET}
       JWT_HEADER: Authorization
@@ -68,6 +64,10 @@ services:
     labels:
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=80"
+      # Nextcloud authenticates to the document server with a JWT, so
+      # the route carries no auth proxy: the editor loads in an iframe,
+      # and a sign-in gate in front of it sends that iframe to the
+      # Keycloak login page instead of the document.
       - "vps.auth.mode=public"
       - "vps.auto-update=${UPDATE_LEVEL:-major}"
     cap_drop:
