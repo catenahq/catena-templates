@@ -7,6 +7,8 @@ x-catena:
       setting: {default: "arcane.{{ cloudflare_zone }}"}
     ENCRYPTION_KEY:
       generated: {length: 64, alphabet: hex}
+    AUTH_MODE:
+      setting: {default: "admin-only", label: {en: "Access: public, private or admin-only", fr: "Accès : public, private ou admin-only"}}
     UPDATE_LEVEL:
       setting: {default: "major", label: {en: "Automatic updates: major, minor, patch or off", fr: "Mises à jour automatiques : major, minor, patch ou off"}}
   # The image has no shell, curl or wget. verify runs Arcane's own health
@@ -44,7 +46,8 @@ services:
     labels:
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=3552"
-      - "vps.auth.mode=admin-only"
+      - "vps.auth.mode=${AUTH_MODE:-admin-only}"
+      - "vps.auth.protected=true"
       - "vps.auto-update=${UPDATE_LEVEL:-major}"
     cap_drop:
       - NET_RAW
