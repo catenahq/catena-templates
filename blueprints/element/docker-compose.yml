@@ -48,6 +48,8 @@ x-catena:
       setting: {default: ""}
     JIGASI_SIP_SERVER:
       setting: {default: ""}
+    AUTH_MODE:
+      setting: {default: "public", label: {en: "Access: public, private or admin-only", fr: "Accès : public, private ou admin-only"}}
     UPDATE_LEVEL:
       setting: {default: "major", label: {en: "Automatic updates: major, minor, patch or off", fr: "Mises à jour automatiques : major, minor, patch ou off"}}
   images:
@@ -340,10 +342,10 @@ services:
     volumes:
       - element-synapse-data:/data
     labels:
-      # The homeserver host: the web and mobile clients and Keycloak's return
-      # address reach Synapse here, and Synapse checks its own access tokens.
       - "vps.route.host=${MATRIX_HOSTNAME}"
       - "vps.route.port=8008"
+      # The homeserver host: the web and mobile clients and Keycloak's return
+      # address reach Synapse here, and Synapse checks its own access tokens.
       - "vps.auth.mode=public"
       - "vps.health.path=/health"
       - "vps.auto-update=${UPDATE_LEVEL:-major}"
@@ -438,7 +440,7 @@ services:
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=80"
       - "vps.route.main=true"
-      - "vps.auth.mode=public"
+      - "vps.auth.mode=${AUTH_MODE:-public}"
       # The sign-in entry is read from the main address's service; Synapse,
       # on the homeserver host, is what Keycloak returns the browser to.
       - "vps.auth.oidc=true"
@@ -464,6 +466,7 @@ services:
     labels:
       - "vps.route.host=${SYNAPSE_ADMIN_HOSTNAME}"
       - "vps.route.port=80"
+      # The admin console manages every account on the homeserver.
       - "vps.auth.mode=admin-only"
       - "vps.auto-update=${UPDATE_LEVEL:-major}"
     cap_drop:
@@ -642,6 +645,7 @@ services:
     labels:
       - "vps.route.host=${ELEMENT_JITSI_HOSTNAME}"
       - "vps.route.port=80"
+      # Calls open in an embedded widget of the Element client.
       - "vps.auth.mode=public"
       - "vps.auto-update=${UPDATE_LEVEL:-major}"
     cap_drop:

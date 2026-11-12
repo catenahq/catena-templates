@@ -25,7 +25,8 @@ services:
     labels:
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=3552"
-      - "vps.auth.mode=admin-only"
+      - "vps.auth.mode=${AUTH_MODE:-admin-only}"
+      - "vps.auth.protected=true"
       - "vps.auto-update=${UPDATE_LEVEL:-major}"
     cap_drop:
       - NET_RAW

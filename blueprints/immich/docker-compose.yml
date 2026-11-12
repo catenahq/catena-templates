@@ -14,6 +14,8 @@ x-catena:
       setting: {default: "{{ admin_email }}"}
     IMMICH_ADMIN_PASSWORD:
       generated: {length: 32, alphabet: alnum}
+    AUTH_MODE:
+      setting: {default: "public", label: {en: "Access: public, private or admin-only", fr: "Accès : public, private ou admin-only"}}
     UPDATE_LEVEL:
       setting: {default: "major", label: {en: "Automatic updates: major, minor, patch or off", fr: "Mises à jour automatiques : major, minor, patch ou off"}}
   host_paths: [/mnt, /media]
@@ -135,7 +137,7 @@ services:
     labels:
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=2283"
-      - "vps.auth.mode=public"
+      - "vps.auth.mode=${AUTH_MODE:-public}"
       - "vps.auth.oidc=true"
       - "vps.auth.groups=staff"
       - "vps.auth.oidc.redirect_uris=https://${IMMICH_HOSTNAME}/auth/login,https://${IMMICH_HOSTNAME}/user-settings,app.immich:///oauth-callback"

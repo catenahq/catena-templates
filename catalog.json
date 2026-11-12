@@ -41,6 +41,15 @@
             "expr": "{{ provided.antivirus.port }}"
           }
         },
+        "AUTH_MODE": {
+          "setting": {
+            "default": "public",
+            "label": {
+              "en": "Access: public, private or admin-only",
+              "fr": "Acc\u00e8s : public, private ou admin-only"
+            }
+          }
+        },
         "DB_PASSWORD": {
           "generated": {
             "alphabet": "alnum",
@@ -232,6 +241,7 @@
         "SMTP_RELAY_PASSWORD={{ smtp_password | default('') }}",
         "SMTP_RELAY_TLS={{ smtp_relay_tls | default('') }}",
         "SMTP_RELAY_SENDER={{ smtp_relay_sender | default('') }}",
+        "AUTH_MODE=public",
         "UPDATE_LEVEL=major"
       ],
       "env_managed_keys": [
@@ -358,6 +368,15 @@
         "what_it_is": "Photo and video library with automatic backup from phones, albums, sharing, face recognition and search by content."
       },
       "env": {
+        "AUTH_MODE": {
+          "setting": {
+            "default": "public",
+            "label": {
+              "en": "Access: public, private or admin-only",
+              "fr": "Acc\u00e8s : public, private ou admin-only"
+            }
+          }
+        },
         "DB_PASSWORD": {
           "generated": {
             "alphabet": "alnum",
@@ -407,6 +426,7 @@
         "UPLOAD_LOCATION=immich-library",
         "IMMICH_ADMIN_EMAIL={{ admin_email }}",
         "IMMICH_ADMIN_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
+        "AUTH_MODE=public",
         "UPDATE_LEVEL=major"
       ],
       "fr": {
@@ -658,6 +678,15 @@
             "default": "admin"
           }
         },
+        "AUTH_MODE": {
+          "setting": {
+            "default": "public",
+            "label": {
+              "en": "Access: public, private or admin-only",
+              "fr": "Acc\u00e8s : public, private ou admin-only"
+            }
+          }
+        },
         "DOMAIN_HOST": {
           "setting": {
             "default": "chat.{{ cloudflare_zone }}"
@@ -717,6 +746,7 @@
         "JITSI_JICOFO_AUTH_PASSWORD={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}",
         "JITSI_JICOFO_COMPONENT_SECRET={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}",
         "JITSI_JVB_AUTH_PASSWORD={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}",
+        "AUTH_MODE=public",
         "UPDATE_LEVEL=major"
       ],
       "env_managed_keys": [
@@ -800,6 +830,15 @@
         "ALLOW_PUBLIC_REGISTRATION": {
           "setting": {
             "default": "false"
+          }
+        },
+        "AUTH_MODE": {
+          "setting": {
+            "default": "public",
+            "label": {
+              "en": "Access: public, private or admin-only",
+              "fr": "Acc\u00e8s : public, private ou admin-only"
+            }
           }
         },
         "DB_PASSWORD": {
@@ -954,6 +993,7 @@
         "JIGASI_SIP_URI=",
         "JIGASI_SIP_PASSWORD=",
         "JIGASI_SIP_SERVER=",
+        "AUTH_MODE=public",
         "UPDATE_LEVEL=major"
       ],
       "env_managed_keys": [
@@ -1019,6 +1059,15 @@
         "what_it_is": "Default document-signing app in the suite. Upload a PDF, place signature fields, send for signature. Audit trail + signed-PDF generation built-in."
       },
       "env": {
+        "AUTH_MODE": {
+          "setting": {
+            "default": "public",
+            "label": {
+              "en": "Access: public, private or admin-only",
+              "fr": "Acc\u00e8s : public, private ou admin-only"
+            }
+          }
+        },
         "DB_PASSWORD": {
           "generated": {
             "alphabet": "alnum",
@@ -1092,6 +1141,7 @@
         "SMTP_PASSWORD=",
         "SMTP_FROM_ADDRESS=",
         "SMTP_AUTH=plain",
+        "AUTH_MODE=public",
         "UPDATE_LEVEL=major"
       ],
       "fr": {
@@ -1148,6 +1198,15 @@
         "what_it_is": "Team wiki / knowledge base. Notion-style pages, collections, nested docs. Keycloak SSO pre-wired."
       },
       "env": {
+        "AUTH_MODE": {
+          "setting": {
+            "default": "public",
+            "label": {
+              "en": "Access: public, private or admin-only",
+              "fr": "Acc\u00e8s : public, private ou admin-only"
+            }
+          }
+        },
         "DB_PASSWORD": {
           "generated": {
             "alphabet": "alnum",
@@ -1192,6 +1251,7 @@
         "OUTLINE_SECRET_KEY={{ lookup('password', '/dev/null length=64 chars=hexdigits') | lower }}",
         "OUTLINE_UTILS_SECRET={{ lookup('password', '/dev/null length=64 chars=hexdigits') | lower }}",
         "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
+        "AUTH_MODE=public",
         "UPDATE_LEVEL=major"
       ],
       "fr": {
@@ -1266,6 +1326,15 @@
         "what_it_is": "Default CRM in the suite. Contacts, accounts, opportunities, leads, calendar, email integration, mass mail, workflow automation. Keycloak sign-in pre-wired."
       },
       "env": {
+        "AUTH_MODE": {
+          "setting": {
+            "default": "public",
+            "label": {
+              "en": "Access: public, private or admin-only",
+              "fr": "Acc\u00e8s : public, private ou admin-only"
+            }
+          }
+        },
         "DB_PASSWORD": {
           "generated": {
             "alphabet": "alnum",
@@ -1316,6 +1385,7 @@
         "ESPOCRM_ADMIN_PASSWORD={{ lookup('password', '/dev/null length=24 chars=ascii_letters,digits') }}",
         "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
         "DB_ROOT_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
+        "AUTH_MODE=public",
         "UPDATE_LEVEL=major"
       ],
       "fr": {
@@ -1392,6 +1462,15 @@
         "what_it_is": "Modern open-source CRM. Contacts, companies, opportunities, email sync, pipelines. Alternative to EspoCRM (the default CRM)."
       },
       "env": {
+        "AUTH_MODE": {
+          "setting": {
+            "default": "public",
+            "label": {
+              "en": "Access: public, private or admin-only",
+              "fr": "Acc\u00e8s : public, private ou admin-only"
+            }
+          }
+        },
         "DB_PASSWORD": {
           "generated": {
             "alphabet": "alnum",
@@ -1429,6 +1508,7 @@
         "TWENTY_HOSTNAME=twenty.{{ cloudflare_zone }}",
         "TWENTY_APP_SECRET={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}",
         "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
+        "AUTH_MODE=public",
         "UPDATE_LEVEL=major"
       ],
       "fr": {
@@ -1484,6 +1564,15 @@
         "what_it_is": "Open-source project management -- issues, cycles, modules, pages, workspaces."
       },
       "env": {
+        "AUTH_MODE": {
+          "setting": {
+            "default": "public",
+            "label": {
+              "en": "Access: public, private or admin-only",
+              "fr": "Acc\u00e8s : public, private ou admin-only"
+            }
+          }
+        },
         "DB_PASSWORD": {
           "generated": {
             "alphabet": "alnum",
@@ -1549,6 +1638,7 @@
         "PLANE_MQ_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
         "PLANE_MINIO_ACCESS_KEY={{ lookup('password', '/dev/null length=20 chars=ascii_letters,digits') }}",
         "PLANE_MINIO_SECRET_KEY={{ lookup('password', '/dev/null length=40 chars=ascii_letters,digits') }}",
+        "AUTH_MODE=public",
         "UPDATE_LEVEL=major"
       ],
       "fr": {
@@ -1606,6 +1696,15 @@
         "what_it_is": "Work management with test runs, time tracking, and branded customer portals."
       },
       "env": {
+        "AUTH_MODE": {
+          "setting": {
+            "default": "public",
+            "label": {
+              "en": "Access: public, private or admin-only",
+              "fr": "Acc\u00e8s : public, private ou admin-only"
+            }
+          }
+        },
         "DB_PASSWORD": {
           "generated": {
             "alphabet": "alnum",
@@ -1643,6 +1742,7 @@
         "WINDSHIFT_HOSTNAME=work.{{ cloudflare_zone }}",
         "SSO_SECRET={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}",
         "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
+        "AUTH_MODE=public",
         "UPDATE_LEVEL=major"
       ],
       "env_managed_keys": [
@@ -1790,6 +1890,15 @@
         "what_it_is": "Conversation-first omnichannel inbox. Email, live-chat widget, WhatsApp, Facebook, Instagram, Twitter/X in one inbox."
       },
       "env": {
+        "AUTH_MODE": {
+          "setting": {
+            "default": "public",
+            "label": {
+              "en": "Access: public, private or admin-only",
+              "fr": "Acc\u00e8s : public, private ou admin-only"
+            }
+          }
+        },
         "CHATWOOT_HOSTNAME": {
           "setting": {
             "default": "support.{{ cloudflare_zone }}"
@@ -1827,6 +1936,7 @@
         "CHATWOOT_HOSTNAME=support.{{ cloudflare_zone }}",
         "SECRET_KEY_BASE={{ lookup('password', '/dev/null length=128 chars=hexdigits') | lower }}",
         "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
+        "AUTH_MODE=public",
         "UPDATE_LEVEL=major"
       ],
       "fr": {
@@ -1883,6 +1993,15 @@
         "what_it_is": "Production-ready public CMS / website platform with FastCGI cache, Redis object cache, and a curated free-tier plugin set pre-installed. The site serves anonymously; admin sign-in runs on /wp-admin and can be wired to Keycloak via a plugin."
       },
       "env": {
+        "AUTH_MODE": {
+          "setting": {
+            "default": "public",
+            "label": {
+              "en": "Access: public, private or admin-only",
+              "fr": "Acc\u00e8s : public, private ou admin-only"
+            }
+          }
+        },
         "DB_PASSWORD": {
           "generated": {
             "alphabet": "alnum",
@@ -1956,6 +2075,7 @@
         "SMTP_RELAY_USER={{ smtp_relay_user | default('') }}",
         "SMTP_RELAY_TLS={{ smtp_relay_tls | default('') }}",
         "SMTP_RELAY_SENDER={{ smtp_relay_sender | default('') }}",
+        "AUTH_MODE=public",
         "UPDATE_LEVEL=major"
       ],
       "env_managed_keys": [
@@ -2256,6 +2376,15 @@
         "what_it_is": "Full open-source ERP suite -- accounting, inventory, HR/payroll, CRM, manufacturing, projects, a built-in website/e-commerce module, and a helpdesk linked to its customers."
       },
       "env": {
+        "AUTH_MODE": {
+          "setting": {
+            "default": "public",
+            "label": {
+              "en": "Access: public, private or admin-only",
+              "fr": "Acc\u00e8s : public, private ou admin-only"
+            }
+          }
+        },
         "DB_ROOT_PASSWORD": {
           "generated": {
             "alphabet": "alnum",
@@ -2309,6 +2438,7 @@
         "DB_ROOT_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
         "FRAPPE_APPS=erpnext,telephony,helpdesk",
         "ERPNEXT_WEB_FORMS=off",
+        "AUTH_MODE=public",
         "UPDATE_LEVEL=major"
       ],
       "fr": {
@@ -2400,6 +2530,15 @@
         "what_it_is": "Self-hosted personal finance. Envelope budgeting, bank account syncing via SimpleFIN or GoCardless, encrypted end-to-end."
       },
       "env": {
+        "AUTH_MODE": {
+          "setting": {
+            "default": "public",
+            "label": {
+              "en": "Access: public, private or admin-only",
+              "fr": "Acc\u00e8s : public, private ou admin-only"
+            }
+          }
+        },
         "DOMAIN_HOST": {
           "managed": {
             "expr": "budget.{{ cloudflare_zone }}"
@@ -2417,6 +2556,7 @@
       },
       "env_defaults": [
         "DOMAIN_HOST=budget.{{ cloudflare_zone }}",
+        "AUTH_MODE=public",
         "UPDATE_LEVEL=major"
       ],
       "env_managed_keys": [
@@ -2611,6 +2751,15 @@
         "what_it_is": "Customer-facing booking app for one or many providers (clinic, salon, lessons, repair shop). Public booking page; staff calendars; email + SMS reminders; ICS export."
       },
       "env": {
+        "AUTH_MODE": {
+          "setting": {
+            "default": "public",
+            "label": {
+              "en": "Access: public, private or admin-only",
+              "fr": "Acc\u00e8s : public, private ou admin-only"
+            }
+          }
+        },
         "DB_PASSWORD": {
           "generated": {
             "alphabet": "alnum",
@@ -2648,6 +2797,7 @@
         "EASYAPPOINTMENTS_HOSTNAME=book.{{ cloudflare_zone }}",
         "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
         "DB_ROOT_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
+        "AUTH_MODE=public",
         "UPDATE_LEVEL=major"
       ],
       "fr": {
@@ -2706,6 +2856,15 @@
         "what_it_is": "Open-source marketing automation. Contact segments, email campaigns, drip sequences, landing pages, forms, lead scoring. Replaces Mailchimp / ActiveCampaign / HubSpot Marketing."
       },
       "env": {
+        "AUTH_MODE": {
+          "setting": {
+            "default": "public",
+            "label": {
+              "en": "Access: public, private or admin-only",
+              "fr": "Acc\u00e8s : public, private ou admin-only"
+            }
+          }
+        },
         "DB_PASSWORD": {
           "generated": {
             "alphabet": "alnum",
@@ -2773,6 +2932,7 @@
         "SMTP_USERNAME=",
         "SMTP_PASSWORD=",
         "SMTP_FROM_ADDRESS=",
+        "AUTH_MODE=public",
         "UPDATE_LEVEL=major"
       ],
       "fr": {
@@ -2835,6 +2995,15 @@
           "generated": {
             "alphabet": "hex",
             "length": 64
+          }
+        },
+        "AUTH_MODE": {
+          "setting": {
+            "default": "admin-only",
+            "label": {
+              "en": "Access: public, private or admin-only",
+              "fr": "Acc\u00e8s : public, private ou admin-only"
+            }
           }
         },
         "COLLECT_API_ENDPOINT": {
@@ -2902,6 +3071,7 @@
         "TWO_FACTOR_ENCRYPTION_KEY={{ lookup('password', '/dev/null length=64 chars=hexdigits') | lower }}",
         "UMAMI_ADMIN_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
         "DB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
+        "AUTH_MODE=admin-only",
         "UPDATE_LEVEL=major"
       ],
       "fr": {
@@ -2973,6 +3143,15 @@
         "what_it_is": "Open-source time tracker. Customers, projects, activities, timesheets, multi-user teams, invoice generation from tracked time. SAML federates with Keycloak via the post-deploy admin UI."
       },
       "env": {
+        "AUTH_MODE": {
+          "setting": {
+            "default": "public",
+            "label": {
+              "en": "Access: public, private or admin-only",
+              "fr": "Acc\u00e8s : public, private ou admin-only"
+            }
+          }
+        },
         "DB_PASSWORD": {
           "generated": {
             "alphabet": "alnum",
@@ -3042,6 +3221,7 @@
         "DB_ROOT_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
         "KIMAI_MAIL_FROM=time@{{ cloudflare_zone }}",
         "KIMAI_MAIL_URL=null://localhost",
+        "AUTH_MODE=public",
         "UPDATE_LEVEL=major"
       ],
       "fr": {
@@ -3100,6 +3280,15 @@
         "what_it_is": "Open-source invoicing with Stripe + PayPal payment gateways, recurring billing, expense tracking, client portal for online payment. Self-hosted gets all Pro + Enterprise features."
       },
       "env": {
+        "AUTH_MODE": {
+          "setting": {
+            "default": "public",
+            "label": {
+              "en": "Access: public, private or admin-only",
+              "fr": "Acc\u00e8s : public, private ou admin-only"
+            }
+          }
+        },
         "DB_PASSWORD": {
           "generated": {
             "alphabet": "alnum",
@@ -3192,6 +3381,7 @@
         "INVOICENINJA_SMTP_PASSWORD=",
         "INVOICENINJA_MAIL_FROM=invoice@{{ cloudflare_zone }}",
         "INVOICENINJA_MAIL_FROM_NAME=Invoicing",
+        "AUTH_MODE=public",
         "UPDATE_LEVEL=major"
       ],
       "fr": {
@@ -3629,6 +3819,15 @@
         "what_it_is": "A web console for Docker: deploy, inspect and manage containers, volumes and networks on this server."
       },
       "env": {
+        "AUTH_MODE": {
+          "setting": {
+            "default": "admin-only",
+            "label": {
+              "en": "Access: public, private or admin-only",
+              "fr": "Acc\u00e8s : public, private ou admin-only"
+            }
+          }
+        },
         "DOMAIN_HOST": {
           "setting": {
             "default": "portainer.{{ cloudflare_zone }}"
@@ -3646,6 +3845,7 @@
       },
       "env_defaults": [
         "DOMAIN_HOST=portainer.{{ cloudflare_zone }}",
+        "AUTH_MODE=admin-only",
         "UPDATE_LEVEL=major"
       ],
       "fr": {
@@ -3699,6 +3899,15 @@
         "what_it_is": "A modern web console for Docker: manage containers, images, volumes, networks and Compose projects on this server."
       },
       "env": {
+        "AUTH_MODE": {
+          "setting": {
+            "default": "admin-only",
+            "label": {
+              "en": "Access: public, private or admin-only",
+              "fr": "Acc\u00e8s : public, private ou admin-only"
+            }
+          }
+        },
         "DOMAIN_HOST": {
           "setting": {
             "default": "arcane.{{ cloudflare_zone }}"
@@ -3723,6 +3932,7 @@
       "env_defaults": [
         "DOMAIN_HOST=arcane.{{ cloudflare_zone }}",
         "ENCRYPTION_KEY={{ lookup('password', '/dev/null length=64 chars=hexdigits') | lower }}",
+        "AUTH_MODE=admin-only",
         "UPDATE_LEVEL=major"
       ],
       "fr": {
