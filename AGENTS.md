@@ -17,8 +17,8 @@ the repository, and the checks.
   Never hand-edit a generated file -- the change is overwritten on the
   next render, and CI rejects the change.
 - A hand-placed `logo.png` is the project's own logo, unmodified, made by
-  `build/logo.py`, and its `app.json` names it in `logo`; a logo whose
-  owner's terms forbid this use stays out.
+  `build/logo.py`, and its `app.json` names it in `logo`; it is used
+  whatever its owner's trademark terms say.
 - What the server needs to back up, update and restore an app (backup
   mode, update and restore commands, object-store check, the env
   expressions Catena keeps set) is the app's own `blueprints/<id>/x-catena.yml`,
@@ -152,6 +152,25 @@ the repository, and the checks.
 - No secrets, ever. This repo is public and one file serves every client, so
   it cannot hold a per-host value: a host mints each generated value when it
   deploys the app.
+- An app has at most one own image and stock pinned images for the rest; an own
+  image is a public package; a database image's name is one `appdb.Family`
+  (catena-admin `payload/engines/appdb/appdb.go`) recognises, so it is backed up.
+- An own-built image's pin names what its build published.
+- A domain-dependent setting is a managed key (`env_managed_keys`), so it follows
+  a domain change; an app that bakes its hostname sets `hostname_baked: true` and
+  the client moves it.
+- Keep the `HPB` and `JITSI` BEGIN/END delimiter lines intact: ops
+  `automation/tests/unit/test_templates_contract.py` reads them.
+- An HTTP app publishes no host port; a non-HTTP port is declared in
+  `vps.expose.tcp` or `vps.expose.udp`, never a firewall rule.
+- A block declares no MX, SPF, DKIM or DMARC record in its DNS needs: those are
+  the domain owner's.
+- Keep ERPNext's own CRM module; ask before adding Frappe CRM or widening the
+  ERPNext app set.
+- Every major move of an app is one main commit, gated by app-ci and the
+  app-tests upgrade and rollback.
+- Only `app-tag` writes a tag `<app>/<upstream version>-<revision>`; no signed
+  archive, no registry publishing.
 
 ## The render contract
 
@@ -318,6 +337,9 @@ README.md, "How to add a template", says how; these are the rules.
 - Never weaken or remove a check, an assert or a leg to make an app pass:
   fix the app or its declaration.
 - One app or none per branch, pull request and commit.
+- A `blueprints/<id>/test.yml` change goes up as its own pull request and merges
+  once app-tests passes; any other change of an app is one commit on main. Each
+  main commit is judged by app-ci, and a failed commit gets no tag.
 
 ## Changing catalog.json
 

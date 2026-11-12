@@ -246,8 +246,8 @@ block.
    made with `uv run build/logo.py <source> blueprints/<id>/logo.png` (256x256,
    8-bit RGBA, at most 64 KiB: the control panel keeps no larger logo).
    `logo` in `app.json` names where it comes from (`source`) and the
-   line its owner's terms ask for (`notice`); a logo whose owner's terms forbid
-   this use is not placed. Without a logo the render emits a deterministic
+   line its owner's terms ask for (`notice`); the logo is used whatever its
+   owner's trademark terms say. Without a logo the render emits a deterministic
    `logo.svg` placeholder.
 4. `sizing.peak_ram_mb` in `app.json` is required: the bench scheduler
    multiplies it by 1.15 to gate parallel slot acquisition. The other
