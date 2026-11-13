@@ -30,17 +30,12 @@ import json
 import os
 import re
 import struct
-import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+import jsonschema
 import yaml
-
-try:
-    import jsonschema
-except ModuleNotFoundError:  # see _validate_schema
-    jsonschema = None
 
 # TOOLS_ROOT is the checkout these tools live in and holds the schemas. ROOT is
 # the data root: the tree holding blueprints/ and the generated files, which
@@ -226,24 +221,7 @@ def _schema(path: Path) -> dict[str, Any]:
 
 
 def _validate_schema(doc: dict[str, Any], schema: dict[str, Any], label: str) -> list[str]:
-    """Layer 1, and NOT REQUIRED to render.
-
-    build/render-ci.sh renders wherever a bump is made, including an
-    environment with a python3 and no pip, where jsonschema cannot be
-    installed -- and a render aborting on the import leaves a bump's generated
-    artifacts describing the old pin, which is the render-idempotency red this
-    skip exists to stop. Rendering needs the sources to BE valid, not to be
-    proven valid here.
-
-    Nothing is lost: build/validate.py imports jsonschema directly and cannot
-    run degraded, and the render-idempotency job re-renders under uv and
-    compares, so a render that skipped layer 1 is still checked by one that did
-    not.
-
-    The callers announce the skip, once each, rather than this returning an
-    empty list per document with nothing said."""
-    if jsonschema is None:
-        return []
+    """Layer 1: the problems the JSON Schema finds in `doc`, one line each."""
     validator = jsonschema.Draft202012Validator(schema)
     errors = []
     for err in sorted(validator.iter_errors(doc), key=lambda e: list(e.path)):
@@ -289,8 +267,7 @@ def _read_block(path: Path, schema: dict[str, Any], label: str) -> tuple[dict[st
 
 def png_header(data: bytes) -> tuple[int, int, int, int] | None:
     """Width, height, bit depth and colour type of a PNG, read from its IHDR
-    chunk; None when `data` does not begin like a PNG. Stdlib only: the
-    render runs where no package can be installed."""
+    chunk; None when `data` does not begin like a PNG. Stdlib only."""
     if len(data) < 29 or not data.startswith(_PNG_SIGNATURE) or data[12:16] != b"IHDR":
         return None
     width, height, depth, colour = struct.unpack(">IIBB", data[16:26])
@@ -400,13 +377,6 @@ def load_sources() -> list[Entry]:
     comes after the listed ones, alphabetically."""
     cards = sorted(BLUEPRINTS.glob(f"*/{CARD_NAME}")) if BLUEPRINTS.is_dir() else []
 
-    if jsonschema is None:
-        print(
-            "sources: jsonschema is not installed, so the JSON Schema layer is "
-            "skipped. Field shapes and enums are NOT checked; the cross-file "
-            "invariants are.",
-            file=sys.stderr,
-        )
     card_schema = _schema(CARD_SCHEMA)
     block_schema = _schema(BLOCK_SCHEMA)
     errors: list[str] = []

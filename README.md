@@ -71,6 +71,9 @@ block.schema.json        # schema for the x-catena block of a compose
 catalog.json             # generated; the machine view the ops tooling and the bench read
 index.html               # generated; static catalog preview
 
+pyproject.toml           # the tools' packages; uv.lock is their locked environment
+uv.lock                  # every `uv run` of the tools and their tests uses it
+
 Makefile                 # make render / validate / lint / test / verify
 Dockerfile               # nginx image serving the generated catalog
 ```

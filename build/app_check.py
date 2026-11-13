@@ -1,8 +1,4 @@
 #!/usr/bin/env -S uv run --quiet
-# /// script
-# requires-python = ">=3.11"
-# dependencies = ["pyyaml>=6.0"]
-# ///
 """Entrypoint for the per-app pull-request checks. Logic in lib/app_checks.py."""
 from __future__ import annotations
 

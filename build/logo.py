@@ -1,8 +1,4 @@
 #!/usr/bin/env -S uv run --quiet
-# /// script
-# requires-python = ">=3.11"
-# dependencies = ["pillow>=13.0", "resvg-py>=0.5.0", "pyyaml>=6.0"]
-# ///
 """Make blueprints/<id>/logo.png from a project's own logo.
 
     uv run build/logo.py SOURCE blueprints/<id>/logo.png

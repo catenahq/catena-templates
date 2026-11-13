@@ -1,8 +1,4 @@
 #!/usr/bin/env -S uv run --quiet
-# /// script
-# requires-python = ">=3.11"
-# dependencies = ["jsonschema>=4.23", "pyyaml>=6.0"]
-# ///
 """Render blueprints/*/app.json and the composes into READMEs, logos, catalog.json and index.html.
 
 Thin entrypoint; the work lives in lib/render.py. Run it after every

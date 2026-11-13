@@ -110,18 +110,17 @@ never reaches a host.
 
 ## Run it locally
 
-Docker with buildx and compose, git, and a python3 whose standard library
-has `tomllib`. Docker's embedded BuildKit may be older than v0.25.0; a
-docker-container builder runs a current one:
+Docker with buildx and compose, git, and uv. Docker's embedded BuildKit may
+be older than v0.25.0; a docker-container builder runs a current one:
 
 ```sh
 docker buildx create --use --driver docker-container
-python3 build.py resolve        # refreshes every sha in apps.json; --newest moves every input
-python3 build.py plan           # writes inputs.json; --force to build anyway
-python3 build.py build
-python3 build.py test           # --fresh skips the upgrade from the previous image
-python3 build.py publish        # needs a docker login to ghcr.io and GHCR_TOKEN
-python3 build.py pin            # sets the blueprint's pins to inputs.json's tag
+uv run build.py resolve        # refreshes every sha in apps.json; --newest moves every input
+uv run build.py plan           # writes inputs.json; --force to build anyway
+uv run build.py build
+uv run build.py test           # --fresh skips the upgrade from the previous image
+uv run build.py publish        # needs a docker login to ghcr.io and GHCR_TOKEN
+uv run build.py pin            # sets the blueprint's pins to inputs.json's tag
 ```
 
 `GHCR_USER` and `GHCR_TOKEN` in the environment authenticate the registry

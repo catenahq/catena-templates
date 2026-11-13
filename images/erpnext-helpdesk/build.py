@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S uv run --quiet
 """Build the Catena ERPNext image: Frappe plus the apps apps.json tracks.
 
   resolve  re-read the sha of every input (the commit of a pinned tag, the head

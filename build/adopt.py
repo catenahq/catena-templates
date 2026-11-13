@@ -1,8 +1,4 @@
 #!/usr/bin/env -S uv run --quiet
-# /// script
-# requires-python = ">=3.11"
-# dependencies = []
-# ///
 """Entrypoint: adopt.py <base repo> <fork repo> <fork head sha>. Needs GH_TOKEN. Logic in lib/adopt.py."""
 from __future__ import annotations
 

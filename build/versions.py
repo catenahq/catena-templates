@@ -1,8 +1,4 @@
 #!/usr/bin/env -S uv run --quiet
-# /// script
-# requires-python = ">=3.11"
-# dependencies = ["pyyaml>=6.0"]
-# ///
 """Entrypoint for app version tags and the one-app scope check. Logic in lib/versions.py."""
 from __future__ import annotations
 

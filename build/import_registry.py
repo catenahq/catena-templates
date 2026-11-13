@@ -1,8 +1,4 @@
 #!/usr/bin/env -S uv run --quiet
-# /// script
-# requires-python = ">=3.11"
-# dependencies = ["pyyaml>=6.0"]
-# ///
 """Import a template registry as catalog entries marked imported and untested.
 
 Thin entrypoint; the shared pipeline is lib/importers/pipeline.py and each

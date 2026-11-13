@@ -6,7 +6,7 @@ image whose backend cannot set its site up, a fresh one or the previous
 image's. Every case here runs without docker or network: the docker, git and
 registry calls are recorded or stubbed, and answered where build.py reads them.
 
-Run: uv run --with pytest --with pyyaml pytest images/erpnext-helpdesk -q
+Run: uv run pytest images/erpnext-helpdesk -q
 """
 from __future__ import annotations
 
