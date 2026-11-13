@@ -65,7 +65,7 @@ x-catena:
 
 services:
   n8n:
-    image: n8nio/n8n:3.2.0
+    image: n8nio/n8n:3.2.2
     deploy:
       restart_policy:
         condition: any
@@ -104,7 +104,7 @@ services:
       default: {}
 
   db:
-    image: postgres:18.6-alpine
+    image: postgres:18.7-alpine
     deploy:
       restart_policy:
         condition: any
