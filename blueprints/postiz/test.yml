@@ -2,7 +2,8 @@
 # through Postiz's API, survive a backup, a restore and the updates. The seed runs
 # node inside the postiz container against the bundled nginx on 127.0.0.1:5000 (the
 # route users reach, /api/ going to the backend): it waits until the backend answers
-# its root, then signs in as the account catena-<run>@catena.test and registers it
+# its root, asks each call again for up to 60 s while nginx answers 5xx (it has no
+# live backend for a moment after the first answer), then signs in as the account catena-<run>@catena.test and registers it
 # (registration is open: DISABLE_REGISTRATION is false) only when that sign-in is
 # refused, then lists the organization's signatures and adds the signature
 # fixture-<run> only when it is not listed, so a second seed changes nothing. The
@@ -43,10 +44,15 @@ seed:
           const headers = {};
           if (token) headers.auth = token;
           if (body) headers["content-type"] = "application/json";
-          const res = await fetch(api + path, {
-            method, headers, signal: AbortSignal.timeout(30000),
-            body: body ? JSON.stringify(body) : undefined,
-          });
+          let res;
+          for (let i = 0; ; i++) {
+            res = await fetch(api + path, {
+              method, headers, signal: AbortSignal.timeout(30000),
+              body: body ? JSON.stringify(body) : undefined,
+            });
+            if (res.status < 500 || i === 12) break;
+            await sleep(5000);
+          }
           const text = await res.text();
           let json = null;
           try { json = JSON.parse(text); } catch {}
@@ -106,10 +112,15 @@ assert:
           const headers = {};
           if (token) headers.auth = token;
           if (body) headers["content-type"] = "application/json";
-          const res = await fetch(api + path, {
-            method, headers, signal: AbortSignal.timeout(30000),
-            body: body ? JSON.stringify(body) : undefined,
-          });
+          let res;
+          for (let i = 0; ; i++) {
+            res = await fetch(api + path, {
+              method, headers, signal: AbortSignal.timeout(30000),
+              body: body ? JSON.stringify(body) : undefined,
+            });
+            if (res.status < 500 || i === 12) break;
+            await sleep(5000);
+          }
           const text = await res.text();
           let json = null;
           try { json = JSON.parse(text); } catch {}
