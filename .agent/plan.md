@@ -110,7 +110,9 @@ Gatus by the converge's address, so it runs after `MarkVerified` (server.go:1052
 
 ## Steps
 
-### Step 1 [Open] catena-admin: an app with no web address is a background tile, not a fault (S)
+### Step 1 [Done] catena-admin: an app with no web address is a background tile, not a fault (S)
+
+Built: catena-admin 9abca0b8.
 
 Files:
 - shell/appintent/appintent.go: `const NoRouteHost = "no_route_host"` beside `Inactive` (:28-29), with its comment.
@@ -157,7 +159,9 @@ Commit message:
     with no badge. The no_route_host code of the app-intent file is kept
     for its other readers.
 
-### Step 2 [Open] catena-admin: the tile of an app with no web address shows its last verify (M)
+### Step 2 [Done] catena-admin: the tile of an app with no web address shows its last verify (M)
+
+Built: catena-admin 4ccb919e. Differs: VerifyAll keeps each verdict inside its loop while the stack's lock is held (review finding: recording after the loop raced a Stop or Delete); the preview writes no app-intent, so it shows no such app.
 
 Depends on step 1 (`NoAddress`).
 
@@ -218,7 +222,9 @@ Commit message:
     none ran in the last three hours. The update lane's own verify keeps
     no verdict, so a version it rolls back leaves no red dot.
 
-### Step 3 [Open] catena-templates: the relay's page says where Talk lists it (S)
+### Step 3 [Done] catena-templates: the relay's page says where Talk lists it (S)
+
+Built: catena-templates e37bbe1.
 
 The Nextcloud verify check of the earlier draft is dropped: a failing verify rolls an update back
 (catena-admin payload/engines/stackupdate/folders.go:199-216), so a check that fails when a person took the relay
@@ -249,7 +255,9 @@ Commit message:
     The setup steps name the Talk settings page, where a person sees the
     relay among Talk's STUN and TURN servers.
 
-### Step 4 [Open] Bench, scenarios and docs: names to search (S)
+### Step 4 [Done] Bench, scenarios and docs: names to search (S)
+
+Built: search done, no scenario changes (see below).
 
 ops is not cloned. Search ops `automation/test_bench` (`scenarios/`, `scenarios/_*.py`, `orchestrator/`,
 `fixtures/`), contracts, catena-templates `blueprints/*/test.yml`, and the docs repo for:

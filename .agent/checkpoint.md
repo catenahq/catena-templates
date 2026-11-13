@@ -44,8 +44,19 @@ Verdict: the panel is at fault, not coturn's declaration.
 
 ## Next
 
-- fleet:implementer builds Step 1 (brief /var/tmp/issues/473/briefs/impl-step1.md), review, commit; then Step 2;
-  then Step 3 in catena-templates.
+- Step 1 committed in catena-admin (fix(apps): show an app with no web address as a background app), reviewed.
+- Step 3 committed in catena-templates (docs(coturn): say where Nextcloud Talk lists the relay), reviewed, make
+  render/lint/test (1945 passed), prose and unicode clean.
+- Step 2 committed in catena-admin 4ccb919e after review; the review's race on --all (verdicts recorded after
+  VerifyAll released stack locks) and the view.go comment are fixed. Go tests of payload/engines/apps,
+  stackupdate, shell/appview, apps, web, preview pass; vet clean.
+- All steps done; result.json written. Follow-up for the owner: ops catalog_apps_read_green_in_gatus stage-1
+  expects every deployed catalog app routed, so a run that deploys the relay or the scanner fails it.
+
+## Commands that work (Go)
+
+- `flock /tmp/catena-gates.lock env GOCACHE=/tmp/claude-1000/gocache go test -C /var/tmp/issues/473/catena-admin -count=1 -p 2 ./shell/apps/...`
+  (a cd does not persist between Bash calls).
 
 ## Commands that work
 
