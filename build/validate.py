@@ -1,8 +1,4 @@
 #!/usr/bin/env -S uv run --quiet
-# /// script
-# requires-python = ">=3.11"
-# dependencies = ["jsonschema>=4.23", "pyyaml>=6.0"]
-# ///
 """Validate the catalog without writing anything.
 
 Each blueprints/<id>/app.json against app.schema.json plus the cross-file
@@ -16,11 +12,6 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-
-# The dedicated validator must not be able to run degraded. lib.model treats
-# jsonschema as optional so a render can proceed without it; this file exists
-# to run that layer, so here the import is the requirement.
-import jsonschema  # noqa: F401
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 

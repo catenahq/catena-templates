@@ -28,7 +28,7 @@ lint:
 
 ## test: unit tests over the build library and the image builders
 test:
-	uv run --with pytest --with jsonschema --with pyyaml --with pillow --with resvg-py pytest tests/ images/erpnext-helpdesk -q
+	uv run --locked pytest tests/ images/erpnext-helpdesk -q
 
 ## verify: what CI runs -- render must be idempotent against the commit
 verify: render
@@ -36,7 +36,7 @@ verify: render
 
 ## serve: preview the generated catalog locally on :8000
 serve:
-	python3 -m http.server 8000
+	uv run python -m http.server 8000
 
 ## image: build the nginx image that serves the catalog from this tree
 image:

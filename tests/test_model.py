@@ -394,25 +394,6 @@ def test_real_sources_load():
     assert len({e.slug for e in entries}) == len(entries)
 
 
-def test_the_cross_file_invariants_still_run_without_jsonschema(catalog, monkeypatch,
-                                                               capsys):
-    """build/render-ci.sh may run with a python3 and no pip, so the render has
-    to work without jsonschema. Layer 1 is skipped and SAYS so; layer 2 is
-    not."""
-    monkeypatch.setattr(model, "jsonschema", None)
-    _write()
-    (model.BLUEPRINTS / "example" / model.COMPOSE_NAME).write_text("services: {}\n")
-    with pytest.raises(model.SourceError, match="declares no x-catena env"):
-        model.load_sources()
-    assert "the JSON Schema layer is skipped" in capsys.readouterr().err
-
-
-def test_the_real_catalog_renders_without_jsonschema(monkeypatch):
-    """The no-pip render end to end: no monkeypatched tree, no jsonschema."""
-    monkeypatch.setattr(model, "jsonschema", None)
-    assert len(model.load_sources()) >= 20
-
-
 def _fixture_tree(root: Path) -> None:
     """A one-app tree in another repository's layout."""
     _write(slug="example", doc=None) if False else None

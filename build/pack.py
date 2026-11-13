@@ -1,8 +1,4 @@
 #!/usr/bin/env -S uv run --quiet
-# /// script
-# requires-python = ">=3.11"
-# dependencies = ["pyyaml>=6.0"]
-# ///
 """Entrypoint to unpack an app's compose into neat files (lib/pack.py) and to export it
 for bare Docker: `unpack --plain` and `plain-check` (lib/plain.py)."""
 from __future__ import annotations
