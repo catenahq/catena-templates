@@ -20,7 +20,7 @@ on:
   # Every pushed branch. Renovate, engine-bump, image-pin and agent branches
   # always carry a pull request, which tests each push to them.
   push:
-    branches-ignore: ['renovate/**', 'engine-bump/**', 'image-pin/**', 'scanctl/**', 'agent/**']
+    branches-ignore: ['renovate/**', 'engine-bump/**', 'image-pin/**', 'scanctl/**', 'agent/**', 'feature/auto-*']
   pull_request:
     branches: [main]
   workflow_call:

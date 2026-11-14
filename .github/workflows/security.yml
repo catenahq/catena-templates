@@ -7,14 +7,15 @@ name: security
 # every CVE with a fix in any catalog image, which is where a CVE published
 # against an untouched image surfaces. The Docker Hub login keeps that sweep under the account's pull
 # limit; without the secrets the pulls run anonymously, as they do for an
-# agent/** branch and its pull request, which get blank secrets.
+# agent/** branch and its pull request, and for any run the aidevops worker
+# account (the org variable AGENT_LOGIN) triggers, which get blank secrets.
 
 on:
   pull_request:
   # Every pushed branch. Renovate, engine-bump, image-pin and agent branches
   # always carry a pull request, which tests each push to them.
   push:
-    branches-ignore: ['renovate/**', 'engine-bump/**', 'image-pin/**', 'scanctl/**', 'agent/**']
+    branches-ignore: ['renovate/**', 'engine-bump/**', 'image-pin/**', 'scanctl/**', 'agent/**', 'feature/auto-*']
   schedule:
     - cron: '17 6 * * *'
 
@@ -42,5 +43,5 @@ jobs:
       # The self-hosted runner group excludes public repos.
       runner: ubuntu-latest
     secrets:
-      DOCKERHUB_USERNAME: ${{ !startsWith(github.head_ref || github.ref_name, 'agent/') && secrets.DOCKERHUB_USERNAME || '' }}
-      DOCKERHUB_TOKEN: ${{ !startsWith(github.head_ref || github.ref_name, 'agent/') && secrets.DOCKERHUB_TOKEN || '' }}
+      DOCKERHUB_USERNAME: ${{ !startsWith(github.head_ref || github.ref_name, 'agent/') && github.actor != vars.AGENT_LOGIN && secrets.DOCKERHUB_USERNAME || '' }}
+      DOCKERHUB_TOKEN: ${{ !startsWith(github.head_ref || github.ref_name, 'agent/') && github.actor != vars.AGENT_LOGIN && secrets.DOCKERHUB_TOKEN || '' }}
