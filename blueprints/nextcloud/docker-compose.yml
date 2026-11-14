@@ -500,7 +500,7 @@ x-catena:
 
 services:
   app:
-    image: nextcloud:35.0.2-apache
+    image: nextcloud:35.0.3-apache
     deploy:
       restart_policy:
         condition: any
@@ -775,7 +775,7 @@ services:
       - default
 
   cron:
-    image: nextcloud:35.0.2-apache
+    image: nextcloud:35.0.3-apache
     deploy:
       restart_policy:
         condition: any
