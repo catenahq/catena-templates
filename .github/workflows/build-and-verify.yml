@@ -40,7 +40,7 @@ on:
       runner:
         description: runs-on label of every job
         type: string
-        default: ubuntu-latest
+        default: ubuntu-26.04
 
 permissions:
   contents: read
@@ -60,7 +60,7 @@ env:
 jobs:
   same-tree:
     name: same tree (build-and-verify)
-    runs-on: ${{ inputs.runner || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.runner || 'ubuntu-26.04' }}
     permissions:
       contents: read
       actions: read
@@ -75,7 +75,7 @@ jobs:
   render-idempotency:
     needs: same-tree
     if: needs.same-tree.outputs.run != 'false'
-    runs-on: ${{ inputs.runner || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.runner || 'ubuntu-26.04' }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
@@ -106,7 +106,7 @@ jobs:
   schema:
     needs: same-tree
     if: needs.same-tree.outputs.run != 'false'
-    runs-on: ${{ inputs.runner || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.runner || 'ubuntu-26.04' }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
@@ -130,7 +130,7 @@ jobs:
   unicode-hygiene:
     needs: same-tree
     if: needs.same-tree.outputs.run != 'false'
-    runs-on: ${{ inputs.runner || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.runner || 'ubuntu-26.04' }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
@@ -193,7 +193,7 @@ jobs:
   lint-quiesce-tests:
     needs: same-tree
     if: needs.same-tree.outputs.run != 'false'
-    runs-on: ${{ inputs.runner || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.runner || 'ubuntu-26.04' }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
@@ -235,7 +235,7 @@ jobs:
     name: Duplication (jscpd)
     needs: same-tree
     if: needs.same-tree.outputs.run != 'false' && format('{0}', inputs.catalog) != 'false'
-    runs-on: ${{ inputs.runner || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.runner || 'ubuntu-26.04' }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:

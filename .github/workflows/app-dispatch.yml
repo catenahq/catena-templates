@@ -74,7 +74,7 @@ on:
       runner:
         description: runs-on label of every job
         type: string
-        default: ubuntu-latest
+        default: ubuntu-26.04
       commits:
         description: the commits of a push to the default branch to send, space-separated, in commit order; empty - every commit of the push
         type: string
@@ -98,7 +98,7 @@ jobs:
     if: >-
       !github.event.deleted &&
       vars.APP_CI_PAUSED != 'true'
-    runs-on: ${{ inputs.runner || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.runner || 'ubuntu-26.04' }}
     # A ref holds no ':'. A send of the default branch has a group of its own run.
     concurrency:
       group: >-

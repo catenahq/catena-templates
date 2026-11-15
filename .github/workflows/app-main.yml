@@ -38,7 +38,7 @@ permissions:
 
 jobs:
   list:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     permissions:
       contents: read
       actions: read
@@ -184,7 +184,7 @@ jobs:
   verdict:
     needs: [list, checks]
     if: always() && needs.list.result == 'success' && (needs.list.outputs.shas != '' || needs.list.outputs.reused != '')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     permissions:
       actions: read
       statuses: write

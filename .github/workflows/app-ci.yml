@@ -74,7 +74,7 @@ on:
       runner:
         description: runs-on label of every job
         type: string
-        default: ubuntu-latest
+        default: ubuntu-26.04
       sha:
         description: the commit checked; empty - the event's
         type: string
@@ -110,7 +110,7 @@ jobs:
     # success or a carried failure does not.
     name: same tree (app-ci)
     if: inputs.sha == ''
-    runs-on: ${{ inputs.runner || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.runner || 'ubuntu-26.04' }}
     permissions:
       contents: read
       actions: read
@@ -127,7 +127,7 @@ jobs:
     name: make and app checker
     needs: same-tree
     if: ${{ !cancelled() && needs.same-tree.result != 'failure' && needs.same-tree.outputs.run != 'false' }}
-    runs-on: ${{ inputs.runner || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.runner || 'ubuntu-26.04' }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
@@ -181,7 +181,7 @@ jobs:
     name: scope
     needs: same-tree
     if: ${{ !cancelled() && needs.same-tree.result != 'failure' && needs.same-tree.outputs.run != 'false' }}
-    runs-on: ${{ inputs.runner || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.runner || 'ubuntu-26.04' }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
@@ -220,7 +220,7 @@ jobs:
     name: changed apps
     needs: same-tree
     if: ${{ !cancelled() && needs.same-tree.result != 'failure' && needs.same-tree.outputs.run != 'false' }}
-    runs-on: ${{ inputs.runner || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.runner || 'ubuntu-26.04' }}
     outputs:
       apps: ${{ steps.changed.outputs.apps }}
     steps:
@@ -265,7 +265,7 @@ jobs:
     name: app (${{ matrix.app }})
     needs: plan
     if: needs.plan.outputs.apps != '[]'
-    runs-on: ${{ inputs.runner || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.runner || 'ubuntu-26.04' }}
     timeout-minutes: 60
     permissions:
       contents: read
@@ -505,7 +505,7 @@ jobs:
     name: app-checks
     needs: [repo, plan, app]
     if: always()
-    runs-on: ${{ inputs.runner || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.runner || 'ubuntu-26.04' }}
     steps:
       - name: Every job passed or had nothing to do
         env:

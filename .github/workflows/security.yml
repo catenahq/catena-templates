@@ -41,7 +41,7 @@ jobs:
     with:
       profile: full
       # The self-hosted runner group excludes public repos.
-      runner: ubuntu-latest
+      runner: ubuntu-26.04
     secrets:
       DOCKERHUB_USERNAME: ${{ !startsWith(github.head_ref || github.ref_name, 'agent/') && github.actor != vars.AGENT_LOGIN && secrets.DOCKERHUB_USERNAME || '' }}
       DOCKERHUB_TOKEN: ${{ !startsWith(github.head_ref || github.ref_name, 'agent/') && github.actor != vars.AGENT_LOGIN && secrets.DOCKERHUB_TOKEN || '' }}
