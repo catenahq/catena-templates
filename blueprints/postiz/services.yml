@@ -1,6 +1,6 @@
 services:
   postiz:
-    image: ghcr.io/gitroomhq/postiz-app:v2.25.3
+    image: ghcr.io/gitroomhq/postiz-app:v2.26.0
     # The orchestrator starts its Temporal workers only if Temporal answers when it boots and otherwise runs
     # without them, so the image's start runs once Temporal's default namespace answers. It is the image's
     # pm2-run script with the schema push run by the image's own prisma (a devDependency the image installs),
