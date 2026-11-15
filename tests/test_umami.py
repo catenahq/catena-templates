@@ -45,10 +45,11 @@ def _verify() -> list[str]:
 
 # --- the declaration ----------------------------------------------------------
 
-def test_the_address_is_gated_for_administrators_with_the_script_and_collect_paths_public():
+def test_the_address_is_gated_for_administrators_with_the_script_collect_and_health_paths_public():
+    """The status page probes the health path without signing in, so it is public too."""
     labels = _labels("umami")
     assert labels["vps.auth.mode"] == "${AUTH_MODE:-admin-only}"
-    assert labels["vps.auth.public_paths"] == "/${TRACKER_SCRIPT_NAME},${COLLECT_API_ENDPOINT}"
+    assert labels["vps.auth.public_paths"] == "/${TRACKER_SCRIPT_NAME},${COLLECT_API_ENDPOINT},/api/heartbeat"
     assert labels["vps.route.host"] == "${DOMAIN_HOST}"
     assert labels["vps.route.port"] == "3000"
     assert labels["vps.health.path"] == "/api/heartbeat"
