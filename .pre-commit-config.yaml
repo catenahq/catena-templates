@@ -23,7 +23,7 @@ repos:
 
   - repo: local
     hooks:
-      # The bench tests one app at a time and a tag names one app.
+      # The app tests judge one app at a time and a tag names one app.
       - id: one-app
         name: The commit changes at most one app
         language: system

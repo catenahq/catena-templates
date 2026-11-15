@@ -145,7 +145,7 @@ extension and the same text.
 
 Hosts, the bench and every check read the packed `docker-compose.yml`, so a change
 of neat files that packs to the same bytes changes no class (`lib/versions.py`) and
-runs no bench. The loader refuses a packed compose that holds a script path. `uv run
+runs no app tests. The loader refuses a packed compose that holds a script path. `uv run
 build/pack.py unpack <id>` turns an app's compose (an import, another repository's app)
 into `services.yml`, `x-catena.yml` and script files, refusing one out of normal form
 (the block first, `schema: 2` its first line, its keys in `ORDER`, one empty line after
@@ -317,7 +317,7 @@ block.
    [Declare a verify check](https://docs.catena.run/en/configure-apps/#declare-a-verify-check-optional).
    Real examples: the hooks of `blueprints/erpnext` and
    `blueprints/nextcloud`.
-9. `blueprints/<id>/test.yml` -- the data the bench seeds and reads back. It
+9. `blueprints/<id>/test.yml` -- the data the app tests and the bench seed and read back. It
    holds `id` (the template id), `description`, the lists `seed` and `assert`,
    and an optional `setup` list. Each step has a unique `name` and a `type`:
    `docker_exec` runs the argv `command` in `container` (`expect_exit_code`,
@@ -329,7 +329,7 @@ block.
    of the service's `vps.route.host`) are filled in.
    - `setup` does the app's first run as a person would: its first
      administrator, and a setting only an administrator makes. It runs before
-     every seed and before a bench sign-in, never before an assert. Each step
+     every seed and before a sign-in of the app tests or the bench, never before an assert. Each step
      gets or creates what it makes and names no `{{ run_id }}`, since what it
      makes belongs to the instance.
    - The credential is the harness's: every step of a test with `setup` gets
@@ -383,19 +383,19 @@ block.
 11. Open a PR from a branch that changes this one app and nothing else, or, as
     a repository admin, push the one commit to `main`. CI runs
     `build-and-verify.yml`, `app-ci.yml` (see "Checks on every pull
-    request"), `check:unicode` and `check:prose`; the bench then runs the legs
+    request"), `check:unicode` and `check:prose`; the app tests then run the legs
     below.
 
 A change of an app is one pull request or one commit of `main`, touching that
 app alone: the `scope` check fails a pull request or a commit that touches two,
-and the bench judges a branch only when it changes one app or none. Several
+and the app tests judge a branch only when it changes one app or none. Several
 changes of different apps go to `main` as one commit each, never as a branch
 per app.
 
 ### What each app-tests leg proves
 
-The bench runs these legs in this order in a test VM (see
-"The bench lifecycle"); a leg that cannot run is a failed leg, not a skip.
+The app tests run these legs in this order in a test VM (see
+"The app-tests lifecycle"); a leg that cannot run is a failed leg, not a skip.
 
 1. `install` -- the app is added at the commit's tag from a repository holding
    its files.
@@ -436,11 +436,11 @@ A failed `install` skips every leg but `egress`; a failed `checks` skips `verify
 ### Where to read a failed leg
 
 The `app-tests` status on the commit links to the ops run; the job of the app
-there logs one line per leg with its reason when it failed, and, when the bench
+there logs one line per leg with its reason when it failed, and, when the app tests
 held any, the last lines of the evidence about it. On `main`, the failure also opens or rewrites
 the issue `app-tests failing: <id>` of this repository, labelled `app:<id>`,
 with the failing leg's last 200 lines; a branch's failures show on its pull
-request only. See "The bench lifecycle".
+request only. See "The app-tests lifecycle".
 
 A merge to `main` is live for every new deploy as soon as the consumers
 next fetch the catalog; there are no releases to cut. An app already
@@ -476,7 +476,7 @@ presentation runs the lifecycle and gets a new revision.
 
 `.github/workflows/app-ci.yml` runs on GitHub-hosted runners (the `runner`
 input of its `workflow_call` sets another label) for every pull
-request, forks included (no secret, a read-only token). The bench lifecycle
+request, forks included (no secret, a read-only token). The app-tests lifecycle
 runs later and elsewhere. One job covers the catalog:
 
 - The swarm lint (`build/lint_swarm.py`) and `catena-applint --catalog --nodes 2` over
@@ -555,11 +555,11 @@ pull request merged while up to date, as the bot pull requests are) runs
 nothing: it gets that run's result, and its `app-ci` status points at that run. It posts the commit status
 `app-ci` on each commit (success, or failure naming the jobs that failed) and
 calls `app-dispatch.yml` with the commits that passed: a push sends only
-those to the bench (the nightly run takes the head of `main`). A merge commit
+those to the app tests (the nightly run takes the head of `main`). A merge commit
 passes `scope` there, because the commits of its second side are checked on
 their own; a pull request's merge commit is judged as usual. A squash merge is
 a push like any other: app-ci runs on the squash
-commit, then the bench verdict carries from the pull request's head. A commit
+commit, then the app-tests verdict carries from the pull request's head. A commit
 whose message holds `[skip ci]` starts no run, gets no `app-ci` status and so
 tags nothing.
 
@@ -568,7 +568,7 @@ An admin can run `app-main.yml` by hand with the apps
 app's last change again with the checks of the head of `main`, from the
 change's parent: the app's files at the head are those of its last change, and
 the image scan still judges the change against its base. A pass posts the
-`app-ci` success on that last change and sends it to the bench, as a push does.
+`app-ci` success on that last change and sends it to the app tests, as a push does.
 A named app that `main` lacks, or whose last change touches more than one app,
 is refused.
 
@@ -600,10 +600,10 @@ through `env:` only and refuses an id that is not a lowercase slug.
 has an `app-ci` success from github-actions[bot], with `GITHUB_REPOSITORY` and a
 token set).
 
-## The bench lifecycle
+## The app-tests lifecycle
 
-After the cheap checks, the lifecycle of each app runs on the Catena bench (a
-private runner this repository cannot reach):
+After the cheap checks, the lifecycle of each app runs on the app test runners (private
+runners this repository cannot reach):
 
 - `app-dispatch.yml` runs on a push to any branch but `main`, `adopt/*`
   included; `app-main.yml` calls it for `main`. It sends
@@ -611,7 +611,7 @@ private runner this repository cannot reach):
   the change is judged from, the apps the change touches, the branch and the
   name of the repository the event comes from (`catena-templates` here; another
   repository calls this workflow too) and the caller's `own-images`, so the
-  bench knows which images the repository builds itself. On `main`, each commit of the push is sent on its own, judged from its parent,
+  app tests know which images the repository builds itself. On `main`, each commit of the push is sent on its own, judged from its parent,
   except a commit that changes no app or whose app `main` has changed again since. A
   branch other than `main` is judged as a whole, from where it left `main`, and
   is sent only when it changes one app or none; a newer push cancels the send of
@@ -633,12 +633,12 @@ private runner this repository cannot reach):
   pass on `main` is tagged with the address of the run that tested the change.
 - ops runs install, checks, backup, restore, rollback, updates and the outbound
   check, then posts the commit status `app-tests` on the commit (success,
-  failure, or error when the bench gave no verdict). A commit of a branch other
+  failure, or error when the app tests gave no verdict). A commit of a branch other
   than `main` that its branch has moved past by the time a runner takes it is
   skipped. For a commit of `main`,
   ops sends back the event `app-passed` with the apps that passed, and
   `app-tag.yml` tags them (see "Versions").
-- `adopt-fork.yml` serves pull requests from forks, which the bench never sees
+- `adopt-fork.yml` serves pull requests from forks, which the app tests never see
   directly. When `app-ci` has passed a fork's pull request, it copies the fork's
   files for exactly one app (`blueprints/<id>/**`) onto
   the branch `adopt/<pr>` of this repository through the API, as data: nothing
@@ -667,7 +667,7 @@ No file holds a version string: versions are git tags. A tested app is tagged
 - **Revision.** 1 plus the highest revision the app already has at that
   version, so a change that leaves the image alone still gets a new tag. Tags order by
   version, then revision, as numbers.
-- **When.** `app-tag.yml` runs on the event `app-passed`, which the bench sends
+- **When.** `app-tag.yml` runs on the event `app-passed`, which the app tests send
   with the apps that passed on a commit of `main`. An app whose files
   (`blueprints/<id>/`) differ from its newest tag in the
   runtime (or in verification together with presentation), or that has none,
@@ -700,7 +700,7 @@ No file holds a version string: versions are git tags. A tested app is tagged
   `presentation` when they differ in presentation alone, `changed` otherwise,
   and `untested` when it has no tag, or its newest was made by hand and the
   files differ from it in verification alone or not at all. The nightly
-  bench run takes the apps that are neither `tested` nor `presentation` first.
+  app-tests run takes the apps that are neither `tested` nor `presentation` first.
 - **Scope.** The `scope` check fails a pull request or a commit of `main` that
   changes more than one app (distinct ids across `blueprints/<id>/**`), so one change is one tag; the `one-app` pre-commit hook
   does the same for a commit. `app-checks`, `scope` and `app-tests` are required

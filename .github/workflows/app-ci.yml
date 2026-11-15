@@ -1,7 +1,7 @@
 name: app-ci
 
 # The cheap checks every app pull request and every commit of main passes
-# before the bench lifecycle runs, on the runner label the caller passes
+# before the app-tests lifecycle runs, on the runner label the caller passes
 # (GitHub-hosted by default), for forks too (no secrets, a read-only token).
 # `repo` checks the catalog as a whole; `app` checks each app the
 # change touches: its stack file, the released app checker, its images' CVEs,

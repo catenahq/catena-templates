@@ -22,18 +22,18 @@ least a year ago with three pushed tags; the year of age is asked of a pull requ
 repository builds itself is listed as its own) and ClamAV over each image's files. The workflow holds
 `contents: read` only and passes pull-request text to scripts through
 environment variables. A push to `main` sends only its commits that passed
-these checks to the bench (the nightly run takes the head of `main`), and an
+these checks to the app tests (the nightly run takes the head of `main`), and an
 app is tagged only when they passed at the commit that last changed it.
 
 A pull request from a fork never reaches a runner that holds a secret. After
 `app-ci` passes it, `.github/workflows/adopt-fork.yml` copies the files of
 exactly one app onto a branch of this repository through the API, as data: it
 checks out and runs nothing of the fork, and refuses links, submodules, files
-over 1 MB, paths outside the app and a change to more than one app. The bench
-then runs that branch's app, and the fork's `test.yml` steps as root, on a
+over 1 MB, paths outside the app and a change to more than one app. The app tests
+then run that branch's app, and the fork's `test.yml` steps as root, on a
 private runner in a disposable test VM copied from the Catena base VM. That VM holds only
 throwaway credentials (its own backup repositories and a sandbox licence, and
-Catena's own generated secrets made new; none the bench's, checked by a scan), is refused unless the app checker finds no X7, X8 or X9 in the
+Catena's own generated secrets made new; none the app tests', checked by a scan), is refused unless the app checker finds no X7, X8 or X9 in the
 compose file, runs only the steps of `test.yml` that touch the app's own
 containers and volumes or run in a helper sharing an app container's network,
 and has its outbound network dropped except the

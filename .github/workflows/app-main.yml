@@ -9,7 +9,7 @@ name: app-main
 # status `app-ci` on each commit: success when the commit's `scope` and
 # `app-checks` jobs passed (or the reused run succeeded, its address as the
 # target), else failure naming the jobs that did not. `dispatch`
-# calls app-dispatch with the commits that passed, so the bench runs only those,
+# calls app-dispatch with the commits that passed, so the app tests run only those,
 # and app-tag tags an app only when its last change on main holds an `app-ci`
 # success.
 #

@@ -1,7 +1,7 @@
 name: adopt-fork
 
 # Copies a fork's pull request onto a branch of this repository once app-ci has
-# passed it, so the bench runs the app (the push to adopt/<pr> dispatches it, see
+# passed it, so the app tests run the app (the push to adopt/<pr> dispatches it, see
 # app-dispatch.yml). The workflow runs from the default branch with secrets, so
 # it never checks out, builds or runs anything of the fork: build/adopt.py reads
 # the fork's files as blobs through the API and writes them as blobs here. A

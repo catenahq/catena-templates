@@ -1,8 +1,8 @@
 name: app-dispatch
 
-# Asks the bench to run the apps of a pushed commit: a `repository_dispatch`
+# Asks the app tests to run the apps of a pushed commit: a `repository_dispatch`
 # event `app-test` to the private catenahq/ops repository, whose app-tests
-# workflow runs the lifecycle on the bench and posts the commit status
+# workflow runs the lifecycle on the app test runners and posts the commit status
 # `app-tests` back on this commit. Every branch is dispatched, adopt/<pr>
 # branches and the renovate branches included. This repository's own push
 # trigger covers every branch but main; app-main calls this workflow for main
@@ -168,7 +168,7 @@ jobs:
             base="$(git merge-base "$SHA" "origin/$DEFAULT_BRANCH")"
             if [ "$BRANCH" != "$DEFAULT_BRANCH" ] \
               && ! git diff --name-only "$base" "$SHA" | uv run "$TOOLS/build/versions.py" scope; then
-              echo "::error::a branch changes one app or none; this one is not sent to the bench"
+              echo "::error::a branch changes one app or none; this one is not sent to the app tests"
               exit 1
             fi
             # A new branch at an existing commit changes nothing: that commit has its status.

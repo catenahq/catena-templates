@@ -52,8 +52,8 @@ static preview `index.html`.
 | When an app has another URL that only works with one fixed access, such as the mail policy page that every sending mail server reads, that URL keeps its fixed access, and the reason is written next to it | `workflow:build-and-verify.yml` |
 | Every catalog image reference is CVE-scanned | `workflow:security.yml`, `scanctl:trivy` |
 | Source is scanned on every change (secrets, vulnerable deps, static analysis, rendered config) | `workflow:security.yml`, `scanctl:gitleaks`, `scanctl:osv-scanner`, `scanctl:semgrep`, `scanctl:trivy` |
-| A push to `main` sends only the commits that passed the app checks to the bench, and an app is tagged only when they passed at its last change | `workflow:app-main.yml`, `workflow:app-tag.yml` |
-| A change of an app's presentation alone keeps its last app-tests verdict and is tagged without a bench run; a change of what runs or of its tests runs the bench | `workflow:app-dispatch.yml`, `workflow:app-tag.yml` |
+| A push to `main` sends only the commits that passed the app checks to the app tests, and an app is tagged only when they passed at its last change | `workflow:app-main.yml`, `workflow:app-tag.yml` |
+| A change of an app's presentation alone keeps its last app-tests verdict and is tagged without an app-tests run; a change of what runs or of its tests runs the app tests | `workflow:app-dispatch.yml`, `workflow:app-tag.yml` |
 | The compose a host deploys for an app held as neat files is the one the render packs from them, and a change whose compose differs from that render fails | `workflow:app-ci.yml` |
 | A catalog app that opts in exports to a folder plain Docker starts, and it answers on its published port on a machine without Catena | `workflow:app-ci.yml` |
 | Templates deploy and run end-to-end on real servers | `bench:ce_install_suite` |

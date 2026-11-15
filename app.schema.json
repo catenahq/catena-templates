@@ -24,7 +24,7 @@
     "app_name": {
       "type": "string",
       "pattern": "^[a-z0-9][a-z0-9-]*$",
-      "description": "The stack name the bench and the app checker use."
+      "description": "The stack name the bench, the app tests and the app checker use."
     },
     "upstream_url": {
       "type": "string",
