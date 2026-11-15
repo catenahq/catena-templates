@@ -8,7 +8,7 @@ env:
   DB_PASSWORD:
     generated: {length: 32, alphabet: alnum}
   UPLOAD_LOCATION:
-    setting: {default: "immich-library"}
+    setting: {default: "immich-library", first_start_only: true, label: {en: "Where Immich keeps its library: immich-library, or a folder on a disk listed under Other folders to back up; choose it before the first deploy", fr: "Où Immich garde sa bibliothèque : immich-library, ou un dossier d'un disque inscrit sous Autres dossiers à sauvegarder ; à choisir avant le premier déploiement"}}
   IMMICH_ADMIN_EMAIL:
     setting: {default: "{{ admin_email }}"}
   IMMICH_ADMIN_PASSWORD:
