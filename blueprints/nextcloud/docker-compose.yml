@@ -356,7 +356,8 @@ x-catena:
           }
 
           waited=0
-          until occ status --exit-code >/dev/null 2>&1; do
+          # occ status exits 0 while the first install still runs, so the wait also asks config.php.
+          until installed && occ status --exit-code >/dev/null 2>&1; do
             if maintenance; then
               say "maintenance mode is on; the wiring is left for the next deploy"
               exit 0
