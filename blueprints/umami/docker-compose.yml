@@ -135,7 +135,7 @@ services:
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=3000"
       - "vps.auth.mode=${AUTH_MODE:-admin-only}"
-      - "vps.auth.public_paths=/${TRACKER_SCRIPT_NAME},${COLLECT_API_ENDPOINT}"
+      - "vps.auth.public_paths=/${TRACKER_SCRIPT_NAME},${COLLECT_API_ENDPOINT},/api/heartbeat"
       - "vps.health.path=/api/heartbeat"
       - "vps.health.expect=ok"
       - "vps.auto-update=${UPDATE_LEVEL:-major}"
