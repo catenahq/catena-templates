@@ -4,6 +4,7 @@ import re
 import secrets
 import subprocess
 import sys
+import time
 
 STATE = "/tmp/docker-mailserver/.catena-mailboxes.json"
 PROTECTED = {"postmaster"}
@@ -30,6 +31,28 @@ def save(addresses):
     with open(os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600), "w", encoding="utf-8") as fh:
         json.dump(sorted(addresses), fh)
     os.replace(tmp, STATE)
+
+
+def wait_for_users(addresses):
+    # The image's watcher copies the source accounts into Dovecot's userdb.
+    pending = set(addresses)
+    deadline = time.monotonic() + 120
+    while pending:
+        for address in sorted(pending):
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                print("Dovecot mailboxes not ready: " + ", ".join(sorted(pending)), file=sys.stderr)
+                return False
+            try:
+                result = subprocess.run(["doveadm", "user", address], capture_output=True,
+                                        timeout=min(10, remaining))
+            except subprocess.TimeoutExpired:
+                continue
+            if result.returncode == 0:
+                pending.remove(address)
+        if pending:
+            time.sleep(min(2, max(0, deadline - time.monotonic())))
+    return True
 
 
 domain = os.environ.get("MAIL_DOMAIN", "").strip().lower()
@@ -75,5 +98,7 @@ for address in sorted(current - desired):
     removed += 1
 if added or removed:
     save(created)
+if not failed and not wait_for_users(desired):
+    failed = True
 print("mailboxes: %d added, %d removed" % (added, removed))
 sys.exit(1 if failed else 0)
