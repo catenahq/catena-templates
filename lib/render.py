@@ -18,7 +18,7 @@ At the repo root, everything is generated:
   index.html                          static catalog preview
 
 `catalog.json` carries the SSO mode, the compose's x-catena block (env, quiesce
-and lifecycle commands, object-store check), bench membership, sizing, and the
+and lifecycle commands), bench membership, sizing, and the
 bilingual prose. Neither generated file is hand-edited.
 
 Idempotency is the contract: rendering twice produces byte-identical
@@ -62,7 +62,7 @@ def requires_sentence(entry: Entry) -> str:
 def render_catalog_entry(entry: Entry) -> dict[str, Any]:
     """The flat machine view. Key names match what the consumers join
     on; the nesting in app.json exists for the human editing it. The
-    compose block's env, lifecycle, quiesce and object_store
+    compose block's env, lifecycle and quiesce
     pass through unchanged, and its managed env keys become env_managed_keys.
     env_defaults is the env as KEY=value lines. An imported entry's status,
     origin and null stubs pass through too."""
@@ -93,8 +93,6 @@ def render_catalog_entry(entry: Entry) -> dict[str, Any]:
     out["env"] = entry.env
     if entry.managed_env:
         out["env_managed_keys"] = list(entry.managed_env)
-    if entry.object_store:
-        out["object_store"] = entry.object_store
     if entry.lifecycle:
         out["lifecycle"] = entry.lifecycle
     if entry.quiesce:

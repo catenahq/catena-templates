@@ -208,63 +208,20 @@ def test_bash_is_not_a_migrate_command(monkeypatch, tmp_path, capsys):
         in capsys.readouterr().out
 
 
-_STORE_COMPOSE = """\
-services:
-  app:
-    image: acme/app:1.0.0
-    environment:
-      BUCKET: ${S3_BUCKET}
-      KEY: ${S3_ACCESS_KEY}
-      SECRET: ${S3_SECRET_KEY}
-"""
-_STORE_ENV = {key: {"setting": {"default": ""}}
-              for key in ("DOMAIN_HOST", "S3_BUCKET", "S3_ACCESS_KEY", "S3_SECRET_KEY")}
+@pytest.mark.parametrize("field", ["object_store"])
+def test_a_block_that_declares_a_retired_field_is_refused(field):
+    import jsonschema
+    schema = json.loads((ROOT / "block.schema.json").read_text(encoding="utf-8"))
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate({"schema": 2, field: {"env": {}}}, schema)
 
 
-def _object_store(**changes) -> dict:
-    store = {
-        "env": {"bucket": "S3_BUCKET", "access_key": "S3_ACCESS_KEY",
-                "secret_key": "S3_SECRET_KEY"},
-        "switch": {"service": "app", "user": "www-data",
-                   "commands": [["php", "occ", "files:scan", "{new_bucket}"]]},
-    }
-    return {"schema": 2, "env": _STORE_ENV, "object_store": {**store, **changes}}
-
-
-def test_an_object_store_the_compose_reads_passes(monkeypatch, tmp_path, capsys):
-    _synthetic_sources(monkeypatch, tmp_path, {}, _STORE_COMPOSE, block=_object_store())
-    assert L.lint_all() == 0, capsys.readouterr().out
-
-
-@pytest.mark.parametrize("env,compose,needle", [
-    ({k: v for k, v in _STORE_ENV.items() if k != "S3_SECRET_KEY"}, _STORE_COMPOSE,
-     "synthetic-bad.object_store.env.secret_key: 'S3_SECRET_KEY' is not in the block's env"),
-    (_STORE_ENV, _STORE_COMPOSE.replace("${S3_SECRET_KEY}", "fixed"),
-     "synthetic-bad.object_store.env.secret_key: the compose never reads 'S3_SECRET_KEY'"),
-])
-def test_an_object_store_env_key_the_app_never_reads_is_refused(
-        monkeypatch, tmp_path, capsys, env, compose, needle):
-    _synthetic_sources(monkeypatch, tmp_path, {}, compose, block={**_object_store(), "env": env})
-    assert L.lint_all() == 1
-    assert needle in capsys.readouterr().out
-
-
-@pytest.mark.parametrize("switch,needle", [
-    ({"service": "worker", "commands": [["php", "occ", "status"]]},
-     "synthetic-bad.object_store.switch.service: 'worker' is not a service"),
-    ({"service": "app", "commands": [["curl", "https://evil.example.com"]]},
-     "synthetic-bad.object_store.switch.commands[0]: starts with non-allowlisted command 'curl'"),
-    ({"service": "app", "commands": [["php", "occ", "status", "&&", "php", "occ", "list"]]},
-     "synthetic-bad.object_store.switch.commands[0]: contains the shell operator '&&'"),
-    ({"service": "app", "commands": [["php", "occ", "files:scan", "{bucket}"]]},
-     "synthetic-bad.object_store.switch.commands[0]: '{bucket}' is not a placeholder"),
-])
-def test_an_object_store_switch_the_host_cannot_run_is_refused(
-        monkeypatch, tmp_path, capsys, switch, needle):
-    _synthetic_sources(monkeypatch, tmp_path, {}, _STORE_COMPOSE,
-                       block=_object_store(switch=switch))
-    assert L.lint_all() == 1
-    assert needle in capsys.readouterr().out
+def test_a_reconcile_hook_is_refused():
+    import jsonschema
+    schema = json.loads((ROOT / "block.schema.json").read_text(encoding="utf-8"))
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate({"schema": 2, "hooks": {"service": "app", "reconcile": [["true"]]}}, schema)
+    assert "reconcile" not in L.HOOK_LISTS
 
 
 _VERSIONED_COMPOSE = """\
@@ -970,34 +927,32 @@ def test_host_paths_that_hold_nothing_forbidden_pass():
     assert L.lint_host_paths(entry) == []
 
 
-def test_scan_and_reconcile_are_hook_lists_the_lint_reads():
-    assert {"scan", "reconcile"} <= set(L.HOOK_LISTS)
+def test_scan_is_a_hook_list_the_lint_reads():
+    assert "scan" in L.HOOK_LISTS
 
 
 @pytest.mark.parametrize("hooks,needle", [
     ({"service": "app", "scan": [["curl", "https://evil.example.com"]]},
      "synthetic-bad.hooks.scan[0]: starts with non-allowlisted command 'curl'"),
-    ({"service": "app", "reconcile": [["php", "occ", "list", "&&", "php", "occ", "status"]]},
-     "synthetic-bad.hooks.reconcile[0]: contains the shell operator '&&'"),
-    ({"service": "app", "reconcile": [["sh", "-c", "if true; then"]]},
-     "synthetic-bad.hooks.reconcile[0]: does not parse as sh"),
+    ({"service": "app", "scan": [["php", "occ", "list", "&&", "php", "occ", "status"]]},
+     "synthetic-bad.hooks.scan[0]: contains the shell operator '&&'"),
+    ({"service": "app", "scan": [["sh", "-c", "if true; then"]]},
+     "synthetic-bad.hooks.scan[0]: does not parse as sh"),
 ])
-def test_a_scan_or_reconcile_body_the_host_cannot_run_is_refused(
+def test_a_scan_body_the_host_cannot_run_is_refused(
         monkeypatch, tmp_path, capsys, hooks, needle):
     _synthetic_sources(monkeypatch, tmp_path, {}, block={"hooks": hooks})
     assert L.lint_all() == 1
     assert needle in capsys.readouterr().out
 
 
-def test_scan_and_reconcile_hooks_alone_pass_the_schema_and_the_lint(monkeypatch, tmp_path, capsys):
+def test_a_scan_hook_alone_passes_the_schema_and_the_lint(monkeypatch, tmp_path, capsys):
     import jsonschema
     schema = json.loads((ROOT / "block.schema.json").read_text(encoding="utf-8"))
-    for name in ("scan", "reconcile"):
-        jsonschema.validate({"schema": 2, "hooks": {"service": "app", name: [["sh", "-c", "cat >/dev/null"]]}},
-                            schema)
+    jsonschema.validate({"schema": 2, "hooks": {"service": "app", "scan": [["sh", "-c", "cat >/dev/null"]]}},
+                        schema)
     _synthetic_sources(monkeypatch, tmp_path, {}, block={"hooks": {
-        "service": "app", "scan": [["sh", "-c", "cat | wc -c; echo $$?"]],
-        "reconcile": [["sh", "-c", "echo missing=0"]]}})
+        "service": "app", "scan": [["sh", "-c", "cat | wc -c; echo $$?"]]}})
     assert L.lint_all() == 0, capsys.readouterr().out
     with pytest.raises(jsonschema.ValidationError):
         jsonschema.validate({"schema": 2, "hooks": {"service": "app", "scan": []}}, schema)

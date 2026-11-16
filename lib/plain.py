@@ -41,7 +41,7 @@ from .pack import COMPOSE, EXTENSIONS, HOOKS_DIR
 ROOT = Path(__file__).resolve().parent.parent
 BLOCK_KEY = "x-catena"
 NETWORK = "catena-network"
-HOOK_NAMES = ("configure", "verify", "users", "scan", "reconcile")
+HOOK_NAMES = ("configure", "verify", "users", "scan")
 # Hooks whose script reads standard input, and the one that is given no env value.
 STDIN_HOOKS = ("users", "scan")
 NO_ENV_HOOKS = ("scan",)

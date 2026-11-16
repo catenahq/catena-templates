@@ -117,69 +117,6 @@
         }
       }
     },
-    "object_store": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "env"
-      ],
-      "description": "How the app reaches its object-store bucket, for the host to point a deployed app at another bucket. env names the stack env keys that hold the bucket's settings. switch is what the host runs once the app runs on the new bucket; its commands may carry the placeholders {old_bucket} and {new_bucket}.",
-      "properties": {
-        "env": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "bucket",
-            "access_key",
-            "secret_key"
-          ],
-          "description": "Stack env key of each setting. host, port, ssl and region are named when the template exposes them.",
-          "properties": {
-            "bucket": { "$ref": "#/$defs/env_key" },
-            "host": { "$ref": "#/$defs/env_key" },
-            "port": { "$ref": "#/$defs/env_key" },
-            "ssl": { "$ref": "#/$defs/env_key" },
-            "region": { "$ref": "#/$defs/env_key" },
-            "access_key": { "$ref": "#/$defs/env_key" },
-            "secret_key": { "$ref": "#/$defs/env_key" }
-          }
-        },
-        "note": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["en", "fr"],
-          "description": "Words the panel shows beside the choice of where the app keeps its files.",
-          "properties": {
-            "en": { "type": "string", "minLength": 1 },
-            "fr": { "type": "string", "minLength": 1 }
-          }
-        },
-        "switch": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "service",
-            "commands"
-          ],
-          "description": "Commands run inside one service after the app runs on the new bucket. Every command is an argv array executed through docker exec, never a shell.",
-          "properties": {
-            "service": {
-              "type": "string",
-              "minLength": 1,
-              "description": "Compose service the commands run inside."
-            },
-            "user": {
-              "type": "string",
-              "description": "User to exec as, when the application refuses to run its CLI as root."
-            },
-            "commands": {
-              "$ref": "#/$defs/argv_list",
-              "description": "Run in order, stopping at the first failure."
-            }
-          }
-        }
-      }
-    },
     "env": {
       "type": "object",
       "propertyNames": {
@@ -271,10 +208,9 @@
         { "required": ["configure"] },
         { "required": ["verify"] },
         { "required": ["users"] },
-        { "required": ["scan"] },
-        { "required": ["reconcile"] }
+        { "required": ["scan"] }
       ],
-      "description": "Scripts the host runs inside one service: configure after a deploy, verify that the application works, users to seed its accounts, scan to check one file, reconcile to count the objects its database indexes that its object store lacks. Each is a list of argv in the packed compose, where a $ is written $$, which Docker reads back as $; x-catena.yml may name a script file in its place.",
+      "description": "Scripts the host runs inside one service: configure after a deploy, verify that the application works, users to seed its accounts, scan to check one file. Each is a list of argv in the packed compose, where a $ is written $$, which Docker reads back as $; x-catena.yml may name a script file in its place.",
       "properties": {
         "service": { "type": "string", "minLength": 1 },
         "user": { "type": "string" },
@@ -284,10 +220,6 @@
         "scan": {
           "$ref": "#/$defs/step_list",
           "description": "Reads the file to check on its standard input. Exit 0 means clean. Exit 1 with an output line FLAGGED <signature> means flagged. Any other ending, docker's own exit 1 included, means the scanner could not answer and the file is refused. A block that provides antivirus declares it."
-        },
-        "reconcile": {
-          "$ref": "#/$defs/step_list",
-          "description": "Runs after a restore, an application start, a bucket repair and the reconcile verb. Its last output line is missing=<n>, followed by optional <name>=<n> pairs. Exit 0 with that line answers: n objects are missing. Exit 0 without it observed nothing (an application in maintenance prints no count, never 0). A non-zero exit or a timeout did not complete. It reports and never deletes. The body waits for the application to be ready itself."
         },
         "users_group": {
           "type": "string",
