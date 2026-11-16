@@ -52,6 +52,8 @@ setup:
         <?php
         $config['imap_conn_options']['ssl']['cafile'] = '/var/roundcube/config/appci-acme-root.pem';
         $config['smtp_conn_options']['ssl']['cafile'] = '/var/roundcube/config/appci-acme-root.pem';
+        // Keep the HTTP writer's sessions through the backup and restore legs.
+        $config['session_lifetime'] = 1440;
         EOF
         running=/var/www/html/config/config.docker.inc.php
         if ! grep -qF zz-appci-acme-root.inc.php "$running"; then
@@ -256,3 +258,80 @@ assert:
         doveadm fetch -u "$box" 'hdr.subject body' mailbox INBOX header message-id "catena-{{ run_id }}@catena.invalid"
     expect_stdout_contains: "fixture-{{ run_id }}"
     timeout_s: 150
+
+# Roundcube records the requested URL in its OAuth session before redirecting.
+# Requests go through Apache, so the backup mode holds their database writes.
+writer:
+  container: "{{ container_roundcube }}"
+  command:
+    - php
+    - -r
+    - &webmail_write |
+      $after = isset($argv[1]);
+      $db = new PDO('sqlite:' . glob('/var/roundcube/db/*.db')[0]);
+      $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+      for ($n = 0; ; $n++) {
+          $id = $after ? $argv[1] : '{{ run_id }}-' . $n;
+          $marker = 'catena-writer-' . $id . '-end';
+          $url = 'http://127.0.0.1/?_task=mail&catena_writer=' . rawurlencode($marker);
+          $http = curl_init($url);
+          curl_setopt_array($http, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 1800]);
+          $body = curl_exec($http);
+          $status = curl_getinfo($http, CURLINFO_RESPONSE_CODE);
+          curl_close($http);
+          if ($body === false || $status !== 302) {
+              throw new RuntimeException('webmail writer did not get the sign-in redirect');
+          }
+          $count = 0;
+          foreach ($db->query('SELECT vars FROM session') as $row) {
+              if (str_contains(base64_decode($row['vars']), $marker)) {
+                  $count++;
+              }
+          }
+          if ($count !== 1) {
+              throw new RuntimeException('webmail did not store exactly one writer session');
+          }
+          echo $after ? "recorded $id\n" : "ack $n\n";
+          flush();
+          if ($after) {
+              break;
+          }
+          sleep(1);
+      }
+  after:
+    - name: webmail_records_the_after_session
+      type: docker_exec
+      container: "{{ container_roundcube }}"
+      command:
+        - php
+        - -r
+        - *webmail_write
+        - "{{ writer_id }}"
+      expect_stdout_contains: "recorded {{ writer_id }}"
+      timeout_s: 120
+  check:
+    - php
+    - -r
+    - |
+      $expected = json_decode(stream_get_contents(STDIN), true, 512, JSON_THROW_ON_ERROR);
+      $db = new PDO('sqlite:' . glob('/var/roundcube/db/*.db')[0]);
+      $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+      if ($db->query('PRAGMA integrity_check')->fetchColumn() !== 'ok') {
+          throw new RuntimeException('webmail database integrity check failed');
+      }
+      $sessions = [];
+      foreach ($db->query('SELECT vars FROM session') as $row) {
+          $sessions[] = base64_decode($row['vars']);
+      }
+      foreach ($expected['before'] as $n) {
+          $marker = 'catena-writer-{{ run_id }}-' . $n . '-end';
+          $matches = array_filter($sessions, fn($s) => str_contains($s, $marker));
+          if (count($matches) !== 1) {
+              throw new RuntimeException('acknowledged webmail session missing or duplicated: ' . $n);
+          }
+      }
+      $after = 'catena-writer-' . $expected['after'] . '-end';
+      if (array_filter($sessions, fn($s) => str_contains($s, $after))) {
+          throw new RuntimeException('post-backup webmail session survived the restore');
+      }
+      echo "webmail writer restored\n";
