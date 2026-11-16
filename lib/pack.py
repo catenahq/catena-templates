@@ -25,10 +25,6 @@ snippet, and so are two versions of a snippet with one extension and one text. E
 else in a list, one-line commands included, stays argv as written. The packed file is
 what hosts, the bench and every check read; the render commits it beside the neat files.
 
-A folder without `x-catena.yml` holds the block in the section files `settings.yml`,
-`access.yml` and `lifecycle.yml` instead, with hook items written `- {file: hooks/<name>}`
-and `- {include: [<snippet>/<n>, ...]}`; pack reads that layout too.
-
 `unpack` cuts a packed compose into `services.yml`, `x-catena.yml` and the script files,
 and writes them only when packing them gives the compose back byte for byte. A script
 whose text and extension equal a snippet's is written as that snippet's path. A compose
@@ -52,38 +48,22 @@ SERVICES = "services.yml"
 HOOKS_DIR = "hooks"
 SNIPPETS_DIR = "snippets"
 
-# The block keys each section file holds.
-SECTIONS = {
-    "settings.yml": ("env", "secrets"),
-    "access.yml": ("privileges", "capabilities", "host_paths", "access", "provides", "needs", "egress"),
-    "lifecycle.yml": ("requires_catena", "version_from", "lifecycle", "quiesce", "probe",
-                      "object_store", "write_hold", "stops", "images", "hooks", "data"),
-}
-# The order of the block keys in the packed file, `schema` first: x-catena.yml holds it and pack
-# writes it for an app held in section files.
+# The order of the block keys in the packed file, `schema` first.
 ORDER = ("schema", "requires_catena", "version_from", "privileges", "env", "secrets", "access",
          "capabilities", "host_paths", "provides", "lifecycle", "quiesce", "probe", "object_store",
          "needs", "write_hold", "stops", "images", "hooks", "egress", "data")
 BLOCK_FILE = "x-catena.yml"
 # The files pack reads besides the files under HOOKS_DIR.
-NEAT_FILES = (SERVICES, BLOCK_FILE, *SECTIONS)
+NEAT_FILES = (SERVICES, BLOCK_FILE)
 # The interpreter and flag that run a script file, by its extension, and the reverse.
 RUNS = {"sh": ("sh", "-c"), "bash": ("bash", "-c"), "py": ("python3", "-c"), "js": ("node", "-e"),
         "php": ("php", "-r")}
 EXTENSIONS = {run: ext for ext, run in RUNS.items()}
-# The extension of a hook script file of a section-file layout, by the interpreter that runs it.
-INTERPRETERS = {"sh": "sh", "bash": "sh", "python3": "py", "python": "py", "node": "js", "php": "php"}
-
 _KEY = re.compile(r"[A-Za-z_][A-Za-z0-9_-]*(?=:(?: |$))")
-_ITEM = re.compile(r"(?P<indent> *)- \{(?:file: (?P<file>hooks/[A-Za-z0-9._-]+)"
-                   r"(?:, include: \[(?P<both>[^\]]*)\])?|include: \[(?P<only>[^\]]*)\])\}")
-_INCLUDE_FORM = re.compile(r"\s*- \{\s*(?:file|include)\s*:")
-_REF = re.compile(r"([a-z0-9][a-z0-9-]*)/([1-9][0-9]*)")
 _SNIPPET_PATH = re.compile(r"snippets/([a-z0-9][a-z0-9-]*)/([1-9][0-9]*)\.([a-z]+)")
 _PATH_TEXT = r"(?:hooks/[A-Za-z0-9._-]+|snippets/[a-z0-9][a-z0-9-]*/[1-9][0-9]*\.[a-z]+)"
 _PATH = re.compile(_PATH_TEXT)
 _PATH_ITEM = re.compile(r"(?P<indent> *)- (?P<path>" + _PATH_TEXT + ")")
-_HEADER = re.compile(r"( *)- \|")
 _ODD_DOLLARS = re.compile(r"(?<!\$)(?:\$\$)*\$(?!\$)")
 _APP = re.compile(r"[a-z0-9][a-z0-9-]*")
 # The characters besides a line feed that YAML parsers read as a line break.
@@ -171,37 +151,6 @@ def _hook_name(hook: str, ordinal: int, ext: str) -> str:
     return f"{HOOKS_DIR}/{hook}{'' if ordinal == 1 else f'-{ordinal}'}.{ext}"
 
 
-def _scripts(lines: list[str]) -> list[tuple[str, int, str, int]]:
-    """(hook, ordinal in the hook, extension, index of the `- |` line) of each script of
-    the `hooks` key held in `lines`: the last item of `[<interpreter>, <flag>, <body>]`."""
-    try:
-        root = yaml.compose("\n".join(lines) + "\n")
-    except yaml.YAMLError as exc:
-        raise PackError(f"hooks: not YAML: {exc}") from exc
-    found = []
-    if not isinstance(root, yaml.MappingNode):
-        return found
-    for key, value in root.value:
-        if key.value != "hooks" or not isinstance(value, yaml.MappingNode):
-            continue
-        for hook, argvs in value.value:
-            if not isinstance(argvs, yaml.SequenceNode):
-                continue
-            ordinal = 0
-            for argv in argvs.value:
-                if not isinstance(argv, yaml.SequenceNode) or len(argv.value) != 3:
-                    continue
-                interpreter, flag, body = argv.value
-                if not all(isinstance(n, yaml.ScalarNode) for n in argv.value):
-                    continue
-                ext = INTERPRETERS.get(interpreter.value)
-                if ext and flag.value.startswith("-") and body.style == "|" \
-                        and _HEADER.fullmatch(lines[body.start_mark.line]):
-                    ordinal += 1
-                    found.append((hook.value, ordinal, ext, body.start_mark.line))
-    return found
-
-
 class _Snippet:
     """One snippet file: its path, extension, lines and text."""
 
@@ -242,64 +191,6 @@ def _unused_snippets(snippets: dict[str, str], included: set[str]) -> None:
         if snippet.path not in included and int(n) != newest[name]:
             raise PackError(f"{snippet.path}: no app includes this version and {name}/{newest[name]} is "
                             f"newer; delete it")
-
-
-def _expand_hooks(chunk: list[str], first: int, hooks: dict[str, str], where: str,
-                  index: dict[str, _Snippet], included: set[str]) -> tuple[list[str], list[str]]:
-    """The `hooks` text with each `- {file: ...}` and `- {include: ...}` item written out,
-    and the files used; the snippet files used join `included`."""
-    out, source, placed, used = [], [], {}, []
-    for n, line in enumerate(chunk):
-        match = _ITEM.fullmatch(line)
-        if not match:
-            if _INCLUDE_FORM.match(line):
-                raise PackError(f"{where}:{first + n + 1}: only `- {{file: hooks/<name>}}`, "
-                                f"`- {{include: [<snippet>/<n>, ...]}}` or `- {{file: hooks/<name>, "
-                                f"include: [<snippet>/<n>, ...]}}` is read here")
-            out.append(line)
-            source.append(n)
-            continue
-        indent, name = match["indent"], match["file"]
-        listed = match["both"] if match["both"] is not None else match["only"]
-        refs = listed.split(", ") if listed is not None else []
-        body = []
-        for ref in refs:
-            if not _REF.fullmatch(ref):
-                raise PackError(f"{where}:{first + n + 1}: {ref!r} is not <snippet>/<n>")
-            if ref not in index:
-                raise PackError(f"{where}:{first + n + 1}: the snippet {ref} does not exist")
-            body += index[ref].lines
-            included.add(index[ref].path)
-        if name:
-            if name not in hooks:
-                raise PackError(f"{where}:{first + n + 1}: {name} does not exist")
-            body += _hook_lines(name, hooks[name], f"{Path(where).parent / name}")
-            used.append(name)
-        placed[len(out)] = (name, n, refs)
-        out.append(f"{indent}- |")
-        source.append(n)
-        for text in body:
-            out.append(f"{indent}  {text.replace('$', '$$')}" if text else "")
-            source.append(n)
-    scripts = _scripts(out)
-    for hook, ordinal, ext, header in scripts:
-        expected = _hook_name(hook, ordinal, ext)
-        if header not in placed:
-            raise PackError(f"{where}:{first + source[header] + 1}: the script of {hook} is inline; "
-                            f"move it to {expected}")
-        name, n, refs = placed[header]
-        if name and name != expected:
-            raise PackError(f"{where}:{first + n + 1}: {name} is not named after its place; "
-                            f"this script of {hook} is {expected}")
-        for ref in refs:
-            if index[ref].ext != ext:
-                raise PackError(f"{where}:{first + n + 1}: {index[ref].path} is not a .{ext} file; "
-                                f"this script of {hook} is one")
-    if len(scripts) != len(placed):
-        stray = next(n for h, (name, n, refs) in placed.items() if h not in {s[3] for s in scripts})
-        raise PackError(f"{where}:{first + stray + 1}: {chunk[stray].strip()} is not the last item of "
-                        f"[interpreter, flag, body] of a hook")
-    return out, used
 
 
 def _scalars(node: yaml.Node):
@@ -439,48 +330,12 @@ def pack_texts(neat: dict[str, str], hooks: dict[str, str], prefix: str = "",
     if not services[0]:
         raise PackError(f"{prefix}{SERVICES}:1: starts with an empty line")
     for found, at in _top_keys(neat[SERVICES], prefix + SERVICES):
-        if found == BLOCK_KEY or any(found in keys for keys in SECTIONS.values()):
+        if found == BLOCK_KEY or found in ORDER:
             raise PackError(f"{prefix}{SERVICES}:{at + 1}: {found} is a key of the block; "
-                            f"it belongs in {BLOCK_FILE} or a section file, not here")
-    if BLOCK_FILE in neat:
-        for name in SECTIONS:
-            if name in neat:
-                raise PackError(f"{prefix}{name}: the folder holds {BLOCK_FILE}, which holds the whole block")
-        return _pack_block(neat[BLOCK_FILE], services, hooks, prefix, index, included)
-    home = {key: name for name, keys in SECTIONS.items() for key in keys}
-    chunks, used = {}, []
-    for name, keys in SECTIONS.items():
-        if name not in neat:
-            continue
-        where = prefix + name
-        lines = _lines(neat[name], where)
-        if lines[-1] == "" or lines[-1].startswith("#"):
-            raise PackError(f"{where}:{len(lines)}: ends with an empty or comment line, which would "
-                            f"travel with the key that follows it in the packed file")
-        previous = -1
-        for key, at, start, chunk in _chunks(lines, where):
-            if key == "schema":
-                raise PackError(f"{where}:{at + 1}: pack writes schema")
-            if key not in ORDER:
-                raise PackError(f"{where}:{at + 1}: {key} is not a key of the block")
-            if key not in keys:
-                raise PackError(f"{where}:{at + 1}: {key} belongs in {home[key]}")
-            if key in chunks:
-                raise PackError(f"{where}:{at + 1}: {key} is already held in {chunks[key][0]}")
-            if ORDER.index(key) < previous:
-                raise PackError(f"{where}:{at + 1}: {key} is out of order; the order puts it before "
-                                f"{ORDER[previous]}: {', '.join(ORDER)}")
-            previous = ORDER.index(key)
-            if key == "hooks":
-                chunk, files = _expand_hooks(chunk, start, hooks, where, index, included)
-                used += files
-            chunks[key] = (name, chunk)
-    for name in sorted(set(hooks) - set(used)):
-        raise PackError(f"{prefix}{name}: no hook of lifecycle.yml names this file")
-    out = ["x-catena:", "  schema: 2"]
-    for key in sorted(chunks, key=ORDER.index):
-        out += [f"  {line}" if line else "" for line in chunks[key][1]]
-    return "\n".join(out + [""] + services) + "\n"
+                            f"it belongs in {BLOCK_FILE}, not here")
+    if BLOCK_FILE not in neat:
+        raise PackError(f"{prefix}{BLOCK_FILE}: missing")
+    return _pack_block(neat[BLOCK_FILE], services, hooks, prefix, index, included)
 
 
 def _read(path: Path) -> str:
@@ -521,8 +376,8 @@ def _read_snippets(tree: Path) -> dict[str, str]:
 
 
 def pack_all(root: Path | None = None) -> list[Path]:
-    """Pack every folder holding `services.yml`; the compose files written. `x-catena.yml`, a
-    section file or a `hooks/` folder in a folder without `services.yml` is refused, and so is a snippet
+    """Pack every folder holding `services.yml`; the compose files written. `x-catena.yml` or a
+    `hooks/` folder in a folder without `services.yml` is refused, and so is a snippet
     version that no app includes while a newer one exists. Nothing is written on a refusal."""
     base = (root / "blueprints") if root else BLUEPRINTS
     snippets = _read_snippets(base.parent)
@@ -530,7 +385,7 @@ def pack_all(root: Path | None = None) -> list[Path]:
     packed = []
     for folder in sorted(p for p in base.glob("*") if p.is_dir()):
         if not (folder / SERVICES).is_file():
-            for name in (BLOCK_FILE, *SECTIONS, HOOKS_DIR):
+            for name in (BLOCK_FILE, HOOKS_DIR):
                 if (folder / name).exists() or (folder / name).is_symlink():
                     raise PackError(f"blueprints/{folder.name}/{name}: the folder has no {SERVICES}, "
                                     f"so nothing reads this")

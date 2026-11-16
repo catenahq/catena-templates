@@ -172,7 +172,7 @@ def _again(scratch, apps, ref="refs/heads/main"):
 
 
 def _app_files(app):
-    return (f"blueprints/{app}/docker-compose.yml", f"blueprints/{app}/README.md")
+    return (f"blueprints/{app}/docker-compose.yml", f"blueprints/{app}/logo.png")
 
 
 def _two_apps(scratch):

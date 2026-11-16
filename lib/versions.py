@@ -15,10 +15,10 @@ catalog pin is required to carry.
 
 Classes. A change of an app's files falls in three classes: RUNTIME (what
 decides what runs and how Catena operates it), VERIFICATION (what tests it) and
-PRESENTATION (name, descriptions, logo, README). FILE_CLASSES gives the class of
+PRESENTATION (name, descriptions, logo). FILE_CLASSES gives the class of
 each file of `blueprints/<id>/` and FIELD_CLASSES the class of each field of the
 card file (`blueprints/<id>/app.json`); anything unlisted is RUNTIME. The neat files of an
-app (`services.yml`, `x-catena.yml`, the section files while an app holds them, and the
+app (`services.yml`, `x-catena.yml` and the
 script files under `hooks/`; lib/pack.py) are DERIVED: they
 add no class, since the render packs `docker-compose.yml` from them and that file
 is judged byte for byte. `changed_classes` returns the classes of the difference
@@ -96,7 +96,6 @@ FILE_CLASSES = {
     "test.yml": VERIFICATION,
     "logo.png": PRESENTATION,
     "logo.svg": PRESENTATION,
-    "README.md": PRESENTATION,
 }
 
 # Class of each field of the card file (app.schema.json).

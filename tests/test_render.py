@@ -330,8 +330,8 @@ def _neat_tree(root: Path) -> Path:
     (folder / "services.yml").write_text(
         "services:\n  app:\n    image: example/app:1.2.3\n    labels:\n"
         "      - vps.route.host=${DOMAIN_HOST}\n      - vps.route.port=8080\n")
-    (folder / "settings.yml").write_text("env:\n  DOMAIN_HOST:\n    setting: {default: x.example.com}\n")
-    (folder / "lifecycle.yml").write_text("requires_catena: 0.11.5\n")
+    (folder / "x-catena.yml").write_text(
+        "schema: 2\nrequires_catena: 0.11.5\nenv:\n  DOMAIN_HOST:\n    setting: {default: x.example.com}\n")
     return folder
 
 
@@ -361,10 +361,10 @@ def test_rendering_an_app_held_as_neat_files_twice_gives_identical_artifacts(tmp
 
 def test_the_render_stops_on_neat_files_out_of_normal_form(tmp_path):
     folder = _neat_tree(tmp_path)
-    (folder / "settings.yml").write_text("bogus: 1\n")
+    (folder / "x-catena.yml").write_text("schema: 2\nbogus: 1\n")
     done = _rendered(tmp_path)
     assert done.returncode == 1
-    assert "blueprints/example/settings.yml:1: bogus is not a key of the block" in done.stdout
+    assert "blueprints/example/x-catena.yml:2: bogus is not a key of the block" in done.stdout
     assert not (folder / "docker-compose.yml").exists()
 
 
