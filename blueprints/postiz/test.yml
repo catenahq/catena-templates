@@ -2,7 +2,7 @@
 # through Postiz's API, survive a backup, a restore and the updates. The seed runs
 # node inside the postiz container against the bundled nginx on 127.0.0.1:5000 (the
 # route users reach, /api/ going to the backend): it waits until the backend answers
-# its root, asks each call again for up to 60 s while nginx answers 5xx (it has no
+# its root, asks each call again up to 12 times while nginx answers 5xx (it has no
 # live backend for a moment after the first answer), then signs in as the account catena-<run>@catena.test and registers it
 # (registration is open: DISABLE_REGISTRATION is false) only when that sign-in is
 # refused, then lists the organization's signatures and adds the signature
@@ -12,6 +12,7 @@
 # is printed nowhere. The account, its organization and the signature live in the
 # database, so the asserts sign in again (the account must have survived), list the
 # signatures and count exactly one holding fixture-<run>.
+# Each step has a 300 s deadline covering requests, response bodies and retry waits.
 #
 # {{ run_id }} is supplied by the bench at execution time and each
 # {{ container_* }} is resolved from `docker ps` before invoking.
@@ -34,6 +35,10 @@ seed:
         exec node - <<'JS'
         const crypto = require("crypto");
         const api = "http://127.0.0.1:5000/api";
+        setTimeout(() => {
+          console.error("the Postiz backend did not complete the seed within 300 s");
+          process.exit(1);
+        }, 300000).unref();
         const RUN = "{{ run_id }}";
         const EMAIL = ("catena-" + RUN + "@catena.test").toLowerCase();
         const TEXT = "fixture-" + RUN;
@@ -61,12 +66,11 @@ seed:
         }
 
         (async () => {
-          for (let i = 0; ; i++) {
+          for (;;) {
             try {
               const root = await call("GET", "/");
               if (root.status === 200 && root.text.includes("App is running")) break;
             } catch {}
-            if (i === 60) throw new Error("the backend did not answer within 300 s");
             await sleep(5000);
           }
           const credentials = { provider: "LOCAL", email: EMAIL, password: PASSWORD };
@@ -102,6 +106,10 @@ assert:
         exec node - <<'JS'
         const crypto = require("crypto");
         const api = "http://127.0.0.1:5000/api";
+        setTimeout(() => {
+          console.error("the Postiz backend did not complete the assertion within 300 s");
+          process.exit(1);
+        }, 300000).unref();
         const RUN = "{{ run_id }}";
         const EMAIL = ("catena-" + RUN + "@catena.test").toLowerCase();
         const TEXT = "fixture-" + RUN;
@@ -129,12 +137,11 @@ assert:
         }
 
         (async () => {
-          for (let i = 0; ; i++) {
+          for (;;) {
             try {
               const root = await call("GET", "/");
               if (root.status === 200 && root.text.includes("App is running")) break;
             } catch {}
-            if (i === 60) throw new Error("the backend did not answer within 300 s");
             await sleep(5000);
           }
           const session = await call("POST", "/auth/login", null, { provider: "LOCAL", email: EMAIL, password: PASSWORD });
