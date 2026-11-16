@@ -174,14 +174,6 @@ services:
       JICOFO_COMPONENT_SECRET: ${JITSI_JICOFO_COMPONENT_SECRET}
       JVB_AUTH_USER: jvb
       JVB_AUTH_PASSWORD: ${JITSI_JVB_AUTH_PASSWORD}
-      # With a call relay provided, prosody hands each client a TURN
-      # credential derived from the relay secret that expires, so the
-      # secret itself never reaches a browser. Empty values leave it off.
-      TURN_HOST: ${TURN_HOSTNAME:-}
-      TURN_PORT: ${TURN_PORT:-}
-      TURNS_HOST: ${TURN_HOSTNAME:-}
-      TURNS_PORT: ${TURN_TLS_PORT:-}
-      TURN_CREDENTIALS: ${TURN_SECRET:-}
       TZ: Etc/UTC
     labels:
       - "vps.auto-update=${UPDATE_LEVEL:-major}"

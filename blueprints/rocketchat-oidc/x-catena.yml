@@ -15,14 +15,6 @@ env:
     setting: {default: "{{ admin_email }}"}
   VPS_PUBLIC_IP:
     managed: {expr: "{{ public_ip }}"}
-  TURN_HOSTNAME:
-    managed: {expr: "{{ provided.turn.host | default('') }}"}
-  TURN_PORT:
-    managed: {expr: "{{ provided.turn.port | default('') }}"}
-  TURN_TLS_PORT:
-    managed: {expr: "{{ provided.turn.tls_port | default('') }}"}
-  TURN_SECRET:
-    managed: {expr: "{{ provided.turn.secret | default('') }}"}
   JITSI_JICOFO_AUTH_PASSWORD:
     generated: {length: 64, alphabet: alnum}
   JITSI_JICOFO_COMPONENT_SECRET:
