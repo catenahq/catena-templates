@@ -205,6 +205,48 @@ def test_a_pass_of_a_commit_whose_app_main_has_since_changed_is_skipped(repo):
     assert versions.plan("web", older) == "skip web/1.3.0-1"
 
 
+def test_a_reverted_bump_withdraws_its_tag_and_the_older_tag_is_newest_again(repo, capsys):
+    git, commit = repo
+    git("tag", "-a", "web/1.2.0-1", "-m", f"{versions.PASSED} at abc: https://x")
+    commit("web:1.3.0")
+    git("tag", "-a", "web/1.3.0-1", "-m", f"{versions.PASSED} at def: https://x")
+    assert versions.withdrawn("web") == []
+    commit("web:1.2.0")
+    assert versions.withdrawn("web") == ["web/1.3.0-1"]
+    assert versions.tested_state("web") == (versions.TESTED, "web/1.2.0-1")
+    assert versions.plan("web") == "skip web/1.2.0-1"
+    assert versions.main(["withdrawn", "web"]) == 0
+    assert capsys.readouterr().out == "web/1.3.0-1\n"
+
+
+def test_a_downgrade_to_a_version_with_no_tag_withdraws_the_tags_above_it(repo):
+    git, commit = repo
+    commit("web:1.3.0")
+    git("tag", "-a", "web/1.3.0-1", "-m", f"{versions.PASSED} at def: https://x")
+    commit("web:1.2.5")
+    assert versions.withdrawn("web") == ["web/1.3.0-1"]
+    assert versions.plan("web") == "create web/1.2.5-1"
+
+
+def test_a_reverted_change_at_one_version_withdraws_the_later_revision(repo):
+    git, commit = repo
+    git("tag", "-a", "web/1.2.0-1", "-m", f"{versions.PASSED} at abc: https://x")
+    commit("web:1.2.0\n    restart: always")
+    git("tag", "-a", "web/1.2.0-2", "-m", f"{versions.PASSED} at def: https://x")
+    commit("web:1.2.0")
+    assert versions.withdrawn("web") == ["web/1.2.0-2"]
+
+
+def test_a_tag_on_a_commit_main_does_not_hold_is_not_withdrawn(repo):
+    git, commit = repo
+    git("tag", "-a", "web/1.2.0-1", "-m", f"{versions.PASSED} at abc: https://x")
+    git("checkout", "-q", "-b", "side")
+    commit("web:1.3.0")
+    git("tag", "-a", "web/1.3.0-1", "-m", f"{versions.PASSED} at def: https://x")
+    git("checkout", "-q", "-")
+    assert versions.withdrawn("web") == []
+
+
 def _squash(repo, main_move, merged_image):
     """(sha, base, cand): a branch holding `web:1.3.0`, and the commit that squashes it onto main."""
     git, commit = repo

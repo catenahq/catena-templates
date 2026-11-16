@@ -339,16 +339,39 @@ def changed_classes(app: str, a: str, b: str) -> frozenset[str]:
     return frozenset(classes)
 
 
-def _newest_tag(app: str) -> tuple[str | None, bool]:
-    """(the app's newest tag, whether a passing run made it)."""
+def withdrawn(app: str, ref: str = "HEAD") -> list[str]:
+    """The app's tags that main, at `ref`, has taken the app back below: tags on
+    `ref`'s history whose version is above the version `ref` holds, or whose place
+    in the order is above a tag holding the same files as `ref`. Oldest first."""
+    try:
+        compose = yaml.safe_load(_show(ref, f"blueprints/{app}/docker-compose.yml"))
+        version = version_key(app_version(compose))
+    except (VersionError, subprocess.CalledProcessError, yaml.YAMLError):
+        return []
+    order = sort_tags(app, app_tags(app))
+    keys = {}
+    for tag in order:
+        number, revision = parse_tag(app, tag)
+        keys[tag] = (version_key(number), revision)
+    same = [tag for tag in order if same_files(app, tag, ref)]
+    floor = keys[same[-1]] if same else None
+    return [tag for tag in order
+            if _is_ancestor(f"{tag}^{{commit}}", ref)
+            and (keys[tag][0] > version or (floor is not None and keys[tag] > floor))]
+
+
+def _newest_tag(app: str, ref: str = "HEAD") -> tuple[str | None, bool]:
+    """(the app's newest tag that main has not taken back at `ref`, whether a passing
+    run made it)."""
     tags = app_tags(app)
-    order = sort_tags(app, tags)
+    gone = set(withdrawn(app, ref))
+    order = [tag for tag in sort_tags(app, tags) if tag not in gone]
     return (order[-1], tags[order[-1]]) if order else (None, False)
 
 
 def tested_state(app: str, ref: str = "HEAD") -> tuple[str, str | None]:
     """(TESTED, PRESENTATION, CHANGED or UNTESTED, the newest tag) of the app at `ref`."""
-    newest, made = _newest_tag(app)
+    newest, made = _newest_tag(app, ref)
     if not newest:
         return UNTESTED, None
     classes = changed_classes(app, newest, ref)
@@ -399,7 +422,7 @@ def same_change(app: str, ref: str, base: str, cand: str) -> bool:
 def tested_run(app: str, ref: str = "HEAD") -> str | None:
     """The address of the run that made the app's newest tag, when `ref` differs from
     that tag in presentation alone."""
-    newest, made = _newest_tag(app)
+    newest, made = _newest_tag(app, ref)
     if not made or not changed_classes(app, newest, ref) <= {PRESENTATION}:
         return None
     subject = subprocess.run(
@@ -436,6 +459,9 @@ def main(argv: list[str]) -> int:
     classes_cmd.add_argument("app")
     classes_cmd.add_argument("--ref", required=True)
     classes_cmd.add_argument("--base", required=True)
+    withdrawn_cmd = sub.add_parser("withdrawn")
+    withdrawn_cmd.add_argument("app")
+    withdrawn_cmd.add_argument("--ref", default="HEAD")
     runtime_cmd = sub.add_parser("runtime-change")
     runtime_cmd.add_argument("app")
     runtime_cmd.add_argument("--ref", required=True)
@@ -468,6 +494,13 @@ def main(argv: list[str]) -> int:
             return 1
         for name in sorted(changed_classes(args.app, args.base, args.ref)):
             print(name)
+        return 0
+    if args.command == "withdrawn":
+        if args.ref.startswith("-"):
+            print(f"{args.ref!r} is not a revision", file=sys.stderr)
+            return 1
+        for tag in withdrawn(args.app, args.ref):
+            print(tag)
         return 0
     if args.command == "runtime-change":
         if args.ref.startswith("-"):
