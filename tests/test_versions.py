@@ -111,6 +111,29 @@ def test_a_change_to_no_app_passes_the_scope_check():
     assert versions.scope_errors(["lib/model.py", "catalog-meta.json"]) == []
 
 
+def test_the_one_app_hook_lists_both_sides_of_a_file_moved_between_apps(tmp_path):
+    entry = next(h["entry"] for r in __import__("yaml").safe_load(
+        (ROOT / ".pre-commit-config.yaml").read_text())["repos"] for h in r["hooks"] if h["id"] == "one-app")
+    diff = entry.split("'")[1].split("|")[0].strip()
+    env = {**os.environ, "GIT_CONFIG_GLOBAL": "/dev/null", "GIT_CONFIG_NOSYSTEM": "1"}
+
+    def git(*args):
+        return subprocess.run(["git", *args], cwd=tmp_path, env=env, check=True,
+                              capture_output=True, text=True).stdout
+
+    git("init", "-q")
+    for app in ("a", "b"):
+        (tmp_path / "blueprints" / app).mkdir(parents=True)
+    body = "".join(f"line {i}\n" for i in range(20))
+    (tmp_path / "blueprints/a/moved.txt").write_text(body)
+    git("add", "-A")
+    git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "seed")
+    git("mv", "blueprints/a/moved.txt", "blueprints/b/moved.txt")
+    paths = git(*diff.split()[1:]).split()
+    assert sorted(paths) == ["blueprints/a/moved.txt", "blueprints/b/moved.txt"]
+    assert versions.scope_errors(paths)
+
+
 @pytest.fixture
 def repo(tmp_path, monkeypatch):
     """A catalog checkout holding the app `web` at image web:1.2.0, as versions reads it."""
