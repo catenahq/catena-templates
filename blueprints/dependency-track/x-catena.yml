@@ -1,0 +1,24 @@
+schema: 2
+env:
+  DOMAIN_HOST:
+    setting: {default: "dtrack.{{ cloudflare_zone }}"}
+  DTRACK_HOSTNAME:
+    setting: {default: "dtrack.{{ cloudflare_zone }}"}
+  DTRACK_API_HOSTNAME:
+    setting: {default: "dtrack-api.{{ cloudflare_zone }}"}
+  DB_PASSWORD:
+    generated: {length: 32, alphabet: alnum}
+  AUTH_MODE:
+    setting: {default: "public", label: {en: "Access: public, private or admin-only", fr: "Accès : public, private ou admin-only"}}
+  UPDATE_LEVEL:
+    setting: {default: "major", label: {en: "Automatic updates: major, minor, patch or off", fr: "Mises à jour automatiques : major, minor, patch ou off"}}
+images:
+  db:
+    rule: {kind: partial_line}
+# verify asks the API server, which starts only once its database answers, for its
+# version (a public call). The server image holds wget.
+hooks:
+  service: apiserver
+  timeout_seconds: 60
+  verify:
+    - hooks/verify.sh
