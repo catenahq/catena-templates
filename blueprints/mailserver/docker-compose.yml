@@ -212,7 +212,7 @@ x-catena:
 
 services:
   dms:
-    image: ghcr.io/docker-mailserver/docker-mailserver:16.0.1
+    image: ghcr.io/docker-mailserver/docker-mailserver:17.0.0
     hostname: ${MAIL_HOSTNAME}
     deploy:
       restart_policy:
@@ -522,7 +522,7 @@ services:
       antivirus: {}
 
   roundcube:
-    image: roundcube/roundcubemail:1.7.5-apache
+    image: roundcube/roundcubemail:1.7.6-apache
     # docker-init runs as PID 1, so the backup mode (x-catena.quiesce at the
     # top of this file) can stop apache's master: a PID namespace's
     # first process ignores a SIGSTOP sent from inside it, and a running
