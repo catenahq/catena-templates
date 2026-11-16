@@ -115,6 +115,18 @@ services:
           fi
           sleep 2
         done
+        # Client Push: /push/ on the app's address reaches the push service,
+        # /push/ws as a WebSocket. Apache starts with the proxy modules and
+        # this file on every container start, as the image ships neither.
+        # ProxyPass resolves `push` when a request arrives, so the app starts
+        # whether or not the push service is up.
+        cat > /etc/apache2/conf-available/catena-push.conf <<'CONF'
+        ProxyPass /push/ws ws://push:7867/ws
+        ProxyPass /push/ http://push:7867/
+        ProxyPassReverse /push/ http://push:7867/
+        CONF
+        a2enmod -q proxy proxy_http proxy_wstunnel
+        a2enconf -q catena-push
         exec /entrypoint.sh "$$@"
       - --
     command: ["apache2-foreground"]
@@ -343,6 +355,47 @@ services:
       - antivirus
     labels:
       - "vps.auto-update=${UPDATE_LEVEL:-major}"
+
+  # Client Push (the notify_push app's server): sync clients are told of a
+  # change over a WebSocket instead of polling for it. The server is a binary
+  # the notify_push app ships in custom_apps, which the configure hook installs,
+  # so this service waits for the file and runs it from the same image and
+  # volumes as `app`. It reads the database and Redis from the values below and
+  # asks `app` over the stack network to check each client's sign-in; `app`
+  # answers for any host because OVERWRITEHOST is set. Apache in `app` proxies
+  # /push/ to it.
+  push:
+    image: nextcloud:35.0.3-apache
+    user: "33:33"
+    deploy:
+      restart_policy:
+        condition: any
+      placement:
+        constraints:
+          # Reads nc-config and nc-apps, which live on the data node.
+          - node.labels.catena.role==data
+    entrypoint:
+      - /bin/sh
+      - -ec
+      - |
+        bin=/var/www/html/custom_apps/notify_push/bin/$$(uname -m)/notify_push
+        until [ -x "$$bin" ]; do sleep 5; done
+        exec "$$bin" /var/www/html/config/config.php
+    environment:
+      PORT: "7867"
+      NEXTCLOUD_URL: http://app
+      DATABASE_URL: postgres://nextcloud:${DB_PASSWORD}@db/nextcloud
+      REDIS_URL: redis://redis
+      TRUSTED_PROXIES: 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16
+    volumes:
+      - nc-config:/var/www/html/config:ro
+      - nc-apps:/var/www/html/custom_apps:ro
+    labels:
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
+    cap_drop:
+      - NET_RAW
+    networks:
+      - default
 
   # === HPB BEGIN -- Talk High-Performance Backend ==========================
   # Comment out this single service to disable Talk + HPB. The configure
