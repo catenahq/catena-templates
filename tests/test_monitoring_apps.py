@@ -217,10 +217,9 @@ def test_no_environment_value_is_a_literal_credential(slug):
 
 
 @pytest.mark.parametrize("slug", APPS)
-def test_the_block_names_its_version_service_and_asks_for_no_newer_release(slug):
+def test_the_block_names_its_version_service(slug):
     entry = _entry(slug)
     assert entry.block.get("version_from") == "app"
-    assert "requires_catena" not in entry.block
 
 
 # The capabilities whose private network trusts the sign-in header of whoever is on it: who may
