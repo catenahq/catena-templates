@@ -1,4 +1,4 @@
-body=$(wget -q -T 20 -O - http://127.0.0.1:8080/api/version) || {
+body=$(curl -fsS --max-time 20 http://127.0.0.1:8080/api/version) || {
   echo "Dependency-Track does not answer on port 8080" >&2
   exit 1
 }

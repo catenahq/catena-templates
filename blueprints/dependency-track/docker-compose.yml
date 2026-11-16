@@ -17,7 +17,7 @@ x-catena:
     db:
       rule: {kind: partial_line}
   # verify asks the API server, which starts only once its database answers, for its
-  # version (a public call). The server image holds wget.
+  # version (a public call). The server image holds curl.
   hooks:
     service: apiserver
     timeout_seconds: 60
@@ -25,7 +25,7 @@ x-catena:
       - - sh
         - -c
         - |
-          body=$$(wget -q -T 20 -O - http://127.0.0.1:8080/api/version) || {
+          body=$$(curl -fsS --max-time 20 http://127.0.0.1:8080/api/version) || {
             echo "Dependency-Track does not answer on port 8080" >&2
             exit 1
           }
