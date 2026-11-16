@@ -23,7 +23,9 @@ id: element
 description: >-
   The room #catena-<run> made through Synapse's client API resolves by its alias and
   holds exactly one message fixture-<run> and exactly one file catena-<run>.txt that
-  downloads as fixture-<run>, before and after the backup, the restore and the updates.
+  downloads as fixture-<run>, before and after the backup, the restore and the updates;
+  a signed-in account of the bundled Jitsi starts a call in the room catena-<run> on the
+  meeting domain, which offers no anonymous sign-in.
 
 seed:
   - name: room_with_a_message_and_a_file
@@ -205,3 +207,88 @@ assert:
         print("room ok: " + NAME + " holds " + TEXT + " and " + NAME + ".txt")
     expect_stdout_contains: "room ok: catena-{{ run_id }} holds fixture-{{ run_id }} and catena-{{ run_id }}.txt"
     timeout_s: 420
+
+  # The bundled Jitsi starts a call: Prosody's meeting domain takes a sign-in, so the
+  # step first gives Prosody an internal account (the one-line shell runs in the prosody
+  # container; its password is the first 32 hex digits of the SHA-256 of the room name,
+  # read from stdin and never an argument; Prosody keeps its accounts in memory, so every
+  # run makes it again and an existing account is left as it is). The call step then
+  # signs in over BOSH on Prosody's own listener (127.0.0.1:5280, Host meet.jitsi) with
+  # SASL PLAIN, joins the room <name>@muc.meet.jitsi and asks the conference focus
+  # (jicofo) for a conference; a reply with ready="true" is a call started. The same step
+  # fails when the meeting domain offers anonymous sign-in.
+  - name: jitsi_account_for_the_call
+    type: docker_exec
+    container: "{{ container_prosody }}"
+    command:
+      - sh
+      - -c
+      - |
+        password=$(printf %s "catena-{{ run_id }}" | sha256sum | cut -c1-32)
+        printf '%s\n%s\n' "$password" "$password" | prosodyctl --config /config/prosody.cfg.lua adduser catena-call@meet.jitsi
+        echo "account ready"
+    expect_stdout_contains: "account ready"
+    timeout_s: 60
+
+  - name: call_started_through_the_bundled_jitsi
+    type: docker_exec
+    container: "{{ helper_prosody }}"
+    command:
+      - python3
+      - -c
+      - |
+        import base64, hashlib, re, sys, urllib.error, urllib.request
+
+        URL = "http://127.0.0.1:5280/http-bind"
+        DOMAIN = "meet.jitsi"
+        ROOM = "catena-{{ run_id }}".lower() + "@muc.meet.jitsi"
+        PASSWORD = hashlib.sha256(b"catena-{{ run_id }}").hexdigest()[:32]
+        rid = [1000000 + int(hashlib.sha256(ROOM.encode()).hexdigest()[:6], 16)]
+
+
+        def send(inner="", extra="", sid=None):
+            rid[0] += 1
+            sid_attr = " sid='" + sid + "'" if sid else ""
+            body = ("<body rid='%d'%s xmlns='http://jabber.org/protocol/httpbind'%s>%s</body>"
+                    % (rid[0], sid_attr, extra, inner)).encode()
+            request = urllib.request.Request(URL, data=body, headers={"Host": DOMAIN, "Content-Type": "text/xml; charset=utf-8"})
+            try:
+                with urllib.request.urlopen(request, timeout=30) as answer:
+                    return answer.read().decode()
+            except urllib.error.HTTPError as error:
+                sys.exit("BOSH answered HTTP " + str(error.code) + ": " + error.read().decode()[:200])
+
+
+        opened = send(extra=" to='" + DOMAIN + "' xml:lang='en' wait='5' hold='1' ver='1.6' xmpp:version='1.0' xmlns:xmpp='urn:xmpp:xbosh'")
+        found = re.search(r"sid=['\"]([^'\"]+)['\"]", opened)
+        if not found:
+            sys.exit("no BOSH session: " + opened[:200])
+        sid = found.group(1)
+        if "ANONYMOUS" in opened:
+            sys.exit("the meeting domain offers anonymous sign-in: " + opened[:300])
+        if "PLAIN" not in opened:
+            sys.exit("the meeting domain offers no password sign-in: " + opened[:300])
+
+        credentials = base64.b64encode(("\0catena-call\0" + PASSWORD).encode()).decode()
+        signed = send("<auth xmlns='urn:ietf:params:xml:ns:xmpp-sasl' mechanism='PLAIN'>" + credentials + "</auth>", sid=sid)
+        if "<success" not in signed:
+            sys.exit("the sign-in of catena-call was refused: " + signed[:200])
+        send(extra=" to='" + DOMAIN + "' xmpp:restart='true' xmlns:xmpp='urn:xmpp:xbosh'", sid=sid)
+        bound = send("<iq type='set' id='bind1' xmlns='jabber:client'><bind xmlns='urn:ietf:params:xml:ns:xmpp-bind'/></iq>", sid=sid)
+        if "<jid>" not in bound:
+            sys.exit("no resource bound: " + bound[:200])
+
+        send("<presence to='" + ROOM + "/catena' xmlns='jabber:client'><x xmlns='http://jabber.org/protocol/muc'/></presence>", sid=sid)
+        seen = send("<iq to='focus." + DOMAIN + "' type='set' id='conf1' xmlns='jabber:client'>"
+                    "<conference xmlns='http://jitsi.org/protocol/focus' room='" + ROOM + "' machine-uid='catena'/></iq>", sid=sid)
+        for _ in range(12):
+            if re.search(r"ready=['\"]true['\"]", seen):
+                break
+            if re.search(r"id=['\"]conf1['\"][^>]*type=['\"]error['\"]|type=['\"]error['\"][^>]*id=['\"]conf1['\"]", seen):
+                sys.exit("the conference request failed: " + seen[:300])
+            seen += send(sid=sid)
+        else:
+            sys.exit("jicofo did not answer the conference request with ready=true: " + seen[:300])
+        print("call started: " + ROOM)
+    expect_stdout_contains: "call started: catena-{{ run_id }}@muc.meet.jitsi"
+    timeout_s: 180
