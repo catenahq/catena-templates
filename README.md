@@ -694,6 +694,8 @@ No file holds a version string: versions are git tags. A tested app is tagged
   and `untested` when it has no tag, or its newest was made by hand and the
   files differ from it in verification alone or not at all. The nightly
   app-tests run takes the apps that are neither `tested` nor `presentation` first.
+  With `--ci`, an app that is not `tested` and whose last change on `main` failed
+  app-ci is `held`: `app-tag` tags nothing from its pass.
 - **Scope.** The `scope` check fails a pull request or a commit of `main` that
   changes more than one app (distinct ids across `blueprints/<id>/**`), so one change is one tag; the `one-app` pre-commit hook
   does the same for a commit. `app-checks`, `scope` and `app-tests` are required
@@ -701,7 +703,8 @@ No file holds a version string: versions are git tags. A tested app is tagged
   commit from `app-main.yml`.
 
 `uv run build/versions.py tested` lists each app's state and newest tag
-(`--needs-run`: the ids of the apps neither `tested` nor `presentation`);
+(`--needs-run`: the ids of the apps neither `tested` nor `presentation`, held apps
+first; `--ci`: read the app-ci statuses through `GITHUB_REPOSITORY` and a token);
 `uv run build/versions.py plan <app>` prints what a pass does to the app's tags;
 `uv run build/versions.py classes <app> --ref <sha> --base <sha>` prints the
 classes of the change from `--base` to `--ref`;

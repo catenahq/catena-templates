@@ -38,8 +38,12 @@ All of it is read from the checkout's git.
                         `mark TAG` (annotate the hand-made TAG), `create TAG` or, in
                         state presentation, `create TAG FROM` (FROM: the newest tag)
   scope                 changed paths on stdin -> fail when they touch more than one app
-  tested [--needs-run]  each app's state at the checked-out commit; with
-                        --needs-run, the ids of the apps neither `tested` nor `presentation`
+  tested [--needs-run] [--ci]
+                        each app's state at the checked-out commit; with --needs-run, the
+                        ids of the apps neither `tested` nor `presentation`, held apps
+                        first; with --ci (GITHUB_REPOSITORY and a token read the statuses),
+                        an app that is not `tested` whose last change on main failed app-ci
+                        is `held`
   same APP --ref SHA --base BASE --from CAND
                         exit 0 when commit CAND holds the change SHA holds: APP's files
                         differ between them in presentation alone, and likewise where each
@@ -64,6 +68,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import subprocess
 import sys
@@ -71,7 +76,7 @@ from typing import Any, Iterable
 
 import yaml
 
-from . import changes, pack, provenance
+from . import app_checks, changes, pack, provenance
 from .adopt import FILE_MODES
 from .model import ROOT, main_service
 
@@ -86,6 +91,9 @@ DERIVED = "derived"
 # The state of an app whose files differ from its tested tag in presentation alone is
 # named like that class.
 TESTED, CHANGED, UNTESTED = "tested", "changed", "untested"
+# The state of an app, not tested, whose last change on main failed app-ci: app-tag tags
+# nothing from a pass until app-ci passes at that change.
+HELD = "held"
 
 # Class of each file of blueprints/<id>/ (a key ending in `/` is a folder). app.json is
 # judged per field (FIELD_CLASSES).
@@ -381,6 +389,18 @@ def tested_state(app: str, ref: str = "HEAD") -> tuple[str, str | None]:
     return CHANGED, newest
 
 
+def held(app: str, ref: str = "HEAD", repo: str = "", fetch=provenance.http_fetch) -> bool:
+    """Whether the newest app-ci status at the app's last change on `ref` is a failure or
+    an error; a missing, pending or unreadable status holds nothing."""
+    last = last_change(app, ref)
+    if not last or not repo:
+        return False
+    try:
+        return app_checks.ci_state(last, repo, fetch) in ("failure", "error")
+    except provenance.ProvenanceError:
+        return False
+
+
 def _is_ancestor(commit: str, of: str) -> bool:
     return subprocess.run(["git", "-C", str(ROOT), "merge-base", "--is-ancestor", commit, of],
                           capture_output=True, check=False).returncode == 0
@@ -442,7 +462,9 @@ def main(argv: list[str]) -> int:
     plan_cmd.add_argument("app")
     plan_cmd.add_argument("--ref", default="HEAD")
     sub.add_parser("scope")
-    sub.add_parser("tested").add_argument("--needs-run", action="store_true")
+    tested_cmd = sub.add_parser("tested")
+    tested_cmd.add_argument("--needs-run", action="store_true")
+    tested_cmd.add_argument("--ci", action="store_true")
     same_cmd = sub.add_parser("same")
     same_cmd.add_argument("app")
     same_cmd.add_argument("--ref", required=True)
@@ -473,12 +495,21 @@ def main(argv: list[str]) -> int:
             print(error, file=sys.stderr)
         return 1 if errors else 0
     if args.command == "tested":
+        repo = os.environ.get("GITHUB_REPOSITORY", "") if args.ci else ""
+        rows = []
         for app in apps():
             state, newest = tested_state(app)
-            if not args.needs_run:
-                print(f"{app}\t{state}\t{newest or '-'}")
-            elif state not in (TESTED, PRESENTATION):
+            if state != TESTED and held(app, repo=repo):
+                state = HELD
+            rows.append((app, state, newest))
+        if args.needs_run:
+            rows = [row for row in rows if row[1] not in (TESTED, PRESENTATION)]
+            rows.sort(key=lambda row: row[1] != HELD)
+            for app, _, _ in rows:
                 print(app)
+        else:
+            for app, state, newest in rows:
+                print(f"{app}\t{state}\t{newest or '-'}")
         return 0
     if changes.slug_errors([args.app]):
         print(f"{args.app!r} is not a plain app id", file=sys.stderr)

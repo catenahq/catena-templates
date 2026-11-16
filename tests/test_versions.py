@@ -111,6 +111,29 @@ def test_a_change_to_no_app_passes_the_scope_check():
     assert versions.scope_errors(["lib/model.py", "catalog-meta.json"]) == []
 
 
+def test_the_one_app_hook_lists_both_sides_of_a_file_moved_between_apps(tmp_path):
+    entry = next(h["entry"] for r in __import__("yaml").safe_load(
+        (ROOT / ".pre-commit-config.yaml").read_text())["repos"] for h in r["hooks"] if h["id"] == "one-app")
+    diff = entry.split("'")[1].split("|")[0].strip()
+    env = {**os.environ, "GIT_CONFIG_GLOBAL": "/dev/null", "GIT_CONFIG_NOSYSTEM": "1"}
+
+    def git(*args):
+        return subprocess.run(["git", *args], cwd=tmp_path, env=env, check=True,
+                              capture_output=True, text=True).stdout
+
+    git("init", "-q")
+    for app in ("a", "b"):
+        (tmp_path / "blueprints" / app).mkdir(parents=True)
+    body = "".join(f"line {i}\n" for i in range(20))
+    (tmp_path / "blueprints/a/moved.txt").write_text(body)
+    git("add", "-A")
+    git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "seed")
+    git("mv", "blueprints/a/moved.txt", "blueprints/b/moved.txt")
+    paths = git(*diff.split()[1:]).split()
+    assert sorted(paths) == ["blueprints/a/moved.txt", "blueprints/b/moved.txt"]
+    assert versions.scope_errors(paths)
+
+
 @pytest.fixture
 def repo(tmp_path, monkeypatch):
     """A catalog checkout holding the app `web` at image web:1.2.0, as versions reads it."""
@@ -372,6 +395,47 @@ def test_last_change_prints_nothing_for_an_app_no_commit_touched(repo, capsys):
 def test_last_change_refuses_an_id_that_is_not_a_plain_slug(repo, capsys):
     assert versions.main(["last-change", "../web"]) == 1
     assert "not a plain app id" in capsys.readouterr().err
+
+
+def _ci(state, seen=None):
+    run = "https://github.com/o/r/actions/runs/5"
+
+    def fetch(url):
+        if seen is not None:
+            seen.append(url)
+        return [{"context": "app-ci", "state": state, "target_url": run,
+                 "creator": {"login": "github-actions[bot]"}}]
+
+    return fetch
+
+
+def test_an_app_whose_last_main_change_failed_app_ci_is_held(repo):
+    git, commit = repo
+    git("tag", "-a", "web/1.2.0-1", "-m", f"{versions.PASSED} at abc: https://x")
+    commit("web:1.3.0")
+    assert versions.tested_state("web") == (versions.CHANGED, "web/1.2.0-1")
+    seen = []
+    assert versions.held("web", repo="o/r", fetch=_ci("failure", seen))
+    assert versions.held("web", repo="o/r", fetch=_ci("error"))
+    assert seen[0].startswith("https://api.github.com/repos/o/r/commits/")
+
+
+def test_an_app_is_not_held_by_a_passed_pending_or_unread_app_ci(repo):
+    for state in ("success", "pending"):
+        assert not versions.held("web", repo="o/r", fetch=_ci(state))
+    assert not versions.held("web", repo="o/r", fetch=lambda url: None)
+    assert not versions.held("web", repo="", fetch=_ci("failure"))
+
+
+def test_tested_ci_names_a_held_app_and_lists_it_first(repo, monkeypatch, capsys):
+    monkeypatch.setenv("GITHUB_REPOSITORY", "o/r")
+    monkeypatch.setattr(versions.app_checks, "ci_state", lambda sha, slug, fetch=None: "failure")
+    assert versions.main(["tested", "--ci"]) == 0
+    assert capsys.readouterr().out == "web\theld\t-\n"
+    assert versions.main(["tested", "--needs-run", "--ci"]) == 0
+    assert capsys.readouterr().out == "web\n"
+    assert versions.main(["tested"]) == 0
+    assert capsys.readouterr().out == "web\tuntested\t-\n"
 
 
 def test_tested_lists_the_apps_that_need_a_run(repo, capsys):
