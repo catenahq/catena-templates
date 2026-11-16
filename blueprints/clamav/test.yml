@@ -8,7 +8,8 @@
 id: clamav
 description: >-
   The scan hook's body flags the EICAR test file with a signature and passes a
-  clean file.
+  clean file. The default blocking database reload completes with a peak
+  memory rise no greater than half of clamd's resident set.
 
 seed:
   - name: wait_clamd_ready
@@ -61,3 +62,81 @@ assert:
         echo "scan body ok: $flagged"
     expect_stdout_contains: "scan body ok: FLAGGED "
     timeout_s: 120
+
+  - name: database_reload_is_blocking_by_default
+    type: docker_exec
+    container: "{{ container_clamav }}"
+    command:
+      - sh
+      - -ec
+      - |
+        grep -qx 'ConcurrentDatabaseReload no' /etc/clamav/clamd.conf
+        echo "blocking database reload configured"
+    expect_stdout_contains: "blocking database reload configured"
+    timeout_s: 30
+
+  - name: database_reload_completes_with_bounded_memory
+    type: docker_exec
+    container: "{{ container_clamav }}"
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        used_memory() {
+          awk '/^MemTotal:/ { total = $2 } /^MemAvailable:/ { available = $2; found = 1 }
+            END { if (!found || total <= 0 || available <= 0 || available > total) exit 1;
+              print total - available }' /proc/meminfo || return 1
+          return 0
+        }
+        reload_count() {
+          awk '/Database correctly reloaded/ { n++ } END { print n + 0 }' \
+            /var/log/clamav/clamd.log || return 1
+          return 0
+        }
+        pid=$(pidof clamd)
+        rss=$(awk '/^VmRSS:/ { print $2; found = 1 } END { if (!found) exit 1 }' "/proc/$pid/status")
+        [ "$rss" -gt 0 ]
+        baseline=0
+        i=0
+        while [ "$i" -lt 15 ]; do
+          used=$(used_memory)
+          [ "$used" -le "$baseline" ] || baseline=$used
+          sleep 1
+          i=$((i + 1))
+        done
+        before=$(reload_count)
+        reply=$(printf 'RELOAD\n' | nc -w 5 127.0.0.1 3310)
+        case "$reply" in
+          *RELOADING*) ;;
+          *) echo "clamd did not accept RELOAD" >&2; exit 1 ;;
+        esac
+        peak=0
+        i=0
+        while :; do
+          used=$(used_memory)
+          [ "$used" -le "$peak" ] || peak=$used
+          completed=$(reload_count)
+          [ "$completed" -le "$before" ] || break
+          [ "$i" -lt 600 ] || { echo "no completed database reload within 600 s" >&2; exit 1; }
+          sleep 1
+          i=$((i + 1))
+        done
+        i=0
+        while [ "$i" -lt 10 ]; do
+          used=$(used_memory)
+          [ "$used" -le "$peak" ] || peak=$used
+          sleep 1
+          i=$((i + 1))
+        done
+        kill -0 "$pid"
+        clamdcheck.sh
+        rise=$((peak - baseline))
+        margin=$((rss / 2))
+        if [ "$rise" -gt "$margin" ]; then
+          echo "reload memory rose $rise kB above baseline $baseline kB, over half of clamd RSS $rss kB" >&2
+          exit 1
+        fi
+        echo "database reload completed: peak rise $rise kB, margin $margin kB"
+    expect_stdout_contains: "database reload completed:"
+    timeout_s: 750
