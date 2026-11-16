@@ -198,6 +198,12 @@ def test_temporal_is_wired_to_postiz_and_to_the_db_service():
         assert images[name]["rule"]["kind"] == "pattern"
 
 
+def test_a_temporal_minor_move_is_a_stop_the_update_passes_through():
+    # The app's update level is major, so without a stop a host several revisions behind
+    # would cross two Temporal minors in one move; 2.25.3 pinned 1.32.2.
+    assert _entry().block["stops"] == ["2.25.3"]
+
+
 STUB_TOOL = '#!/bin/sh\necho "$(basename "$0") $*" >> "$LOG"\n'
 needs_sh = pytest.mark.skipif(shutil.which("sh") is None, reason="sh is not installed")
 

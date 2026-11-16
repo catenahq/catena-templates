@@ -14,6 +14,9 @@ x-catena:
       setting: {default: "public", label: {en: "Access: public, private or admin-only", fr: "Accès : public, private ou admin-only"}}
     UPDATE_LEVEL:
       setting: {default: "major", label: {en: "Automatic updates: major, minor, patch or off", fr: "Mises à jour automatiques : major, minor, patch ou off"}}
+  # Temporal Server upgrades one minor at a time, so each revision whose pin moves its minor is a stop and
+  # an update deploys that revision before the next. 2.25.3 is the revision that pinned 1.32.2.
+  stops: ["2.25.3"]
   images:
     db:
       rule: {kind: partial_line}
