@@ -64,6 +64,7 @@ services:
     labels:
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=80"
+      - "vps.health.path=/healthcheck"
       # Nextcloud authenticates to the document server with a JWT, so
       # the route carries no auth proxy: the editor loads in an iframe,
       # and a sign-in gate in front of it sends that iframe to the
