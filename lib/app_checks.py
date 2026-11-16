@@ -72,17 +72,24 @@ def provenance_errors(app: str, labels_of=None, fetch=provenance.http_fetch) -> 
     return errors
 
 
-def ci_passed(sha: str, repo: str, fetch=provenance.http_fetch) -> bool:
-    """Whether the newest app-ci status of the commit is a success posted by
-    github-actions[bot] for a run of the repository."""
+def ci_state(sha: str, repo: str, fetch=provenance.http_fetch) -> str | None:
+    """The state of the newest app-ci status of the commit when github-actions[bot]
+    posted it for a run of the repository, else None."""
     statuses = fetch(f"{provenance.api_url()}/repos/{repo}/commits/{sha}/statuses?per_page=100")
     status = next((s for s in statuses or [] if s.get("context") == CI_CONTEXT), None)
     if not status:
-        return False
+        return None
     run = re.compile(rf"https://github\.com/{re.escape(repo)}/actions/runs/[0-9]+")
-    return (status.get("state") == "success"
-            and (status.get("creator") or {}).get("login") == CI_CREATOR
-            and run.fullmatch(status.get("target_url") or "") is not None)
+    if ((status.get("creator") or {}).get("login") != CI_CREATOR
+            or run.fullmatch(status.get("target_url") or "") is None):
+        return None
+    return status.get("state")
+
+
+def ci_passed(sha: str, repo: str, fetch=provenance.http_fetch) -> bool:
+    """Whether the newest app-ci status of the commit is a success posted by
+    github-actions[bot] for a run of the repository."""
+    return ci_state(sha, repo, fetch) == "success"
 
 
 def _docker_labels(ref: str) -> dict[str, str]:
