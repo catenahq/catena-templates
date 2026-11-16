@@ -1,0 +1,115 @@
+# Test for the dependency-track template: a project made through Dependency-Track's own API
+# survives a backup, a restore and the updates. The steps run in the apiserver container, which
+# holds wget. The setup waits (every 15 seconds, at most 60 times) until the server answers,
+# then gives the built-in administrator account the password CATENA_TEST_PASSWORD: Dependency-Track
+# forces that change on the first sign-in, and the setup does nothing when the account already
+# signs in with it. The password reaches wget through its standard input, never its arguments.
+# The seed signs in as admin, gets or creates the project catena-<run> (version 1.0) and the
+# assert signs in again and counts exactly one project of that name.
+#
+# {{ run_id }} is supplied by the bench at execution time and each
+# {{ container_* }} is resolved from `docker ps` before invoking.
+
+id: dependency-track
+description: >-
+  The project catena-<run> made through Dependency-Track's API is listed exactly once, before
+  and after the backup, the restore and the updates.
+
+setup:
+  - name: admin_password
+    type: docker_exec
+    container: "{{ container_apiserver }}"
+    command:
+      - sh
+      - -c
+      - |
+        api=http://127.0.0.1:8080/api/v1
+        enc() { sed -e 's/%/%25/g' -e 's/&/%26/g' -e 's/+/%2B/g' -e 's/=/%3D/g' -e 's/#/%23/g' -e 's/ /%20/g'; }
+        pw=$(printf '%s' "$CATENA_TEST_PASSWORD" | enc)
+        post() { printf '%s' "$2" | wget -q -T 20 -O - --post-file=/dev/stdin "$api/$1"; }
+        for i in $(seq 1 60); do
+          if wget -q -T 20 -O /dev/null http://127.0.0.1:8080/api/version; then
+            if post user/login "username=admin&password=$pw" >/dev/null; then
+              echo "account admin present"
+              exit 0
+            fi
+            if post user/forceChangePassword "username=admin&password=admin&newPassword=$pw&confirmPassword=$pw" >/dev/null; then
+              echo "account admin created"
+              exit 0
+            fi
+          fi
+          sleep 15
+        done
+        echo "the admin account did not take the test password" >&2
+        exit 1
+    expect_stdout_contains: "account admin"
+    timeout_s: 1200
+
+seed:
+  - name: project
+    type: docker_exec
+    container: "{{ container_apiserver }}"
+    command:
+      - sh
+      - -c
+      - |
+        api=http://127.0.0.1:8080/api/v1
+        NAME="catena-{{ run_id }}"
+        enc() { sed -e 's/%/%25/g' -e 's/&/%26/g' -e 's/+/%2B/g' -e 's/=/%3D/g' -e 's/#/%23/g' -e 's/ /%20/g'; }
+        pw=$(printf '%s' "$CATENA_TEST_PASSWORD" | enc)
+        for i in $(seq 1 12); do
+          token=$(printf '%s' "username=admin&password=$pw" | wget -q -T 20 -O - --post-file=/dev/stdin "$api/user/login") || token=
+          if [ -n "$token" ]; then
+            list=$(wget -q -T 20 -O - --header="Authorization: Bearer $token" "$api/project?name=$NAME") || list=
+            case "$list" in
+            *'"name":"'"$NAME"'"'*)
+              echo "seeded project $NAME"
+              exit 0
+              ;;
+            esac
+            if [ "$list" = "[]" ]; then
+              printf '%s' '{"name":"'"$NAME"'","version":"1.0","active":true}' |
+                wget -q -T 20 -O /dev/null --method=PUT --body-file=/dev/stdin \
+                  --header="Authorization: Bearer $token" --header="Content-Type: application/json" "$api/project" ||
+                echo "project creation did not answer 2xx" >&2
+            fi
+          fi
+          sleep 15
+        done
+        echo "the project $NAME was not seeded" >&2
+        exit 1
+    expect_stdout_contains: "seeded project catena-{{ run_id }}"
+    timeout_s: 600
+
+assert:
+  - name: project_through_dependency_track
+    type: docker_exec
+    container: "{{ container_apiserver }}"
+    command:
+      - sh
+      - -c
+      - |
+        api=http://127.0.0.1:8080/api/v1
+        NAME="catena-{{ run_id }}"
+        enc() { sed -e 's/%/%25/g' -e 's/&/%26/g' -e 's/+/%2B/g' -e 's/=/%3D/g' -e 's/#/%23/g' -e 's/ /%20/g'; }
+        pw=$(printf '%s' "$CATENA_TEST_PASSWORD" | enc)
+        for i in $(seq 1 12); do
+          token=$(printf '%s' "username=admin&password=$pw" | wget -q -T 20 -O - --post-file=/dev/stdin "$api/user/login") || token=
+          if [ -n "$token" ]; then
+            list=$(wget -q -T 20 -O - --header="Authorization: Bearer $token" "$api/project?name=$NAME") || list=
+            n=$(printf '%s' "$list" | grep -o '"name":"'"$NAME"'"' | wc -l)
+            if [ "$n" -eq 1 ]; then
+              echo "project ok: $NAME listed once"
+              exit 0
+            fi
+            if [ "$n" -gt 1 ]; then
+              echo "Dependency-Track lists $n projects named $NAME, expected one" >&2
+              exit 3
+            fi
+          fi
+          sleep 15
+        done
+        echo "Dependency-Track does not list the project $NAME" >&2
+        exit 1
+    expect_stdout_contains: "project ok: catena-{{ run_id }} listed once"
+    timeout_s: 600

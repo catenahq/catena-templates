@@ -4432,6 +4432,28 @@
           }
         },
         {
+          "ruleId": "CVE-2026-107891/dependencytrack/frontend",
+          "level": "error",
+          "message": {
+            "text": "Package: musl\nInstalled Version: 1.2.6-r2\nVulnerability CVE-2026-107891\nSeverity: HIGH\nFixed Version: 1.2.6-r3\nLink: [CVE-2026-107891](https://avd.aquasec.com/nvd/cve-2026-107891)"
+          },
+          "properties": {
+            "acceptedUntil": "2026-12-16",
+            "image": "dependencytrack/frontend:4.14.6"
+          }
+        },
+        {
+          "ruleId": "CVE-2026-107891/dependencytrack/frontend",
+          "level": "error",
+          "message": {
+            "text": "Package: musl-utils\nInstalled Version: 1.2.6-r2\nVulnerability CVE-2026-107891\nSeverity: HIGH\nFixed Version: 1.2.6-r3\nLink: [CVE-2026-107891](https://avd.aquasec.com/nvd/cve-2026-107891)"
+          },
+          "properties": {
+            "acceptedUntil": "2026-12-16",
+            "image": "dependencytrack/frontend:4.14.6"
+          }
+        },
+        {
           "ruleId": "CVE-2026-107891/makeplane/plane-proxy",
           "level": "error",
           "message": {
@@ -4946,6 +4968,28 @@
           "properties": {
             "acceptedUntil": "2026-12-06",
             "image": "alextselegidis/easyappointments:1.6.1"
+          }
+        },
+        {
+          "ruleId": "CVE-2026-109518/dependencytrack/apiserver",
+          "level": "error",
+          "message": {
+            "text": "Package: apt\nInstalled Version: 3.0.3\nVulnerability CVE-2026-109518\nSeverity: HIGH\nFixed Version: 3.0.4\nLink: [CVE-2026-109518](https://avd.aquasec.com/nvd/cve-2026-109518)"
+          },
+          "properties": {
+            "acceptedUntil": "2026-12-16",
+            "image": "dependencytrack/apiserver:4.14.6"
+          }
+        },
+        {
+          "ruleId": "CVE-2026-109518/dependencytrack/apiserver",
+          "level": "error",
+          "message": {
+            "text": "Package: libapt-pkg7.0\nInstalled Version: 3.0.3\nVulnerability CVE-2026-109518\nSeverity: HIGH\nFixed Version: 3.0.4\nLink: [CVE-2026-109518](https://avd.aquasec.com/nvd/cve-2026-109518)"
+          },
+          "properties": {
+            "acceptedUntil": "2026-12-16",
+            "image": "dependencytrack/apiserver:4.14.6"
           }
         },
         {
@@ -5903,6 +5947,17 @@
           "properties": {
             "acceptedUntil": "2026-12-06",
             "image": "coturn/coturn:4.18.0-alpine"
+          }
+        },
+        {
+          "ruleId": "CVE-2026-111497/dependencytrack/frontend",
+          "level": "error",
+          "message": {
+            "text": "Package: brotli-libs\nInstalled Version: 1.2.0-r1\nVulnerability CVE-2026-111497\nSeverity: CRITICAL\nFixed Version: 1.2.1-r0\nLink: [CVE-2026-111497](https://avd.aquasec.com/nvd/cve-2026-111497)"
+          },
+          "properties": {
+            "acceptedUntil": "2026-12-16",
+            "image": "dependencytrack/frontend:4.14.6"
           }
         },
         {
@@ -7314,6 +7369,17 @@
           }
         },
         {
+          "ruleId": "CVE-2026-113351/dependencytrack/frontend",
+          "level": "error",
+          "message": {
+            "text": "Package: libexpat\nInstalled Version: 2.8.5-r0\nVulnerability CVE-2026-113351\nSeverity: HIGH\nFixed Version: 2.10.0-r0\nLink: [CVE-2026-113351](https://avd.aquasec.com/nvd/cve-2026-113351)"
+          },
+          "properties": {
+            "acceptedUntil": "2026-12-16",
+            "image": "dependencytrack/frontend:4.14.6"
+          }
+        },
+        {
           "ruleId": "CVE-2026-113351/makeplane/plane-admin",
           "level": "error",
           "message": {
@@ -7696,6 +7762,17 @@
           "properties": {
             "acceptedUntil": "2026-12-06",
             "image": "chatwoot/chatwoot:v4.17.1-ce"
+          }
+        },
+        {
+          "ruleId": "CVE-2026-115506/dependencytrack/frontend",
+          "level": "error",
+          "message": {
+            "text": "Package: libexpat\nInstalled Version: 2.8.5-r0\nVulnerability CVE-2026-115506\nSeverity: HIGH\nFixed Version: 2.10.0-r0\nLink: [CVE-2026-115506](https://avd.aquasec.com/nvd/cve-2026-115506)"
+          },
+          "properties": {
+            "acceptedUntil": "2026-12-16",
+            "image": "dependencytrack/frontend:4.14.6"
           }
         },
         {
@@ -8304,6 +8381,17 @@
           }
         },
         {
+          "ruleId": "CVE-2026-117610/dependencytrack/frontend",
+          "level": "error",
+          "message": {
+            "text": "Package: libexpat\nInstalled Version: 2.8.5-r0\nVulnerability CVE-2026-117610\nSeverity: HIGH\nFixed Version: 2.10.0-r0\nLink: [CVE-2026-117610](https://avd.aquasec.com/nvd/cve-2026-117610)"
+          },
+          "properties": {
+            "acceptedUntil": "2026-12-16",
+            "image": "dependencytrack/frontend:4.14.6"
+          }
+        },
+        {
           "ruleId": "CVE-2026-117610/makeplane/plane-admin",
           "level": "error",
           "message": {
@@ -8411,6 +8499,17 @@
           "properties": {
             "acceptedUntil": "2026-12-06",
             "image": "chatwoot/chatwoot:v4.17.1-ce"
+          }
+        },
+        {
+          "ruleId": "CVE-2026-118370/dependencytrack/frontend",
+          "level": "error",
+          "message": {
+            "text": "Package: libexpat\nInstalled Version: 2.8.5-r0\nVulnerability CVE-2026-118370\nSeverity: HIGH\nFixed Version: 2.10.0-r0\nLink: [CVE-2026-118370](https://avd.aquasec.com/nvd/cve-2026-118370)"
+          },
+          "properties": {
+            "acceptedUntil": "2026-12-16",
+            "image": "dependencytrack/frontend:4.14.6"
           }
         },
         {
@@ -9423,6 +9522,17 @@
           "properties": {
             "acceptedUntil": "2026-12-12",
             "image": "chatwoot/chatwoot:v4.19.1-ce"
+          }
+        },
+        {
+          "ruleId": "CVE-2026-125350/dependencytrack/frontend",
+          "level": "error",
+          "message": {
+            "text": "Package: libxslt\nInstalled Version: 1.1.43-r3\nVulnerability CVE-2026-125350\nSeverity: HIGH\nFixed Version: 1.1.43-r4\nLink: [CVE-2026-125350](https://avd.aquasec.com/nvd/cve-2026-125350)"
+          },
+          "properties": {
+            "acceptedUntil": "2026-12-16",
+            "image": "dependencytrack/frontend:4.14.6"
           }
         },
         {
@@ -16342,6 +16452,28 @@
           "properties": {
             "acceptedUntil": "2026-12-12",
             "image": "postgres:18.6-alpine"
+          }
+        },
+        {
+          "ruleId": "CVE-2026-40983/dependencytrack/apiserver",
+          "level": "error",
+          "message": {
+            "text": "Package: io.micrometer:micrometer-core\nInstalled Version: 1.16.4\nVulnerability CVE-2026-40983\nSeverity: HIGH\nFixed Version: 1.16.6, 1.15.12\nLink: [CVE-2026-40983](https://avd.aquasec.com/nvd/cve-2026-40983)"
+          },
+          "properties": {
+            "acceptedUntil": "2026-12-16",
+            "image": "dependencytrack/apiserver:4.14.6"
+          }
+        },
+        {
+          "ruleId": "CVE-2026-40984/dependencytrack/apiserver",
+          "level": "error",
+          "message": {
+            "text": "Package: io.micrometer:micrometer-core\nInstalled Version: 1.16.4\nVulnerability CVE-2026-40984\nSeverity: HIGH\nFixed Version: 1.16.6, 1.15.12\nLink: [CVE-2026-40984](https://avd.aquasec.com/nvd/cve-2026-40984)"
+          },
+          "properties": {
+            "acceptedUntil": "2026-12-16",
+            "image": "dependencytrack/apiserver:4.14.6"
           }
         },
         {
@@ -23429,6 +23561,28 @@
           }
         },
         {
+          "ruleId": "CVE-2026-68497/dependencytrack/apiserver",
+          "level": "error",
+          "message": {
+            "text": "Package: com.fasterxml.jackson.core:jackson-databind\nInstalled Version: 2.22.0\nVulnerability CVE-2026-68497\nSeverity: HIGH\nFixed Version: 2.18.10, 2.21.6, 2.22.2\nLink: [CVE-2026-68497](https://avd.aquasec.com/nvd/cve-2026-68497)"
+          },
+          "properties": {
+            "acceptedUntil": "2026-12-16",
+            "image": "dependencytrack/apiserver:4.14.6"
+          }
+        },
+        {
+          "ruleId": "CVE-2026-68497/dependencytrack/apiserver",
+          "level": "error",
+          "message": {
+            "text": "Package: com.fasterxml.jackson.core:jackson-databind\nInstalled Version: 2.22.0\nVulnerability CVE-2026-68497\nSeverity: HIGH\nFixed Version: 2.18.10, 2.21.6, 2.22.2\nLink: [CVE-2026-68497](https://avd.aquasec.com/nvd/cve-2026-68497)"
+          },
+          "properties": {
+            "acceptedUntil": "2026-12-16",
+            "image": "dependencytrack/apiserver:4.14.6"
+          }
+        },
+        {
           "ruleId": "CVE-2026-68515/ghcr.io/immich-app/immich-server",
           "level": "error",
           "message": {
@@ -25035,6 +25189,17 @@
           }
         },
         {
+          "ruleId": "CVE-2026-76844/dependencytrack/apiserver",
+          "level": "error",
+          "message": {
+            "text": "Package: zlib1g\nInstalled Version: 1:1.3.dfsg+really1.3.1-1+b1\nVulnerability CVE-2026-76844\nSeverity: HIGH\nFixed Version: 1:1.3.dfsg+really1.3.1-1+deb13u1\nLink: [CVE-2026-76844](https://avd.aquasec.com/nvd/cve-2026-76844)"
+          },
+          "properties": {
+            "acceptedUntil": "2026-12-16",
+            "image": "dependencytrack/apiserver:4.14.6"
+          }
+        },
+        {
           "ruleId": "CVE-2026-76844/ghcr.io/catenahq/erpnext-helpdesk",
           "level": "error",
           "message": {
@@ -25318,6 +25483,17 @@
           "properties": {
             "acceptedUntil": "2027-01-17",
             "image": "awesometechnologies/synapse-admin:0.11.4"
+          }
+        },
+        {
+          "ruleId": "CVE-2026-77214/dependencytrack/frontend",
+          "level": "error",
+          "message": {
+            "text": "Package: libexpat\nInstalled Version: 2.8.5-r0\nVulnerability CVE-2026-77214\nSeverity: HIGH\nFixed Version: 2.9.0-r0\nLink: [CVE-2026-77214](https://avd.aquasec.com/nvd/cve-2026-77214)"
+          },
+          "properties": {
+            "acceptedUntil": "2026-12-16",
+            "image": "dependencytrack/frontend:4.14.6"
           }
         },
         {
@@ -27587,6 +27763,28 @@
           }
         },
         {
+          "ruleId": "CVE-2026-85091/dependencytrack/apiserver",
+          "level": "error",
+          "message": {
+            "text": "Package: zlib1g\nInstalled Version: 1:1.3.dfsg+really1.3.1-1+b1\nVulnerability CVE-2026-85091\nSeverity: HIGH\nFixed Version: 1:1.3.dfsg+really1.3.1-1+deb13u1\nLink: [CVE-2026-85091](https://avd.aquasec.com/nvd/cve-2026-85091)"
+          },
+          "properties": {
+            "acceptedUntil": "2026-12-16",
+            "image": "dependencytrack/apiserver:4.14.6"
+          }
+        },
+        {
+          "ruleId": "CVE-2026-85091/dependencytrack/frontend",
+          "level": "error",
+          "message": {
+            "text": "Package: zlib\nInstalled Version: 1.3.2-r0\nVulnerability CVE-2026-85091\nSeverity: HIGH\nFixed Version: 1.3.2-r1\nLink: [CVE-2026-85091](https://avd.aquasec.com/nvd/cve-2026-85091)"
+          },
+          "properties": {
+            "acceptedUntil": "2026-12-16",
+            "image": "dependencytrack/frontend:4.14.6"
+          }
+        },
+        {
           "ruleId": "CVE-2026-85091/ghcr.io/catenahq/erpnext-helpdesk",
           "level": "error",
           "message": {
@@ -28093,6 +28291,17 @@
           }
         },
         {
+          "ruleId": "CVE-2026-87636/dependencytrack/frontend",
+          "level": "error",
+          "message": {
+            "text": "Package: libxslt\nInstalled Version: 1.1.43-r3\nVulnerability CVE-2026-87636\nSeverity: HIGH\nFixed Version: 1.1.43-r4\nLink: [CVE-2026-87636](https://avd.aquasec.com/nvd/cve-2026-87636)"
+          },
+          "properties": {
+            "acceptedUntil": "2026-12-16",
+            "image": "dependencytrack/frontend:4.14.6"
+          }
+        },
+        {
           "ruleId": "CVE-2026-87636/makeplane/plane-admin",
           "level": "error",
           "message": {
@@ -28189,6 +28398,17 @@
           "properties": {
             "acceptedUntil": "2027-01-17",
             "image": "makeplane/plane-space:v1.4.2"
+          }
+        },
+        {
+          "ruleId": "CVE-2026-88806/dependencytrack/frontend",
+          "level": "error",
+          "message": {
+            "text": "Package: libx11\nInstalled Version: 1.8.13-r0\nVulnerability CVE-2026-88806\nSeverity: HIGH\nFixed Version: 1.8.14-r0\nLink: [CVE-2026-88806](https://avd.aquasec.com/nvd/cve-2026-88806)"
+          },
+          "properties": {
+            "acceptedUntil": "2026-12-16",
+            "image": "dependencytrack/frontend:4.14.6"
           }
         },
         {
@@ -28522,6 +28742,50 @@
           }
         },
         {
+          "ruleId": "CVE-2026-89407/dependencytrack/apiserver",
+          "level": "error",
+          "message": {
+            "text": "Package: com.fasterxml.jackson.core:jackson-core\nInstalled Version: 2.22.0\nVulnerability CVE-2026-89407\nSeverity: HIGH\nFixed Version: 2.18.11, 2.21.7, 2.22.3\nLink: [CVE-2026-89407](https://avd.aquasec.com/nvd/cve-2026-89407)"
+          },
+          "properties": {
+            "acceptedUntil": "2026-12-16",
+            "image": "dependencytrack/apiserver:4.14.6"
+          }
+        },
+        {
+          "ruleId": "CVE-2026-89407/dependencytrack/apiserver",
+          "level": "error",
+          "message": {
+            "text": "Package: com.fasterxml.jackson.core:jackson-core\nInstalled Version: 2.22.0\nVulnerability CVE-2026-89407\nSeverity: HIGH\nFixed Version: 2.18.11, 2.21.7, 2.22.3\nLink: [CVE-2026-89407](https://avd.aquasec.com/nvd/cve-2026-89407)"
+          },
+          "properties": {
+            "acceptedUntil": "2026-12-16",
+            "image": "dependencytrack/apiserver:4.14.6"
+          }
+        },
+        {
+          "ruleId": "CVE-2026-89425/dependencytrack/apiserver",
+          "level": "error",
+          "message": {
+            "text": "Package: com.fasterxml.jackson.core:jackson-core\nInstalled Version: 2.22.0\nVulnerability CVE-2026-89425\nSeverity: HIGH\nFixed Version: 2.21.7, 2.22.3, 2.18.11\nLink: [CVE-2026-89425](https://avd.aquasec.com/nvd/cve-2026-89425)"
+          },
+          "properties": {
+            "acceptedUntil": "2026-12-16",
+            "image": "dependencytrack/apiserver:4.14.6"
+          }
+        },
+        {
+          "ruleId": "CVE-2026-89425/dependencytrack/apiserver",
+          "level": "error",
+          "message": {
+            "text": "Package: com.fasterxml.jackson.core:jackson-core\nInstalled Version: 2.22.0\nVulnerability CVE-2026-89425\nSeverity: HIGH\nFixed Version: 2.21.7, 2.22.3, 2.18.11\nLink: [CVE-2026-89425](https://avd.aquasec.com/nvd/cve-2026-89425)"
+          },
+          "properties": {
+            "acceptedUntil": "2026-12-16",
+            "image": "dependencytrack/apiserver:4.14.6"
+          }
+        },
+        {
           "ruleId": "CVE-2026-89631/alextselegidis/easyappointments",
           "level": "error",
           "message": {
@@ -28764,6 +29028,50 @@
           }
         },
         {
+          "ruleId": "CVE-2026-91776/dependencytrack/apiserver",
+          "level": "error",
+          "message": {
+            "text": "Package: com.fasterxml.jackson.core:jackson-databind\nInstalled Version: 2.22.0\nVulnerability CVE-2026-91776\nSeverity: HIGH\nFixed Version: 2.18.11, 2.21.7, 2.22.3\nLink: [CVE-2026-91776](https://avd.aquasec.com/nvd/cve-2026-91776)"
+          },
+          "properties": {
+            "acceptedUntil": "2026-12-16",
+            "image": "dependencytrack/apiserver:4.14.6"
+          }
+        },
+        {
+          "ruleId": "CVE-2026-91776/dependencytrack/apiserver",
+          "level": "error",
+          "message": {
+            "text": "Package: com.fasterxml.jackson.core:jackson-databind\nInstalled Version: 2.22.0\nVulnerability CVE-2026-91776\nSeverity: HIGH\nFixed Version: 2.18.11, 2.21.7, 2.22.3\nLink: [CVE-2026-91776](https://avd.aquasec.com/nvd/cve-2026-91776)"
+          },
+          "properties": {
+            "acceptedUntil": "2026-12-16",
+            "image": "dependencytrack/apiserver:4.14.6"
+          }
+        },
+        {
+          "ruleId": "CVE-2026-91777/dependencytrack/apiserver",
+          "level": "error",
+          "message": {
+            "text": "Package: com.fasterxml.jackson.core:jackson-databind\nInstalled Version: 2.22.0\nVulnerability CVE-2026-91777\nSeverity: HIGH\nFixed Version: 2.21.7, 2.18.11, 2.22.3\nLink: [CVE-2026-91777](https://avd.aquasec.com/nvd/cve-2026-91777)"
+          },
+          "properties": {
+            "acceptedUntil": "2026-12-16",
+            "image": "dependencytrack/apiserver:4.14.6"
+          }
+        },
+        {
+          "ruleId": "CVE-2026-91777/dependencytrack/apiserver",
+          "level": "error",
+          "message": {
+            "text": "Package: com.fasterxml.jackson.core:jackson-databind\nInstalled Version: 2.22.0\nVulnerability CVE-2026-91777\nSeverity: HIGH\nFixed Version: 2.21.7, 2.18.11, 2.22.3\nLink: [CVE-2026-91777](https://avd.aquasec.com/nvd/cve-2026-91777)"
+          },
+          "properties": {
+            "acceptedUntil": "2026-12-16",
+            "image": "dependencytrack/apiserver:4.14.6"
+          }
+        },
+        {
           "ruleId": "CVE-2026-92392/awesometechnologies/synapse-admin",
           "level": "error",
           "message": {
@@ -28783,6 +29091,28 @@
           "properties": {
             "acceptedUntil": "2026-12-06",
             "image": "awesometechnologies/synapse-admin:0.11.4"
+          }
+        },
+        {
+          "ruleId": "CVE-2026-92392/dependencytrack/frontend",
+          "level": "error",
+          "message": {
+            "text": "Package: curl\nInstalled Version: 8.22.0-r0\nVulnerability CVE-2026-92392\nSeverity: HIGH\nFixed Version: 8.23.0-r0\nLink: [CVE-2026-92392](https://avd.aquasec.com/nvd/cve-2026-92392)"
+          },
+          "properties": {
+            "acceptedUntil": "2026-12-16",
+            "image": "dependencytrack/frontend:4.14.6"
+          }
+        },
+        {
+          "ruleId": "CVE-2026-92392/dependencytrack/frontend",
+          "level": "error",
+          "message": {
+            "text": "Package: libcurl\nInstalled Version: 8.22.0-r0\nVulnerability CVE-2026-92392\nSeverity: HIGH\nFixed Version: 8.23.0-r0\nLink: [CVE-2026-92392](https://avd.aquasec.com/nvd/cve-2026-92392)"
+          },
+          "properties": {
+            "acceptedUntil": "2026-12-16",
+            "image": "dependencytrack/frontend:4.14.6"
           }
         },
         {
@@ -30125,6 +30455,17 @@
           "properties": {
             "acceptedUntil": "2026-12-12",
             "image": "awesometechnologies/synapse-admin:0.11.4"
+          }
+        },
+        {
+          "ruleId": "CVE-2026-9947/dependencytrack/frontend",
+          "level": "error",
+          "message": {
+            "text": "Package: libxslt\nInstalled Version: 1.1.43-r3\nVulnerability CVE-2026-9947\nSeverity: HIGH\nFixed Version: 1.1.43-r4\nLink: [CVE-2026-9947](https://avd.aquasec.com/nvd/cve-2026-9947)"
+          },
+          "properties": {
+            "acceptedUntil": "2026-12-16",
+            "image": "dependencytrack/frontend:4.14.6"
           }
         },
         {
