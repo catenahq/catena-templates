@@ -26,8 +26,6 @@ OUT_OF_FORM = {
 
 SERVICES = "services:\n  web:\n    image: web:1.0\n"
 SETTINGS = "env:\n  DOMAIN_HOST:\n    managed: {expr: \"x\"}\n"
-LIFECYCLE = "hooks:\n  service: web\n  verify:\n    - - sh\n      - -c\n      - {file: hooks/verify.sh}\n"
-NEAT = {pack.SERVICES: SERVICES, "settings.yml": SETTINGS, "lifecycle.yml": LIFECYCLE}
 HOOKS = {"hooks/verify.sh": "echo ok\n"}
 PACKED = (
     "x-catena:\n  schema: 2\n"
@@ -47,28 +45,6 @@ def _scratch(tmp_path, app, text=None):
     return tmp_path
 
 
-def _pack(neat=None, hooks=None, snippets=None):
-    return pack.pack_texts({**NEAT, **(neat or {})}, {**HOOKS, **(hooks or {})}, "blueprints/web/", snippets)
-
-
-def _hook(item, hook="verify", interpreter="sh"):
-    """A lifecycle.yml whose hook holds one script written as `item`."""
-    return f"hooks:\n  service: web\n  {hook}:\n    - - {interpreter}\n      - -c\n      - {item}\n"
-
-
-def _tree(tmp_path, apps, snippets):
-    """A scratch tree of apps held as neat files (each `lifecycle.yml` text by app id) and
-    the snippet files; the tree."""
-    for app, lifecycle in apps.items():
-        folder = tmp_path / "blueprints" / app
-        (folder / "hooks").mkdir(parents=True)
-        for name, text in {**NEAT, "lifecycle.yml": lifecycle}.items():
-            (folder / name).write_text(text)
-        (folder / "hooks" / "verify.sh").write_text("echo ok\n")
-    for path, text in snippets.items():
-        (tmp_path / path).parent.mkdir(parents=True, exist_ok=True)
-        (tmp_path / path).write_text(text)
-    return tmp_path
 
 
 # the catalog
@@ -171,49 +147,27 @@ def test_every_catalog_app_holds_its_services_file(app):
     assert (CATALOG / app / pack.SERVICES).is_file()
 
 
-def test_sections_are_the_block_schema_properties():
+def test_the_block_order_is_the_block_schema_properties():
     properties = set(json.loads((ROOT / "block.schema.json").read_text())["properties"])
-    held = {key for keys in pack.SECTIONS.values() for key in keys}
-    assert held | {"schema"} == properties
     assert sorted(pack.ORDER) == sorted(properties)
-    assert len(held) == sum(len(keys) for keys in pack.SECTIONS.values())
+
+
+
+def test_every_file_of_every_app_folder_has_a_class_of_its_own():
+    strays = []
+    for app in APPS:
+        for path in sorted((CATALOG / app).rglob("*")):
+            rel = path.relative_to(CATALOG / app).as_posix()
+            if path.is_file() and rel not in versions.FILE_CLASSES \
+                    and not rel.startswith(f"{pack.HOOKS_DIR}/") and rel != versions.CARD:
+                strays.append(f"{app}/{rel}")
+    assert strays == []
+
+
+
 
 
 # pack
-
-def test_neat_files_pack_into_the_block_then_one_empty_line_then_services():
-    assert _pack() == PACKED
-
-
-def test_block_keys_follow_the_order_across_files():
-    access = "privileges:\n  - host_network\n"
-    packed = _pack({"access.yml": access})
-    assert packed.index("  privileges:") < packed.index("  env:") < packed.index("  hooks:")
-
-
-def test_a_comment_and_blank_lines_above_a_key_move_with_it():
-    packed = _pack({"settings.yml": "# first\n\nenv:\n  A:\n    managed: {expr: x}\n",
-                    "lifecycle.yml": "# note\nhooks:\n  service: web\n  verify:\n"
-                                     "    - - sh\n      - -c\n      - {file: hooks/verify.sh}\n"})
-    assert "  # first\n\n  env:" in packed
-    assert "  # note\n  hooks:" in packed
-
-
-def test_dollars_in_a_hook_file_are_written_twice():
-    packed = _pack(hooks={"hooks/verify.sh": "echo $HOME $$\n"})
-    assert "echo $$HOME $$$$\n" in packed
-
-
-def test_a_blank_line_of_a_hook_stays_empty():
-    packed = _pack(hooks={"hooks/verify.sh": "a\n\nb\n"})
-    assert "          a\n\n          b\n" in packed
-
-
-def test_a_second_script_of_a_hook_is_named_with_its_number():
-    lifecycle = LIFECYCLE + "    - - sh\n      - -c\n      - {file: hooks/verify-2.sh}\n"
-    packed = _pack({"lifecycle.yml": lifecycle}, {"hooks/verify-2.sh": "echo two\n"})
-    assert packed.count("- |") == 2
-
 
 def test_a_folder_with_no_services_file_is_left_alone(tmp_path):
     folder = tmp_path / "blueprints" / "web"
@@ -223,189 +177,39 @@ def test_a_folder_with_no_services_file_is_left_alone(tmp_path):
     assert (folder / pack.COMPOSE).read_text() == "hand edited\n"
 
 
-@pytest.mark.parametrize("name", ["settings.yml", "access.yml", "lifecycle.yml", "hooks"])
-def test_a_section_file_or_hooks_folder_without_a_services_file_is_refused(tmp_path, name):
+@pytest.mark.parametrize("name", [pack.BLOCK_FILE, "hooks"])
+def test_the_block_file_or_hooks_folder_without_a_services_file_is_refused(tmp_path, name):
     folder = tmp_path / "blueprints" / "web"
     folder.mkdir(parents=True)
     (folder / pack.COMPOSE).write_text("hand edited\n")
     if name == "hooks":
         (folder / name).mkdir()
     else:
-        (folder / name).write_text(SETTINGS)
+        (folder / name).write_text(BLOCK)
     with pytest.raises(pack.PackError, match=rf"blueprints/web/{name}: the folder has no services.yml"):
         pack.pack_all(tmp_path)
 
 
-def test_pack_all_writes_the_compose_once(tmp_path):
-    folder = tmp_path / "blueprints" / "web"
-    (folder / "hooks").mkdir(parents=True)
-    for name, text in NEAT.items():
-        (folder / name).write_text(text)
-    (folder / "hooks" / "verify.sh").write_text("echo ok\n")
-    assert pack.pack_all(tmp_path) == [folder / pack.COMPOSE]
-    assert (folder / pack.COMPOSE).read_text() == PACKED
-    assert pack.pack_all(tmp_path) == []
-
-
-@pytest.mark.parametrize("neat,hooks,reason", [
-    ({"settings.yml": "bogus:\n  a: 1\n"}, None, "bogus is not a key of the block"),
-    ({"settings.yml": "schema: 2\n" + SETTINGS}, None, "pack writes schema"),
-    ({"settings.yml": "quiesce:\n  service: web\n"}, None, "quiesce belongs in lifecycle.yml"),
-    ({"settings.yml": "secrets: {}\n" + SETTINGS}, None, "env is out of order"),
-    ({"settings.yml": SETTINGS + SETTINGS}, None, "env is already held"),
-    ({"settings.yml": SETTINGS + "# last\n"}, None, "ends with an empty or comment line"),
-    ({"settings.yml": "text\n" + SETTINGS}, None, "text before the first key"),
-    ({"settings.yml": "# only\n"}, None, "ends with an empty or comment line"),
-    ({"settings.yml": "text\n"}, None, "holds no key"),
-    ({"settings.yml": "env: {}"}, None, "does not end with a newline"),
-    ({pack.SERVICES: "\nservices: {}\n"}, None, "starts with an empty line"),
-    ({"lifecycle.yml": LIFECYCLE.replace("{file: hooks/verify.sh}", "{include: a/1}")}, None, "only"),
-    ({"lifecycle.yml": LIFECYCLE.replace("{file: hooks/verify.sh}", "{include: [a/1], file: hooks/verify.sh}")},
-     None, "only"),
-    ({"lifecycle.yml": LIFECYCLE.replace("{file: hooks/verify.sh}", "{include: []}")}, None, "is not <snippet>/<n>"),
-    ({"lifecycle.yml": LIFECYCLE.replace("{file: hooks/verify.sh}", "{include: [a/0]}")}, None,
-     "is not <snippet>/<n>"),
-    ({"lifecycle.yml": LIFECYCLE.replace("{file: hooks/verify.sh}", "{include: [a/1]}")}, None,
-     "the snippet a/1 does not exist"),
-    ({"lifecycle.yml": LIFECYCLE.replace("hooks/verify.sh", "hooks/other.sh")}, None, "does not exist"),
-    ({"lifecycle.yml": LIFECYCLE.replace("hooks/verify.sh", "hooks/configure.sh")},
-     {"hooks/configure.sh": "x\n"}, "not named after its place"),
-    ({"lifecycle.yml": LIFECYCLE.replace("hooks/verify.sh", "hooks/verify.js")},
-     {"hooks/verify.js": "x\n"}, "not named after its place"),
-    ({"lifecycle.yml": LIFECYCLE.replace("{file: hooks/verify.sh}", "|\n        echo ok")}, None,
-     "is inline; move it to hooks/verify.sh"),
-    (None, {"hooks/other.sh": "x\n"}, "no hook of lifecycle.yml names this file"),
-    (None, {"hooks/verify.sh": "echo ok"}, "exactly one newline"),
-    (None, {"hooks/verify.sh": "echo ok\n\n"}, "exactly one newline"),
-    (None, {"hooks/verify.sh": "a\n  \nb\n"}, "a line of spaces only"),
-    (None, {"hooks/verify.sh": " a\n"}, "first line starts with a space"),
-    (None, {"hooks/verify.sh": "\n a\n"}, r"verify.sh:2: the first line starts with a space"),
-    (None, {"hooks/verify.sh": "\n"}, "holds no text"),
-    ({"settings.yml": '"env":\n  A: 1\n'}, None, r"settings.yml:1: the key env is not written plainly"),
-    ({"settings.yml": "env:\n  A: 1\n'secrets': {}\n"}, None,
-     r"settings.yml:3: the key secrets is not written plainly"),
-    ({"settings.yml": "env:\n  A: 1\nsecrets: {}\n? [x]\n: y\n"}, None, "settings.yml:4: the key"),
-    ({"settings.yml": "env: 'a\nsecrets: {}\n'\n"}, None, r"settings.yml:2: this line is not a top-level key"),
-    ({pack.SERVICES: "x-catena: {}\n" + SERVICES}, None, r"services.yml:1: x-catena is a key of the block"),
-    ({pack.SERVICES: SERVICES + "env: {}\n"}, None, r"services.yml:4: env is a key of the block"),
-    ({pack.SERVICES: SERVICES + "hooks: {}\n"}, None, r"services.yml:4: hooks is a key of the block"),
-    ({pack.SERVICES: "services: [\n"}, None, "services.yml: not YAML"),
-    ({"lifecycle.yml": "hooks:\n  service: web\n  verify:\n    - {file: hooks/verify.sh}\n"}, None,
-     "not the last item"),
-])
-def test_neat_files_out_of_normal_form_are_refused(neat, hooks, reason):
-    with pytest.raises(pack.PackError, match=reason):
-        _pack(neat, hooks)
-
-
-def test_a_refusal_names_the_file_and_the_line():
-    with pytest.raises(pack.PackError) as caught:
-        _pack({"settings.yml": "# c\n" + "bogus:\n  a: 1\n"})
-    assert str(caught.value).startswith("blueprints/web/settings.yml:2:")
-
-
 def test_a_missing_services_file_is_refused():
     with pytest.raises(pack.PackError, match="services.yml: missing"):
-        pack.pack_texts({"settings.yml": SETTINGS}, {})
+        pack.pack_texts({pack.BLOCK_FILE: BLOCK}, {})
 
 
-# snippets
-
-SNIPPETS = {"snippets/wait/1.sh": "wait one\n", "snippets/sign/1.sh": "sign $ONE\n"}
-BOTH = _hook("{file: hooks/verify.sh, include: [wait/1, sign/1]}")
-ONLY = _hook("{include: [wait/1, sign/1]}")
+def test_a_missing_block_file_is_refused():
+    with pytest.raises(pack.PackError, match="x-catena.yml: missing"):
+        pack.pack_texts({pack.SERVICES: SERVICES}, {})
 
 
-def _packed_script(*lines, interpreter="sh"):
-    body = "".join(f"          {line}\n" for line in lines)
-    return ("x-catena:\n  schema: 2\n"
-            f"  hooks:\n    service: web\n    verify:\n      - - {interpreter}\n        - -c\n        - |\n"
-            f"{body}\n" + SERVICES)
-
-
-def test_snippets_come_before_the_file_in_the_order_of_the_include():
-    packed = _pack({"lifecycle.yml": BOTH}, snippets=SNIPPETS)
-    assert "          wait one\n          sign $$ONE\n          echo ok\n" in packed
-
-
-def test_an_include_alone_is_the_snippets_text_and_reads_no_hook_file():
-    packed = pack.pack_texts({**NEAT, "lifecycle.yml": ONLY}, {}, "blueprints/web/", SNIPPETS)
-    assert "        - |\n          wait one\n          sign $$ONE\n\n" in packed
-
-
-def test_a_snippet_on_a_hook_of_two_scripts_counts_in_the_name_of_the_second():
-    lifecycle = ONLY + "    - - sh\n      - -c\n      - {file: hooks/verify-2.sh}\n"
-    packed = pack.pack_texts({**NEAT, "lifecycle.yml": lifecycle}, {"hooks/verify-2.sh": "two\n"},
-                             "blueprints/web/", SNIPPETS)
-    assert packed.count("- |") == 2
-    with pytest.raises(pack.PackError, match="verify.sh is not named after its place"):
-        pack.pack_texts({**NEAT, "lifecycle.yml": lifecycle.replace("verify-2", "verify")},
-                        {"hooks/verify.sh": "two\n"}, "blueprints/web/", SNIPPETS)
-
-
-@pytest.mark.parametrize("lifecycle,snippets,reason", [
-    (_hook("{file: hooks/verify.sh, include: [wait/2]}"), SNIPPETS, "the snippet wait/2 does not exist"),
-    (_hook("{file: hooks/verify.sh, include: [wait/1]}"), {"snippets/wait/1.py": "x\n"}, "wait/1.py is not a .sh"),
-    (_hook("{file: hooks/verify.sh, include: [wait/1]}", interpreter="node"), SNIPPETS,
-     "is not named after its place"),
-    (_hook("{include: [wait/1]}", interpreter="node"), SNIPPETS, r"wait/1.sh is not a \.js file"),
-    (_hook("{file: hooks/verify.sh, include: [wait/1]}"), {"snippets/wait/1.sh": "wait"}, "exactly one newline"),
-    (_hook("{file: hooks/verify.sh, include: [wait/1]}"), {"snippets/wait/1.sh": " wait\n"},
-     "first line starts with a space"),
-    (_hook("{file: hooks/verify.sh}"), {"snippets/wait.sh": "x\n"}, "not a snippet file"),
-    (_hook("{file: hooks/verify.sh}"), {"snippets/wait/0.sh": "x\n"}, "not a snippet file"),
-    (_hook("{file: hooks/verify.sh}"), {"snippets/wait/1.txt": "x\n"}, "not a snippet file"),
-    (_hook("{file: hooks/verify.sh}"), {"snippets/wait/1.sh": "x\n", "snippets/wait/1.py": "x\n"},
-     "wait/1 is already held in snippets/wait/1.py"),
-    (_hook("{file: hooks/verify.sh}"), {"snippets/wait/1.sh": "x\n", "snippets/wait/2.sh": "x\n"},
-     "holds the text of snippets/wait/1.sh"),
+@pytest.mark.parametrize("services,reason", [
+    ("\nservices: {}\n", "starts with an empty line"),
+    ("x-catena: {}\n" + SERVICES, r"services.yml:1: x-catena is a key of the block"),
+    (SERVICES + "env: {}\n", r"services.yml:4: env is a key of the block"),
+    (SERVICES + "hooks: {}\n", r"services.yml:4: hooks is a key of the block"),
+    ("services: [\n", "services.yml: not YAML"),
 ])
-def test_an_include_of_a_missing_or_misnamed_snippet_is_refused(lifecycle, snippets, reason):
+def test_a_services_file_out_of_normal_form_is_refused(services, reason):
     with pytest.raises(pack.PackError, match=reason):
-        _pack({"lifecycle.yml": lifecycle}, snippets=snippets)
-
-
-def test_the_same_text_in_two_snippets_is_two_snippets():
-    snippets = {"snippets/wait/1.sh": "x\n", "snippets/sign/1.sh": "x\n"}
-    assert _pack(snippets=snippets) == PACKED
-
-
-def test_a_snippet_no_app_includes_is_refused_unless_it_is_the_newest_of_its_snippet(tmp_path):
-    tree = _tree(tmp_path, {"web": _hook("{file: hooks/verify.sh, include: [wait/2]}")},
-                 {"snippets/wait/1.sh": "one\n", "snippets/wait/2.sh": "two\n", "snippets/wait/3.sh": "three\n"})
-    with pytest.raises(pack.PackError, match=r"snippets/wait/1.sh: no app includes this version and wait/3 is newer"):
-        pack.pack_all(tree)
-    assert not (tree / "blueprints" / "web" / pack.COMPOSE).exists()
-    (tree / "snippets" / "wait" / "1.sh").unlink()
-    assert pack.pack_all(tree) == [tree / "blueprints" / "web" / pack.COMPOSE]
-
-
-def test_a_new_snippet_nobody_includes_yet_is_allowed(tmp_path):
-    tree = _tree(tmp_path, {"web": LIFECYCLE}, {"snippets/frappe-verify/1.sh": "one\n"})
-    assert pack.pack_all(tree) == [tree / "blueprints" / "web" / pack.COMPOSE]
-
-
-def test_an_edited_version_two_apps_include_changes_two_composes_and_fails_scope(tmp_path):
-    lifecycle = _hook("{file: hooks/verify.sh, include: [wait/1]}")
-    tree = _tree(tmp_path, {"one": lifecycle, "two": lifecycle}, {"snippets/wait/1.sh": "before\n"})
-    assert len(pack.pack_all(tree)) == 2
-    assert pack.pack_all(tree) == []
-    (tree / "snippets" / "wait" / "1.sh").write_text("after\n")
-    written = pack.pack_all(tree)
-    assert [p.parent.name for p in written] == ["one", "two"]
-    paths = [p.relative_to(tree).as_posix() for p in written] + ["snippets/wait/1.sh"]
-    assert versions.scope_errors(paths) == ["the change touches 2 apps (one, two); a commit or pull request "
-                                            "changes one app"]
-
-
-def test_an_edited_version_one_app_includes_changes_that_app_alone(tmp_path):
-    tree = _tree(tmp_path, {"one": _hook("{file: hooks/verify.sh, include: [wait/1]}"), "two": LIFECYCLE},
-                 {"snippets/wait/1.sh": "before\n"})
-    pack.pack_all(tree)
-    (tree / "snippets" / "wait" / "1.sh").write_text("after\n")
-    written = pack.pack_all(tree)
-    assert [p.parent.name for p in written] == ["one"]
-    assert versions.scope_errors([p.relative_to(tree).as_posix() for p in written] + ["snippets/wait/1.sh"]) == []
+        _pack_block(services=services)
 
 
 def test_the_snippets_folder_belongs_to_no_app():
@@ -415,7 +219,7 @@ def test_the_snippets_folder_belongs_to_no_app():
 
 
 def test_a_link_under_snippets_is_refused(tmp_path):
-    tree = _tree(tmp_path, {"web": LIFECYCLE}, {})
+    tree = _block_tree(tmp_path, {"web": BLOCK}, {})
     (tree / "snippets").mkdir()
     (tree / "snippets" / "other").symlink_to(tree)
     with pytest.raises(pack.PackError, match="snippets/other: a link"):
@@ -515,11 +319,6 @@ def test_a_second_script_of_a_list_is_named_with_its_number():
 def test_a_block_file_out_of_normal_form_is_refused(block, hooks, reason):
     with pytest.raises(pack.PackError, match=reason):
         _pack_block(block, hooks)
-
-
-def test_a_folder_holding_the_block_file_and_a_section_file_is_refused():
-    with pytest.raises(pack.PackError, match=r"lifecycle.yml: the folder holds x-catena.yml"):
-        pack.pack_texts({**BLOCK_FILES, "lifecycle.yml": LIFECYCLE}, HOOKS, "blueprints/web/")
 
 
 def test_the_block_file_alone_without_services_is_refused(tmp_path):
@@ -779,8 +578,6 @@ def test_a_line_break_other_than_a_line_feed_is_refused_in_every_file_with_its_l
         _pack_block(BLOCK + f"data: {{}}{char}privileges: [host_network]\n")
     with pytest.raises(pack.PackError, match=rf"services.yml:4: holds .*{name}"):
         _pack_block(services=SERVICES + f"x-a: 1{char}x-b: 2\n")
-    with pytest.raises(pack.PackError, match=rf"settings.yml:4: holds .*{name}"):
-        pack.pack_texts({**NEAT, "settings.yml": SETTINGS + f"secrets: []{char}x\n"}, HOOKS, "blueprints/web/")
     with pytest.raises(pack.PackError, match=rf"snippets/wait/1.sh:1: holds .*{name}"):
         _pack_block(_verify("snippets/wait/1.sh"), {}, {"snippets/wait/1.sh": f"a{char}b\n"})
 
@@ -816,7 +613,7 @@ def test_a_one_line_script_of_a_script_pair_and_other_commands_stay_inline():
     assert '      - [sh, -c, "exit 0"]\n      - [sh, -c, "echo a echo b"]\n' in packed
 
 
-@pytest.mark.parametrize("name", [pack.SERVICES, pack.BLOCK_FILE, "settings.yml", "hooks"])
+@pytest.mark.parametrize("name", [pack.SERVICES, pack.BLOCK_FILE, "hooks"])
 def test_a_link_in_place_of_a_neat_file_or_the_hooks_folder_is_refused(tmp_path, name):
     tree = _block_tree(tmp_path / "tree", {"web": BLOCK}, {})
     folder = tree / "blueprints" / "web"
