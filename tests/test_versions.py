@@ -374,6 +374,47 @@ def test_last_change_refuses_an_id_that_is_not_a_plain_slug(repo, capsys):
     assert "not a plain app id" in capsys.readouterr().err
 
 
+def _ci(state, seen=None):
+    run = "https://github.com/o/r/actions/runs/5"
+
+    def fetch(url):
+        if seen is not None:
+            seen.append(url)
+        return [{"context": "app-ci", "state": state, "target_url": run,
+                 "creator": {"login": "github-actions[bot]"}}]
+
+    return fetch
+
+
+def test_an_app_whose_last_main_change_failed_app_ci_is_held(repo):
+    git, commit = repo
+    git("tag", "-a", "web/1.2.0-1", "-m", f"{versions.PASSED} at abc: https://x")
+    commit("web:1.3.0")
+    assert versions.tested_state("web") == (versions.CHANGED, "web/1.2.0-1")
+    seen = []
+    assert versions.held("web", repo="o/r", fetch=_ci("failure", seen))
+    assert versions.held("web", repo="o/r", fetch=_ci("error"))
+    assert seen[0].startswith("https://api.github.com/repos/o/r/commits/")
+
+
+def test_an_app_is_not_held_by_a_passed_pending_or_unread_app_ci(repo):
+    for state in ("success", "pending"):
+        assert not versions.held("web", repo="o/r", fetch=_ci(state))
+    assert not versions.held("web", repo="o/r", fetch=lambda url: None)
+    assert not versions.held("web", repo="", fetch=_ci("failure"))
+
+
+def test_tested_ci_names_a_held_app_and_lists_it_first(repo, monkeypatch, capsys):
+    monkeypatch.setenv("GITHUB_REPOSITORY", "o/r")
+    monkeypatch.setattr(versions.app_checks, "ci_state", lambda sha, slug, fetch=None: "failure")
+    assert versions.main(["tested", "--ci"]) == 0
+    assert capsys.readouterr().out == "web\theld\t-\n"
+    assert versions.main(["tested", "--needs-run", "--ci"]) == 0
+    assert capsys.readouterr().out == "web\n"
+    assert versions.main(["tested"]) == 0
+    assert capsys.readouterr().out == "web\tuntested\t-\n"
+
+
 def test_tested_lists_the_apps_that_need_a_run(repo, capsys):
     assert versions.main(["tested"]) == 0
     assert capsys.readouterr().out == "web\tuntested\t-\n"
