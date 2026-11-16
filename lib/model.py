@@ -9,7 +9,7 @@ The compose sits in the blueprint directory because that directory is
 what a host fetches at a tag and deploys byte for byte: one file, in the
 place that serves it, with the app's logo beside it. Its root `x-catena` block
 declares what the host needs to back up, update and restore the deployed
-app (env, lifecycle, quiesce, object_store, hooks and the rest of
+app (env, lifecycle, quiesce, hooks and the rest of
 block.schema.json); the loader reads it beside the card file.
 
 Validation runs in two layers:
@@ -135,10 +135,6 @@ class Entry:
         return self.block.get("lifecycle")
 
     @property
-    def object_store(self) -> dict[str, Any] | None:
-        return self.block.get("object_store")
-
-    @property
     def env(self) -> dict[str, Any]:
         """The block's env: each key one of setting, generated or managed."""
         return self.block.get("env") or {}
@@ -231,7 +227,7 @@ def _validate_schema(doc: dict[str, Any], schema: dict[str, Any], label: str) ->
 
 
 # The lists of the block that hold scripts: the hook lists and the lifecycle steps.
-HOOK_PLACES = ("configure", "verify", "users", "scan", "reconcile")
+HOOK_PLACES = ("configure", "verify", "users", "scan")
 STEP_PLACES = ("before_update", "migrate", "after_update")
 
 

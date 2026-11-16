@@ -20,7 +20,7 @@ the repository, and the checks.
   `build/logo.py`, and its `app.json` names it in `logo`; it is used
   whatever its owner's trademark terms say.
 - What the server needs to back up, update and restore an app (backup
-  mode, update and restore commands, object-store check, the env
+  mode, update and restore commands, the env
   expressions Catena keeps set) is the app's own `blueprints/<id>/x-catena.yml`,
   which the render packs into the root `x-catena:` block of its
   `docker-compose.yml`, and nowhere else. That
@@ -32,10 +32,9 @@ the repository, and the checks.
   script, which the render writes with each `$` doubled, and no image
   reference (an update rewrites those); `x-catena.yml` starts with `schema: 2`.
   `block.schema.json` is its format; catena-admin
-  `payload/engines/appdecl` reads it. Three fields serve other lanes:
+  `payload/engines/appdecl` reads it. Two fields serve other lanes:
   `hooks.scan` (reads a file on stdin; a block that provides `antivirus`
-  declares it), `hooks.reconcile` (counts the objects the database indexes that
-  the object store lacks) and `probe` (how the boot probe starts the app alone
+  declares it) and `probe` (how the boot probe starts the app alone
   and asks whether it came up). `make lint` holds their commands to the
   allowlists.
 - An application other applications use declares what it gives in the block's
@@ -195,8 +194,8 @@ The render deletes a blueprint directory only when it holds no `app.json`.
 
 - `catalog.json` -- the browsable catalog, in one
   fetch: the flat per-template fields, `sizing`, the EN/FR prose, and the
-  compose block lifted under the keys `env`, `lifecycle`, `quiesce`,
-  `object_store` and `env_managed_keys`. `env_defaults` is the
+  compose block lifted under the keys `env`, `lifecycle`, `quiesce`
+  and `env_managed_keys`. `env_defaults` is the
   env as `KEY=value` lines: a setting's default, the `lookup('password', ...)`
   expression of a generated key, a managed key's expression.
 - `index.html` -- a static preview of the catalog, browsable beside `catalog.json`.
@@ -339,8 +338,7 @@ README.md, "How to add a template", says how; these are the rules.
   certificate authority of the test VM (`stdin: edge_ca` or `acme_root`) sets
   up no credential.
 - An app that keeps live state a file snapshot can tear declares `quiesce`,
-  one that migrates a schema declares `lifecycle` with `ready`, and one that
-  keeps its files in a bucket the host can repoint declares `object_store`.
+  one that migrates a schema declares `lifecycle` with `ready`.
   `post` must succeed when `pre` never ran.
 - Never weaken or remove a check, an assert or a leg to make an app pass:
   fix the app or its declaration.

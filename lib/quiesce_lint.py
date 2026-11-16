@@ -4,7 +4,7 @@ Three families of commands, all declared in the compose's `x-catena` block
 and all executed on a client box with no one present: the quiesce commands the nightly
 maintenance runs around its backup, the lifecycle commands (migration,
 before and after an update, and the ready question asked before each of
-those), the hooks (configure, verify, users, scan, reconcile) and the boot
+those), the hooks (configure, verify, users, scan) and the boot
 probe's check. All are argv arrays the host
 runs inside one service's container through `docker exec`, with no shell of
 their own. And the sign-in labels, from which
@@ -46,9 +46,7 @@ run on every render. This module adds:
     whose dump it replays instead, and the host refuses every update of a
     stack where one mounts the volume. A one-shot service, which a
     rollback does not stop either, is refused outright by the swarm lint.
-  - Every lifecycle block declares ready, and an object_store block names
-    env keys the source lists and the compose reads, with a switch that runs
-    in a service the compose defines.
+  - Every lifecycle block declares ready.
   - A block that provides antivirus declares hooks.scan. A probe names a
     service of the compose, and its check starts with an allowlisted command
     (without a check, lifecycle.ready on the same service answers). A block
@@ -108,9 +106,6 @@ ALLOWED_MIGRATE_COMMANDS = frozenset({
 # bash /dev/tcp check where the image has no other client.
 ALLOWED_READY_COMMANDS = ALLOWED_MIGRATE_COMMANDS | {"bash"}
 
-# The placeholders an object-store switch command can carry.
-SWITCH_PLACEHOLDERS = frozenset({"{old_bucket}", "{new_bucket}"})
-
 # The commands a hooks body may start with: the lifecycle commands, the
 # interpreters of an inline script, and the health command of a shell-less
 # image (Collabora Online, Arcane, Windshift, the error-report receiver): each is
@@ -120,7 +115,7 @@ ALLOWED_HOOK_COMMANDS = ALLOWED_MIGRATE_COMMANDS | {
     "/usr/local/bin/catena-reports"}
 
 # The argv lists a hooks block can carry.
-HOOK_LISTS = ("configure", "verify", "users", "scan", "reconcile")
+HOOK_LISTS = ("configure", "verify", "users", "scan")
 
 # The most ports one vps.expose range may open.
 MAX_EXPOSE_RANGE = 1024
@@ -535,42 +530,6 @@ def lint_host_network_ports(entry) -> list[str]:
     return errors
 
 
-def lint_object_store(entry) -> list[str]:
-    """The env keys an object_store block names are stack env keys the
-    source lists and the compose reads, and its switch runs in a service the
-    compose defines, as allowlisted argv with only the placeholders the host
-    fills."""
-    store = entry.object_store
-    if not store:
-        return []
-    errors: list[str] = []
-    text = entry.compose_path.read_text(encoding="utf-8")
-    for setting, key in store["env"].items():
-        label = f"{entry.slug}.object_store.env.{setting}"
-        if key not in entry.env:
-            errors.append(f"{label}: {key!r} is not in the block's env")
-        if "${" + key not in text:
-            errors.append(f"{label}: the compose never reads {key!r}")
-    switch = store.get("switch")
-    if not switch:
-        return errors
-    services = compose_services(entry)
-    if switch["service"] not in services:
-        errors.append(
-            f"{entry.slug}.object_store.switch.service: {switch['service']!r} is not a "
-            f"service in this template's compose ({sorted(services)})")
-    for idx, argv in enumerate(switch["commands"]):
-        label = f"{entry.slug}.object_store.switch.commands[{idx}]"
-        errors.extend(lint_migrate_argv(argv, label=label, allowed=ALLOWED_MIGRATE_COMMANDS))
-        for tok in argv:
-            for found in re.findall(r"\{[^{}]*\}", str(tok)):
-                if found not in SWITCH_PLACEHOLDERS:
-                    errors.append(
-                        f"{label}: {found!r} is not a placeholder the host fills "
-                        f"({', '.join(sorted(SWITCH_PLACEHOLDERS))})")
-    return errors
-
-
 # The values of the vps.auto-update label the update engine reads
 # (catena-admin payload/engines/stackupdate/policy.go); any other value it
 # silently replaces with its default.
@@ -797,7 +756,6 @@ def lint_all() -> int:
         all_errors.extend(lint_capabilities(entry))
         all_errors.extend(lint_auto_update(entry))
         all_errors.extend(lint_auth_mode(entry))
-        all_errors.extend(lint_object_store(entry))
         all_errors.extend(lint_hooks(entry))
         all_errors.extend(lint_antivirus_scan(entry))
         all_errors.extend(lint_probe(entry))

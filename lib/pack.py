@@ -57,12 +57,12 @@ SECTIONS = {
     "settings.yml": ("env", "secrets"),
     "access.yml": ("privileges", "capabilities", "host_paths", "access", "provides", "needs", "egress"),
     "lifecycle.yml": ("requires_catena", "version_from", "lifecycle", "quiesce", "probe",
-                      "object_store", "write_hold", "stops", "images", "hooks", "data"),
+                      "write_hold", "stops", "images", "hooks", "data"),
 }
 # The order of the block keys in the packed file, `schema` first: x-catena.yml holds it and pack
 # writes it for an app held in section files.
 ORDER = ("schema", "requires_catena", "version_from", "privileges", "env", "secrets", "access",
-         "capabilities", "host_paths", "provides", "lifecycle", "quiesce", "probe", "object_store",
+         "capabilities", "host_paths", "provides", "lifecycle", "quiesce", "probe",
          "needs", "write_hold", "stops", "images", "hooks", "egress", "data")
 BLOCK_FILE = "x-catena.yml"
 # The files pack reads besides the files under HOOKS_DIR.

@@ -243,19 +243,10 @@ def test_a_block_holds_no_field_the_format_lacks(catalog):
         model.load_sources()
 
 
-@pytest.mark.parametrize("object_store,needle", [
-    ({"env": {"bucket": "S3_BUCKET", "access_key": "S3_ACCESS_KEY"}}, "secret_key"),
-    ({"env": {"bucket": "S3_BUCKET", "access_key": "S3_ACCESS_KEY",
-              "secret_key": "S3_SECRET_KEY", "endpoint": "S3_URL"}}, "endpoint"),
-    ({"env": {"bucket": "S3 BUCKET", "access_key": "S3_ACCESS_KEY",
-              "secret_key": "S3_SECRET_KEY"}}, "S3 BUCKET"),
-    ({"env": {"bucket": "B", "access_key": "A", "secret_key": "S"},
-      "switch": {"service": "app"}}, "commands"),
-])
-def test_an_object_store_the_format_refuses_is_reported(catalog, object_store, needle):
+def test_an_object_store_is_refused(catalog):
     _write()
-    _block({"schema": 2, "object_store": object_store})
-    with pytest.raises(model.SourceError, match=needle):
+    _block({"schema": 2, "object_store": {"env": {"bucket": "B"}}})
+    with pytest.raises(model.SourceError, match="object_store"):
         model.load_sources()
 
 
