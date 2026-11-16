@@ -725,6 +725,26 @@
             "default": "{{ cloudflare_zone }}"
           }
         },
+        "TURN_HOSTNAME": {
+          "managed": {
+            "expr": "{{ provided.turn.host | default('') }}"
+          }
+        },
+        "TURN_PORT": {
+          "managed": {
+            "expr": "{{ provided.turn.port | default('') }}"
+          }
+        },
+        "TURN_SECRET": {
+          "managed": {
+            "expr": "{{ provided.turn.secret | default('') }}"
+          }
+        },
+        "TURN_TLS_PORT": {
+          "managed": {
+            "expr": "{{ provided.turn.tls_port | default('') }}"
+          }
+        },
         "UPDATE_LEVEL": {
           "setting": {
             "default": "major",
@@ -748,6 +768,10 @@
         "ADMIN_PASS={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
         "ADMIN_EMAIL={{ admin_email }}",
         "VPS_PUBLIC_IP={{ public_ip }}",
+        "TURN_HOSTNAME={{ provided.turn.host | default('') }}",
+        "TURN_PORT={{ provided.turn.port | default('') }}",
+        "TURN_TLS_PORT={{ provided.turn.tls_port | default('') }}",
+        "TURN_SECRET={{ provided.turn.secret | default('') }}",
         "JITSI_JICOFO_AUTH_PASSWORD={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}",
         "JITSI_JICOFO_COMPONENT_SECRET={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}",
         "JITSI_JVB_AUTH_PASSWORD={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}",
@@ -755,7 +779,11 @@
         "UPDATE_LEVEL=major"
       ],
       "env_managed_keys": [
-        "VPS_PUBLIC_IP"
+        "VPS_PUBLIC_IP",
+        "TURN_HOSTNAME",
+        "TURN_PORT",
+        "TURN_TLS_PORT",
+        "TURN_SECRET"
       ],
       "fr": {
         "compose_description": "Messagerie d'\u00e9quipe + vid\u00e9o. Keycloak SSO pr\u00e9-c\u00e2bl\u00e9. Remplace Slack / Microsoft Teams.\n",
