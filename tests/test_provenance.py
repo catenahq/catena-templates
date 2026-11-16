@@ -335,7 +335,7 @@ def test_provenance_errors_leave_the_age_out_when_the_environment_says_false(tmp
 def test_changed_paths_reduce_to_app_ids():
     paths = [
         "blueprints/nextcloud/docker-compose.yml",
-        "blueprints/nextcloud/README.md",
+        "blueprints/nextcloud/x-catena.yml",
         "blueprints/nextcloud/app.json",
         "catalog-meta.json",
         "lib/model.py",

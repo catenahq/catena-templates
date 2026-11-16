@@ -114,7 +114,7 @@ def _push(scene, path):
 
 def test_a_branch_push_that_changes_the_presentation_alone_carries_the_previous_head_s_verdict(scene):
     before = scene.git("rev-parse", "HEAD")
-    head = _push(scene, "blueprints/web/README.md")
+    head = _push(scene, "blueprints/web/logo.png")
     fields, sha, _ = scene("passed 1 app(s): web", before=before, head=head)
     assert fields[3:] == [RUN, "success"]
 

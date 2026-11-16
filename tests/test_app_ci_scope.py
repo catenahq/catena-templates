@@ -110,7 +110,7 @@ def scene(tmp_path):
 
 
 @needs_uv
-@pytest.mark.parametrize("file", ["blueprints/web/README.md", "blueprints/web/test.yml"])
+@pytest.mark.parametrize("file", ["blueprints/web/logo.png", "blueprints/web/test.yml"])
 def test_a_change_beside_the_runtime_skips_the_heavy_steps_when_app_ci_passed_at_the_last_runtime_change(scene, file):
     run, commit, runtime = scene
     commit(file)
@@ -131,7 +131,7 @@ def test_a_change_beside_the_runtime_skips_the_heavy_steps_when_app_ci_passed_at
 ])
 def test_a_missing_failed_or_unreadable_status_runs_the_heavy_steps(scene, body, code):
     run, commit, runtime = scene
-    commit("blueprints/web/README.md")
+    commit("blueprints/web/logo.png")
     heavy, summary, _ = run(runtime, body, code)
     assert heavy == "true"
     assert "heavy steps run" in summary
@@ -150,7 +150,7 @@ def test_a_change_of_the_runtime_runs_the_heavy_steps_without_asking_for_a_statu
 @needs_uv
 @pytest.mark.parametrize("file,verification", [
     ("blueprints/web/test.yml", "true"),
-    ("blueprints/web/README.md", "false"),
+    ("blueprints/web/logo.png", "false"),
     ("blueprints/web/docker-compose.yml", "false"),
 ])
 def test_the_scope_step_says_whether_the_change_holds_verification(scene, file, verification):
@@ -163,14 +163,14 @@ def test_the_scope_step_says_whether_the_change_holds_verification(scene, file, 
 @needs_uv
 def test_a_runtime_change_beside_a_presentation_one_runs_the_heavy_steps(scene):
     run, commit, runtime = scene
-    commit("blueprints/web/README.md", "blueprints/web/docker-compose.yml")
+    commit("blueprints/web/logo.png", "blueprints/web/docker-compose.yml")
     assert run(runtime, _status())[0] == "true"
 
 
 @needs_uv
 def test_the_status_is_read_at_the_last_runtime_change_not_at_the_base(scene):
     run, commit, runtime = scene
-    commit("blueprints/web/README.md")
+    commit("blueprints/web/logo.png")
     base = commit("blueprints/web/test.yml")
     heavy, _, paths = run(base, _status())
     assert heavy == "false"

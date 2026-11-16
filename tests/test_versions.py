@@ -95,7 +95,7 @@ def test_tags_order_by_version_then_revision_not_as_text():
 def test_an_app_is_one_app_across_its_folder_files():
     assert versions.scope_errors([
         "blueprints/outline/docker-compose.yml",
-        "blueprints/outline/README.md",
+        "blueprints/outline/logo.png",
         "blueprints/outline/app.json",
         "catalog.json",
     ]) == []
@@ -437,7 +437,6 @@ def test_every_schema_property_has_a_class():
 @pytest.mark.parametrize("name,expected", [
     ("docker-compose.yml", RUNTIME),
     ("test.yml", VERIFICATION),
-    ("README.md", PRESENTATION),
     ("logo.png", PRESENTATION),
     ("logo.svg", PRESENTATION),
     ("notes.txt", RUNTIME),
@@ -476,7 +475,7 @@ def test_a_neat_file_beside_a_changed_file_leaves_that_files_class(repo):
     before = _head()
     after = _put(git, {"blueprints/web/services.yml": "x", "blueprints/web/test.yml": "t"})
     assert _classes(before, after) == {VERIFICATION}
-    runtime = _put(git, {"blueprints/web/lifecycle.yml": "x", COMPOSE: "services: {}\n"})
+    runtime = _put(git, {"blueprints/web/notes.txt": "x", COMPOSE: "services: {}\n"})
     assert _classes(after, runtime) == {RUNTIME}
 
 
@@ -498,22 +497,6 @@ def test_a_commit_of_neat_files_that_packs_to_the_same_bytes_has_no_class(repo):
     assert versions.tested_state("web") == (versions.TESTED, "web/1.2.0-2")
     assert versions.plan("web") == "skip web/1.2.0-2"
     assert versions.tested_run("web", neat) == "https://x"
-
-
-def test_a_commit_moving_the_section_files_into_x_catena_yml_that_packs_the_same_has_no_class(repo):
-    git, _ = repo
-    folder = versions.ROOT / "blueprints" / "web"
-    services = "services:\n  web:\n    image: web:1.2.0\n    labels:\n      - vps.route.host=x\n"
-    sections = "hooks:\n  service: web\n  verify:\n    - - sh\n      - -c\n      - {file: hooks/verify.sh}\n"
-    _put(git, {"blueprints/web/services.yml": services, "blueprints/web/lifecycle.yml": sections,
-               "blueprints/web/hooks/verify.sh": "echo ok\n"})
-    pack.pack_all(versions.ROOT)
-    packed = _put(git)
-    block = "schema: 2\nhooks:\n  service: web\n  verify:\n    - hooks/verify.sh\n"
-    after = _put(git, {"blueprints/web/x-catena.yml": block}, remove=["blueprints/web/lifecycle.yml"])
-    assert pack.pack_all(versions.ROOT) == []
-    assert (folder / "docker-compose.yml").read_text().count("echo ok") == 1
-    assert _classes(packed, after) == frozenset()
 
 
 def test_equal_objects_and_files_outside_the_app_change_nothing(repo):
@@ -586,7 +569,7 @@ def test_a_card_that_appears_or_goes_is_compared_with_no_fields(repo):
 def test_the_classes_command_prints_one_per_line(repo, capsys):
     git, _ = repo
     before = _head()
-    after = _put(git, {"blueprints/web/README.md": "r", "blueprints/web/test.yml": "t"})
+    after = _put(git, {"blueprints/web/logo.png": "r", "blueprints/web/test.yml": "t"})
     assert versions.main(["classes", "web", "--ref", after, "--base", before]) == 0
     assert capsys.readouterr().out == "presentation\nverification\n"
     assert versions.main(["classes", "web", "--ref", after, "--base", after]) == 0
@@ -612,17 +595,17 @@ def test_a_verification_diff_leaves_a_tested_app_tested(repo):
 def test_a_presentation_diff_is_the_presentation_state_and_the_plan_names_its_origin(repo):
     git, _ = repo
     _passed(git)
-    _put(git, {"blueprints/web/README.md": "new words"})
+    _put(git, {"blueprints/web/logo.png": "new words"})
     assert versions.tested_state("web") == (versions.PRESENTATION, "web/1.2.0-1")
     assert versions.plan("web") == "create web/1.2.0-2 web/1.2.0-1"
 
 
 def test_a_presentation_pass_of_an_older_commit_is_skipped(repo):
     git, _ = repo
-    older = _put(git, {"blueprints/web/README.md": "one"})
-    _put(git, {"blueprints/web/README.md": "two"})
+    older = _put(git, {"blueprints/web/logo.png": "one"})
+    _put(git, {"blueprints/web/logo.png": "two"})
     _passed(git)
-    _put(git, {"blueprints/web/README.md": "one"})
+    _put(git, {"blueprints/web/logo.png": "one"})
     assert versions.tested_state("web", older) == (versions.PRESENTATION, "web/1.2.0-1")
     assert versions.plan("web", older) == "skip web/1.2.0-1"
 
@@ -631,7 +614,7 @@ def test_a_runtime_diff_is_changed_even_beside_presentation(repo):
     git, commit = repo
     _passed(git)
     commit("web:1.3.0")
-    _put(git, {"blueprints/web/README.md": "new words"})
+    _put(git, {"blueprints/web/logo.png": "new words"})
     assert versions.tested_state("web") == (versions.CHANGED, "web/1.2.0-1")
     assert versions.plan("web") == "create web/1.3.0-1"
 
@@ -639,7 +622,7 @@ def test_a_runtime_diff_is_changed_even_beside_presentation(repo):
 def test_verification_with_presentation_is_changed_and_creates_a_tag_without_origin(repo):
     git, _ = repo
     _passed(git)
-    _put(git, {"blueprints/web/README.md": "new words", "blueprints/web/test.yml": "seed: []"})
+    _put(git, {"blueprints/web/logo.png": "new words", "blueprints/web/test.yml": "seed: []"})
     assert versions.tested_state("web") == (versions.CHANGED, "web/1.2.0-1")
     assert versions.plan("web") == "create web/1.2.0-2"
 
@@ -650,7 +633,7 @@ def test_a_hand_made_tag_is_untested_after_a_verification_diff_and_changed_after
     _put(git, {"blueprints/web/test.yml": "seed: []"})
     assert versions.tested_state("web") == (versions.UNTESTED, "web/1.2.0-1")
     assert versions.plan("web") == "mark web/1.2.0-1"
-    _put(git, {"blueprints/web/README.md": "new words"})
+    _put(git, {"blueprints/web/logo.png": "new words"})
     assert versions.tested_state("web") == (versions.CHANGED, "web/1.2.0-1")
     assert versions.plan("web") == "create web/1.2.0-2"
 
@@ -658,7 +641,7 @@ def test_a_hand_made_tag_is_untested_after_a_verification_diff_and_changed_after
 def test_needs_run_lists_neither_tested_nor_presentation_apps(repo, capsys):
     git, commit = repo
     _passed(git)
-    _put(git, {"blueprints/web/README.md": "new words"})
+    _put(git, {"blueprints/web/logo.png": "new words"})
     assert versions.main(["tested"]) == 0
     assert capsys.readouterr().out == "web\tpresentation\tweb/1.2.0-1\n"
     assert versions.main(["tested", "--needs-run"]) == 0
@@ -674,7 +657,7 @@ def test_tested_run_follows_a_presentation_diff_and_refuses_a_verification_one(r
     git, _ = repo
     _passed(git)
     assert versions.tested_run("web") == "https://x/runs/1"
-    _put(git, {"blueprints/web/README.md": "new words"})
+    _put(git, {"blueprints/web/logo.png": "new words"})
     assert versions.tested_run("web") == "https://x/runs/1"
     _put(git, {"blueprints/web/test.yml": "seed: []"})
     assert versions.tested_run("web") is None
@@ -701,7 +684,7 @@ def _branch_squash(repo, branch_files, squash_files):
 
 
 def test_a_squash_differing_in_presentation_alone_is_the_same_change(repo):
-    sha, base, cand = _branch_squash(repo, {"blueprints/web/README.md": "a"}, {"blueprints/web/README.md": "b"})
+    sha, base, cand = _branch_squash(repo, {"blueprints/web/logo.png": "a"}, {"blueprints/web/logo.png": "b"})
     assert versions.same_change("web", sha, base, cand)
     assert versions.main(["same", "web", "--ref", sha, "--base", base, "--from", cand]) == 0
 
@@ -721,11 +704,11 @@ def test_main_changing_the_tests_between_the_forks_is_a_different_change(repo):
     git, _ = repo
     git("branch", "-M", "main")
     git("checkout", "-q", "-b", "br")
-    cand = _put(git, {"blueprints/web/README.md": "a"})
+    cand = _put(git, {"blueprints/web/logo.png": "a"})
     git("checkout", "-q", "main")
     _put(git, {"blueprints/web/test.yml": "moved"})
     base = _head()
-    sha = _put(git, {"blueprints/web/README.md": "a"})
+    sha = _put(git, {"blueprints/web/logo.png": "a"})
     assert not versions.same_change("web", sha, base, cand)
 
 
@@ -734,12 +717,12 @@ def test_main_changing_the_tests_between_the_forks_is_a_different_change(repo):
 def test_runtime_change_is_the_newest_commit_that_added_the_app_or_changed_its_runtime(repo, capsys):
     git, commit = repo
     added = _head()
-    _put(git, {"blueprints/web/README.md": "r"})
+    _put(git, {"blueprints/web/logo.png": "r"})
     _put(git, {"blueprints/web/test.yml": "t"})
     assert versions.runtime_change("web") == added
     commit("web:1.3.0")
     runtime = _head()
-    _put(git, {"blueprints/web/README.md": "again"})
+    _put(git, {"blueprints/web/logo.png": "again"})
     _outside_file(git, "notes.txt")
     assert versions.runtime_change("web") == runtime
     assert versions.runtime_change("web", added) == added
@@ -820,7 +803,7 @@ def _replace_with_submodule(git, path):
     return _head()
 
 
-@pytest.mark.parametrize("name", ["README.md", "logo.png", "test.yml", "app.json"])
+@pytest.mark.parametrize("name", ["logo.png", "test.yml", "app.json"])
 @pytest.mark.parametrize("swap", [_replace_with_link, _replace_with_submodule])
 def test_a_light_file_turned_into_a_link_or_a_submodule_is_runtime(repo, name, swap):
     git, _ = repo
@@ -833,8 +816,8 @@ def test_a_light_file_turned_into_a_link_or_a_submodule_is_runtime(repo, name, s
 
 def test_an_executable_bit_on_a_light_file_keeps_its_class(repo):
     git, _ = repo
-    start = _put(git, {"blueprints/web/README.md": "one"})
-    (versions.ROOT / "blueprints/web/README.md").chmod(0o755)
+    start = _put(git, {"blueprints/web/logo.png": "one"})
+    (versions.ROOT / "blueprints/web/logo.png").chmod(0o755)
     git("add", "-A")
     git("commit", "-qm", "mode")
     assert _classes(start, _head()) == {PRESENTATION}
