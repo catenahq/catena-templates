@@ -248,7 +248,7 @@ services:
       default: {}
 
   db:
-    image: mariadb:13.0.2
+    image: mysql:9.7.4@sha256:df90258da46f6e7ff8574ff84f17618aba0765cac749928299c69fd4e7cb8ad8
     deploy:
       restart_policy:
         condition: any
@@ -256,14 +256,16 @@ services:
         constraints:
           - node.labels.catena.role==data
     environment:
-      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
-      MARIADB_DATABASE: invoiceninja
-      MARIADB_USER: invoiceninja
-      MARIADB_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: invoiceninja
+      MYSQL_USER: invoiceninja
+      MYSQL_PASSWORD: ${DB_PASSWORD}
     volumes:
       - db-data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      # Over TCP: the entrypoint's temporary server listens on the socket only, so this answers
+      # once the final server is up.
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "--silent"]
       interval: 10s
       timeout: 10s
       retries: 10
