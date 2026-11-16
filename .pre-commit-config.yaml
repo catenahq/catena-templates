@@ -27,7 +27,7 @@ repos:
       - id: one-app
         name: The commit changes at most one app
         language: system
-        entry: bash -c 'git diff --cached --name-only | uv run build/versions.py scope'
+        entry: bash -c 'git diff --cached --no-renames --name-only | uv run build/versions.py scope'
         pass_filenames: false
         stages: [pre-commit]
       # A hand edit of a generated file is undone by the next render, in every branch.
