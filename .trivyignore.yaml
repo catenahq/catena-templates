@@ -128,3 +128,185 @@ vulnerabilities:
       - pkg:golang/golang.org/x/net@v0.58.0
     statement: "no fixed upstream image: twinproduction/gatus v5.38.0 is the newest tag (2026-10-28) and carries golang.org/x/net v0.58.0 (fixed in 0.60.0); the engine bump takes the fix"
     expired_at: 2026-12-01
+  # mysql 9.7.4 (the Invoice Ninja and Easy!Appointments database) is the registry newest 9.7 tag.
+  # It ships mysqlsh Python packages and a gosu Go binary unfixed, named as purls.
+  - id: GHSA-6q48-6c7w-9gw2
+    purls:
+      - pkg:pypi/certifi@2026.2.25
+    statement: "no fixed upstream image: mysql 9.7.4 is the newest 9.7 tag (2026-11-03) and carries certifi 2026.2.25 (fixed in 2026.10.18); the engine bump takes the fix"
+    expired_at: 2026-12-12
+  - id: CVE-2026-69247
+    purls:
+      - pkg:pypi/cryptography@46.0.5
+    statement: "no fixed upstream image: mysql 9.7.4 is the newest 9.7 tag (2026-11-03) and carries cryptography 46.0.5 (fixed in 50.0.0); the engine bump takes the fix"
+    expired_at: 2026-12-12
+  - id: CVE-2026-69249
+    purls:
+      - pkg:pypi/cryptography@46.0.5
+    statement: "no fixed upstream image: mysql 9.7.4 is the newest 9.7 tag (2026-11-03) and carries cryptography 46.0.5 (fixed in 49.0.0); the engine bump takes the fix"
+    expired_at: 2026-12-12
+  - id: GHSA-537c-gmf6-5ccf
+    purls:
+      - pkg:pypi/cryptography@46.0.5
+    statement: "no fixed upstream image: mysql 9.7.4 is the newest 9.7 tag (2026-11-03) and carries cryptography 46.0.5 (fixed in 48.0.1); the engine bump takes the fix"
+    expired_at: 2026-12-12
+  - id: CVE-2026-39892
+    purls:
+      - pkg:pypi/cryptography@46.0.5
+    statement: "no fixed upstream image: mysql 9.7.4 is the newest 9.7 tag (2026-11-03) and carries cryptography 46.0.5 (fixed in 46.0.7); the engine bump takes the fix"
+    expired_at: 2026-12-12
+  - id: CVE-2026-8643
+    purls:
+      - pkg:pypi/pip@25.3
+    statement: "no fixed upstream image: mysql 9.7.4 is the newest 9.7 tag (2026-11-03) and carries pip 25.3 (fixed in 26.1.2); the engine bump takes the fix"
+    expired_at: 2026-12-12
+  - id: CVE-2026-27459
+    purls:
+      - pkg:pypi/pyopenssl@25.3.0
+    statement: "no fixed upstream image: mysql 9.7.4 is the newest 9.7 tag (2026-11-03) and carries pyOpenSSL 25.3.0 (fixed in 26.0.0); the engine bump takes the fix"
+    expired_at: 2026-12-12
+  - id: CVE-2026-44432
+    purls:
+      - pkg:pypi/urllib3@2.6.3
+    statement: "no fixed upstream image: mysql 9.7.4 is the newest 9.7 tag (2026-11-03) and carries urllib3 2.6.3 (fixed in 2.7.0); the engine bump takes the fix"
+    expired_at: 2026-12-12
+  - id: CVE-2026-97687
+    purls:
+      - pkg:pypi/urllib3@2.6.3
+    statement: "no fixed upstream image: mysql 9.7.4 is the newest 9.7 tag (2026-11-03) and carries urllib3 2.6.3 (fixed in 2.8.0); the engine bump takes the fix"
+    expired_at: 2026-12-12
+  - id: CVE-2026-97689
+    purls:
+      - pkg:pypi/urllib3@2.6.3
+    statement: "no fixed upstream image: mysql 9.7.4 is the newest 9.7 tag (2026-11-03) and carries urllib3 2.6.3 (fixed in 2.8.0); the engine bump takes the fix"
+    expired_at: 2026-12-12
+  - id: CVE-2025-68121
+    purls:
+      - pkg:golang/stdlib@v1.24.6
+    statement: "no fixed upstream image: mysql 9.7.4 is the newest 9.7 tag (2026-11-03) and carries Go stdlib v1.24.6 in its gosu binary (fixed in a later Go release); the engine bump takes the fix"
+    expired_at: 2026-12-12
+  - id: CVE-2025-61726
+    purls:
+      - pkg:golang/stdlib@v1.24.6
+    statement: "no fixed upstream image: mysql 9.7.4 is the newest 9.7 tag (2026-11-03) and carries Go stdlib v1.24.6 in its gosu binary (fixed in a later Go release); the engine bump takes the fix"
+    expired_at: 2026-12-12
+  - id: CVE-2025-61729
+    purls:
+      - pkg:golang/stdlib@v1.24.6
+    statement: "no fixed upstream image: mysql 9.7.4 is the newest 9.7 tag (2026-11-03) and carries Go stdlib v1.24.6 in its gosu binary (fixed in a later Go release); the engine bump takes the fix"
+    expired_at: 2026-12-12
+  - id: CVE-2026-111943
+    purls:
+      - pkg:golang/stdlib@v1.24.6
+    statement: "no fixed upstream image: mysql 9.7.4 is the newest 9.7 tag (2026-11-03) and carries Go stdlib v1.24.6 in its gosu binary (fixed in a later Go release); the engine bump takes the fix"
+    expired_at: 2026-12-12
+  - id: CVE-2026-25679
+    purls:
+      - pkg:golang/stdlib@v1.24.6
+    statement: "no fixed upstream image: mysql 9.7.4 is the newest 9.7 tag (2026-11-03) and carries Go stdlib v1.24.6 in its gosu binary (fixed in a later Go release); the engine bump takes the fix"
+    expired_at: 2026-12-12
+  - id: CVE-2026-27145
+    purls:
+      - pkg:golang/stdlib@v1.24.6
+    statement: "no fixed upstream image: mysql 9.7.4 is the newest 9.7 tag (2026-11-03) and carries Go stdlib v1.24.6 in its gosu binary (fixed in a later Go release); the engine bump takes the fix"
+    expired_at: 2026-12-12
+  - id: CVE-2026-32280
+    purls:
+      - pkg:golang/stdlib@v1.24.6
+    statement: "no fixed upstream image: mysql 9.7.4 is the newest 9.7 tag (2026-11-03) and carries Go stdlib v1.24.6 in its gosu binary (fixed in a later Go release); the engine bump takes the fix"
+    expired_at: 2026-12-12
+  - id: CVE-2026-32281
+    purls:
+      - pkg:golang/stdlib@v1.24.6
+    statement: "no fixed upstream image: mysql 9.7.4 is the newest 9.7 tag (2026-11-03) and carries Go stdlib v1.24.6 in its gosu binary (fixed in a later Go release); the engine bump takes the fix"
+    expired_at: 2026-12-12
+  - id: CVE-2026-32283
+    purls:
+      - pkg:golang/stdlib@v1.24.6
+    statement: "no fixed upstream image: mysql 9.7.4 is the newest 9.7 tag (2026-11-03) and carries Go stdlib v1.24.6 in its gosu binary (fixed in a later Go release); the engine bump takes the fix"
+    expired_at: 2026-12-12
+  - id: CVE-2026-33811
+    purls:
+      - pkg:golang/stdlib@v1.24.6
+    statement: "no fixed upstream image: mysql 9.7.4 is the newest 9.7 tag (2026-11-03) and carries Go stdlib v1.24.6 in its gosu binary (fixed in a later Go release); the engine bump takes the fix"
+    expired_at: 2026-12-12
+  - id: CVE-2026-33814
+    purls:
+      - pkg:golang/stdlib@v1.24.6
+    statement: "no fixed upstream image: mysql 9.7.4 is the newest 9.7 tag (2026-11-03) and carries Go stdlib v1.24.6 in its gosu binary (fixed in a later Go release); the engine bump takes the fix"
+    expired_at: 2026-12-12
+  - id: CVE-2026-33818
+    purls:
+      - pkg:golang/stdlib@v1.24.6
+    statement: "no fixed upstream image: mysql 9.7.4 is the newest 9.7 tag (2026-11-03) and carries Go stdlib v1.24.6 in its gosu binary (fixed in a later Go release); the engine bump takes the fix"
+    expired_at: 2026-12-12
+  - id: CVE-2026-39820
+    purls:
+      - pkg:golang/stdlib@v1.24.6
+    statement: "no fixed upstream image: mysql 9.7.4 is the newest 9.7 tag (2026-11-03) and carries Go stdlib v1.24.6 in its gosu binary (fixed in a later Go release); the engine bump takes the fix"
+    expired_at: 2026-12-12
+  - id: CVE-2026-39821
+    purls:
+      - pkg:golang/stdlib@v1.24.6
+    statement: "no fixed upstream image: mysql 9.7.4 is the newest 9.7 tag (2026-11-03) and carries Go stdlib v1.24.6 in its gosu binary (fixed in a later Go release); the engine bump takes the fix"
+    expired_at: 2026-12-12
+  - id: CVE-2026-39822
+    purls:
+      - pkg:golang/stdlib@v1.24.6
+    statement: "no fixed upstream image: mysql 9.7.4 is the newest 9.7 tag (2026-11-03) and carries Go stdlib v1.24.6 in its gosu binary (fixed in a later Go release); the engine bump takes the fix"
+    expired_at: 2026-12-12
+  - id: CVE-2026-39836
+    purls:
+      - pkg:golang/stdlib@v1.24.6
+    statement: "no fixed upstream image: mysql 9.7.4 is the newest 9.7 tag (2026-11-03) and carries Go stdlib v1.24.6 in its gosu binary (fixed in a later Go release); the engine bump takes the fix"
+    expired_at: 2026-12-12
+  - id: CVE-2026-42499
+    purls:
+      - pkg:golang/stdlib@v1.24.6
+    statement: "no fixed upstream image: mysql 9.7.4 is the newest 9.7 tag (2026-11-03) and carries Go stdlib v1.24.6 in its gosu binary (fixed in a later Go release); the engine bump takes the fix"
+    expired_at: 2026-12-12
+  - id: CVE-2026-42504
+    purls:
+      - pkg:golang/stdlib@v1.24.6
+    statement: "no fixed upstream image: mysql 9.7.4 is the newest 9.7 tag (2026-11-03) and carries Go stdlib v1.24.6 in its gosu binary (fixed in a later Go release); the engine bump takes the fix"
+    expired_at: 2026-12-12
+  - id: CVE-2026-56853
+    purls:
+      - pkg:golang/stdlib@v1.24.6
+    statement: "no fixed upstream image: mysql 9.7.4 is the newest 9.7 tag (2026-11-03) and carries Go stdlib v1.24.6 in its gosu binary (fixed in a later Go release); the engine bump takes the fix"
+    expired_at: 2026-12-12
+  - id: CVE-2026-56858
+    purls:
+      - pkg:golang/stdlib@v1.24.6
+    statement: "no fixed upstream image: mysql 9.7.4 is the newest 9.7 tag (2026-11-03) and carries Go stdlib v1.24.6 in its gosu binary (fixed in a later Go release); the engine bump takes the fix"
+    expired_at: 2026-12-12
+  - id: CVE-2026-56859
+    purls:
+      - pkg:golang/stdlib@v1.24.6
+    statement: "no fixed upstream image: mysql 9.7.4 is the newest 9.7 tag (2026-11-03) and carries Go stdlib v1.24.6 in its gosu binary (fixed in a later Go release); the engine bump takes the fix"
+    expired_at: 2026-12-12
+  - id: CVE-2026-56860
+    purls:
+      - pkg:golang/stdlib@v1.24.6
+    statement: "no fixed upstream image: mysql 9.7.4 is the newest 9.7 tag (2026-11-03) and carries Go stdlib v1.24.6 in its gosu binary (fixed in a later Go release); the engine bump takes the fix"
+    expired_at: 2026-12-12
+  - id: CVE-2026-56862
+    purls:
+      - pkg:golang/stdlib@v1.24.6
+    statement: "no fixed upstream image: mysql 9.7.4 is the newest 9.7 tag (2026-11-03) and carries Go stdlib v1.24.6 in its gosu binary (fixed in a later Go release); the engine bump takes the fix"
+    expired_at: 2026-12-12
+  - id: CVE-2026-78667
+    purls:
+      - pkg:golang/stdlib@v1.24.6
+    statement: "no fixed upstream image: mysql 9.7.4 is the newest 9.7 tag (2026-11-03) and carries Go stdlib v1.24.6 in its gosu binary (fixed in a later Go release); the engine bump takes the fix"
+    expired_at: 2026-12-12
+  - id: CVE-2026-78669
+    purls:
+      - pkg:golang/stdlib@v1.24.6
+    statement: "no fixed upstream image: mysql 9.7.4 is the newest 9.7 tag (2026-11-03) and carries Go stdlib v1.24.6 in its gosu binary (fixed in a later Go release); the engine bump takes the fix"
+    expired_at: 2026-12-12
+  - id: CVE-2026-97031
+    purls:
+      - pkg:golang/stdlib@v1.24.6
+    statement: "no fixed upstream image: mysql 9.7.4 is the newest 9.7 tag (2026-11-03) and carries Go stdlib v1.24.6 in its gosu binary (fixed in a later Go release); the engine bump takes the fix"
+    expired_at: 2026-12-12
