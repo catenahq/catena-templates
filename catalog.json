@@ -4394,6 +4394,7 @@
       },
       "hostname_baked": false,
       "id": "gatus",
+      "requires_catena": "0.12.0",
       "sizing": {
         "disk_baseline_mb": 40,
         "idle_cpu_pct": 1,

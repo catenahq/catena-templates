@@ -1,5 +1,6 @@
 x-catena:
   schema: 2
+  requires_catena: 0.12.0
   version_from: app
   env:
     SUBDOMAIN:
