@@ -121,6 +121,19 @@ wire_signaling() {
   occ config:app:set catena signaling_wired --value "$(signaling_record)"
 }
 
+# Client Push: setup runs its own checks against the push service, which
+# starts once the app is on disk, so it is tried for up to a minute.
+wire_push() {
+  url="https://$NEXTCLOUD_HOSTNAME/push"
+  [ "$(occ config:app:get notify_push base_endpoint 2>/dev/null || true)" != "$url" ] || return 0
+  n=0
+  until occ notify_push:setup "$url" >/dev/null 2>&1; do
+    n=$((n + 1))
+    [ "$n" -lt 12 ] || { occ notify_push:setup "$url" >&2; return 1; }
+    sleep 5
+  done
+}
+
 # The app each office editor runs under in Nextcloud, and the app-config
 # keys its removal can leave behind.
 office_app() { if [ "$1" = collabora ]; then echo richdocuments; else echo onlyoffice; fi; }
@@ -291,6 +304,10 @@ if ensure_app spreed; then
     step "the Talk relay entries removal" unwire_turn
     step "the Talk signaling entry removal" unwire_signaling
   fi
+fi
+
+if [ -n "${NEXTCLOUD_HOSTNAME:-}" ] && ensure_app notify_push; then
+  step "the Client Push setup" wire_push
 fi
 
 if [ -n "${OFFICE_EDITOR:-}" ] && [ -n "${OFFICE_URL:-}" ]; then
