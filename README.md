@@ -615,8 +615,9 @@ runners this repository cannot reach):
   it: the event holds `carry` (the address of the ops run) and `carry_state`,
   and ops posts that verdict on the commit without a run. The dispatch looks
   at the commit itself, then, on `main`, at the head of the merged pull
-  request, on another branch at the head the branch had before the push, and
-  then at the run that made the app's newest tag. A candidate counts when the
+  request (for a fork's pull request, whose head carries no status here, the
+  head of its `adopt/<pr>` branch), on another branch at the head the branch had
+  before the push, and then at the run that made the app's newest tag. A candidate counts when the
   CI GitHub App posted its verdict, and the app's files differ from the
   commit's, and the files each change is judged from differ, in presentation
   alone (`build/versions.py same`). A change of presentation alone keeps the
