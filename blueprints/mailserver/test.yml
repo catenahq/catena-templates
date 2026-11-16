@@ -116,6 +116,106 @@ seed:
     timeout_s: 180
 
 assert:
+  - name: postmaster_and_abuse_are_registered
+    type: docker_exec
+    container: "{{ container_dms }}"
+    command:
+      - bash
+      - -euc
+      - |
+        set -o pipefail
+        setup email list | grep -F "postmaster@$MAIL_DOMAIN"
+        setup alias list | grep -F "abuse@$MAIL_DOMAIN" | grep -F "postmaster@$MAIL_DOMAIN"
+        echo "postmaster and abuse registered"
+    expect_stdout_contains: "postmaster and abuse registered"
+    timeout_s: 120
+
+  - name: starttls_serves_the_configured_certificate
+    type: docker_exec
+    container: "{{ container_dms }}"
+    command:
+      - python3
+      - -c
+      - |
+        import hashlib
+        import pathlib
+        import smtplib
+        import ssl
+
+        certificate = pathlib.Path('/certs/fullchain.pem').read_bytes()
+        mark = pathlib.Path('/tmp/docker-mailserver/.catena-cert.sha256').read_text().strip()
+        assert hashlib.sha256(certificate).hexdigest() == mark, 'configure certificate mark differs'
+        leaf = certificate.decode().split('-----END CERTIFICATE-----', 1)[0] + '-----END CERTIFICATE-----\n'
+        context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+        context.check_hostname = False
+        context.verify_mode = ssl.CERT_NONE
+        with smtplib.SMTP('127.0.0.1', 25, timeout=30) as smtp:
+            smtp.starttls(context=context)
+            assert smtp.sock.getpeercert(binary_form=True) == ssl.PEM_cert_to_DER_cert(leaf), 'STARTTLS certificate differs'
+        print('STARTTLS serves the configured certificate')
+    expect_stdout_contains: "STARTTLS serves the configured certificate"
+    timeout_s: 60
+
+  - name: rspamd_runs_staged_drop_ins_without_core_dumps
+    type: docker_exec
+    container: "{{ container_dms }}"
+    command:
+      - python3
+      - -c
+      - |
+        import pathlib
+        import subprocess
+
+        subprocess.run(['pgrep', '-x', 'rspamd'], check=True, stdout=subprocess.DEVNULL)
+        subprocess.run(['rspamadm', 'configtest'], check=True)
+        assert not list(pathlib.Path('/').glob('core.*')), 'core dump in container root'
+        staged = pathlib.Path('/tmp/docker-mailserver/rspamd/local.d')
+        assert (staged / 'actions.conf').is_file(), 'staged actions missing'
+        for source in staged.glob('*.conf'):
+            live = pathlib.Path('/etc/rspamd/local.d') / source.name
+            assert live.read_bytes() == source.read_bytes(), source.name + ' differs from staged config'
+        record = pathlib.Path('/tmp/docker-mailserver/.catena-mailboxes.json').stat()
+        assert (record.st_mode & 0o7777, record.st_uid, record.st_gid) == (0o600, 0, 0), 'users record permissions differ'
+        print('rspamd and users record ok')
+    expect_stdout_contains: "rspamd and users record ok"
+    timeout_s: 60
+
+  - name: rspamd_flags_gtube_and_an_available_scanner_flags_eicar
+    type: docker_exec
+    container: "{{ container_dms }}"
+    command:
+      - python3
+      - -c
+      - |
+        import os
+        import subprocess
+        import time
+        from email.utils import formatdate
+
+        headers = 'From: postmaster@{0}\nTo: postmaster@{0}\nDate: {1}\n'.format(os.environ['MAIL_DOMAIN'], formatdate())
+        gtube = 'XJS*C4JDBQADN1.NSBN3*2IDNEN*' + 'GTUBE-STANDARD-ANTI-UBE-TEST-EMAIL*C.34X'
+        message = headers + 'Subject: gtube-check\n\n' + gtube + '\n'
+        result = subprocess.run(['rspamc'], input=message, text=True, capture_output=True, check=True, timeout=30)
+        assert 'GTUBE' in result.stdout, 'GTUBE was not flagged'
+        if os.environ.get('ANTIVIRUS_HOST'):
+            eicar = 'X5O!P%@AP[4\\PZX54(P^)7CC)7}' + '$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*'
+            message = headers + ('Subject: eicar-check\nMIME-Version: 1.0\n'
+                                 'Content-Type: application/octet-stream; name="eicar.com"\n'
+                                 'Content-Disposition: attachment; filename="eicar.com"\n\n') + eicar + '\n'
+            deadline = time.monotonic() + 180
+            while True:
+                result = subprocess.run(['rspamc'], input=message, text=True, capture_output=True, check=True, timeout=30)
+                if 'CLAM_VIRUS' in result.stdout:
+                    break
+                assert time.monotonic() < deadline, 'available scanner did not flag EICAR'
+                time.sleep(5)
+            print('available scanner flagged EICAR')
+        else:
+            print('no scanner provided; antivirus check not applicable')
+        print('GTUBE flagged')
+    expect_stdout_contains: "GTUBE flagged"
+    timeout_s: 240
+
   - name: server_lists_the_mailbox
     type: docker_exec
     container: "{{ container_dms }}"
