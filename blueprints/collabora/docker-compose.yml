@@ -33,8 +33,7 @@ services:
       restart_policy:
         condition: any
     environment:
-      # WOPI hosts are regex patterns; quote the managed hostname literally.
-      aliasgroup1: 'https://\Q${WOPI_HOST:?WOPI_HOST is required}\E:443'
+      aliasgroup1: 'https://${WOPI_HOST:?WOPI_HOST is required}:443'
       # Traefik (Cloudflare Tunnel upstream) terminates TLS; coolwsd
       # speaks plain HTTP on 9980 inside the catena-network. The
       # ssl.termination flag tells coolwsd to emit https:// URLs in
