@@ -4,6 +4,8 @@ x-catena:
   env:
     DOMAIN_HOST:
       managed: {expr: "office.{{ cloudflare_zone }}"}
+    WOPI_HOST:
+      managed: {expr: "nextcloud.{{ cloudflare_zone }}"}
     OFFICE_EDITOR:
       managed: {expr: "collabora"}
     OFFICE_URL:
@@ -31,10 +33,8 @@ services:
       restart_policy:
         condition: any
     environment:
-      # Regex of WOPI hosts allowed to use this CODE instance. The
-      # `nextcloud\..*` pattern matches any `nextcloud.<zone>` FQDN;
-      # one Nextcloud per VPS makes this precise enough.
-      domain: 'nextcloud\..*'
+      # WOPI hosts are regex patterns; quote the managed hostname literally.
+      aliasgroup1: 'https://\Q${WOPI_HOST:?WOPI_HOST is required}\E:443'
       # Traefik (Cloudflare Tunnel upstream) terminates TLS; coolwsd
       # speaks plain HTTP on 9980 inside the catena-network. The
       # ssl.termination flag tells coolwsd to emit https:// URLs in

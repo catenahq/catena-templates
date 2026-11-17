@@ -509,16 +509,23 @@
               "fr": "Mises \u00e0 jour automatiques : major, minor, patch ou off"
             }
           }
+        },
+        "WOPI_HOST": {
+          "managed": {
+            "expr": "nextcloud.{{ cloudflare_zone }}"
+          }
         }
       },
       "env_defaults": [
         "DOMAIN_HOST=office.{{ cloudflare_zone }}",
+        "WOPI_HOST=nextcloud.{{ cloudflare_zone }}",
         "OFFICE_EDITOR=collabora",
         "OFFICE_URL=https://office.{{ cloudflare_zone }}",
         "UPDATE_LEVEL=major"
       ],
       "env_managed_keys": [
         "DOMAIN_HOST",
+        "WOPI_HOST",
         "OFFICE_EDITOR",
         "OFFICE_URL"
       ],
