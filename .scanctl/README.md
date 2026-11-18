@@ -18,6 +18,11 @@ Image findings accepted for 30 days sit in `.scanctl/baseline.sarif`; `scanctl a
 
 - `coturn/coturn:4.18.0-alpine`: no fixed upstream image: it is the newest tag of its line (2026-11-12) and carries bind-libs 9.20.27-r0 (fixed in 9.20.30-r0) and libbson 1.30.6-r0 (fixed in 1.30.14-r0).
 
+## dependency-track
+
+- `dependencytrack/apiserver:4.14.6`: no fixed upstream image: it is the newest release tag (2026-10-25) and carries jackson-core and jackson-databind 2.22.0 (fixed in 2.22.3), micrometer-core 1.16.4 (fixed in 1.16.6), zlib1g 1:1.3.dfsg+really1.3.1-1+b1 (fixed in 1:1.3.dfsg+really1.3.1-1+deb13u1) and apt 3.0.3 (fixed in 3.0.4).
+- `dependencytrack/frontend:4.14.6`: no fixed upstream image: it is the newest release tag (2026-10-25) and carries brotli-libs 1.2.0-r1 (fixed in 1.2.1-r0), curl 8.22.0-r0 (fixed in 8.23.0-r0), libexpat 2.8.5-r0 (fixed in 2.10.0-r0), libxslt 1.1.43-r3 (fixed in 1.1.43-r4) and musl 1.2.6-r2 (fixed in 1.2.6-r3).
+
 ## easyappointments
 
 - `alextselegidis/easyappointments:1.6.1`: no fixed upstream image: it is the newest tag of its line (2026-11-12) and carries linux-libc-dev 6.12.113-1 (fixed in 6.12.115-2) and apt 3.0.3 (fixed in 3.0.4).

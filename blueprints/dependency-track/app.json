@@ -1,0 +1,47 @@
+{
+  "schema": 1,
+  "app_name": "catena-dependency-track",
+  "upstream_url": "https://dependencytrack.org/",
+  "categories": [
+    "Security",
+    "Software supply chain"
+  ],
+  "sso_mode": "pre-wired",
+  "bench": {
+    "pack": "postgres",
+    "hostname_baked": true
+  },
+  "sizing": {
+    "idle_ram_mb": 2400,
+    "peak_ram_mb": 3000,
+    "idle_cpu_pct": 3,
+    "peak_cpu_pct": 100,
+    "disk_baseline_mb": 600,
+    "notes": "Java API server + nginx frontend + Postgres. The API server\ntakes a few minutes to start and mirrors vulnerability data on first\nrun, which keeps a CPU busy; its heap is bound to 2 GB.",
+    "notes_fr": "Serveur d'API Java + frontend nginx + Postgres. Le serveur d'API\nmet quelques minutes \u00e0 d\u00e9marrer et copie les donn\u00e9es de\nvuln\u00e9rabilit\u00e9s au premier lancement, ce qui occupe un processeur ;\nson tas est born\u00e9 \u00e0 2 Go."
+  },
+  "en": {
+    "display_name": "Dependency-Track",
+    "summary": "Tracks the components and known vulnerabilities of your software from its SBOMs.",
+    "what_it_is": "Software composition analysis platform. Takes CycloneDX and SPDX bills of materials from your builds, matches each component against vulnerability databases and licence policies, and shows the risk of every project. Keycloak SSO pre-wired.",
+    "replaces": [
+      "Snyk",
+      "Black Duck",
+      "Mend"
+    ],
+    "compose_description": "Software composition analysis from SBOMs. Keycloak SSO pre-wired. Replaces Snyk / Black Duck.\n",
+    "setup_steps": "1. Press **Deploy application**. The settings are all pre-filled: the web address is the main one, and the API gets an address of its own that the pages call.\n2. Wait for the sign-in values. Within a few minutes of the first deploy, the server creates Dependency-Track's own sign-in entry in Keycloak and writes its values (`OIDC_CLIENT_ID`, `OIDC_ISSUER_URL`) into its settings file, and the application restarts once with them. The API server takes a few minutes to start the first time.\n3. Visit the Dependency-Track domain. Sign in as `admin` with the password `admin` and choose a new password when asked, then use **Administration > Access Management** to give the people who sign in with Keycloak their permissions.\n4. Send a bill of materials from a build: create an API key under **Administration > Access Management > Teams**, then upload to the API address.\n"
+  },
+  "fr": {
+    "display_name": "Dependency-Track",
+    "summary": "Suit les composants de vos logiciels et leurs vuln\u00e9rabilit\u00e9s connues \u00e0 partir de leurs SBOM.",
+    "what_it_is": "Plateforme d'analyse de la composition logicielle. Re\u00e7oit les nomenclatures CycloneDX et SPDX de vos builds, confronte chaque composant aux bases de vuln\u00e9rabilit\u00e9s et aux politiques de licences, et montre le risque de chaque projet. Keycloak SSO pr\u00e9-c\u00e2bl\u00e9.",
+    "replaces": [
+      "Snyk",
+      "Black Duck",
+      "Mend"
+    ],
+    "compose_description": "Analyse de la composition logicielle \u00e0 partir de SBOM. Keycloak SSO pr\u00e9-c\u00e2bl\u00e9. Remplace Snyk / Black Duck.\n",
+    "setup_steps": "1. Appuyez sur **D\u00e9ployer l'application**. Les r\u00e9glages sont tous pr\u00e9-remplis : l'adresse web est la principale, et l'API a sa propre adresse, que les pages appellent.\n2. Attendez les valeurs de connexion. Dans les minutes qui suivent le premier d\u00e9ploiement, le serveur cr\u00e9e l'entr\u00e9e de connexion propre \u00e0 Dependency-Track dans Keycloak et inscrit ses valeurs (`OIDC_CLIENT_ID`, `OIDC_ISSUER_URL`) dans son fichier de r\u00e9glages, et l'application red\u00e9marre une fois avec elles. Le serveur d'API met quelques minutes \u00e0 d\u00e9marrer la premi\u00e8re fois.\n3. Visitez le domaine Dependency-Track. Connectez-vous en tant que `admin` avec le mot de passe `admin` et choisissez un nouveau mot de passe quand il est demand\u00e9, puis utilisez **Administration > Gestion des acc\u00e8s** pour donner leurs permissions aux personnes qui se connectent avec Keycloak.\n4. Envoyez une nomenclature depuis un build : cr\u00e9ez une cl\u00e9 d'API sous **Administration > Gestion des acc\u00e8s > \u00c9quipes**, puis t\u00e9l\u00e9versez vers l'adresse de l'API.\n"
+  }
+}

@@ -32,7 +32,8 @@
     "arcane",
     "healthchecks",
     "beszel",
-    "gatus"
+    "gatus",
+    "dependency-track"
   ],
   "sizing": {
     "last_measured_at": "2026-04-29",
