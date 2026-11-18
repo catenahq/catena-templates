@@ -1,0 +1,146 @@
+x-catena:
+  schema: 2
+  env:
+    DOMAIN_HOST:
+      setting: {default: "dtrack.{{ cloudflare_zone }}"}
+    DTRACK_HOSTNAME:
+      setting: {default: "dtrack.{{ cloudflare_zone }}"}
+    DTRACK_API_HOSTNAME:
+      setting: {default: "dtrack-api.{{ cloudflare_zone }}"}
+    DB_PASSWORD:
+      generated: {length: 32, alphabet: alnum}
+    AUTH_MODE:
+      setting: {default: "public", label: {en: "Access: public, private or admin-only", fr: "Accès : public, private ou admin-only"}}
+    UPDATE_LEVEL:
+      setting: {default: "major", label: {en: "Automatic updates: major, minor, patch or off", fr: "Mises à jour automatiques : major, minor, patch ou off"}}
+  images:
+    db:
+      rule: {kind: partial_line}
+  # verify asks the API server, which starts only once its database answers, for its
+  # version (a public call). The server image holds curl.
+  hooks:
+    service: apiserver
+    timeout_seconds: 60
+    verify:
+      - - sh
+        - -c
+        - |
+          body=$$(curl -fsS --max-time 20 http://127.0.0.1:8080/api/version) || {
+            echo "Dependency-Track does not answer on port 8080" >&2
+            exit 1
+          }
+          case "$$body" in
+            *'"version"'*) echo "Dependency-Track answers /api/version" ;;
+            *)
+              echo "port 8080 answers, but not with the Dependency-Track version" >&2
+              exit 1
+              ;;
+          esac
+
+services:
+  frontend:
+    image: dependencytrack/frontend:4.14.6
+    deploy:
+      restart_policy:
+        condition: any
+    environment:
+      # The browser calls the API server at its own address, so the frontend only
+      # carries that address and its sign-in settings into the page it serves.
+      API_BASE_URL: https://${DTRACK_API_HOSTNAME}
+
+      # This app's own Keycloak sign-in entry, written by the settings sync from the
+      # sign-in labels below. Empty until its first pass.
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-}
+      OIDC_ISSUER: ${OIDC_ISSUER_URL:-}
+      OIDC_SCOPE: openid profile email
+      OIDC_FLOW: code
+      OIDC_LOGIN_BUTTON_TEXT: Keycloak
+    labels:
+      - "vps.route.host=${DOMAIN_HOST}"
+      - "vps.route.port=8080"
+      - "vps.route.main=true"
+      - "vps.auth.mode=${AUTH_MODE:-public}"
+      - "vps.auth.oidc=true"
+      - "vps.auth.oidc.public=true"
+      - "vps.auth.groups=staff"
+      - "vps.auth.oidc.redirect_uris=https://${DTRACK_HOSTNAME}/static/oidc-callback.html"
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
+    cap_drop:
+      - NET_RAW
+    networks:
+      catena-network: {}
+      default: {}
+
+  apiserver:
+    image: dependencytrack/apiserver:4.14.6
+    deploy:
+      restart_policy:
+        condition: any
+      placement:
+        constraints:
+          - node.labels.catena.role==data
+    environment:
+      ALPINE_DATABASE_MODE: external
+      ALPINE_DATABASE_URL: jdbc:postgresql://db:5432/dtrack
+      ALPINE_DATABASE_DRIVER: org.postgresql.Driver
+      ALPINE_DATABASE_USERNAME: dtrack
+      ALPINE_DATABASE_PASSWORD: ${DB_PASSWORD}
+      # The browser loads the frontend from another address and calls this one.
+      ALPINE_CORS_ENABLED: "true"
+      ALPINE_CORS_ALLOW_ORIGIN: https://${DTRACK_HOSTNAME}
+      # Heap bound: the server's default takes most of the host's memory.
+      EXTRA_JAVA_OPTIONS: -Xmx2g
+
+      ALPINE_OIDC_ENABLED: "true"
+      ALPINE_OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-}
+      ALPINE_OIDC_ISSUER: ${OIDC_ISSUER_URL:-}
+      ALPINE_OIDC_USERNAME_CLAIM: preferred_username
+      ALPINE_OIDC_USER_PROVISIONING: "true"
+    volumes:
+      - dtrack-data:/data
+    labels:
+      - "vps.route.host=${DTRACK_API_HOSTNAME}"
+      - "vps.route.port=8080"
+      # The frontend's pages call this address from the browser with their own bearer
+      # token, so one access level for the whole address cannot sit in front of it.
+      - "vps.auth.mode=public"
+      - "vps.auto-update=${UPDATE_LEVEL:-major}"
+    cap_drop:
+      - NET_RAW
+    networks:
+      catena-network: {}
+      default: {}
+
+  db:
+    image: postgres:18.7-alpine
+    deploy:
+      restart_policy:
+        condition: any
+      placement:
+        constraints:
+          - node.labels.catena.role==data
+    environment:
+      POSTGRES_USER: dtrack
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: dtrack
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dtrack"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 10m
+    labels:
+      - "vps.auto-update=minor"
+    networks:
+      - default
+
+volumes:
+  dtrack-data:
+  db-data:
+
+networks:
+  catena-network:
+    external: true
