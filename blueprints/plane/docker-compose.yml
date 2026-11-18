@@ -87,7 +87,7 @@ services:
       - default
 
   space:
-    image: makeplane/plane-space:v1.4.3
+    image: makeplane/plane-space:v1.5.0
     deploy:
       restart_policy:
         condition: any
@@ -180,7 +180,7 @@ services:
       - default
 
   live:
-    image: makeplane/plane-live:v1.4.3
+    image: makeplane/plane-live:v1.5.0
     deploy:
       restart_policy:
         condition: any
@@ -194,7 +194,7 @@ services:
       - default
 
   proxy:
-    image: makeplane/plane-proxy:v1.4.3
+    image: makeplane/plane-proxy:v1.5.0
     deploy:
       restart_policy:
         condition: any
