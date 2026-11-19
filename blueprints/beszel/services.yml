@@ -35,13 +35,15 @@ services:
       default: {}
       # The alias is on both networks: Gatus reaches the hub on catena-beszel,
       # and the sign-in gate on catena-beszelgate, which only the gate and the
-      # hub join.
+      # hub join. The hub sends its alerts to the server's alert intake on
+      # catena-alerts.
       catena-beszel:
         aliases:
           - beszel-hub
       catena-beszelgate:
         aliases:
           - beszel-hub
+      catena-alerts: {}
 
   # Reports the metrics of the node it runs on, read through that node's Docker
   # socket. It is on the host network, so it reaches the hub through the loopback
@@ -90,10 +92,8 @@ services:
     networks:
       - hostnet
 
-  # Receives the hub's alert webhook and turns it into Healthchecks pings, so the
-  # hub's alerts reach the same channels as Gatus's. It is also the service the
-  # configure and verify hooks run in: the hub image holds only the binary. It
-  # listens on the app's own network and pings Healthchecks over catena-healthchecks.
+  # Runs the configure and verify hooks, because the hub image holds only the
+  # binary, and does nothing else.
   relay:
     image: python:3.15.2-alpine
     deploy:
@@ -104,90 +104,15 @@ services:
         constraints:
           - node.labels.catena.role==data
     command:
-      - python3
-      - -c
-      - |
-        import json
-        import re
-        import sys
-        import urllib.request
-        from http.server import BaseHTTPRequestHandler, HTTPServer
-
-        # Beszel notifies through Shoutrrr with one static URL per channel and cannot
-        # send a triggered alert and a resolved one to different endpoints. The
-        # generic webhook is a JSON POST whose title carries what is needed:
-        #   status alert : "Connection to <system> is up|down"
-        #   metric alert : "<system> <metric> above|below threshold"
-        # A stable slug per system and metric names one Healthchecks check; a
-        # resolved alert is a success ping and a triggered one a /fail ping, and
-        # ?create=1 makes the check on its first ping.
-        NON_SLUG = re.compile(r"[^a-z0-9]+")
-        STATUS = re.compile(r"^connection to (?P<system>.+) is (?P<state>up|down)\b")
-        METRIC = re.compile(r"^(?P<body>.+) (?P<dir>above|below) threshold$$")
-        SLUG_MAX = 60
-        PING_TIMEOUT = 10
-        # The Healthchecks ping address up to the check name, which the configure hook
-        # writes (empty or absent while no Healthchecks provides one). The relay holds
-        # no key in its environment.
-        PING_FILE = "/state/ping-url"
-
-
-        def slugify(text):
-            return NON_SLUG.sub("-", text.lower()).strip("-")[:SLUG_MAX].strip("-")
-
-
-        def parse_alert(payload):
-            """(slug, resolved) of a webhook payload, or None for a title it does not know."""
-            title = (payload.get("title") or payload.get("Title") or "").strip().lower()
-            found = STATUS.match(title)
-            if found:
-                return "beszel-" + slugify(found.group("system") + "-status"), found.group("state") == "up"
-            found = METRIC.match(title)
-            if found:
-                return "beszel-" + slugify(found.group("body")), found.group("dir") == "below"
-            return None
-
-
-        class Handler(BaseHTTPRequestHandler):
-            def log_message(self, *args):
-                pass
-
-            def do_POST(self):
-                length = int(self.headers.get("Content-Length") or 0)
-                try:
-                    payload = json.loads(self.rfile.read(length).decode() or "{}") if length else {}
-                except ValueError:
-                    payload = {}
-                parsed = parse_alert(payload if isinstance(payload, dict) else {})
-                try:
-                    with open(PING_FILE, encoding="utf-8") as fh:
-                        base = fh.read().strip()
-                except OSError:
-                    base = ""
-                if parsed is None or not base:
-                    self.send_response(204 if parsed is None else 503)
-                    self.end_headers()
-                    return
-                slug, resolved = parsed
-                url = base + "/" + slug + ("" if resolved else "/fail") + "?create=1"
-                try:
-                    urllib.request.urlopen(url, timeout=PING_TIMEOUT).read()
-                    self.send_response(200)
-                except Exception as exc:
-                    sys.stderr.write("relay: ping failed for " + slug + ": " + str(exc) + "\n")
-                    self.send_response(502)
-                self.end_headers()
-
-
-        HTTPServer(("0.0.0.0", 8099), Handler).serve_forever()
+      - sleep
+      - "2147483647"
     # agent-key is the agent's key and token; relay-state is the relay's alone: the
-    # hook's record of the admin email and the ping address.
+    # hook's record of the admin email and the mail password's fingerprint.
     volumes:
       - agent-key:/key
       - relay-state:/state
     networks:
-      default: {}
-      catena-healthchecks: {}
+      - default
 
 volumes:
   beszel-hub-data:
@@ -200,7 +125,7 @@ networks:
     external: true
   catena-beszelgate:
     external: true
-  catena-healthchecks:
+  catena-alerts:
     external: true
   hostnet:
     external: true

@@ -27,7 +27,7 @@
   "en": {
     "display_name": "Beszel",
     "summary": "Lightweight server monitoring: CPU, memory, disk and container history, with alerts.",
-    "what_it_is": "The Beszel hub keeps the resource history of the servers and containers it watches and alerts when a threshold is crossed. The server runs an agent for itself; alerts go to Healthchecks.",
+    "what_it_is": "The Beszel hub keeps the resource history of the servers and containers it watches and alerts when a threshold is crossed. The server runs an agent for itself; its alerts go to the server's own alerts.",
     "replaces": [
       "Datadog",
       "Grafana with Prometheus"
@@ -38,7 +38,7 @@
   "fr": {
     "display_name": "Beszel",
     "summary": "Surveillance l\u00e9g\u00e8re des serveurs : historique du processeur, de la m\u00e9moire, du disque et des conteneurs, avec alertes.",
-    "what_it_is": "Le concentrateur Beszel garde l'historique des ressources des serveurs et des conteneurs qu'il surveille et alerte quand un seuil est franchi. Le serveur ex\u00e9cute un agent pour lui-m\u00eame ; les alertes vont \u00e0 Healthchecks.",
+    "what_it_is": "Le concentrateur Beszel garde l'historique des ressources des serveurs et des conteneurs qu'il surveille et alerte quand un seuil est franchi. Le serveur ex\u00e9cute un agent pour lui-m\u00eame ; ses alertes vont aux alertes du serveur.",
     "replaces": [
       "Datadog",
       "Grafana avec Prometheus"

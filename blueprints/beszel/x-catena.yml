@@ -1,4 +1,5 @@
 schema: 2
+requires_catena: 0.13.4
 version_from: app
 privileges: [host_network, docker_socket]
 env:
@@ -18,10 +19,10 @@ env:
     generated: {length: 32, alphabet: alnum}
   STATE_KEY:
     generated: {length: 32, alphabet: alnum}
-  HC_URL:
-    managed: {expr: "{{ provided.healthchecks.url }}"}
-  HC_PING_KEY:
-    managed: {expr: "{{ provided.healthchecks.ping_key }}"}
+  ALERT_URL:
+    managed: {expr: "http://catena-alert-intake:8080/v1/items"}
+  ALERT_TOKEN:
+    managed: {expr: "{{ alert_intake_token_resources }}"}
   HUB_OIDC_SECRET:
     managed: {expr: "{{ beszel_oidc_client_secret | default('') }}"}
   SMTP_PASSWORD:
@@ -38,17 +39,17 @@ env:
     managed: {expr: "{{ smtp_relay_sender | default('') }}"}
   UPDATE_LEVEL:
     setting: {default: "major", label: {en: "Automatic updates: major, minor, patch or off", fr: "Mises à jour automatiques : major, minor, patch ou off"}}
-secrets: [beszel_oidc_client_secret, smtp_password]
+secrets: [alert_intake_token_resources, beszel_oidc_client_secret, smtp_password]
 provides:
   beszel: {url: HUB_URL}
   beszelgate: {url: HUB_URL}
 # configure runs after every deploy in the relay service: the hub image holds only
 # the binary. It makes the first user and the superuser, seeds the agent's universal
-# token, the hub's sign-in with Catena, the alert webhook to the relay, the outgoing
-# mail and the default alert rules, and writes the hub's public key for the agent. It
-# waits for the agent's system, so a deploy fails when the agent never connects. The
-# token and the key reach the agent as files, and the ping address reaches the relay
-# as a file, so neither service holds them in its environment.
+# token, the hub's sign-in with Catena, the alert webhook to the server's alert intake,
+# the outgoing mail and the default alert rules, and writes the hub's public key for the
+# agent. It waits for the agent's system, so a deploy fails when the agent never
+# connects. The token and the key reach the agent as files, so neither service holds
+# them in its environment.
 # verify asks the hub's health endpoint from the relay.
 hooks:
   service: relay
