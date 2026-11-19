@@ -339,6 +339,9 @@ class _Mailboxes:
         self.state = tmp_path / "mailboxes.json"
         self.calls = tmp_path / "calls"
         self.listing = tmp_path / "listing"
+        self.lookups = tmp_path / "lookups"
+        self.lookup = "exit 0\n"
+        self.readiness_timeout = 120
         self.listing.write_text("".join(f"* {a} ( 0 / ~ ) [0%]\n" for a in present))
         self.script = (
             f'echo "$@" >> {self.calls}\n'
@@ -353,7 +356,9 @@ class _Mailboxes:
         bin_dir = self.tmp / "bin"
         bin_dir.mkdir(exist_ok=True)
         _command(bin_dir / "setup", self.script)
+        _command(bin_dir / "doveadm", f'echo "$@" >> {self.lookups}\n' + self.lookup)
         body = _body(_hook("users")).replace(STATE, str(self.state))
+        body = body.replace("time.monotonic() + 120", f"time.monotonic() + {self.readiness_timeout}")
         env = {"PATH": f"{bin_dir}:{os.environ['PATH']}"}
         if domain is not None:
             env["MAIL_DOMAIN"] = domain
@@ -388,6 +393,33 @@ def test_the_users_hook_adds_the_missing_mailboxes_and_records_them(tmp_path):
     assert out.returncode == 0, out.stderr
     assert box.changes() == ["email add ana@a.example", "email add bob@a.example"]
     assert json.loads(box.state.read_text()) == ["ana@a.example", "bob@a.example"]
+
+
+def test_the_users_hook_waits_for_dovecot_to_find_the_mailbox(tmp_path):
+    box = _Mailboxes(tmp_path, ["postmaster@a.example"])
+    ready = tmp_path / "ready"
+    box.lookup = f'if [ ! -f {ready} ]; then touch {ready}; exit 1; fi\nexit 0\n'
+    out = box.run(_members("ana@a.example"))
+    assert out.returncode == 0, out.stderr
+    assert box.lookups.read_text().splitlines() == ["user ana@a.example"] * 2
+    assert box.changes() == ["email add ana@a.example"]
+
+
+@pytest.mark.parametrize("lookup", ["exit 1\n", "sleep 1\n"])
+def test_the_users_hook_fails_when_dovecot_is_not_ready_and_checks_again_on_rerun(tmp_path, lookup):
+    box = _Mailboxes(tmp_path, ["postmaster@a.example"])
+    box.lookup = lookup
+    box.readiness_timeout = 0.05
+    out = box.run(_members("ana@a.example"))
+    assert out.returncode == 1 and "Dovecot mailboxes not ready: ana@a.example" in out.stderr
+    assert json.loads(box.state.read_text()) == ["ana@a.example"]
+    assert box.changes() == ["email add ana@a.example"]
+    box.lookup = "exit 0\n"
+    box.lookups.unlink()
+    out = box.run(_members("ana@a.example"))
+    assert out.returncode == 0, out.stderr
+    assert box.lookups.read_text().splitlines() == ["user ana@a.example"]
+    assert box.changes() == ["email add ana@a.example"]
 
 
 def test_the_users_hook_takes_the_mailboxes_already_there_for_its_own_only_after_a_record_exists(tmp_path):

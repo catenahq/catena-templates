@@ -52,6 +52,8 @@ setup:
         <?php
         $config['imap_conn_options']['ssl']['cafile'] = '/var/roundcube/config/appci-acme-root.pem';
         $config['smtp_conn_options']['ssl']['cafile'] = '/var/roundcube/config/appci-acme-root.pem';
+        // Keep the HTTP writer's sessions through the backup and restore legs.
+        $config['session_lifetime'] = 1440;
         EOF
         running=/var/www/html/config/config.docker.inc.php
         if ! grep -qF zz-appci-acme-root.inc.php "$running"; then
@@ -116,6 +118,106 @@ seed:
     timeout_s: 180
 
 assert:
+  - name: postmaster_and_abuse_are_registered
+    type: docker_exec
+    container: "{{ container_dms }}"
+    command:
+      - bash
+      - -euc
+      - |
+        set -o pipefail
+        setup email list | grep -F "postmaster@$MAIL_DOMAIN"
+        setup alias list | grep -F "abuse@$MAIL_DOMAIN" | grep -F "postmaster@$MAIL_DOMAIN"
+        echo "postmaster and abuse registered"
+    expect_stdout_contains: "postmaster and abuse registered"
+    timeout_s: 120
+
+  - name: starttls_serves_the_configured_certificate
+    type: docker_exec
+    container: "{{ container_dms }}"
+    command:
+      - python3
+      - -c
+      - |
+        import hashlib
+        import pathlib
+        import smtplib
+        import ssl
+
+        certificate = pathlib.Path('/certs/fullchain.pem').read_bytes()
+        mark = pathlib.Path('/tmp/docker-mailserver/.catena-cert.sha256').read_text().strip()
+        assert hashlib.sha256(certificate).hexdigest() == mark, 'configure certificate mark differs'
+        leaf = certificate.decode().split('-----END CERTIFICATE-----', 1)[0] + '-----END CERTIFICATE-----\n'
+        context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+        context.check_hostname = False
+        context.verify_mode = ssl.CERT_NONE
+        with smtplib.SMTP('127.0.0.1', 25, timeout=30) as smtp:
+            smtp.starttls(context=context)
+            assert smtp.sock.getpeercert(binary_form=True) == ssl.PEM_cert_to_DER_cert(leaf), 'STARTTLS certificate differs'
+        print('STARTTLS serves the configured certificate')
+    expect_stdout_contains: "STARTTLS serves the configured certificate"
+    timeout_s: 60
+
+  - name: rspamd_runs_staged_drop_ins_without_core_dumps
+    type: docker_exec
+    container: "{{ container_dms }}"
+    command:
+      - python3
+      - -c
+      - |
+        import pathlib
+        import subprocess
+
+        subprocess.run(['pgrep', '-x', 'rspamd'], check=True, stdout=subprocess.DEVNULL)
+        subprocess.run(['rspamadm', 'configtest'], check=True)
+        assert not list(pathlib.Path('/').glob('core.*')), 'core dump in container root'
+        staged = pathlib.Path('/tmp/docker-mailserver/rspamd/local.d')
+        assert (staged / 'actions.conf').is_file(), 'staged actions missing'
+        for source in staged.glob('*.conf'):
+            live = pathlib.Path('/etc/rspamd/local.d') / source.name
+            assert live.read_bytes() == source.read_bytes(), source.name + ' differs from staged config'
+        record = pathlib.Path('/tmp/docker-mailserver/.catena-mailboxes.json').stat()
+        assert (record.st_mode & 0o7777, record.st_uid, record.st_gid) == (0o600, 0, 0), 'users record permissions differ'
+        print('rspamd and users record ok')
+    expect_stdout_contains: "rspamd and users record ok"
+    timeout_s: 60
+
+  - name: rspamd_flags_gtube_and_an_available_scanner_flags_eicar
+    type: docker_exec
+    container: "{{ container_dms }}"
+    command:
+      - python3
+      - -c
+      - |
+        import os
+        import subprocess
+        import time
+        from email.utils import formatdate
+
+        headers = 'From: postmaster@{0}\nTo: postmaster@{0}\nDate: {1}\n'.format(os.environ['MAIL_DOMAIN'], formatdate())
+        gtube = 'XJS*C4JDBQADN1.NSBN3*2IDNEN*' + 'GTUBE-STANDARD-ANTI-UBE-TEST-EMAIL*C.34X'
+        message = headers + 'Subject: gtube-check\n\n' + gtube + '\n'
+        result = subprocess.run(['rspamc'], input=message, text=True, capture_output=True, check=True, timeout=30)
+        assert 'GTUBE' in result.stdout, 'GTUBE was not flagged'
+        if os.environ.get('ANTIVIRUS_HOST'):
+            eicar = 'X5O!P%@AP[4\\PZX54(P^)7CC)7}' + '$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*'
+            message = headers + ('Subject: eicar-check\nMIME-Version: 1.0\n'
+                                 'Content-Type: application/octet-stream; name="eicar.com"\n'
+                                 'Content-Disposition: attachment; filename="eicar.com"\n\n') + eicar + '\n'
+            deadline = time.monotonic() + 180
+            while True:
+                result = subprocess.run(['rspamc'], input=message, text=True, capture_output=True, check=True, timeout=30)
+                if 'CLAM_VIRUS' in result.stdout:
+                    break
+                assert time.monotonic() < deadline, 'available scanner did not flag EICAR'
+                time.sleep(5)
+            print('available scanner flagged EICAR')
+        else:
+            print('no scanner provided; antivirus check not applicable')
+        print('GTUBE flagged')
+    expect_stdout_contains: "GTUBE flagged"
+    timeout_s: 240
+
   - name: server_lists_the_mailbox
     type: docker_exec
     container: "{{ container_dms }}"
@@ -156,3 +258,80 @@ assert:
         doveadm fetch -u "$box" 'hdr.subject body' mailbox INBOX header message-id "catena-{{ run_id }}@catena.invalid"
     expect_stdout_contains: "fixture-{{ run_id }}"
     timeout_s: 150
+
+# Roundcube records the requested URL in its OAuth session before redirecting.
+# Requests go through Apache, so the backup mode holds their database writes.
+writer:
+  container: "{{ container_roundcube }}"
+  command:
+    - php
+    - -r
+    - &webmail_write |
+      $after = isset($argv[1]);
+      $db = new PDO('sqlite:' . glob('/var/roundcube/db/*.db')[0]);
+      $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+      for ($n = 0; ; $n++) {
+          $id = $after ? $argv[1] : '{{ run_id }}-' . $n;
+          $marker = 'catena-writer-' . $id . '-end';
+          $url = 'http://127.0.0.1/?_task=mail&catena_writer=' . rawurlencode($marker);
+          $http = curl_init($url);
+          curl_setopt_array($http, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 1800]);
+          $body = curl_exec($http);
+          $status = curl_getinfo($http, CURLINFO_RESPONSE_CODE);
+          curl_close($http);
+          if ($body === false || $status !== 302) {
+              throw new RuntimeException('webmail writer did not get the sign-in redirect');
+          }
+          $count = 0;
+          foreach ($db->query('SELECT vars FROM session') as $row) {
+              if (str_contains(base64_decode($row['vars']), $marker)) {
+                  $count++;
+              }
+          }
+          if ($count !== 1) {
+              throw new RuntimeException('webmail did not store exactly one writer session');
+          }
+          echo $after ? "recorded $id\n" : "ack $n\n";
+          flush();
+          if ($after) {
+              break;
+          }
+          sleep(1);
+      }
+  after:
+    - name: webmail_records_the_after_session
+      type: docker_exec
+      container: "{{ container_roundcube }}"
+      command:
+        - php
+        - -r
+        - *webmail_write
+        - "{{ writer_id }}"
+      expect_stdout_contains: "recorded {{ writer_id }}"
+      timeout_s: 120
+  check:
+    - php
+    - -r
+    - |
+      $expected = json_decode(stream_get_contents(STDIN), true, 512, JSON_THROW_ON_ERROR);
+      $db = new PDO('sqlite:' . glob('/var/roundcube/db/*.db')[0]);
+      $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+      if ($db->query('PRAGMA integrity_check')->fetchColumn() !== 'ok') {
+          throw new RuntimeException('webmail database integrity check failed');
+      }
+      $sessions = [];
+      foreach ($db->query('SELECT vars FROM session') as $row) {
+          $sessions[] = base64_decode($row['vars']);
+      }
+      foreach ($expected['before'] as $n) {
+          $marker = 'catena-writer-{{ run_id }}-' . $n . '-end';
+          $matches = array_filter($sessions, fn($s) => str_contains($s, $marker));
+          if (count($matches) !== 1) {
+              throw new RuntimeException('acknowledged webmail session missing or duplicated: ' . $n);
+          }
+      }
+      $after = 'catena-writer-' . $expected['after'] . '-end';
+      if (array_filter($sessions, fn($s) => str_contains($s, $after))) {
+          throw new RuntimeException('post-backup webmail session survived the restore');
+      }
+      echo "webmail writer restored\n";
