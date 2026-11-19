@@ -4324,17 +4324,17 @@
         ],
         "setup_steps": "The server installs this application and signs you in to it through the server's own sign-in. Its address is the prefix below, followed by your domain.\n\n1. Open **Gatus** from the Apps page.\n2. The server's services and your applications are listed by themselves.\n3. To probe something else, add a file whose name starts with 99- and ends in .yaml to the config volume; the server never rewrites it.",
         "summary": "A status page that probes your server's services and alerts when one fails.",
-        "what_it_is": "Gatus probes the server's own services and the applications you run, shows their status on one page and sends its alerts to Healthchecks. The server adds an endpoint for each service and each application by itself."
+        "what_it_is": "Gatus probes the server's own services and the applications you run, shows their status on one page and reports a failing service to the server's own alerts. The server adds an endpoint for each service and each application by itself."
       },
       "env": {
-        "HC_PING_KEY": {
+        "ALERT_TOKEN": {
           "managed": {
-            "expr": "{{ provided.healthchecks.ping_key }}"
+            "expr": "{{ alert_intake_token_status }}"
           }
         },
-        "HC_URL": {
+        "ALERT_URL": {
           "managed": {
-            "expr": "{{ provided.healthchecks.url }}"
+            "expr": "http://catena-alert-intake:8080/v1/items"
           }
         },
         "HUB_URL": {
@@ -4368,15 +4368,15 @@
       },
       "env_defaults": [
         "SUBDOMAIN=gatus",
-        "HC_URL={{ provided.healthchecks.url }}",
-        "HC_PING_KEY={{ provided.healthchecks.ping_key }}",
+        "ALERT_URL=http://catena-alert-intake:8080/v1/items",
+        "ALERT_TOKEN={{ alert_intake_token_status }}",
         "HUB_URL={{ provided.beszel.url }}",
         "UI_TITLE={{ cloudflare_zone | default('') }}",
         "UPDATE_LEVEL=major"
       ],
       "env_managed_keys": [
-        "HC_URL",
-        "HC_PING_KEY",
+        "ALERT_URL",
+        "ALERT_TOKEN",
         "HUB_URL",
         "UI_TITLE"
       ],
@@ -4390,11 +4390,11 @@
         ],
         "setup_steps": "Le serveur installe cette application et vous y connecte par sa propre connexion. Son adresse est le pr\u00e9fixe ci-dessous suivi de votre domaine.\n\n1. Ouvrez **Gatus** depuis la page Applications.\n2. Les services du serveur et vos applications sont list\u00e9s d'eux-m\u00eames.\n3. Pour sonder autre chose, ajoutez au volume config un fichier dont le nom commence par 99- et se termine par .yaml ; le serveur ne le r\u00e9\u00e9crit jamais.",
         "summary": "Une page d'\u00e9tat qui sonde les services du serveur et alerte quand l'un \u00e9choue.",
-        "what_it_is": "Gatus sonde les services du serveur et les applications que vous ex\u00e9cutez, affiche leur \u00e9tat sur une seule page et envoie ses alertes \u00e0 Healthchecks. Le serveur ajoute lui-m\u00eame un point de terminaison pour chaque service et chaque application."
+        "what_it_is": "Gatus sonde les services du serveur et les applications que vous ex\u00e9cutez, affiche leur \u00e9tat sur une seule page et signale un service en panne aux alertes du serveur. Le serveur ajoute lui-m\u00eame un point de terminaison pour chaque service et chaque application."
       },
       "hostname_baked": false,
       "id": "gatus",
-      "requires_catena": "0.12.0",
+      "requires_catena": "0.13.4",
       "sizing": {
         "disk_baseline_mb": 40,
         "idle_cpu_pct": 1,
