@@ -12,7 +12,9 @@
 # is printed nowhere. The account, its organization and the signature live in the
 # database, so the asserts sign in again (the account must have survived), list the
 # signatures and count exactly one holding fixture-<run>.
-# Each step has a 300 s deadline covering requests, response bodies and retry waits.
+# Each step has a 300 s deadline covering requests, response bodies and retry waits;
+# past it the step fails naming the backend's last answer (an HTTP status or a
+# connection error such as ECONNREFUSED), before the bench's 420 s timeout.
 #
 # {{ run_id }} is supplied by the bench at execution time and each
 # {{ container_* }} is resolved from `docker ps` before invoking.
@@ -35,8 +37,9 @@ seed:
         exec node - <<'JS'
         const crypto = require("crypto");
         const api = "http://127.0.0.1:5000/api";
+        let last = "no request sent";
         setTimeout(() => {
-          console.error("the Postiz backend did not complete the seed within 300 s");
+          console.error("the Postiz backend did not complete the seed within 300 s; last answer: " + last);
           process.exit(1);
         }, 300000).unref();
         const RUN = "{{ run_id }}";
@@ -51,10 +54,16 @@ seed:
           if (body) headers["content-type"] = "application/json";
           let res;
           for (let i = 0; ; i++) {
-            res = await fetch(api + path, {
-              method, headers, signal: AbortSignal.timeout(30000),
-              body: body ? JSON.stringify(body) : undefined,
-            });
+            try {
+              res = await fetch(api + path, {
+                method, headers, signal: AbortSignal.timeout(30000),
+                body: body ? JSON.stringify(body) : undefined,
+              });
+            } catch (e) {
+              last = method + " " + path + ": " + ((e.cause && e.cause.code) || e.message);
+              throw e;
+            }
+            last = method + " " + path + ": HTTP " + res.status;
             if (res.status < 500 || i === 12) break;
             await sleep(5000);
           }
@@ -106,8 +115,9 @@ assert:
         exec node - <<'JS'
         const crypto = require("crypto");
         const api = "http://127.0.0.1:5000/api";
+        let last = "no request sent";
         setTimeout(() => {
-          console.error("the Postiz backend did not complete the assertion within 300 s");
+          console.error("the Postiz backend did not complete the assertion within 300 s; last answer: " + last);
           process.exit(1);
         }, 300000).unref();
         const RUN = "{{ run_id }}";
@@ -122,10 +132,16 @@ assert:
           if (body) headers["content-type"] = "application/json";
           let res;
           for (let i = 0; ; i++) {
-            res = await fetch(api + path, {
-              method, headers, signal: AbortSignal.timeout(30000),
-              body: body ? JSON.stringify(body) : undefined,
-            });
+            try {
+              res = await fetch(api + path, {
+                method, headers, signal: AbortSignal.timeout(30000),
+                body: body ? JSON.stringify(body) : undefined,
+              });
+            } catch (e) {
+              last = method + " " + path + ": " + ((e.cause && e.cause.code) || e.message);
+              throw e;
+            }
+            last = method + " " + path + ": HTTP " + res.status;
             if (res.status < 500 || i === 12) break;
             await sleep(5000);
           }
