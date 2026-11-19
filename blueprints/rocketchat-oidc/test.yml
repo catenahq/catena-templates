@@ -197,15 +197,11 @@ assert:
               await sleep(5000);
             }
           }
-          // The Jitsi settings are public, so settings.public lists them by id.
-          const ids = ["Jitsi_Domain", "Jitsi_SSL", "Jitsi_Enabled"];
-          const query = encodeURIComponent(JSON.stringify({ _id: { $in: ids } }));
-          const res = await call("GET", "/settings.public?query=" + query, auth);
-          if (res.status !== 200) throw new Error("settings.public answered " + said(res));
+          // The administrator reads each setting by id, public or not.
           const value = async (id) => {
-            const found = res.body.settings.find((s) => s._id === id);
-            if (!found) throw new Error("settings.public does not list " + id);
-            return found.value;
+            const res = await call("GET", "/settings/" + id, auth);
+            if (res.status !== 200) throw new Error("settings/" + id + " answered " + said(res));
+            return res.body.value;
           };
           const domain = await value("Jitsi_Domain");
           const ssl = await value("Jitsi_SSL");
