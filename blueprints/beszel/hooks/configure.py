@@ -34,8 +34,10 @@ TOKEN_FILE = KEY_DIR + "/token"
 STATE_DIR = "/state"
 STATE_FILE = STATE_DIR + "/state.json"
 # What follows the intake address in the hub's webhook: the JSON template and the
-# bearer token as the Authorization header.
-WEBHOOK_QUERY = "?format=shoutrrr&template=json&@authorization=Bearer%20"
+# bearer token as the Authorization header. The scheme is plain `generic://` (with
+# disabletls for an http address): the hub puts the alert's title in the JSON's
+# `title` only for that scheme, and in front of the message for any other.
+WEBHOOK_QUERY = "format=shoutrrr&template=json&@authorization=Bearer%20"
 HUB_WAIT_S = 120
 SYSTEM_WAIT_S = 240
 POLL_S = 5
@@ -260,7 +262,10 @@ def webhook_url():
     secret = os.environ.get("ALERT_TOKEN", "").strip()
     if not base or not secret:
         return ""
-    return "generic+" + base + WEBHOOK_QUERY + urllib.parse.quote(secret, safe="")
+    parts = urllib.parse.urlsplit(base)
+    tls = "disabletls=yes&" if parts.scheme == "http" else ""
+    return ("generic://" + parts.netloc + parts.path + "?" + tls + WEBHOOK_QUERY
+            + urllib.parse.quote(secret, safe=""))
 
 
 def configure_alert_delivery(token, user_id, admin_email, webhook):

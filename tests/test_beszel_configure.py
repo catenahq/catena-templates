@@ -25,7 +25,10 @@ exec(compile(HOOK.read_text(encoding="utf-8"), str(HOOK), "exec"), hook.__dict__
 
 ISSUER = "https://auth.example.test/realms/vps"
 INTAKE = "http://catena-alert-intake:8080/v1/items"
-WEBHOOK = "generic+" + INTAKE + "?format=shoutrrr&template=json&@authorization=Bearer%20tk-1"
+# Plain generic:// with disabletls: the hub sends the title as the JSON's `title`
+# only for the generic scheme (Beszel internal/alerts/alerts.go sendShoutrrrAlert).
+WEBHOOK = ("generic://catena-alert-intake:8080/v1/items"
+           "?disabletls=yes&format=shoutrrr&template=json&@authorization=Bearer%20tk-1")
 OIDC = {"issuer": ISSUER, "secret": "s"}
 
 
@@ -123,6 +126,13 @@ def test_the_webhook_is_the_intake_address_with_the_token_as_the_authorization_h
     assert hook.webhook_url() == WEBHOOK
     monkeypatch.setenv("ALERT_TOKEN", "a b/c")
     assert hook.webhook_url().endswith("Bearer%20a%20b%2Fc")
+
+
+def test_an_https_intake_address_keeps_tls(monkeypatch):
+    monkeypatch.setenv("ALERT_URL", "https://intake.example.test/v1/items")
+    monkeypatch.setenv("ALERT_TOKEN", "tk-1")
+    assert hook.webhook_url() == ("generic://intake.example.test/v1/items"
+                                  "?format=shoutrrr&template=json&@authorization=Bearer%20tk-1")
 
 
 @pytest.mark.parametrize("url, secret", [("", "tk-1"), (INTAKE, ""), ("", "")])
