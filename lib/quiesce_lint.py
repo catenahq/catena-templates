@@ -125,7 +125,8 @@ EXPOSE_TOKEN = re.compile(r"^(\d{1,5})(?:[-:](\d{1,5}))?$")
 # same list is the root-side authority in catena-admin payload/engines/appenv
 # (DeniedSecrets), and a test there holds the two equal.
 DENIED_SECRETS = frozenset({
-    "admin_password", "backup_restic_password", "backup_s3_access_key", "backup_s3_secret_key",
+    "admin_password", "alert_intake_token_read", "alert_intake_token_resources", "alert_intake_token_status",
+    "backup_restic_password", "backup_s3_access_key", "backup_s3_secret_key",
     "beszel_gate_cookie_secret", "beszel_oidc_client_secret", "beszel_universal_token",
     "catena_admin_gate_cookie_secret", "catena_admin_gate_secret", "catena_admin_panel_client_secret",
     "catena_admin_session_key", "catena_identity_probe_client_secret",
@@ -140,14 +141,16 @@ DENIED_SECRETS = frozenset({
 })
 
 # The denied secrets a blueprint may still read in a managed expression, by blueprint id:
-# the keys of the app that sets itself up. A gate cookie secret and another app's secret
-# are in no entry. The same table is catena-admin payload/engines/applint/reserved.go
+# the keys of the app that sets itself up, and the token of the alert intake source it posts
+# as (contracts default-apps/wiring.json alert_intake_sources; no blueprint reads the read
+# token). A gate cookie secret and another app's secret are in no entry. The same table is catena-admin payload/engines/applint/reserved.go
 # providerSecrets, and a test holds each entry equal to the secrets of the blueprint's
 # entry in contracts default-apps/wiring.json.
 PROVIDER_SECRETS = {
     "healthchecks": frozenset({
         "healthchecks_ping_key", "healthchecks_api_key_readonly", "healthchecks_api_key_readwrite"}),
-    "beszel": frozenset({"beszel_oidc_client_secret"}),
+    "beszel": frozenset({"beszel_oidc_client_secret", "alert_intake_token_resources"}),
+    "gatus": frozenset({"alert_intake_token_status"}),
 }
 
 # Names that start like one of these are denied too: one cookie secret per
