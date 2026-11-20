@@ -284,6 +284,53 @@ def test_the_render_neither_writes_nor_requires_a_readme_and_leaves_one_alone(tm
     assert readme.read_text() == "kept\n"
 
 
+def _printed(root: Path) -> subprocess.CompletedProcess:
+    env = {**os.environ, "TEMPLATES_ROOT": str(root), "PYTHONPATH": str(ROOT)}
+    return subprocess.run([sys.executable, str(ROOT / "build" / "catalog.py")], cwd=root, env=env,
+                          capture_output=True, text=True, check=False)
+
+
+def _files(root: Path) -> dict[str, bytes]:
+    return {str(p.relative_to(root)): p.read_bytes() for p in sorted(root.rglob("*")) if p.is_file()}
+
+
+def test_the_catalog_command_prints_the_document_the_render_writes(tmp_path):
+    _tree(tmp_path)
+    assert _rendered(tmp_path).returncode == 0
+    before = _files(tmp_path)
+    done = _printed(tmp_path)
+    assert done.returncode == 0, done.stderr
+    assert done.stdout == (tmp_path / "catalog.json").read_text()
+    assert _files(tmp_path) == before
+
+
+def test_the_catalog_command_writes_nothing_before_a_render(tmp_path):
+    _tree(tmp_path)
+    before = _files(tmp_path)
+    done = _printed(tmp_path)
+    assert done.returncode == 0, done.stderr
+    assert json.loads(done.stdout)["templates"][0]["id"] == "example"
+    assert _files(tmp_path) == before
+
+
+def test_the_catalog_command_prints_the_committed_catalog():
+    done = _printed(ROOT)
+    assert done.returncode == 0, done.stderr
+    assert done.stdout == (ROOT / "catalog.json").read_text()
+
+
+def test_the_catalog_command_names_a_card_that_breaks_its_schema(tmp_path):
+    _tree(tmp_path)
+    path = tmp_path / "blueprints" / "example" / "app.json"
+    card = json.loads(path.read_text())
+    del card["en"]["summary"]
+    path.write_text(json.dumps(card))
+    done = _printed(tmp_path)
+    assert done.returncode == 1
+    assert done.stdout == ""
+    assert "summary" in done.stderr
+
+
 def _validated(root: Path) -> subprocess.CompletedProcess:
     env = {**os.environ, "TEMPLATES_ROOT": str(root), "PYTHONPATH": str(ROOT)}
     return subprocess.run([sys.executable, str(ROOT / "build" / "validate.py")], cwd=root, env=env,

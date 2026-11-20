@@ -59,7 +59,7 @@ lib/                     # the build library
                          # format
 
 build/                   # thin entrypoints
-  render.py  validate.py  lint_quiesce.py  lint_postgres_pins.py
+  render.py  catalog.py  validate.py  lint_quiesce.py  lint_postgres_pins.py
   lint_swarm.py  import_registry.py  app_check.py  versions.py  adopt.py  pack.py
 
 catalog-meta.json        # hand-edited; the template order + sizing header
@@ -68,8 +68,11 @@ catalog-aliases.json     # optional; the importer's aliases
 app.schema.json          # schema for a blueprints/<id>/app.json
 block.schema.json        # schema for the x-catena block of a compose
 
-catalog.json             # generated; the machine view the ops tooling and the bench read
+catalog.json             # generated; the machine view the ops tooling and the bench read;
+                         # `uv run build/catalog.py` prints the same bytes
 index.html               # generated; static catalog preview
+preview/                 # git-ignored; `make preview` writes a catalog.json and an
+                         # index.html here for `make serve` and `make image`
 
 pyproject.toml           # the tools' packages; uv.lock is their locked environment
 uv.lock                  # every `uv run` of the tools and their tests uses it
@@ -187,11 +190,13 @@ exits 0 when the app answered, and refuses an app with no web address.
   (catena-admin `payload/engines/apprepo`) and adds the compose it holds, byte
   for byte. The folder name `blueprints` and the tag are the whole contract with
   a host.
-- **Discovery** reads the generated files: `catalog.json` is one fetch with
-  every template with its prose, sizing and bench data (the
-  compose block's quiesce and lifecycle
-  included, lifted from each compose); the ops tooling and the bench read it.
-  `index.html` is its static preview, served by the image the `Dockerfile` builds.
+- **Discovery** reads the catalog document: every template with its prose,
+  sizing and bench data (the compose block's quiesce and lifecycle included,
+  lifted from each compose); the ops tooling and the bench read it.
+  `uv run build/catalog.py` prints it to stdout and writes nothing, and the
+  committed `catalog.json` matches that output byte for byte. `index.html` is
+  the static preview, and `make preview` writes both into `preview/`, which the
+  image the `Dockerfile` builds serves.
 - **The app checker** (`catena-applint --catalog`, catena-admin
   `payload/cmd/catena-applint`) reads the `blueprints/` folders in catena-admin's
   CI.
