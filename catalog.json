@@ -4154,7 +4154,7 @@
         ],
         "setup_steps": "The server installs this application and signs you in to it through the server's own sign-in. Its address is the prefix below, followed by your domain.\n\n1. Open **Beszel** from the Apps page.\n2. The server's own agent is already registered. Add other machines with **Add system**.\n3. Set alert thresholds on each system.",
         "summary": "Lightweight server monitoring: CPU, memory, disk and container history, with alerts.",
-        "what_it_is": "The Beszel hub keeps the resource history of the servers and containers it watches and alerts when a threshold is crossed. The server runs an agent for itself; alerts go to Healthchecks."
+        "what_it_is": "The Beszel hub keeps the resource history of the servers and containers it watches and alerts when a threshold is crossed. The server runs an agent for itself; its alerts go to the server's own alerts."
       },
       "env": {
         "ADMIN_EMAIL": {
@@ -4162,14 +4162,14 @@
             "expr": "{{ admin_email }}"
           }
         },
-        "HC_PING_KEY": {
+        "ALERT_TOKEN": {
           "managed": {
-            "expr": "{{ provided.healthchecks.ping_key }}"
+            "expr": "{{ alert_intake_token_resources }}"
           }
         },
-        "HC_URL": {
+        "ALERT_URL": {
           "managed": {
-            "expr": "{{ provided.healthchecks.url }}"
+            "expr": "http://catena-alert-intake:8080/v1/items"
           }
         },
         "HUB_OIDC_SECRET": {
@@ -4256,8 +4256,8 @@
         "HUB_PASSWORD={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
         "TOKEN={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
         "STATE_KEY={{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
-        "HC_URL={{ provided.healthchecks.url }}",
-        "HC_PING_KEY={{ provided.healthchecks.ping_key }}",
+        "ALERT_URL=http://catena-alert-intake:8080/v1/items",
+        "ALERT_TOKEN={{ alert_intake_token_resources }}",
         "HUB_OIDC_SECRET={{ beszel_oidc_client_secret | default('') }}",
         "SMTP_PASSWORD={{ smtp_password | default('') }}",
         "SMTP_RELAY_HOST={{ smtp_relay_host | default('') }}",
@@ -4270,8 +4270,8 @@
       "env_managed_keys": [
         "HUB_URL",
         "ADMIN_EMAIL",
-        "HC_URL",
-        "HC_PING_KEY",
+        "ALERT_URL",
+        "ALERT_TOKEN",
         "HUB_OIDC_SECRET",
         "SMTP_PASSWORD",
         "SMTP_RELAY_HOST",
@@ -4289,10 +4289,11 @@
         ],
         "setup_steps": "Le serveur installe cette application et vous y connecte par sa propre connexion. Son adresse est le pr\u00e9fixe ci-dessous suivi de votre domaine.\n\n1. Ouvrez **Beszel** depuis la page Applications.\n2. L'agent du serveur est d\u00e9j\u00e0 enregistr\u00e9. Ajoutez d'autres machines avec **Add system**.\n3. R\u00e9glez les seuils d'alerte de chaque syst\u00e8me.",
         "summary": "Surveillance l\u00e9g\u00e8re des serveurs : historique du processeur, de la m\u00e9moire, du disque et des conteneurs, avec alertes.",
-        "what_it_is": "Le concentrateur Beszel garde l'historique des ressources des serveurs et des conteneurs qu'il surveille et alerte quand un seuil est franchi. Le serveur ex\u00e9cute un agent pour lui-m\u00eame ; les alertes vont \u00e0 Healthchecks."
+        "what_it_is": "Le concentrateur Beszel garde l'historique des ressources des serveurs et des conteneurs qu'il surveille et alerte quand un seuil est franchi. Le serveur ex\u00e9cute un agent pour lui-m\u00eame ; ses alertes vont aux alertes du serveur."
       },
       "hostname_baked": false,
       "id": "beszel",
+      "requires_catena": "0.13.4",
       "sizing": {
         "disk_baseline_mb": 60,
         "idle_cpu_pct": 1,

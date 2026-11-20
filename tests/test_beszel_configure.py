@@ -1,6 +1,6 @@
 """The Beszel configure hook (blueprints/beszel/hooks/configure.py) sets the hub up through
 its API: the sign-in with Catena beside the password path, the alert delivery to the
-relay, the default rules, the outgoing mail, the admin email change and the public key
+server's alert intake, the default rules, the outgoing mail, the admin email change and the public key
 the agent reads."""
 from __future__ import annotations
 
@@ -24,6 +24,11 @@ hook.__file__ = str(HOOK)
 exec(compile(HOOK.read_text(encoding="utf-8"), str(HOOK), "exec"), hook.__dict__)
 
 ISSUER = "https://auth.example.test/realms/vps"
+INTAKE = "http://catena-alert-intake:8080/v1/items"
+# Plain generic:// with disabletls: the hub sends the title as the JSON's `title`
+# only for the generic scheme (Beszel internal/alerts/alerts.go sendShoutrrrAlert).
+WEBHOOK = ("generic://catena-alert-intake:8080/v1/items"
+           "?disabletls=yes&format=shoutrrr&template=json&@authorization=Bearer%20tk-1")
 OIDC = {"issuer": ISSUER, "secret": "s"}
 
 
@@ -115,11 +120,38 @@ def test_a_dropped_key_on_read_back_fails_loudly(monkeypatch):
 
 # --- alert delivery and rules ---
 
-def test_the_webhook_points_at_the_relay_the_app_deploys():
+def test_the_webhook_is_the_intake_address_with_the_token_as_the_authorization_header(monkeypatch):
+    monkeypatch.setenv("ALERT_URL", INTAKE)
+    monkeypatch.setenv("ALERT_TOKEN", "tk-1")
+    assert hook.webhook_url() == WEBHOOK
+    monkeypatch.setenv("ALERT_TOKEN", "a b/c")
+    assert hook.webhook_url().endswith("Bearer%20a%20b%2Fc")
+
+
+def test_an_https_intake_address_keeps_tls(monkeypatch):
+    monkeypatch.setenv("ALERT_URL", "https://intake.example.test/v1/items")
+    monkeypatch.setenv("ALERT_TOKEN", "tk-1")
+    assert hook.webhook_url() == ("generic://intake.example.test/v1/items"
+                                  "?format=shoutrrr&template=json&@authorization=Bearer%20tk-1")
+
+
+@pytest.mark.parametrize("url, secret", [("", "tk-1"), (INTAKE, ""), ("", "")])
+def test_no_webhook_while_the_intake_address_or_the_token_is_unset(monkeypatch, url, secret):
+    monkeypatch.setenv("ALERT_URL", url)
+    monkeypatch.setenv("ALERT_TOKEN", secret)
+    assert hook.webhook_url() == ""
+
+    def fake(method, path, *, token=None, body=None):
+        raise AssertionError(f"called the hub with no webhook: {method} {path}")
+    monkeypatch.setattr(hook, "req", fake)
+    assert hook.configure_alert_delivery("tok", "u1", "admin@example.test", "") == "not-set"
+
+
+def test_the_relay_listens_on_nothing_and_the_hub_joins_the_intake_network():
     services = yaml.safe_load((BLUEPRINT / "services.yml").read_text())["services"]
-    assert "relay" in services
-    assert hook.WEBHOOK == "generic+http://relay:8099/notify"
-    assert "HTTPServer((\"0.0.0.0\", 8099), Handler)" in "\n".join(services["relay"]["command"])
+    assert services["relay"]["command"] == ["sleep", "2147483647"]
+    assert "catena-alerts" in services["app"]["networks"]
+    assert "catena-alerts" not in services["relay"]["networks"]
 
 
 def test_an_added_webhook_is_not_dropped_and_the_admin_gets_no_hub_mail(monkeypatch):
@@ -133,19 +165,34 @@ def test_an_added_webhook_is_not_dropped_and_the_admin_gets_no_hub_mail(monkeypa
         calls.append((method, body))
         return {}
     monkeypatch.setattr(hook, "req", fake)
-    assert hook.configure_alert_delivery("tok", "u1", "admin@example.test") == "updated"
+    assert hook.configure_alert_delivery("tok", "u1", "admin@example.test", WEBHOOK) == "updated"
     [(method, body)] = calls
     assert method == "PATCH"
-    assert body["settings"]["webhooks"] == ["ntfy://example.test/mine", hook.WEBHOOK]
+    assert body["settings"]["webhooks"] == ["ntfy://example.test/mine", WEBHOOK]
     assert body["settings"]["emails"] == ["ops@example.test"]
+
+
+def test_a_webhook_to_the_intake_with_another_token_is_replaced_and_others_stay(monkeypatch):
+    calls = []
+    old = WEBHOOK.replace("tk-1", "tk-0")
+
+    def fake(method, path, *, token=None, body=None):
+        if method == "GET":
+            return {"items": [{"id": "us1", "settings": {
+                "emails": [], "webhooks": ["ntfy://example.test/mine", old]}}]}
+        calls.append((method, body))
+        return {}
+    monkeypatch.setattr(hook, "req", fake)
+    assert hook.configure_alert_delivery("tok", "u1", "admin@example.test", WEBHOOK) == "updated"
+    assert calls[0][1]["settings"]["webhooks"] == ["ntfy://example.test/mine", WEBHOOK]
 
 
 def test_a_webhook_already_present_writes_nothing(monkeypatch):
     def fake(method, path, *, token=None, body=None):
         assert method == "GET", f"wrote on a no-op: {method} {path}"
-        return {"items": [{"id": "us1", "settings": {"webhooks": [hook.WEBHOOK], "emails": ["a@example.test"]}}]}
+        return {"items": [{"id": "us1", "settings": {"webhooks": [WEBHOOK], "emails": ["a@example.test"]}}]}
     monkeypatch.setattr(hook, "req", fake)
-    assert hook.configure_alert_delivery("tok", "u1", "admin@example.test") == "ok-exists"
+    assert hook.configure_alert_delivery("tok", "u1", "admin@example.test", WEBHOOK) == "ok-exists"
 
 
 def test_a_new_settings_record_is_written_again_after_the_hub_creates_it(monkeypatch):
@@ -157,7 +204,7 @@ def test_a_new_settings_record_is_written_again_after_the_hub_creates_it(monkeyp
         calls.append((method, path))
         return {"id": "us9"} if method == "POST" else {}
     monkeypatch.setattr(hook, "req", fake)
-    assert hook.configure_alert_delivery("tok", "u1", "admin@example.test") == "configured"
+    assert hook.configure_alert_delivery("tok", "u1", "admin@example.test", WEBHOOK) == "configured"
     assert [c[0] for c in calls] == ["POST", "PATCH"] and calls[1][1].endswith("/user_settings/records/us9")
 
 
@@ -320,7 +367,7 @@ class Hub:
         if path.endswith("/api/collections/users"):
             return {"oauth2": {"enabled": True, "providers": [_provider()]}}
         if "/user_settings/" in path:
-            return {"items": [{"id": "s1", "settings": {"webhooks": [hook.WEBHOOK], "emails": []}}]}
+            return {"items": [{"id": "s1", "settings": {"webhooks": [WEBHOOK], "emails": []}}]}
         if "/systems/" in path:
             return {"items": [{"id": "sys1"}]}
         if "/alerts/" in path:
@@ -332,14 +379,12 @@ class Hub:
 
 def run_main(monkeypatch, tmp_path, hub, email):
     for key, value in {"ADMIN_EMAIL": email, "HUB_PASSWORD": "pw", "TOKEN": "tok", "STATE_KEY": "state-key",
-                       "HUB_OIDC_ISSUER": ISSUER, "HUB_OIDC_SECRET": "s", "SMTP_RELAY_HOST": ""}.items():
+                       "HUB_OIDC_ISSUER": ISSUER, "HUB_OIDC_SECRET": "s", "SMTP_RELAY_HOST": "",
+                       "ALERT_URL": INTAKE, "ALERT_TOKEN": "tk-1"}.items():
         monkeypatch.setenv(key, value)
-    monkeypatch.delenv("HC_URL", raising=False)
-    monkeypatch.delenv("HC_PING_KEY", raising=False)
     monkeypatch.setattr(hook, "STATE_FILE", str(tmp_path / "state.json"))
     monkeypatch.setattr(hook, "KEY_FILE", str(tmp_path / "key.pub"))
     monkeypatch.setattr(hook, "TOKEN_FILE", str(tmp_path / "token"))
-    monkeypatch.setattr(hook, "PING_FILE", str(tmp_path / "ping-url"))
     monkeypatch.setattr(hook, "req", hub.req)
     hook.main()
 
@@ -352,7 +397,7 @@ def test_an_admin_email_change_moves_the_hub_s_records(monkeypatch, tmp_path, ca
     run_main(monkeypatch, tmp_path, hub, "new@example.test")
     assert hub.superuser == hub.user == "new@example.test"
     out = capsys.readouterr().out.splitlines()[-1]
-    assert out.count("ok-exists") == 7 and "smtp: no-mail" in out
+    assert out.count("ok-exists") == 6 and "smtp: no-mail" in out
     state = tmp_path / "state.json"
     assert json.loads(state.read_text())["admin_email"] == "new@example.test"
     assert oct(state.stat().st_mode & 0o777) == "0o600"
@@ -367,19 +412,21 @@ def test_the_agent_reads_the_token_from_a_file_only_it_and_root_can_read(monkeyp
     assert not (tmp_path / "token.tmp").exists()
 
 
-def test_the_ping_address_is_written_for_the_relay_and_removed_with_the_monitor(monkeypatch, tmp_path):
+def test_the_webhook_reaches_the_hub_s_settings_with_the_token_the_block_gives(monkeypatch, tmp_path):
     hub = Hub("admin@example.test")
+    written = []
+    inner = hub.req
+
+    def req(method, path, *, token=None, body=None):
+        if method == "GET" and "/user_settings/" in path:
+            return {"items": [{"id": "s1", "settings": {"webhooks": [], "emails": []}}]}
+        if method == "PATCH" and "/user_settings/" in path:
+            written.append(body["settings"]["webhooks"])
+            return {}
+        return inner(method, path, token=token, body=body)
+    hub.req = req
     run_main(monkeypatch, tmp_path, hub, "admin@example.test")
-    assert not (tmp_path / "ping-url").exists()
-    monkeypatch.setenv("HC_URL", "http://healthchecks:8000/")
-    monkeypatch.setenv("HC_PING_KEY", "pk")
-    monkeypatch.setattr(hook, "req", hub.req)
-    hook.main()
-    ping = tmp_path / "ping-url"
-    assert ping.read_text() == "http://healthchecks:8000/ping/pk\n" and oct(ping.stat().st_mode & 0o777) == "0o600"
-    monkeypatch.setenv("HC_PING_KEY", "")
-    hook.main()
-    assert not ping.exists()
+    assert written == [[WEBHOOK]]
 
 
 def test_the_state_holds_a_keyed_fingerprint_and_no_password_hash_anyone_can_guess(monkeypatch, tmp_path):
@@ -492,7 +539,7 @@ class DupHub(Hub):
             if method != "GET":
                 return {"id": "s-new"}
             uid = plain.split("user='", 1)[1].split("'")[0]
-            return {"items": [{"id": s, "settings": {"webhooks": [hook.WEBHOOK], "emails": []}}
+            return {"items": [{"id": s, "settings": {"webhooks": [WEBHOOK], "emails": []}}
                               for u, s in self.settings.items() if u == uid]}
         if "/alerts/records" in path:
             if method != "GET":
@@ -534,74 +581,3 @@ def test_without_a_token_owner_the_oldest_record_is_kept(monkeypatch, tmp_path):
     hub.systems, hub.settings, hub.alerts = {}, {}, {}
     run_main(monkeypatch, tmp_path, hub, "Admin@example.test")
     assert hub.users == {"a": "admin@example.test"}
-
-
-# --- the relay ---
-
-def _relay():
-    script = "\n".join(yaml.safe_load((BLUEPRINT / "services.yml").read_text())["services"]["relay"]["command"][2:])
-    script = script.replace('HTTPServer(("0.0.0.0", 8099), Handler).serve_forever()', "")
-    names = {"__name__": "relay"}
-    exec(compile(script, "relay", "exec"), names)
-    return names
-
-
-@pytest.mark.parametrize("title, expected", [
-    ("Connection to Web Server 1 is down", ("beszel-web-server-1-status", False)),
-    ("Connection to Web Server 1 is up", ("beszel-web-server-1-status", True)),
-    ("web-1 CPU above threshold", ("beszel-web-1-cpu", False)),
-    ("web-1 CPU below threshold", ("beszel-web-1-cpu", True)),
-    ("something else", None),
-    ("", None),
-])
-def test_the_relay_names_one_check_for_the_triggered_and_the_resolved_alert(title, expected):
-    assert _relay()["parse_alert"]({"title": title}) == expected
-
-
-class _Request:
-    def __init__(self, body):
-        self.rfile = type("R", (), {"read": lambda self, n: body})()
-        self.headers = {"Content-Length": str(len(body))}
-        self.sent = []
-
-    def send_response(self, code):
-        self.sent.append(code)
-
-    def end_headers(self):
-        pass
-
-
-def _post(monkeypatch, tmp_path, payload, base="http://healthchecks:8000/ping/pk", pinged=None, fail=False):
-    names = _relay()
-    ping = tmp_path / "ping-url"
-    if base:
-        ping.write_text(base + "\n")
-    names["PING_FILE"] = str(ping)
-
-    def urlopen(url, timeout):
-        if fail:
-            raise OSError("down")
-        pinged.append(url)
-        return type("A", (), {"read": lambda self: b"OK"})()
-    monkeypatch.setattr(names["urllib"].request, "urlopen", urlopen)
-    handler = _Request(json.dumps(payload).encode())
-    names["Handler"].do_POST(handler)
-    return handler.sent
-
-
-def test_a_triggered_alert_is_a_fail_ping_and_a_resolved_one_a_success_ping(monkeypatch, tmp_path):
-    pinged = []
-    assert _post(monkeypatch, tmp_path, {"title": "web-1 CPU above threshold"}, pinged=pinged) == [200]
-    assert _post(monkeypatch, tmp_path, {"title": "web-1 CPU below threshold"}, pinged=pinged) == [200]
-    assert pinged == ["http://healthchecks:8000/ping/pk/beszel-web-1-cpu/fail?create=1",
-                      "http://healthchecks:8000/ping/pk/beszel-web-1-cpu?create=1"]
-
-
-def test_an_unknown_title_pings_nothing_and_a_missing_address_or_a_down_monitor_is_reported(
-        monkeypatch, tmp_path):
-    pinged = []
-    assert _post(monkeypatch, tmp_path, {"title": "hello"}, pinged=pinged) == [204]
-    assert _post(monkeypatch, tmp_path / "none", {"title": "web-1 CPU above threshold"}, base="",
-                 pinged=pinged) == [503]
-    assert _post(monkeypatch, tmp_path, {"title": "web-1 CPU above threshold"}, pinged=pinged, fail=True) == [502]
-    assert pinged == []

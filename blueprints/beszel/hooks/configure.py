@@ -17,15 +17,15 @@ import urllib.request
 #   SMTP_RELAY_HOST, SMTP_RELAY_PORT, SMTP_RELAY_USER, SMTP_RELAY_TLS,
 #   SMTP_RELAY_SENDER, SMTP_PASSWORD
 #                               the outgoing mail chosen in Settings
-#   HC_URL, HC_PING_KEY         the Healthchecks the relay pings, when one is installed
+#   ALERT_URL, ALERT_TOKEN      the server's alert intake the hub's webhook posts to
 #   STATE_KEY                   keys the fingerprint of the mail password
 # The superuser keeps password sign-in as the break-glass account: this script signs
 # in as it on every run, and Beszel is the tool that diagnoses the sign-in tool.
 # The agent-key volume, which the agent mounts read-only, holds the hub's public key
 # (key.pub) and the token (token, mode 0600) and nothing else. The relay-state volume,
-# which only the relay mounts, holds the ping address (ping-url, mode 0600) and the
-# state file: the admin email last signed in with and a keyed fingerprint of the mail
-# password last written, neither of which the hub answers back.
+# which only the relay mounts, holds the state file: the admin email last signed in with
+# and a keyed fingerprint of the mail password last written, neither of which the hub
+# answers back.
 
 BASE = "http://app:8090"
 KEY_DIR = "/key"
@@ -33,8 +33,11 @@ KEY_FILE = KEY_DIR + "/key.pub"
 TOKEN_FILE = KEY_DIR + "/token"
 STATE_DIR = "/state"
 STATE_FILE = STATE_DIR + "/state.json"
-PING_FILE = STATE_DIR + "/ping-url"
-WEBHOOK = "generic+http://relay:8099/notify"
+# What follows the intake address in the hub's webhook: the JSON template and the
+# bearer token as the Authorization header. The scheme is plain `generic://` (with
+# disabletls for an http address): the hub puts the alert's title in the JSON's
+# `title` only for that scheme, and in front of the message for any other.
+WEBHOOK_QUERY = "format=shoutrrr&template=json&@authorization=Bearer%20"
 HUB_WAIT_S = 120
 SYSTEM_WAIT_S = 240
 POLL_S = 5
@@ -252,21 +255,37 @@ def configure_oidc(token, issuer, secret):
     return "updated" if existing else "configured"
 
 
-def configure_alert_delivery(token, user_id, admin_email):
-    """Point the user's notifications at the relay, and keep the admin's address off
-    Beszel's own alert mail: a Beszel alert reaches Healthchecks through the relay and
-    Healthchecks mails the admin, so Beszel mail as well would send two emails for one
-    alert. Every other address a person adds in the hub keeps Beszel's mail, and every
-    other webhook is kept."""
+def webhook_url():
+    """The hub's webhook to the alert intake, or "" while the intake address or the token is
+    unset."""
+    base = os.environ.get("ALERT_URL", "").strip()
+    secret = os.environ.get("ALERT_TOKEN", "").strip()
+    if not base or not secret:
+        return ""
+    parts = urllib.parse.urlsplit(base)
+    tls = "disabletls=yes&" if parts.scheme == "http" else ""
+    return ("generic://" + parts.netloc + parts.path + "?" + tls + WEBHOOK_QUERY
+            + urllib.parse.quote(secret, safe=""))
+
+
+def configure_alert_delivery(token, user_id, admin_email, webhook):
+    """Point the user's notifications at the alert intake, and keep the admin's address off
+    Beszel's own alert mail: a Beszel alert reaches the admin through the server's alert
+    delivery, so Beszel mail as well would send two emails for one alert. Every other
+    address a person adds in the hub keeps Beszel's mail, and every other webhook is kept.
+    A webhook to the intake with another token is replaced."""
+    if not webhook:
+        return "not-set"
     found = rows(token, "user_settings", f"user='{user_id}'")
     current = dict(found[0].get("settings") or {}) if found else {}
     hooks = list(current.get("webhooks") or [])
     emails = list(current.get("emails") or [])
     kept = [e for e in emails if e.strip().lower() != admin_email.strip().lower()]
-    if WEBHOOK in hooks and kept == emails:
+    stale = [h for h in hooks if h.startswith(webhook.split("?", 1)[0] + "?") and h != webhook]
+    if webhook in hooks and not stale and kept == emails:
         return "ok-exists"
     merged = dict(current)
-    merged["webhooks"] = hooks if WEBHOOK in hooks else hooks + [WEBHOOK]
+    merged["webhooks"] = [h for h in hooks if h not in stale] + ([] if webhook in hooks else [webhook])
     merged["emails"] = kept
     if found:
         req("PATCH", f"/api/collections/user_settings/records/{found[0]['id']}", token=token,
@@ -358,28 +377,6 @@ def write_agent_token(universal):
     return "written"
 
 
-def write_ping_address():
-    """The Healthchecks ping address up to the check name, which the relay reads for each
-    alert; removed while no Healthchecks is installed."""
-    base = os.environ.get("HC_URL", "").strip().rstrip("/")
-    key = os.environ.get("HC_PING_KEY", "").strip()
-    if not base or not key:
-        try:
-            os.remove(PING_FILE)
-        except OSError:
-            return "ok-exists"
-        return "removed"
-    text = f"{base}/ping/{key}\n"
-    try:
-        with open(PING_FILE, encoding="utf-8") as fh:
-            if fh.read() == text:
-                return "ok-exists"
-    except OSError:
-        pass
-    write_file(PING_FILE, text, 0o600)
-    return "written"
-
-
 # The alert rules every system gets: the status rule fires when the agent stops
 # reporting, the others when a metric stays past its value for `min` minutes. A rule is
 # created and never updated, so a threshold a person changed stays.
@@ -445,12 +442,11 @@ def main():
 
     outcome = {"universal-token": configure_token(token, user["id"], universal)}
     outcome["oidc"] = configure_oidc(token, issuer, oidc_secret) if issuer and oidc_secret else "not-set"
-    outcome["alert-delivery"] = configure_alert_delivery(token, user["id"], email)
+    outcome["alert-delivery"] = configure_alert_delivery(token, user["id"], email, webhook_url())
     outcome["smtp"], state["smtp_password_sha256"] = configure_smtp(token, str(state.get("smtp_password_sha256") or ""))
     write_file(STATE_FILE, json.dumps(state), 0o600)
     outcome["public-key"] = write_hub_key(token)
     outcome["agent-token"] = write_agent_token(universal)
-    outcome["ping-address"] = write_ping_address()
     outcome["alert-rules"] = configure_alert_rules(token, user["id"])
     print("; ".join(f"{k}: {v}" for k, v in outcome.items()))
 
