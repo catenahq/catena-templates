@@ -434,9 +434,9 @@ services:
       # backend store. Never leaves the container; aio-talk requires
       # it set at startup but clients never see it.
       INTERNAL_SECRET: ${TALK_INTERNAL_SECRET}
-      # Quiet the supervisord log to warn-level by default; bump to
+      # Warn-level by default; the TALK_LOG_LEVEL setting raises it to
       # debug temporarily when troubleshooting.
-      AIO_LOG_LEVEL: warn
+      AIO_LOG_LEVEL: ${TALK_LOG_LEVEL:-warn}
       # Optional bitrate ceilings. aio-talk defaults to 1 Mbps audio +
       # 2 Mbps screen-share when these are unset; ship the defaults
       # explicitly so a UI edit lands in the catalog managed-keys.

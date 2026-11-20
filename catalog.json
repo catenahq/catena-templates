@@ -176,6 +176,15 @@
             "note": "Used inside the signaling server alone, which takes the new value when the file is saved."
           }
         },
+        "TALK_LOG_LEVEL": {
+          "setting": {
+            "default": "warn",
+            "label": {
+              "en": "Talk signaling server log level: warn, info or debug (debug shows the Janus offers and ICE candidates; set it back to warn afterwards)",
+              "fr": "Niveau de journal du serveur de signalisation Talk : warn, info ou debug (debug montre les offres Janus et les candidats ICE ; remettez warn ensuite)"
+            }
+          }
+        },
         "TURN_HOSTNAME": {
           "managed": {
             "expr": "{{ provided.turn.host }}"
@@ -225,6 +234,7 @@
         "SIGNALING_HOSTNAME=signaling.{{ cloudflare_zone }}",
         "SIGNALING_SECRET={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}",
         "TALK_INTERNAL_SECRET={{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}",
+        "TALK_LOG_LEVEL=warn",
         "TURN_HOSTNAME={{ provided.turn.host }}",
         "TURN_PORT={{ provided.turn.port }}",
         "TURN_TLS_PORT={{ provided.turn.tls_port }}",
