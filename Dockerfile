@@ -1,17 +1,19 @@
 # Serves the generated catalog over HTTP: a local preview of a catalog
 # change before it merges.
 #
+#   make preview
 #   docker build -t catena-templates:local .
 #   docker run --rm -p 8080:8080 catena-templates:local
 #   # then open http://<host>:8080/ (index.html) or
 #   # http://<host>:8080/catalog.json
 #
-# The generated files and the blueprints folders are copied in.
+# The catalog files of preview/ (`make preview`) and the blueprints folders are
+# copied in.
 
 FROM nginxinc/nginx-unprivileged:1.31-alpine
 
-COPY catalog.json /usr/share/nginx/html/catalog.json
-COPY index.html /usr/share/nginx/html/index.html
+COPY preview/catalog.json /usr/share/nginx/html/catalog.json
+COPY preview/index.html /usr/share/nginx/html/index.html
 COPY blueprints /usr/share/nginx/html/blueprints
 
 # The server answers any origin, so a page on another address can fetch the

@@ -218,6 +218,22 @@ def _prune_orphan_blueprints(entries: list[Entry]) -> list[str]:
     return dropped
 
 
+def catalog_document(entries: list[Entry], meta: dict[str, Any]) -> str:
+    """The text of catalog.json: the document of every entry, written nowhere."""
+    return (
+        json.dumps(
+            {
+                "version": 1,
+                "sizing": meta["sizing"],
+                "templates": [render_catalog_entry(entry) for entry in entries],
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n"
+    )
+
+
 def render_all() -> int:
     try:
         packed = pack_all()
@@ -230,23 +246,10 @@ def render_all() -> int:
     BLUEPRINTS.mkdir(parents=True, exist_ok=True)
     dropped = _prune_orphan_blueprints(entries)
 
-    catalog_entries: list[dict[str, Any]] = []
     for entry in entries:
         resolve_logo(entry)
-        catalog_entries.append(render_catalog_entry(entry))
 
-    CATALOG_JSON.write_text(
-        json.dumps(
-            {
-                "version": 1,
-                "sizing": meta["sizing"],
-                "templates": catalog_entries,
-            },
-            indent=2,
-            sort_keys=True,
-        )
-        + "\n"
-    )
+    CATALOG_JSON.write_text(catalog_document(entries, meta))
     INDEX_HTML.write_text(render_index_html(entries, meta))
 
     print(

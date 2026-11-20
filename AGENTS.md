@@ -197,7 +197,9 @@ The render deletes a blueprint directory only when it holds no `app.json`.
   compose block lifted under the keys `env`, `lifecycle`, `quiesce`
   and `env_managed_keys`. `env_defaults` is the
   env as `KEY=value` lines: a setting's default, the `lookup('password', ...)`
-  expression of a generated key, a managed key's expression.
+  expression of a generated key, a managed key's expression. `uv run
+  build/catalog.py` prints this document to stdout and writes nothing;
+  `catalog.json` matches its output byte for byte.
 - `index.html` -- a static preview of the catalog, browsable beside `catalog.json`.
 
 The render must be idempotent: running it twice produces byte-identical
@@ -350,9 +352,10 @@ README.md, "How to add a template", says how; these are the rules.
 ## Changing catalog.json
 
 `app.schema.json` and `block.schema.json` are internal to this repo; the
-CONTRACT with every reader of the catalog is `catalog.json`. A card or block
-change that leaves `catalog.json` identical needs nothing else. A change to
-`catalog.json` lands in the same merge window as its readers, since they
+CONTRACT with every reader of the catalog is the output of `uv run
+build/catalog.py`, which `catalog.json` matches byte for byte. A card or block
+change that leaves that output identical needs nothing else. A change to
+it lands in the same merge window as its readers, since they
 fetch `main`: ops `automation/helpers/templates_catalog.py` and
 `automation/operator-tools/generate-sizing-doc.py`, and any other reader a
 search of the workspace finds.

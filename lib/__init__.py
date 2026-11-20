@@ -7,7 +7,7 @@ canonical. The generated files (`catalog.json`,
 
 Modules:
   model         -- load + validate the metadata files and composes, expose the entry model
-  render        -- write blueprints/ + catalog.json + index.html
+  render        -- write blueprints/ + catalog.json + index.html; build the catalog document
   quiesce_lint  -- security lint over the backup quiesce hooks
   postgres_pins -- Postgres pins the update engine can order
   swarm_lint    -- swarm stack file compatibility gate

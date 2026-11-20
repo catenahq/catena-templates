@@ -7,7 +7,7 @@
 # commit the diff.
 
 .DEFAULT_GOAL := all
-.PHONY: all render validate lint test verify serve image clean
+.PHONY: all render validate lint test verify preview serve image clean
 
 ## all: validate, render, lint, test -- the pre-commit pass
 all: render lint test
@@ -34,12 +34,18 @@ test:
 verify: render
 	git diff --exit-code blueprints catalog.json index.html
 
-## serve: preview the generated catalog locally on :8000
-serve:
-	uv run python -m http.server 8000
+## preview: write catalog.json and index.html into the git-ignored preview/
+preview:
+	mkdir -p preview
+	uv run build/catalog.py > preview/catalog.json
+	uv run python -c "from lib.model import load_meta, load_sources; from lib.render import render_index_html; print(end=render_index_html(load_sources(), load_meta()))" > preview/index.html
+
+## serve: preview the catalog locally on :8000
+serve: preview
+	uv run python -m http.server 8000 --directory preview
 
 ## image: build the nginx image that serves the catalog from this tree
-image:
+image: preview
 	docker build -t catena-templates:local .
 
 ## clean: drop the generated root artifacts (they are committed; this is for bisecting).
