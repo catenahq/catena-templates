@@ -7,16 +7,16 @@
   "frappe": {
     "repo": "https://github.com/frappe/frappe",
     "tags": "^v16\\.\\d+\\.\\d+$",
-    "version": "v16.54.0",
-    "sha": "2fcb9397a1f1da353b21e53d2f97ec56653acd02"
+    "version": "v16.55.0",
+    "sha": "90c8b61afd60ee49f982ca1a9751008e4ae1e24c"
   },
   "apps": [
     {
       "name": "erpnext",
       "repo": "https://github.com/frappe/erpnext",
       "tags": "^v16\\.\\d+\\.\\d+$",
-      "version": "v16.53.0",
-      "sha": "9cd11b19575bfc34f092a24f6c8b368c4dd69481"
+      "version": "v16.55.0",
+      "sha": "8e10a348daaa93853de8c36dc55ec789a440c219"
     },
     {
       "name": "telephony",
