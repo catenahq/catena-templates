@@ -3,6 +3,8 @@ requires_catena: 0.12.2
 env:
   DOMAIN_HOST:
     managed: {expr: "office.{{ cloudflare_zone }}"}
+  WOPI_HOST:
+    managed: {expr: "nextcloud.{{ cloudflare_zone }}"}
   OFFICE_EDITOR:
     managed: {expr: "collabora"}
   OFFICE_URL:
