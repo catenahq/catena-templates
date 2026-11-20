@@ -1061,7 +1061,7 @@ def test_a_wave_opens_one_branch_and_one_pull_request_per_app(feed, capsys):
     steps = [c for c in git.writes()]
     assert steps[0] == ["git", "switch", "--create", "import/web-stack", "origin/main"]
     add = next(c for c in steps if c[:2] == ["git", "add"])
-    assert add[add.index("--") + 1:] == ["blueprints/web-stack", "catalog.json", "index.html"]
+    assert add[add.index("--") + 1:] == ["blueprints/web-stack"]
     create = next(c for c in steps if c[:3] == ["gh", "pr", "create"])
     assert create[create.index("--head") + 1] == "import/web-stack"
     assert create[create.index("--title") + 1] == "feat(import): web-stack from raw.githubusercontent.com"

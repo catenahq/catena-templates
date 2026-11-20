@@ -97,7 +97,6 @@ def test_an_app_is_one_app_across_its_folder_files():
         "blueprints/outline/docker-compose.yml",
         "blueprints/outline/logo.png",
         "blueprints/outline/app.json",
-        "catalog.json",
     ]) == []
 
 

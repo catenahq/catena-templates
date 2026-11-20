@@ -22,9 +22,9 @@ def _f(name, status="added", **kw):
 
 def test_a_change_inside_one_app_is_planned():
     p = adopt.plan([_f("blueprints/x/docker-compose.yml"), _f("blueprints/x/app.json", "modified"),
-                    _f("blueprints/x/old.md", "removed"), _f("catalog.json", "modified")])
+                    _f("blueprints/x/old.md", "removed")])
     assert p == {"app": "x", "copy": ["blueprints/x/app.json", "blueprints/x/docker-compose.yml"],
-                 "delete": ["blueprints/x/old.md"], "ignored": ["catalog.json"]}
+                 "delete": ["blueprints/x/old.md"]}
 
 
 def test_a_rename_copies_the_new_path_and_deletes_the_old():
@@ -40,7 +40,7 @@ def test_a_rename_copies_the_new_path_and_deletes_the_old():
     ([_f("/blueprints/x/a")], "unsafe path"),
     ([_f("blueprints/X/a")], "not a plain app id"),
     ([_f("blueprints/x/a", "renamed", previous_filename="blueprints/y/a")], "more than one app"),
-    ([_f("catalog.json")], "changes no app"),
+    ([_f("catalog.json")], "belongs to no app"),
 ])
 def test_a_change_outside_one_app_is_refused(files, why):
     with pytest.raises(adopt.AdoptError, match=why):
@@ -135,11 +135,11 @@ def test_the_pull_request_is_the_open_one_at_that_head_on_that_fork():
 def test_an_apps_card_file_is_planned_like_any_file_of_the_app():
     p = adopt.plan([_f("blueprints/x/app.json"), _f("blueprints/x/logo.png"),
                     _f("blueprints/x/docker-compose.yml", "modified"),
-                    _f("blueprints/x/old.md", "removed"), _f("catalog.json", "modified")])
+                    _f("blueprints/x/old.md", "removed")])
     assert p == {"app": "x",
                  "copy": ["blueprints/x/app.json", "blueprints/x/docker-compose.yml",
                           "blueprints/x/logo.png"],
-                 "delete": ["blueprints/x/old.md"], "ignored": ["catalog.json"]}
+                 "delete": ["blueprints/x/old.md"]}
 
 
 @pytest.mark.parametrize("name", ["catalog-meta.json", "catalog-aliases.json"])

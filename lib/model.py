@@ -121,8 +121,8 @@ class Entry:
 
     @property
     def compose_file(self) -> str:
-        """Repo-relative path to the compose, as catalog.json publishes
-        it. Derived from the id, so it cannot disagree with where the
+        """Repo-relative path to the compose, as the catalog document
+        publishes it. Derived from the id, so it cannot disagree with where the
         file is."""
         return f"{BLUEPRINTS.name}/{self.slug}/{COMPOSE_NAME}"
 

@@ -2,8 +2,8 @@
 
 Single source of truth for the Catena template catalog: one directory
 per application holding the files its compose is packed from and its card file
-`app.json` (metadata and prose), and the build pipeline that renders them into
-the machine catalog (`catalog.json`) and a static preview (`index.html`). A host
+`app.json` (metadata and prose), and the build pipeline that packs each compose and
+prints the machine catalog (`uv run build/catalog.py`) and a static preview. A host
 fetches `blueprints/<id>/` at a tag `<app>/<ver>-<rev>` and deploys its `docker-compose.yml` with `docker stack
 deploy` (see "Who reads this repository"); a deployed app keeps the compose, and
 the `x-catena` block in it, that it was deployed with.
@@ -40,7 +40,8 @@ snippets/                # hand-edited; optional; scripts apps share:
 
 lib/                     # the build library
   model.py               # load + validate the hand-edited inputs
-  render.py              # inputs -> every generated artifact
+  render.py              # inputs -> the generated blueprint files; the catalog document
+                         # and the preview page
   logo.py                # a project's logo -> a square PNG (build/logo.py)
   swarm_lint.py          # the swarm-stack-file compatibility gate
   quiesce_lint.py        # security lint over what a host acts on
@@ -59,7 +60,7 @@ lib/                     # the build library
                          # format
 
 build/                   # thin entrypoints
-  render.py  catalog.py  validate.py  lint_quiesce.py  lint_postgres_pins.py
+  render.py  catalog.py  preview.py  validate.py  lint_quiesce.py  lint_postgres_pins.py
   lint_swarm.py  import_registry.py  app_check.py  versions.py  adopt.py  pack.py
 
 catalog-meta.json        # hand-edited; the template order + sizing header
@@ -68,11 +69,9 @@ catalog-aliases.json     # optional; the importer's aliases
 app.schema.json          # schema for a blueprints/<id>/app.json
 block.schema.json        # schema for the x-catena block of a compose
 
-catalog.json             # generated; the machine view the ops tooling and the bench read;
-                         # `uv run build/catalog.py` prints the same bytes
-index.html               # generated; static catalog preview
-preview/                 # git-ignored; `make preview` writes a catalog.json and an
-                         # index.html here for `make serve` and `make image`
+preview/                 # git-ignored; `make preview` writes the catalog document
+                         # (build/catalog.py) and a static preview page (build/preview.py)
+                         # here for `make serve` and `make image`
 
 pyproject.toml           # the tools' packages; uv.lock is their locked environment
 uv.lock                  # every `uv run` of the tools and their tests uses it
@@ -83,7 +82,7 @@ Dockerfile               # nginx image serving the generated catalog
 
 The tools (`build/`, `lib/`) also run on another repository's tree of the same
 layout: the environment variable `TEMPLATES_ROOT` names the tree holding its
-`blueprints/` and generated files (default: this checkout), while the
+`blueprints/` and its files (default: this checkout), while the
 schemas are always read from this checkout. The render writes into that tree and
 `build/versions.py` reads its git tags.
 
@@ -91,9 +90,11 @@ An app is hand-edited in its own folder: `blueprints/<id>/app.json` (the web add
 is derived from the compose labels and `requires_catena` is a key of `x-catena.yml`),
 `services.yml`, `x-catena.yml`, the script files under `hooks/`, an optional `test.yml`
 and an optional `logo.png`. The compose carries no `vps.homepage.*` label. No README is
-kept per app: the catalog's `index.html` and the panel show the card from `app.json`.
-Everything else listed as generated is a committed build artifact; CI re-renders on
-every push and pull request and fails if the committed copies drift.
+kept per app: the catalog preview page and the panel show the card from `app.json`.
+The packed `docker-compose.yml` and the placeholder `logo.svg` are committed build
+artifacts; CI re-renders on every push and pull request and fails if the committed
+copies drift. The catalog document is printed on demand by `uv run build/catalog.py`
+and committed nowhere.
 
 ## An app held as neat files
 
@@ -193,10 +194,10 @@ exits 0 when the app answered, and refuses an app with no web address.
 - **Discovery** reads the catalog document: every template with its prose,
   sizing and bench data (the compose block's quiesce and lifecycle included,
   lifted from each compose); the ops tooling and the bench read it.
-  `uv run build/catalog.py` prints it to stdout and writes nothing, and the
-  committed `catalog.json` matches that output byte for byte. `index.html` is
-  the static preview, and `make preview` writes both into `preview/`, which the
-  image the `Dockerfile` builds serves.
+  They run `uv run build/catalog.py` in a checkout, which prints it to stdout
+  and writes nothing. `uv run build/preview.py` prints the static preview page,
+  and `make preview` writes both into `preview/`, which the image the
+  `Dockerfile` builds serves.
 - **The app checker** (`catena-applint --catalog`, catena-admin
   `payload/cmd/catena-applint`) reads the `blueprints/` folders in catena-admin's
   CI.
@@ -300,8 +301,8 @@ block.
    `blueprints/erpnext` and `blueprints/actualbudget`.
 7. If the entry works only on a Catena release newer than some servers
    run, `requires_catena` (a key of `x-catena.yml`) names the oldest one it
-   works on (`0.11.0`). The render carries it to `catalog.json` and the row of
-   `index.html`. A block field a published release does not read
+   works on (`0.11.0`). The catalog document carries it, and so does the row of
+   the preview page. A block field a published release does not read
    needs `requires_catena` at the release that reads it; app-ci refuses the entry
    until that release is published.
 8. Declare the verify hook, `x-catena.hooks.verify`, which asks the running
@@ -375,8 +376,7 @@ block.
    `CATENA_TEST_PASSWORD`, in every step list, `sign_in` entries' and the `writer`'s included; `tests/app-tests-debt.txt` lists the apps whose test
    is still to be rewritten. Real example: `blueprints/erpnext`.
 10. `make` -- renders, lints, and runs the tests. Commit the packed
-    `blueprints/<id>/docker-compose.yml`, `catalog.json` and `index.html` with the
-    source change.
+    `blueprints/<id>/docker-compose.yml` with the source change.
 11. Open a PR from a branch that changes this one app and nothing else, or, as
     a repository admin, push the one commit to `main`. CI runs
     `build-and-verify.yml`, `app-ci.yml` (see "Checks on every pull
@@ -838,8 +838,8 @@ uv run build/import_registry.py --wave 5 --also arcane=<registry.json address> <
 
 An imported entry renders with stubs (no bench pack, no measured peak,
 placeholder prose) and the published catalog marks it untested:
-`status` and `origin` in `catalog.json`, "Imported, untested" in
-`index.html`. Finishing
+`status` and `origin` in the catalog document, "Imported, untested" in
+the preview page. Finishing
 it means filling the stubs, settling `pending`, and deleting both
 `pending` and `status`; `origin` stays.
 

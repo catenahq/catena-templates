@@ -9,7 +9,7 @@ name: build-and-verify
 # Another repository with the same layout calls this workflow with
 # `catalog: false`. Its tools then come from a checkout of catena-templates at
 # `tools-ref` into .tools, TEMPLATES_ROOT names the caller's tree, the render
-# drift covers its blueprints only, its own tests/ run, and the duplication job
+# drift covers blueprints, its own tests/ run, and the duplication job
 # is skipped. The caller grants `actions: read`.
 #
 # The first job, same-tree, looks for an earlier run of this workflow on the
@@ -55,7 +55,6 @@ concurrency:
 env:
   TEMPLATES_ROOT: ${{ format('{0}', inputs.catalog) == 'false' && github.workspace || '' }}
   TOOLS: ${{ format('{0}', inputs.catalog) == 'false' && '.tools' || '.' }}
-  DRIFT_PATHS: ${{ format('{0}', inputs.catalog) == 'false' && 'blueprints' || 'blueprints catalog.json index.html' }}
 
 jobs:
   same-tree:
@@ -89,16 +88,16 @@ jobs:
           ref: ${{ inputs.tools-ref }}
           path: .tools
           persist-credentials: false
-      - name: Render and verify no drift between the inputs and the generated artifacts
+      - name: Render and verify no drift between the inputs and the generated blueprint files
         uses: catenahq/contracts/.github/actions/new-failures-only@main
         with:
           working-directory: ${{ github.workspace }}
           repo-path: ${{ github.workspace }}
           run: |
             uv run "$TOOLS/build/render.py"
-            if ! git diff --exit-code $DRIFT_PATHS; then
+            if ! git diff --exit-code blueprints; then
               echo ""
-              echo "render output drifted from committed artifacts."
+              echo "render output drifted from the committed blueprint files."
               echo "Run 'make render' locally, commit the diff, push."
               exit 1
             fi

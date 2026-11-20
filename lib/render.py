@@ -12,17 +12,14 @@ a host fetches at a tag and a reader opens:
   blueprints/<id>/logo.png            HAND-PLACED; optional
   blueprints/<id>/logo.svg            generated placeholder, absent a logo.png
 
-At the repo root, everything is generated:
-
-  catalog.json                        the browsable catalog: every template with its prose
-  index.html                          static catalog preview
-
-`catalog.json` carries the SSO mode, the compose's x-catena block (env, quiesce
-and lifecycle commands), bench membership, sizing, and the
-bilingual prose. Neither generated file is hand-edited.
+The catalog document and the static preview are built on demand, never written
+into the repository: `build/catalog.py` prints the catalog document and
+`build/preview.py` prints the preview. The catalog document carries the SSO mode,
+the compose's x-catena block (env, quiesce and lifecycle commands), bench
+membership, sizing, and the bilingual prose.
 
 Idempotency is the contract: rendering twice produces byte-identical
-output, and CI fails the PR when the committed artifacts drift.
+output, and CI fails the PR when the committed blueprint files drift.
 """
 from __future__ import annotations
 
@@ -36,9 +33,6 @@ from typing import Any
 
 from .model import BLUEPRINTS, ROOT, Entry, load_meta, load_sources
 from .pack import PackError, pack_all
-
-CATALOG_JSON = ROOT / "catalog.json"
-INDEX_HTML = ROOT / "index.html"
 
 # Matches a generated secret's lookup expression, with or without a filter
 # (`... | lower`).
@@ -146,8 +140,8 @@ def resolve_logo(entry: Entry) -> str:
 
 def render_index_html(entries: list[Entry], meta: dict[str, Any]) -> str:
     """A static preview of the catalog. No build step, no external
-    assets: it is opened straight from the repo or served by the
-    Dockerfile alongside catalog.json."""
+    assets: `make preview` writes it and the Dockerfile serves it
+    alongside the catalog document."""
     rows = []
     for entry in entries:
         en = entry.prose("en")
@@ -219,7 +213,7 @@ def _prune_orphan_blueprints(entries: list[Entry]) -> list[str]:
 
 
 def catalog_document(entries: list[Entry], meta: dict[str, Any]) -> str:
-    """The text of catalog.json: the document of every entry, written nowhere."""
+    """The catalog document: every entry, printed by build/catalog.py and written nowhere."""
     return (
         json.dumps(
             {
@@ -241,7 +235,6 @@ def render_all() -> int:
         print(f"pack: {exc}")
         return 1
     entries = load_sources()
-    meta = load_meta()
 
     BLUEPRINTS.mkdir(parents=True, exist_ok=True)
     dropped = _prune_orphan_blueprints(entries)
@@ -249,13 +242,7 @@ def render_all() -> int:
     for entry in entries:
         resolve_logo(entry)
 
-    CATALOG_JSON.write_text(catalog_document(entries, meta))
-    INDEX_HTML.write_text(render_index_html(entries, meta))
-
-    print(
-        f"rendered {len(entries)} templates: a logo per "
-        f"blueprint, plus catalog.json + index.html"
-    )
+    print(f"rendered {len(entries)} templates: a logo per blueprint")
     if packed:
         print(f"packed {len(packed)} compose file(s) from neat files")
     if dropped:

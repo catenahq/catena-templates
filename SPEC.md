@@ -9,9 +9,8 @@ resolves each pointer on every change.
 The canonical application catalog for Catena. A template is one folder,
 `blueprints/<id>/`, holding its hand-edited `services.yml`, `x-catena.yml`, hook
 scripts under `hooks/`, card (`app.json`), optional `test.yml` and optional
-`logo.png`; everything else is rendered from them: the packed
-`docker-compose.yml` a host deploys, the machine catalog `catalog.json` and the
-static preview `index.html`.
+`logo.png`; the packed `docker-compose.yml` a host deploys is rendered from them, and
+the machine catalog is what `build/catalog.py` prints from them.
 
 ## Boundaries
 
@@ -21,8 +20,7 @@ static preview `index.html`.
   optional `blueprints/<id>/test.yml`, an optional
   `blueprints/<id>/logo.png` and the shared `snippets/`. Everything else is a
   build output, committed and drift-gated: each app's packed
-  `docker-compose.yml` and placeholder logo, plus `catalog.json` and
-  `index.html`. Editing one of those directly fails CI.
+  `docker-compose.yml` and placeholder logo. Editing one of those directly fails CI.
 - **The app carries its own declarations.** What the server needs to back
   up, update and restore an app is the `x-catena` block at the root of the
   app's compose, its env included. A host adds the compose byte for byte, so a deployed
@@ -32,7 +30,7 @@ static preview `index.html`.
   a host fetches at a tag, so it is also where that template's
   compose, card and logo live. Nothing about a template is duplicated
   elsewhere in the repository.
-- **One catalog file.** `catalog.json` carries the SSO mode, the compose
+- **One catalog document.** `build/catalog.py` prints the SSO mode, the compose
   block's backup quiesce hooks and update commands, bench membership,
   sizing and the bilingual prose for the Catena side.
 - **Secrets.** The repository holds no secret; the server mints each
