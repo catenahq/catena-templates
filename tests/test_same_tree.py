@@ -92,6 +92,13 @@ def test_build_and_verify_tests_the_help_desk_image_for_the_catalog_only():
     assert '"${tests[@]}"' in run
 
 
+def test_build_and_verify_runs_pytest_on_four_processes():
+    job = _jobs("build-and-verify.yml")["lint-quiesce-tests"]
+    run = next(s["with"]["run"] for s in job["steps"] if "pytest" in s.get("name", ""))
+    assert "--with pytest-xdist" in run
+    assert '"${tests[@]}" -q -n 4' in run
+
+
 def test_every_caller_of_a_gated_workflow_grants_actions_read():
     found = 0
     for path in sorted(WORKFLOWS.glob("*.yml")):

@@ -213,7 +213,8 @@ jobs:
           persist-credentials: false
       - name: pytest (the catalog adds the help desk image's), quiesce lint and postgres pin lint
         # Three gates in one run: a failure line of one must not hide a new
-        # failure of another, so the exit status decides.
+        # failure of another, so the exit status decides. pytest runs on four
+        # processes (the runner has four vCPUs).
         uses: catenahq/contracts/.github/actions/new-failures-only@main
         with:
           working-directory: ${{ github.workspace }}
@@ -222,7 +223,7 @@ jobs:
             rc=0
             tests=(tests/)
             if [ -z "$TEMPLATES_ROOT" ]; then tests+=(images/erpnext-helpdesk); fi
-            uv run --with pytest --with jsonschema --with pyyaml --with pillow --with resvg-py pytest "${tests[@]}" -q || rc=1
+            uv run --with pytest --with pytest-xdist --with jsonschema --with pyyaml --with pillow --with resvg-py pytest "${tests[@]}" -q -n 4 || rc=1
             uv run "$TOOLS/build/lint_quiesce.py" || rc=1
             uv run "$TOOLS/build/lint_postgres_pins.py" || rc=1
             exit $rc
