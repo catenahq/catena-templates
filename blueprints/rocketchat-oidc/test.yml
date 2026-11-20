@@ -157,6 +157,70 @@ assert:
     expect_stdout_contains: "channel ok: catena-{{ run_id }} holds fixture-{{ run_id }}"
     timeout_s: 420
 
+  # The service overwrites Jitsi_Domain and Jitsi_SSL at every start and seeds
+  # Jitsi_Enabled on first creation; the settings API answers what the server holds.
+  - name: jitsi_settings_through_rocketchat
+    type: docker_exec
+    container: "{{ container_rocketchat }}"
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        exec node - <<'JS'
+        const env = process.env;
+        const api = "http://127.0.0.1:3000/api/v1";
+        const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+        const said = (res) => "HTTP " + res.status + " " + JSON.stringify(res.body);
+
+        async function call(method, path, auth, body) {
+          const headers = { ...auth };
+          if (body) headers["content-type"] = "application/json";
+          const res = await fetch(api + path, {
+            method, headers, signal: AbortSignal.timeout(30000),
+            body: body ? JSON.stringify(body) : undefined,
+          });
+          return { status: res.status, body: await res.json().catch(() => null) };
+        }
+
+        (async () => {
+          let auth = null;
+          for (let i = 0; !auth; i++) {
+            try {
+              const res = await call("POST", "/login", {}, { user: env.ADMIN_USERNAME, password: env.ADMIN_PASS });
+              if (res.status === 200 && res.body.data) {
+                auth = { "X-Auth-Token": res.body.data.authToken, "X-User-Id": res.body.data.userId };
+              }
+            } catch {}
+            if (!auth) {
+              if (i === 60) throw new Error("the administrator could not sign in within 300 s");
+              await sleep(5000);
+            }
+          }
+          // The administrator reads each setting by id, public or not.
+          const value = async (id) => {
+            const res = await call("GET", "/settings/" + id, auth);
+            if (res.status !== 200) throw new Error("settings/" + id + " answered " + said(res));
+            return res.body.value;
+          };
+          const domain = await value("Jitsi_Domain");
+          const ssl = await value("Jitsi_SSL");
+          const enabled = await value("Jitsi_Enabled");
+          const problems = [];
+          if (typeof domain !== "string" || !domain.startsWith("meet.")) problems.push("Jitsi_Domain is " + JSON.stringify(domain) + ", expected meet.<host>");
+          if (ssl !== true) problems.push("Jitsi_SSL is " + JSON.stringify(ssl) + ", expected true");
+          if (enabled !== true) problems.push("Jitsi_Enabled is " + JSON.stringify(enabled) + ", expected true");
+          if (problems.length) throw new Error(problems.join("; "));
+          await call("POST", "/logout", auth);
+          console.log("jitsi settings ok: " + domain);
+        })().catch((e) => {
+          console.error(e.message);
+          process.exit(1);
+        });
+        JS
+    expect_stdout_contains: "jitsi settings ok: meet."
+    timeout_s: 420
+
 writer:
   container: "{{ container_rocketchat }}"
   command:
