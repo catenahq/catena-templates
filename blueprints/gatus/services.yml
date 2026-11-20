@@ -17,6 +17,11 @@ services:
       # mounted at a path the image does not hold.
       GATUS_CONFIG_PATH: /catena
       GATUS_WEB_PORT: "8080"
+      # Gatus replaces ${NAME} in its configuration files with its own environment,
+      # so the alert token reaches the alerting block without being written to
+      # the config volume.
+      ALERT_URL: ${ALERT_URL:-}
+      ALERT_TOKEN: ${ALERT_TOKEN:-}
     labels:
       - "vps.auto-update=${UPDATE_LEVEL:-major}"
     volumes:
@@ -39,21 +44,21 @@ services:
       catena-network:
         aliases:
           - gatus
-      # Its alerts reach Healthchecks on the first network and its probe reaches
-      # the Beszel hub on the second, each on no other network.
-      catena-healthchecks: {}
+      # Its alerts reach the server's alert intake on the first network and its
+      # probe reaches the Beszel hub on the second, each on no other network.
+      catena-alerts: {}
       catena-beszel: {}
 
   # Writes 00-base.yaml whole into the config volume: the storage, the title, the
-  # self-check endpoint that Gatus needs to start, and the alert to Healthchecks
-  # when it has the address and the ping key. The sync of the endpoints writes the
+  # self-check endpoint that Gatus needs to start, and the alert to the alert intake
+  # when it has the address and the token. The sync of the endpoints writes the
   # 40- and 50- files beside it, and 99- files belong to the person who adds them.
   base:
     image: busybox:1.38.0@sha256:fd7dc98638c8e305f4dc34e979f1c0fdfdcaeb0fbf8fcff77ae834b6da3d7e6e
     environment:
       UI_TITLE: ${UI_TITLE:-}
-      HC_URL: ${HC_URL:-}
-      HC_PING_KEY: ${HC_PING_KEY:-}
+      ALERT_URL: ${ALERT_URL:-}
+      ALERT_TOKEN: ${ALERT_TOKEN:-}
       STATUS_HOST: ${STATUS_HOST:-}
       # The address of the Beszel hub; reading it joins the app to its network.
       HUB_URL: ${HUB_URL:-}
@@ -73,15 +78,17 @@ services:
           fi
           printf '  description: "Live status of the Catena server"\n  default-sort-by: group\n'
           printf '  dashboard-subheading: "Click on any service for more details."\n\n'
-          if [ -n "$$HC_URL" ] && [ -n "$$HC_PING_KEY" ]; then
-            printf 'alerting:\n  custom:\n'
-            printf '    url: "%s/ping/%s/gatus-[ALERT_DESCRIPTION][ALERT_TRIGGERED_OR_RESOLVED]?create=1"\n' "$$HC_URL" "$$HC_PING_KEY"
-            printf '    method: "POST"\n    body: |\n'
-            printf '      [ENDPOINT_GROUP] / [ENDPOINT_NAME]\n      Conditions: [CONDITION_RESULTS]\n'
+          if [ -n "$$ALERT_URL" ] && [ -n "$$ALERT_TOKEN" ]; then
+            link=""
             if [ -n "$$STATUS_HOST" ]; then
-              printf '      Status page: https://%s\n' "$$STATUS_HOST"
+              link="https://$$STATUS_HOST"
             fi
-            printf '    placeholders:\n      ALERT_TRIGGERED_OR_RESOLVED:\n        TRIGGERED: "/fail"\n        RESOLVED: ""\n'
+            printf 'alerting:\n  custom:\n'
+            printf '    url: "$${ALERT_URL}"\n    method: "POST"\n'
+            printf '    headers:\n      Authorization: "Bearer $${ALERT_TOKEN}"\n      Content-Type: "application/json"\n'
+            printf '    body: |\n'
+            printf '      {"key": "[ALERT_DESCRIPTION]", "state": "[ALERT_TRIGGERED_OR_RESOLVED]", "message": "[ENDPOINT_GROUP] / [ENDPOINT_NAME]: [RESULT_ERRORS]", "link": "%s"}\n' "$$link"
+            printf '    placeholders:\n      ALERT_TRIGGERED_OR_RESOLVED:\n        TRIGGERED: "down"\n        RESOLVED: "up"\n'
             printf '    default-alert:\n      failure-threshold: 3\n      success-threshold: 2\n      send-on-resolved: true\n\n'
           fi
           printf 'endpoints:\n  - name: "Gatus self-check"\n    group: "Infrastructure"\n'
@@ -119,7 +126,7 @@ volumes:
 networks:
   catena-network:
     external: true
-  catena-healthchecks:
+  catena-alerts:
     external: true
   catena-beszel:
     external: true

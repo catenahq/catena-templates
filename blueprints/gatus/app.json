@@ -27,7 +27,7 @@
   "en": {
     "display_name": "Gatus",
     "summary": "A status page that probes your server's services and alerts when one fails.",
-    "what_it_is": "Gatus probes the server's own services and the applications you run, shows their status on one page and sends its alerts to Healthchecks. The server adds an endpoint for each service and each application by itself.",
+    "what_it_is": "Gatus probes the server's own services and the applications you run, shows their status on one page and reports a failing service to the server's own alerts. The server adds an endpoint for each service and each application by itself.",
     "replaces": [
       "Uptime Robot",
       "Statuspage",
@@ -39,7 +39,7 @@
   "fr": {
     "display_name": "Gatus",
     "summary": "Une page d'\u00e9tat qui sonde les services du serveur et alerte quand l'un \u00e9choue.",
-    "what_it_is": "Gatus sonde les services du serveur et les applications que vous ex\u00e9cutez, affiche leur \u00e9tat sur une seule page et envoie ses alertes \u00e0 Healthchecks. Le serveur ajoute lui-m\u00eame un point de terminaison pour chaque service et chaque application.",
+    "what_it_is": "Gatus sonde les services du serveur et les applications que vous ex\u00e9cutez, affiche leur \u00e9tat sur une seule page et signale un service en panne aux alertes du serveur. Le serveur ajoute lui-m\u00eame un point de terminaison pour chaque service et chaque application.",
     "replaces": [
       "Uptime Robot",
       "Statuspage",
