@@ -1,5 +1,5 @@
-"""Unit tests for lib/render.py: the transforms that decide what catalog.json
-holds, which catenahq/ops reads back.
+"""Unit tests for lib/render.py: the transforms that decide what the catalog
+document holds, which catenahq/ops reads back.
 """
 from __future__ import annotations
 
@@ -16,6 +16,14 @@ sys.path.insert(0, str(ROOT))
 from lib import model, render  # noqa: E402
 
 
+def _catalog_text() -> str:
+    return render.catalog_document(model.load_sources(), model.load_meta())
+
+
+def _catalog() -> dict:
+    return json.loads(_catalog_text())
+
+
 def test_no_generated_file_is_a_portainer_index():
     assert not (ROOT / "templates.json").exists()
     assert not (ROOT / "Schema.json").exists()
@@ -24,7 +32,7 @@ def test_no_generated_file_is_a_portainer_index():
 
 def test_catalog_json_keeps_the_jinja_of_a_generated_secret():
     """The host resolves the lookup that mints a generated secret."""
-    assert "lookup('password'" in (ROOT / "catalog.json").read_text()
+    assert "lookup('password'" in _catalog_text()
 
 
 def test_catalog_json_carries_what_the_ops_tooling_reads():
@@ -32,7 +40,7 @@ def test_catalog_json_carries_what_the_ops_tooling_reads():
     membership and sizing in one go. An imported entry
     carries its origin where a curated one carries its bench pack and its
     measured peak."""
-    doc = json.loads((ROOT / "catalog.json").read_text())
+    doc = _catalog()
     assert "postgres_default_image" not in doc
     assert set(doc["sizing"]) == {
         "last_measured_at", "measurement_host", "measurement_method",
@@ -48,7 +56,7 @@ def test_catalog_json_carries_what_the_ops_tooling_reads():
 
 
 def test_catalog_json_lists_every_app():
-    catalog = json.loads((ROOT / "catalog.json").read_text())["templates"]
+    catalog = _catalog()["templates"]
     entries = model.load_sources()
     assert {e["id"] for e in catalog} == {e.slug for e in entries}
     assert len(catalog) == len(entries)
@@ -59,7 +67,7 @@ def test_the_blocks_managed_env_reaches_the_catalog_as_env_lines_and_keys():
     block's expression, and env_managed_keys lists the keys in the block's
     order; the host's settling of the env reads them."""
     catalog = {
-        e["id"]: e for e in json.loads((ROOT / "catalog.json").read_text())["templates"]
+        e["id"]: e for e in _catalog()["templates"]
     }
     managed = 0
     for entry in model.load_sources():
@@ -73,7 +81,7 @@ def test_the_blocks_managed_env_reaches_the_catalog_as_env_lines_and_keys():
 
 
 def test_the_catalog_carries_no_object_store():
-    catalog = json.loads((ROOT / "catalog.json").read_text())["templates"]
+    catalog = _catalog()["templates"]
     assert not any("object_store" in e for e in catalog)
 
 
@@ -88,7 +96,7 @@ def test_quiesce_reaches_the_catalog_unchanged():
     without the quiesce, and nothing downstream can tell that from an app
     that declared none."""
     catalog = {
-        e["id"]: e for e in json.loads((ROOT / "catalog.json").read_text())["templates"]
+        e["id"]: e for e in _catalog()["templates"]
     }
     declared = 0
     for entry in model.load_sources():
@@ -104,7 +112,7 @@ def test_lifecycle_reaches_the_catalog_unchanged():
     migration that never runs, or a volume a rollback does not put back, and
     nothing downstream can tell that from an app that declared none."""
     catalog = {
-        e["id"]: e for e in json.loads((ROOT / "catalog.json").read_text())["templates"]
+        e["id"]: e for e in _catalog()["templates"]
     }
     migrating = versioning = 0
     for entry in model.load_sources():
@@ -124,7 +132,7 @@ def test_every_blueprint_carries_its_compose():
 
 
 def test_the_catalog_points_at_the_blueprint_compose():
-    catalog = json.loads((ROOT / "catalog.json").read_text())["templates"]
+    catalog = _catalog()["templates"]
     for e in catalog:
         assert e["compose_file"] == f"blueprints/{e['id']}/docker-compose.yml"
         assert (ROOT / e["compose_file"]).is_file(), e["id"]
@@ -180,7 +188,7 @@ def test_the_required_release_is_a_full_version():
 
 def test_the_index_row_names_each_required_release():
     required = 0
-    index = (ROOT / "index.html").read_text()
+    index = render.render_index_html(model.load_sources(), model.load_meta())
     for entry in model.load_sources():
         if not entry.requires_catena:
             continue
@@ -199,13 +207,11 @@ def test_rendering_does_not_touch_the_hand_edited_compose():
     assert compose.read_bytes() == before
 
 
-def test_rendering_twice_gives_identical_artifacts():
-    render.render_all()
-    first = {path: path.read_bytes()
-             for path in (render.CATALOG_JSON, render.INDEX_HTML)}
-    render.render_all()
-    for path, content in first.items():
-        assert path.read_bytes() == content, path.name
+def test_rendering_writes_neither_the_catalog_nor_the_index(tmp_path):
+    _tree(tmp_path)
+    assert _rendered(tmp_path).returncode == 0
+    assert not (tmp_path / "catalog.json").exists()
+    assert not (tmp_path / "index.html").exists()
 
 
 def test_a_blueprint_with_no_card_file_is_dropped(tmp_path, monkeypatch):
@@ -264,7 +270,7 @@ def test_an_app_renders_its_catalog_entry_and_index_row(tmp_path):
     _tree(tmp_path)
     done = _rendered(tmp_path)
     assert done.returncode == 0, done.stderr
-    published = json.loads((tmp_path / "catalog.json").read_text())["templates"][0]
+    published = json.loads(_printed(tmp_path).stdout)["templates"][0]
     for lang in ("en", "fr"):
         assert CONSUMED_PROSE_KEYS <= set(published[lang])
     assert published["domain_host"] == "x.example.com"
@@ -294,13 +300,23 @@ def _files(root: Path) -> dict[str, bytes]:
     return {str(p.relative_to(root)): p.read_bytes() for p in sorted(root.rglob("*")) if p.is_file()}
 
 
-def test_the_catalog_command_prints_the_document_the_render_writes(tmp_path):
+def _returned(root: Path) -> str:
+    """What render.catalog_document returns for the tree at root."""
+    env = {**os.environ, "TEMPLATES_ROOT": str(root), "PYTHONPATH": str(ROOT)}
+    code = ("import sys; from lib import model, render; "
+            "sys.stdout.write(render.catalog_document(model.load_sources(), model.load_meta()))")
+    done = subprocess.run([sys.executable, "-c", code], cwd=root, env=env,
+                          capture_output=True, text=True, check=True)
+    return done.stdout
+
+
+def test_the_catalog_command_prints_the_document_the_render_function_returns(tmp_path):
     _tree(tmp_path)
     assert _rendered(tmp_path).returncode == 0
     before = _files(tmp_path)
     done = _printed(tmp_path)
     assert done.returncode == 0, done.stderr
-    assert done.stdout == (tmp_path / "catalog.json").read_text()
+    assert done.stdout == _returned(tmp_path)
     assert _files(tmp_path) == before
 
 
@@ -313,10 +329,10 @@ def test_the_catalog_command_writes_nothing_before_a_render(tmp_path):
     assert _files(tmp_path) == before
 
 
-def test_the_catalog_command_prints_the_committed_catalog():
+def test_the_catalog_command_prints_the_catalog_of_this_tree():
     done = _printed(ROOT)
     assert done.returncode == 0, done.stderr
-    assert done.stdout == (ROOT / "catalog.json").read_text()
+    assert done.stdout == _catalog_text()
 
 
 def test_the_catalog_command_names_a_card_that_breaks_its_schema(tmp_path):
@@ -357,11 +373,10 @@ def test_validate_names_a_card_that_breaks_its_schema(tmp_path):
 
 def test_rendering_a_tree_twice_gives_identical_artifacts(tmp_path):
     _tree(tmp_path)
-    names = ("catalog.json", "index.html")
     assert _rendered(tmp_path).returncode == 0
-    first = {name: (tmp_path / name).read_bytes() for name in names}
+    first = _files(tmp_path)
     assert _rendered(tmp_path).returncode == 0
-    assert {name: (tmp_path / name).read_bytes() for name in names} == first
+    assert _files(tmp_path) == first
 
 
 def _neat_tree(root: Path) -> Path:
@@ -385,19 +400,18 @@ def test_the_render_packs_an_app_held_as_neat_files_before_it_reads_the_block(tm
     assert (folder / "docker-compose.yml").read_text() == (
         "x-catena:\n  schema: 2\n  requires_catena: 0.11.5\n  env:\n    DOMAIN_HOST:\n"
         "      setting: {default: x.example.com}\n\n" + (folder / "services.yml").read_text())
-    entry = json.loads((tmp_path / "catalog.json").read_text())["templates"][0]
+    entry = json.loads(_printed(tmp_path).stdout)["templates"][0]
     assert (entry["domain_host"], entry["domain_service"], entry["requires_catena"]) == (
         "x.example.com", "app", "0.11.5")
 
 
 def test_rendering_an_app_held_as_neat_files_twice_gives_identical_artifacts(tmp_path):
     folder = _neat_tree(tmp_path)
-    names = ("catalog.json", "index.html", "blueprints/example/docker-compose.yml")
     assert _rendered(tmp_path).returncode == 0
-    first = {name: (tmp_path / name).read_bytes() for name in names}
+    first = _files(tmp_path)
     done = _rendered(tmp_path)
     assert done.returncode == 0 and "packed" not in done.stdout
-    assert {name: (tmp_path / name).read_bytes() for name in names} == first
+    assert _files(tmp_path) == first
     assert (folder / "docker-compose.yml").is_file()
 
 

@@ -3,9 +3,8 @@
 Only data moves: the fork's files are read as blobs through the API and written
 as blobs of this repository, so no fork code is checked out or run. The change
 must stay inside one app (`blueprints/<id>/**`, `app.json` and the logo among them);
-the catalog's generated root
-files are left to the render on the adopt branch, and its hand-edited root files
-(`catalog-meta.json`, `catalog-aliases.json`) belong to no app and are refused.
+the catalog's hand-edited root files (`catalog-meta.json`, `catalog-aliases.json`)
+belong to no app and are refused.
 """
 from __future__ import annotations
 
@@ -16,7 +15,6 @@ from typing import Callable
 
 from lib.changes import SLUG, app_id
 
-GENERATED = {"catalog.json", "index.html"}
 FILE_MODES = {"100644", "100755"}
 MAX_BYTES = 1_000_000
 SHA = re.compile(r"[0-9a-f]{40}")
@@ -42,14 +40,10 @@ def plan(files: list[dict]) -> dict:
     An entry has `filename`, `status` and, for a rename, `previous_filename`."""
     copy: list[str] = []
     delete: list[str] = []
-    ignored: list[str] = []
     apps: set[str] = set()
     for f in files:
         name = _clean(f["filename"])
         old = _clean(f["previous_filename"]) if f.get("previous_filename") else None
-        if name in GENERATED and old is None:
-            ignored.append(name)
-            continue
         for path in filter(None, (name, old)):
             app = app_id(path)
             if app is None:
@@ -67,8 +61,7 @@ def plan(files: list[dict]) -> dict:
         raise AdoptError("the pull request changes no app")
     if len(apps) > 1:
         raise AdoptError(f"the pull request changes more than one app: {sorted(apps)}")
-    return {"app": next(iter(apps)), "copy": sorted(copy), "delete": sorted(delete),
-            "ignored": sorted(ignored)}
+    return {"app": next(iter(apps)), "copy": sorted(copy), "delete": sorted(delete)}
 
 
 def _check(sha: str, fork: str) -> None:
@@ -118,7 +111,7 @@ def adopt(api: Api, base_repo: str, fork: str, head_sha: str, pr: int, files: li
         api("PATCH", f"repos/{base_repo}/git/refs/heads/{branch}", {"sha": commit["sha"], "force": True})
     except LookupError:
         api("POST", f"repos/{base_repo}/git/refs", {"ref": f"refs/heads/{branch}", "sha": commit["sha"]})
-    return {"app": p["app"], "branch": branch, "sha": commit["sha"], "ignored": p["ignored"]}
+    return {"app": p["app"], "branch": branch, "sha": commit["sha"]}
 
 
 def find_pr(api: Api, base_repo: str, fork: str, head_sha: str) -> int:

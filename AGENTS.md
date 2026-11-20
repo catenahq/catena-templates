@@ -13,7 +13,8 @@ the repository, and the checks.
   No README is kept per app: a template's description and setup steps are in its
   `app.json`.
 - Everything else is generated: the packed `docker-compose.yml` of each app and
-  its placeholder `logo.svg`, plus `catalog.json` and `index.html`.
+  its placeholder `logo.svg`. The catalog document is printed by `build/catalog.py`
+  and committed nowhere.
   Never hand-edit a generated file -- the change is overwritten on the
   next render, and CI rejects the change.
 - A hand-placed `logo.png` is the project's own logo, unmodified, made by
@@ -82,7 +83,7 @@ the repository, and the checks.
 - An entry that an older Catena release deploys in a shape it cannot
   serve names the oldest release it works on in
   `requires_catena` (a key of `x-catena.yml`), the one place that release is
-  written: the render carries it to `catalog.json` and `index.html`, so the prose
+  written: the catalog document and the preview page carry it from there, so the prose
   never repeats it.
 - An app whose folder holds `services.yml` is held as neat files, as every app here
   is: edit `services.yml`, `x-catena.yml` and `hooks/`, never its
@@ -192,18 +193,15 @@ transforms each app's files into:
 
 The render deletes a blueprint directory only when it holds no `app.json`.
 
-- `catalog.json` -- the browsable catalog, in one
-  fetch: the flat per-template fields, `sizing`, the EN/FR prose, and the
-  compose block lifted under the keys `env`, `lifecycle`, `quiesce`
-  and `env_managed_keys`. `env_defaults` is the
-  env as `KEY=value` lines: a setting's default, the `lookup('password', ...)`
-  expression of a generated key, a managed key's expression. `uv run
-  build/catalog.py` prints this document to stdout and writes nothing;
-  `catalog.json` matches its output byte for byte.
-- `index.html` -- a static preview of the catalog, browsable beside `catalog.json`.
+The catalog document, in one print: the flat per-template fields, `sizing`, the
+EN/FR prose, and the compose block lifted under the keys `env`, `lifecycle`,
+`quiesce` and `env_managed_keys`. `env_defaults` is the env as `KEY=value` lines: a
+setting's default, the `lookup('password', ...)` expression of a generated key, a
+managed key's expression. `uv run build/catalog.py` prints it to stdout and writes
+nothing. `uv run build/preview.py` prints a static preview page of the catalog.
 
 The render must be idempotent: running it twice produces byte-identical
-outputs. CI verifies with `git diff --exit-code` over the generated files.
+outputs. CI verifies with `git diff --exit-code blueprints`.
 
 ## Every compose here is a SWARM stack file
 
@@ -349,14 +347,14 @@ README.md, "How to add a template", says how; these are the rules.
   once app-tests passes; any other change of an app is one commit on main. Each
   main commit is judged by app-ci, and a failed commit gets no tag.
 
-## Changing catalog.json
+## Changing the catalog document
 
 `app.schema.json` and `block.schema.json` are internal to this repo; the
 CONTRACT with every reader of the catalog is the output of `uv run
-build/catalog.py`, which `catalog.json` matches byte for byte. A card or block
+build/catalog.py`. A card or block
 change that leaves that output identical needs nothing else. A change to
 it lands in the same merge window as its readers, since they
-fetch `main`: ops `automation/helpers/templates_catalog.py` and
+run it on `main`: ops `automation/helpers/templates_catalog.py` and
 `automation/operator-tools/generate-sizing-doc.py`, and any other reader a
 search of the workspace finds.
 

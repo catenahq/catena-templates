@@ -428,12 +428,9 @@ def test_the_render_writes_into_the_tree_templates_root_names(tmp_path):
     _fixture_tree(tmp_path)
     done = _tools(tmp_path, str(ROOT / "build" / "render.py"))
     assert done.returncode == 0, done.stderr
-    for name in ("catalog.json", "index.html"):
-        assert (tmp_path / name).is_file(), name
+    assert (tmp_path / "blueprints" / "example" / "logo.svg").is_file()
     assert not (tmp_path / "templates.json").exists()
     assert not (tmp_path / "blueprints" / "example" / "README.md").exists()
-    catalog = json.loads((tmp_path / "catalog.json").read_text())["templates"]
-    assert [t["id"] for t in catalog] == ["example"]
 
 
 def _png(width: int = 256, height: int | None = None, depth: int = 8, colour: int = 6,

@@ -10,8 +10,7 @@ open cap still allows. The defaults are conservative; the flags
 
 An imported app is one branch, import/<id>, one commit and one pull request,
 so the scope check holds: a pull request changes one app. The branch starts
-at the base branch of a clean checkout. The apps' generated files (the
-catalog artifacts) are rendered into the commit.
+at the base branch of a clean checkout.
 
 git and gh run through `run`, a function from an argument list to the
 command's output, which the tests replace.
@@ -28,7 +27,6 @@ DAILY_LIMIT = 5
 OPEN_LIMIT = 10
 IMPORT_PREFIX = "import/"
 PRIORITY_PREFIXES = ("renovate/", "engine-bump/", "scanctl/")
-GENERATED = ("catalog.json", "index.html")
 
 Run = Callable[[list[str]], str]
 
@@ -118,7 +116,7 @@ class Publisher:
             write()
             if render and self.render() != 0:
                 raise WaveError(f"the render failed for {name}")
-            self.run(["git", "add", "--", *paths, *(GENERATED if render else ())])
+            self.run(["git", "add", "--", *paths])
             self.run(["git", "commit", "--message", title, "--message", body])
             self.run(["git", "push", "--set-upstream", self.remote, branch])
             return self.run(["gh", "pr", "create", "--base", self.base, "--head", branch,

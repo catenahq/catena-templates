@@ -331,7 +331,7 @@
         "compose_description": {
           "type": "string",
           "minLength": 1,
-          "description": "The long description catalog.json publishes; ops reads it in each language of every entry."
+          "description": "The long description the catalog document publishes; ops reads it in each language of every entry."
         },
         "setup_steps": {
           "type": "string"
