@@ -1,6 +1,6 @@
 name: build-and-verify
 
-# A push to a branch keeps the absolute gate. A pull request is judged on what
+# A push to the default branch keeps the absolute gate. A pull request is judged on what
 # it introduces: every job but schema and prose runs its gate through
 # contracts' new-failures-only action, which fails only on failures the base
 # commit does not have, and the prose gate looks at the files the change
@@ -17,10 +17,10 @@ name: build-and-verify
 # failure fails the job.
 
 on:
-  # Every pushed branch. Renovate, engine-bump, image-pin and agent branches
-  # always carry a pull request, which tests each push to them.
+  # A change is checked once, on its pull request, Renovate's included. A push
+  # runs the checks only on the default branch.
   push:
-    branches-ignore: ['renovate/**', 'engine-bump/**', 'image-pin/**', 'scanctl/**', 'agent/**', 'feature/auto-*']
+    branches: [main]
   pull_request:
     branches: [main]
   workflow_call:

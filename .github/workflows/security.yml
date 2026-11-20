@@ -12,10 +12,10 @@ name: security
 
 on:
   pull_request:
-  # Every pushed branch. Renovate, engine-bump, image-pin and agent branches
-  # always carry a pull request, which tests each push to them.
+  # A change is scanned once, on its pull request, Renovate's included. A push
+  # runs the scan only on the default branch.
   push:
-    branches-ignore: ['renovate/**', 'engine-bump/**', 'image-pin/**', 'scanctl/**', 'agent/**', 'feature/auto-*']
+    branches: [main]
   schedule:
     - cron: '17 6 * * *'
 
