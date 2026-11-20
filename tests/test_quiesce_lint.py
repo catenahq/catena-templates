@@ -795,6 +795,16 @@ def test_the_provider_table_is_the_denied_secrets_of_the_contract_wiring():
     assert L.PROVIDER_SECRETS == {app: names for app, names in held.items() if names}
 
 
+def test_an_alert_intake_token_is_read_by_the_blueprint_of_its_source_and_the_read_token_by_none():
+    wiring = json.loads((ROOT.parent / "contracts" / "default-apps" / "wiring.json").read_text(encoding="utf-8"))
+    for source, blueprint in wiring["alert_intake_sources"].items():
+        token = f"alert_intake_token_{source}"
+        assert token in L.DENIED_SECRETS
+        assert {slug for slug, names in L.PROVIDER_SECRETS.items() if token in names} == {blueprint}
+    assert "alert_intake_token_read" in L.DENIED_SECRETS
+    assert not [slug for slug, names in L.PROVIDER_SECRETS.items() if "alert_intake_token_read" in names]
+
+
 def test_the_blueprints_read_only_the_denied_secrets_the_table_gives_them():
     for entry in model.load_sources():
         assert L.lint_managed_secrets(entry) == [], entry.slug

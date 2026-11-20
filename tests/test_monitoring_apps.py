@@ -1,6 +1,7 @@
 """Gatus, Healthchecks and the Beszel hub: the networks that keep the monitoring
 plane apart from the client apps, the loopback ports, the data each declares and
-the swarm shape of their composes.
+the swarm shape of their composes. Gatus and the Beszel hub post their alerts to the
+server's alert intake on catena-alerts.
 
 Healthchecks takes the signed-in user from a header whoever sends it, so only the
 network decides who may call it. The hub trusts the sign-in header from its gate's
@@ -24,6 +25,7 @@ from lib import model, quiesce_lint  # noqa: E402
 
 APPS = ("healthchecks", "gatus", "beszel")
 HC_NETWORK = "catena-healthchecks"
+ALERTS_NETWORK = "catena-alerts"
 BESZEL_NETWORK = "catena-beszel"
 GATE_NETWORK = "catena-beszelgate"
 PORTS = {"healthchecks": (8000, 18000), "gatus": (8080, 18080), "beszel": (8090, 18190)}
@@ -66,16 +68,16 @@ def test_healthchecks_is_on_its_own_network_only():
 def test_the_hub_is_on_its_own_networks_beside_its_private_one():
     doc = _compose("beszel")
     app = doc["services"]["app"]
-    assert _networks(app) == {"default", BESZEL_NETWORK, GATE_NETWORK}
+    assert _networks(app) == {"default", BESZEL_NETWORK, GATE_NETWORK, ALERTS_NETWORK}
     for net in (BESZEL_NETWORK, GATE_NETWORK):
         assert app["networks"][net]["aliases"] == ["beszel-hub"]
-    assert _external(doc) == {BESZEL_NETWORK, GATE_NETWORK, HC_NETWORK, "hostnet"}
+    assert _external(doc) == {BESZEL_NETWORK, GATE_NETWORK, ALERTS_NETWORK, "hostnet"}
 
 
-def test_the_relay_is_on_the_apps_network_and_the_healthchecks_network_only():
+def test_the_relay_is_on_the_apps_network_only():
     doc = _compose("beszel")
     relay = doc["services"]["relay"]
-    assert _networks(relay) == {"default", HC_NETWORK}
+    assert _networks(relay) == {"default"}
     assert "ports" not in relay and "labels" not in relay
     assert relay["volumes"] == ["agent-key:/key", "relay-state:/state"]
     assert "environment" not in relay, "the relay holds no key or password in its service definition"
@@ -112,22 +114,25 @@ def test_only_gatus_joins_catena_network():
         assert joined == ({"app"} if slug == "gatus" else set()), slug
 
 
-def test_gatus_reaches_healthchecks_and_the_hub_and_drops_raw_packets():
+def test_gatus_reaches_the_alert_intake_and_the_hub_and_drops_raw_packets():
     doc = _compose("gatus")
     app = doc["services"]["app"]
-    assert {HC_NETWORK, BESZEL_NETWORK} <= _networks(app)
+    assert {ALERTS_NETWORK, BESZEL_NETWORK} <= _networks(app)
+    assert HC_NETWORK not in _networks(app)
     assert app["networks"]["catena-network"]["aliases"] == ["gatus"]
     assert "NET_RAW" in app["cap_drop"]
 
 
-def test_no_client_network_reaches_the_gate_network_or_the_healthchecks_network():
+def test_no_client_network_reaches_the_gate_network_the_healthchecks_network_or_the_intake_network():
     for slug in APPS:
         for name, svc in _compose(slug)["services"].items():
             nets = _networks(svc)
             if GATE_NETWORK in nets:
                 assert (slug, name) == ("beszel", "app")
             if HC_NETWORK in nets:
-                assert (slug, name) in {("healthchecks", "app"), ("gatus", "app"), ("beszel", "relay")}
+                assert (slug, name) == ("healthchecks", "app")
+            if ALERTS_NETWORK in nets:
+                assert (slug, name) in {("gatus", "app"), ("beszel", "app")}
             if BESZEL_NETWORK in nets:
                 assert (slug, name) in {("beszel", "app"), ("gatus", "app")}
 
@@ -226,7 +231,7 @@ def test_the_block_names_its_version_service(slug):
 # provide each and who may read it (the provider may always read its own). Every blueprint of
 # the catalog is held to this table.
 PRIVATE_CAPABILITIES = {
-    "healthchecks": {"provider": "healthchecks", "readers": {"gatus", "beszel"}},
+    "healthchecks": {"provider": "healthchecks", "readers": set()},
     "beszel": {"provider": "beszel", "readers": {"gatus"}},
     "beszelgate": {"provider": "beszel", "readers": set()},
 }
@@ -260,9 +265,17 @@ def test_the_capabilities_the_apps_provide_name_a_key_of_their_env():
     assert _entry("healthchecks").block["provides"] == {"healthchecks": {"url": "HC_URL", "ping_key": "PING_KEY"}}
     assert _entry("beszel").block["provides"] == {"beszel": {"url": "HUB_URL"}, "beszelgate": {"url": "HUB_URL"}}
     gatus = _entry("gatus").managed_env
-    assert gatus["HC_URL"] == "{{ provided.healthchecks.url }}"
-    assert gatus["HC_PING_KEY"] == "{{ provided.healthchecks.ping_key }}"
     assert gatus["HUB_URL"] == "{{ provided.beszel.url }}"
+    assert not {"HC_URL", "HC_PING_KEY"} & set(gatus)
+    assert not {"HC_URL", "HC_PING_KEY"} & set(_entry("beszel").env)
+
+
+def test_the_apps_post_to_the_intake_with_the_token_of_their_own_source():
+    assert WIRING["alert_intake_sources"] == {"status": "gatus", "resources": "beszel"}
+    for source, slug in WIRING["alert_intake_sources"].items():
+        env = _entry(slug).managed_env
+        assert env["ALERT_URL"] == "http://catena-alert-intake:8080/v1/items"
+        assert env["ALERT_TOKEN"] == "{{ alert_intake_token_" + source + " }}"
 
 
 # --- the wiring contract (contracts default-apps/wiring.json) ---
