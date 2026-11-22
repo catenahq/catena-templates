@@ -12,7 +12,7 @@ on:
 permissions: {}
 jobs:
   control:
-    uses: catenahq/contracts/.github/workflows/control.yml@b1d4ca79e0999fd9f12c86b6c77737b503e1d2ce # main
+    uses: catenahq/contracts/.github/workflows/control.yml@ff0e094463a8ae95aaca41ff5e4a5d5fd339bb7e # main
     permissions:
       contents: read
       actions: read
