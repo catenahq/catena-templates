@@ -297,11 +297,10 @@ it.
    image reference of its compose, the quiesce, lifecycle and hooks argv
    allowlists, a hooks script that parses in the interpreter it names, a
    managed expression that reads no store secret outside the block's
-   `secrets` and none on the deny list, the
-   quiesce service check, the `host_paths` check (a normalised absolute path
-   holding neither the Docker socket's folders nor the compose folders; an app
-   binds a host path outside its own data folder only when its unchanged
-   catalog file declares it there), the versioned volume check (a top-level volume
+   `secrets`, the
+   quiesce service check, the `host_paths` check (a normalised absolute path;
+   the app checker of catena-admin refuses a read of a secret that opens the
+   host and a path in the machine's own folders, rules X21 and K17), the versioned volume check (a top-level volume
    that only long-running services other than a database mount), the
    sign-in labels (on the main address's service, `redirect_uris` beside
    `vps.auth.oidc=true`, `vps.auth.oidc.scopes` holding client scope names,

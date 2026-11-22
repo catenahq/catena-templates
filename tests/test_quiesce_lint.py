@@ -755,57 +755,7 @@ def test_a_managed_expression_reading_an_unlisted_secret_is_refused(monkeypatch,
             ) in capsys.readouterr().out
 
 
-def test_a_managed_expression_reading_a_denied_secret_is_refused(monkeypatch, tmp_path, capsys):
-    _synthetic_sources(monkeypatch, tmp_path, {},
-                       block=_managed("{{ admin_password }}", secrets=["admin_password"]))
-    assert L.lint_all() == 1
-    assert "reads 'admin_password', a secret no managed expression may read" in capsys.readouterr().out
-
-
-def test_a_blueprint_reads_the_denied_secrets_its_table_entry_names_and_no_other(monkeypatch, tmp_path, capsys):
-    block = _managed("{{ turn_static_key | default('') }}", secrets=["turn_static_key"])
-    monkeypatch.setattr(L, "DENIED_SECRETS", L.DENIED_SECRETS | {"turn_static_key", "turn_other_key"})
-    monkeypatch.setattr(L, "PROVIDER_SECRETS", {"synthetic-bad": frozenset({"turn_static_key"})})
-    _synthetic_sources(monkeypatch, tmp_path, {}, block=block)
-    assert L.lint_all() == 0, capsys.readouterr().out
-    _synthetic_sources(monkeypatch, tmp_path / "unlisted", {}, block={**block, "secrets": []})
-    assert L.lint_all() == 1
-    assert "reads the store secret 'turn_static_key', which the block's secrets does not list" in (
-        capsys.readouterr().out)
-    monkeypatch.setattr(L, "PROVIDER_SECRETS", {"someone-else": frozenset({"turn_static_key"})})
-    _synthetic_sources(monkeypatch, tmp_path / "other", {}, block=block)
-    assert L.lint_all() == 1
-    assert "reads 'turn_static_key', a secret no managed expression may read" in capsys.readouterr().out
-    monkeypatch.setattr(L, "PROVIDER_SECRETS", {"synthetic-bad": frozenset({"turn_static_key"})})
-    _synthetic_sources(monkeypatch, tmp_path / "sibling", {}, block=_managed(
-        "{{ turn_other_key }}", secrets=["turn_other_key"]))
-    assert L.lint_all() == 1
-    assert "reads 'turn_other_key', a secret no managed expression may read" in capsys.readouterr().out
-
-
-def test_the_provider_table_never_holds_a_gate_cookie_secret_and_sits_inside_the_deny_list():
-    for slug, names in L.PROVIDER_SECRETS.items():
-        assert names <= L.DENIED_SECRETS, slug
-        assert not [n for n in names if "gate_cookie_secret" in n or n.startswith(L.DENIED_SECRET_PREFIXES)], slug
-
-
-def test_the_provider_table_is_the_denied_secrets_of_the_contract_wiring():
-    wiring = json.loads((ROOT.parent / "contracts" / "default-apps" / "wiring.json").read_text(encoding="utf-8"))
-    held = {app: frozenset(set(entry["secrets"]) & L.DENIED_SECRETS) for app, entry in wiring["apps"].items()}
-    assert L.PROVIDER_SECRETS == {app: names for app, names in held.items() if names}
-
-
-def test_an_alert_intake_token_is_read_by_the_blueprint_of_its_source_and_the_read_token_by_none():
-    wiring = json.loads((ROOT.parent / "contracts" / "default-apps" / "wiring.json").read_text(encoding="utf-8"))
-    for source, blueprint in wiring["alert_intake_sources"].items():
-        token = f"alert_intake_token_{source}"
-        assert token in L.DENIED_SECRETS
-        assert {slug for slug, names in L.PROVIDER_SECRETS.items() if token in names} == {blueprint}
-    assert "alert_intake_token_read" in L.DENIED_SECRETS
-    assert not [slug for slug, names in L.PROVIDER_SECRETS.items() if "alert_intake_token_read" in names]
-
-
-def test_the_blueprints_read_only_the_denied_secrets_the_table_gives_them():
+def test_the_blueprints_list_every_store_secret_their_managed_expressions_read():
     for entry in model.load_sources():
         assert L.lint_managed_secrets(entry) == [], entry.slug
 
@@ -888,11 +838,8 @@ def test_host_paths_are_absolute_paths_the_schema_and_the_lint_accept():
             jsonschema.validate({"schema": 2, "host_paths": bad}, schema)
 
 
-@pytest.mark.parametrize("declared", [
-    "/", "/mnt/", "/a/../b", "/run", "/var/run/docker", "/srv", "/srv/catena/compose/web", "mnt",
-    "/etc", "/etc/ssl", "/usr/local/bin", "/bin", "/lib64", "/boot", "/root", "/proc", "/sys", "/dev", "/var",
-    "/var/lib/docker", "/srv/catena", "/srv/catena/docker/volumes", "/srv/catena/apps"])
-def test_a_host_path_the_checker_refuses_for_every_app_is_refused(tmp_path, declared):
+@pytest.mark.parametrize("declared", ["/mnt/", "/a/../b", "mnt"])
+def test_a_host_path_that_is_not_a_normalised_absolute_path_is_refused(tmp_path, declared):
     from types import SimpleNamespace
     entry = SimpleNamespace(slug="demo", block={"host_paths": [declared]})
     assert L.lint_host_paths(entry)
@@ -931,9 +878,9 @@ def test_access_levels_are_slugs_with_a_label_in_both_languages():
             jsonschema.validate({"schema": 2, "access": bad}, schema)
 
 
-def test_host_paths_that_hold_nothing_forbidden_pass():
+def test_normalised_absolute_host_paths_pass():
     from types import SimpleNamespace
-    entry = SimpleNamespace(slug="demo", block={"host_paths": ["/mnt", "/media/disk", "/var/www", "/srv/catena/apps/web"]})
+    entry = SimpleNamespace(slug="demo", block={"host_paths": ["/mnt", "/media/disk"]})
     assert L.lint_host_paths(entry) == []
 
 
