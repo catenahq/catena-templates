@@ -1,4 +1,5 @@
-"""Copies one app from a fork's pull request onto a branch of this repository.
+"""Copies one app from a fork's open pull request onto the branch adopt/<pr> of this
+repository and opens the pull request from that branch into the fork's base branch.
 
 Only data moves: the fork's files are read as blobs through the API and written
 as blobs of this repository, so no fork code is checked out or run. The change
@@ -114,19 +115,48 @@ def adopt(api: Api, base_repo: str, fork: str, head_sha: str, pr: int, files: li
     return {"app": p["app"], "branch": branch, "sha": commit["sha"]}
 
 
-def find_pr(api: Api, base_repo: str, fork: str, head_sha: str) -> int:
-    """The open pull request whose head is head_sha on the fork, or AdoptError."""
-    for pr in api("GET", f"repos/{base_repo}/pulls?state=open&per_page=100", paginate=True):
-        if pr["head"]["sha"] == head_sha and (pr["head"]["repo"] or {}).get("full_name") == fork:
-            return int(pr["number"])
-    raise AdoptError(f"no open pull request from {fork} at {head_sha[:12]}")
+def fork_pr(api: Api, base_repo: str, pr: int) -> dict:
+    """The fork, head commit and base branch of pull request `pr` of base_repo, or
+    AdoptError when it is not open or does not come from a fork."""
+    data = api("GET", f"repos/{base_repo}/pulls/{pr}")
+    if data.get("state") != "open":
+        raise AdoptError(f"pull request {pr} is not open")
+    fork = ((data.get("head") or {}).get("repo") or {}).get("full_name")
+    if not fork:
+        raise AdoptError(f"the repository of pull request {pr} no longer exists")
+    if fork.lower() == base_repo.lower():
+        raise AdoptError(f"pull request {pr} does not come from a fork")
+    head_sha = data["head"]["sha"]
+    _check(head_sha, fork)
+    return {"fork": fork, "sha": head_sha, "base": data["base"]["ref"]}
+
+
+def open_pr(api: Api, base_repo: str, pr: int, src: dict, adopted: dict) -> str:
+    """The address of the open pull request from adopt/<pr> into the fork's base branch,
+    opened when there is none."""
+    owner = base_repo.split("/")[0]
+    branch = adopted["branch"]
+    found = api("GET", f"repos/{base_repo}/pulls?state=open&head={owner}:{branch}&per_page=100",
+                paginate=True)
+    if found:
+        return found[0]["html_url"]
+    made = api("POST", f"repos/{base_repo}/pulls", {
+        "title": f"feat({adopted['app']}): adopt pull request {pr}",
+        "head": branch, "base": src["base"],
+        "body": (f"Adopts #{pr} from {src['fork']} at {src['sha']}: the files of "
+                 f"{adopted['app']}, copied as data.")})
+    return made["html_url"]
 
 
 def main(argv: list[str]) -> int:
     import json
     import subprocess
 
-    base_repo, fork, head_sha = argv
+    base_repo, pr_text = argv
+    if not REPO.fullmatch(base_repo) or not re.fullmatch(r"[1-9][0-9]*", pr_text):
+        print("adopt refused: the arguments are <owner/name> <pull request number>", file=sys.stderr)
+        return 1
+    pr = int(pr_text)
 
     def api(method: str, path: str, body: dict | None = None, paginate: bool = False):
         cmd = ["gh", "api", "-X", method, path]
@@ -144,10 +174,11 @@ def main(argv: list[str]) -> int:
         return [x for page in out for x in page] if paginate else out
 
     try:
-        _check(head_sha, fork)
-        pr = find_pr(api, base_repo, fork, head_sha)
+        src = fork_pr(api, base_repo, pr)
         files = api("GET", f"repos/{base_repo}/pulls/{pr}/files?per_page=100", paginate=True)
-        print(json.dumps(adopt(api, base_repo, fork, head_sha, pr, files)))
+        adopted = adopt(api, base_repo, src["fork"], src["sha"], pr, files, src["base"])
+        adopted["pull_request"] = open_pr(api, base_repo, pr, src, adopted)
+        print(json.dumps(adopted))
     except (AdoptError, LookupError) as e:
         print(f"adopt refused: {e}", file=sys.stderr)
         return 1

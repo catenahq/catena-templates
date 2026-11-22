@@ -49,12 +49,12 @@ lib/                     # the build library
                          # sign-in labels
   postgres_pins.py       # each Postgres pin is one the update engine can order
   changes.py             # changed paths -> the app ids they touch
-  provenance.py          # an image's project: age, releases (app-ci check)
-  app_checks.py          # the per-app app-ci checks' commands
+  provenance.py          # an image's project: age, releases (an app check)
+  app_checks.py          # the commands of the per-app checks
   versions.py            # app version tags and the one-app scope check
   pack.py                # an app's neat files -> its docker-compose.yml (and back: unpack)
   plain.py               # an app -> a folder bare Docker starts (unpack --plain)
-  adopt.py               # a fork's one-app pull request -> branch adopt/<pr>
+  adopt.py               # a fork's one-app pull request -> branch adopt/<pr> and its pull request
   importers/             # the registry importer: pipeline.py, dedup.py,
                          # publish.py (waves), plus one adapter per registry
                          # format
@@ -78,6 +78,9 @@ uv.lock                  # every `uv run` of the tools and their tests uses it
 
 Makefile                 # make render / validate / lint / test / verify
 Dockerfile               # nginx image serving the generated catalog
+
+.github/checks.yml       # the checks of every pull request (see "Checks on every pull request")
+ci/run                   # runs one of those checks by name: bash ci/run <name>
 ```
 
 The tools (`build/`, `lib/`) also run on another repository's tree of the same
@@ -92,8 +95,8 @@ is derived from the compose labels and `requires_catena` is a key of `x-catena.y
 and an optional `logo.png`. The compose carries no `vps.homepage.*` label. No README is
 kept per app: the catalog preview page and the panel show the card from `app.json`.
 The packed `docker-compose.yml` and the placeholder `logo.svg` are committed build
-artifacts; CI re-renders on every push and pull request and fails if the committed
-copies drift. The catalog document is printed on demand by `uv run build/catalog.py`
+artifacts; the `render` check re-renders on every pull request and fails if the
+committed copies drift. The catalog document is printed on demand by `uv run build/catalog.py`
 and committed nowhere.
 
 ## An app held as neat files
@@ -303,8 +306,8 @@ block.
    run, `requires_catena` (a key of `x-catena.yml`) names the oldest one it
    works on (`0.11.0`). The catalog document carries it, and so does the row of
    the preview page. A block field a published release does not read
-   needs `requires_catena` at the release that reads it; app-ci refuses the entry
-   until that release is published.
+   needs `requires_catena` at the release that reads it; the app checks refuse
+   the entry until that release is published.
 8. Declare the verify hook, `x-catena.hooks.verify`, which asks the running
    app whether it works: it makes the app's own server answer on the path users
    reach, checks each feature the app claims and its server provides, writes
@@ -377,17 +380,14 @@ block.
    is still to be rewritten. Real example: `blueprints/erpnext`.
 10. `make` -- renders, lints, and runs the tests. Commit the packed
     `blueprints/<id>/docker-compose.yml` with the source change.
-11. Open a PR from a branch that changes this one app and nothing else, or, as
-    a repository admin, push the one commit to `main`. CI runs
-    `build-and-verify.yml`, `app-ci.yml` (see "Checks on every pull
-    request"), `check:unicode` and `check:prose`; the app tests then run the legs
-    below.
+11. Open a pull request from a branch that changes this one app and nothing
+    else. CI runs the checks of `.github/checks.yml` (see "Checks on every pull
+    request"); the app tests then run the legs below.
 
-A change of an app is one pull request or one commit of `main`, touching that
-app alone: the `scope` check fails a pull request or a commit that touches two,
-and the app tests judge a branch only when it changes one app or none. Several
-changes of different apps go to `main` as one commit each, never as a branch
-per app.
+A change of an app is one pull request touching that app alone, a change of its
+`test.yml` too: the plan of the checks fails a pull request that touches two, and
+the app tests judge a pull request only when it changes one app or none. Several
+changes of different apps go to `main` as one pull request each.
 
 ### What each app-tests leg proves
 
@@ -452,14 +452,12 @@ differently? Yes is **runtime**. Changing what app-tests checks is
 (name, descriptions, logo). The table that gives each file and each field
 of `app.json` its class is `FILE_CLASSES` and `FIELD_CLASSES` in
 `lib/versions.py`, the one place that says it; anything unlisted is runtime.
-`uv run build/versions.py classes <app> --ref <sha> --base <sha>` prints the
-classes of a change.
 
-| Class | Heavy app-ci steps | app-tests | Tag |
-|---|---|---|---|
-| runtime | run | the lifecycle | a new revision |
-| verification | skipped when the app's last runtime change passed app-ci | the lifecycle | none |
-| presentation | skipped when the app's last runtime change passed app-ci | the verdict is carried, no lifecycle | a new revision recording the carried run |
+| Class | app-tests | Tag |
+|---|---|---|
+| runtime | the lifecycle | a new revision |
+| verification | the lifecycle | none |
+| presentation | the verdict is carried, no lifecycle | a new revision recording the carried run |
 
 The neat files of an app (`services.yml`, `x-catena.yml`, the script files under
 `hooks/`) add no class of their own: the packed `docker-compose.yml` is judged byte for
@@ -469,34 +467,54 @@ A change in several classes takes the strongest entry of each column: runtime
 with presentation runs everything and gets a new revision; verification with
 presentation runs the lifecycle and gets a new revision.
 
-## Checks on every pull request and every push to main
+## Checks on every pull request
 
-`.github/workflows/app-ci.yml` runs on GitHub-hosted runners (the `runner`
-input of its `workflow_call` sets another label) for every pull
-request, forks included (no secret, a read-only token). The app-tests lifecycle
-runs later and elsewhere. One job covers the catalog:
+`.github/workflows/ci.yml` calls the shared PR workflow of catenahq/contracts
+(its README, "Shared PR workflow"), pinned at a contracts commit, on every pull
+request, forks included (no secret, a read-only token), and daily. The
+app-tests lifecycle runs later and elsewhere. `.github/checks.yml` names the
+checks, and `bash ci/run <name>` runs one of them the same way on a workstation:
 
-- The swarm lint (`build/lint_swarm.py`) and `catena-applint --catalog --nodes 2` over
-  `blueprints/`, run from the public catena-admin image. The unit tests, the other
-  lints and the render drift check (the render packs each app held as neat files,
-  and the committed `docker-compose.yml` must equal that render) run in
-  `build-and-verify.yml` only.
+- `gates`: the contracts gates (unicode, repository rules, prose) and the
+  copy-paste ratchet (jscpd, threshold in `.jscpd.json`: lower it as
+  duplication is paid down, never raise it).
+- `render`: `build/render.py`, then `git diff --exit-code blueprints`: the
+  committed generated files, each packed `docker-compose.yml` included, are the
+  render of their inputs.
+- `schema`: `build/validate.py`, every `app.json` and compose block against its
+  schema.
+- `python`: the unit tests (`tests/` and `images/erpnext-helpdesk`, on four
+  processes), the quiesce lint and the Postgres pin lint, in the locked
+  environment (`uv run --locked`); the tests read the contracts checkout beside
+  this one.
+- `scan`: scanctl over the tree. The daily run also fails on every CVE with a
+  fix in any catalog image `scanctl.yml` pins, which is where a CVE published
+  against an untouched image surfaces; it pulls the images logged in to Docker
+  Hub with `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` of the environment `ci`.
+- `apps` (`catalog: true`: the tools of this tree): the app checks below.
 
-Then one job per app the change touches (`blueprints/<id>/**`), each running:
+A check that an earlier run passed on the same inputs is reused (contracts
+README, "Per-check reuse"), so a pull request whose base moved runs again only
+the checks whose inputs the move touched. `ci / gate` is the one check a branch
+rule requires.
+
+The app checks are contracts' `scripts/ci/app-plan.sh` and `app-check.sh`
+(contracts README, "App checks") over the commands of `build/`. The plan fails a
+change that touches more than one app (`build/versions.py scope`), so one change
+is one tag. `apps-repo` runs on every change: the swarm lint
+(`build/lint_swarm.py`) and `catena-applint --catalog --nodes 2` over
+`blueprints/`, from the catena-admin image of the release each app requires.
+Then one check `app-<id>` per app the change touches and still has
+(`build/app_check.py changed`), each running:
 
 - `docker stack config` on the app's compose file.
 - `catena-applint` from the catena-admin image of the release the entry's
   compose block's `requires_catena` names (the newest release when it names none) over
   the blueprints: an `error` finding in the app's own compose file fails the
-  job, inherited ones included, and an unpublished release fails it too.
-- scanctl on the app's images, judged from the change's base (the first
-  parent of the pull request's merge commit, which is `main` as the pull request
-  merges into it now, or the commit's parent on `main`): a vulnerability at high or
-  above that has a fixed version, or a secret in an image, fails when the change
-  adds it, as in the security scan of a pull request; the ones already there do
-  not fail the step and are counted among the job summary's advisory findings.
-  A finding accepted in `.scanctl/baseline.sarif` does not fail it either.
-  A change that leaves the compose file as it is scans no image.
+  check, inherited ones included, and an unpublished release fails it too.
+- The plain export check (`build/pack.py plain-check`, see "Run an app on bare
+  Docker") for an app whose `app.json` sets `bench.plain`: the check fails when
+  the export does not answer.
 - Provenance (`lib/provenance.py`): each image's `org.opencontainers.image.source`
   repository on GitHub is at least a year old and has three releases, or
   three tags when it publishes no release (the GitHub API, with the run's
@@ -509,10 +527,17 @@ Then one job per app the change touches (`blueprints/<id>/**`), each running:
   fails, and any other image without the label fails naming itself, because
   the other registries expose no dates. An image listed in `PROVENANCE_OWN_IMAGES`
   (comma-separated repositories, no tag) is the repository's own build and
-  passes. For the catalog the workflow lists `ghcr.io/<owner>/<folder>` for
-  each folder of `images/`, plus the caller's `own-images`. The year of age is
+  passes. For the catalog the check lists `ghcr.io/<owner>/<folder>` for
+  each folder of `images/`, plus `apps.own-images`. The year of age is
   asked of a pull request from a fork only (`PROVENANCE_CHECK_AGE`); every other
   change is judged on the releases, tags and repositories alone.
+- scanctl on the app's images, judged from the change's base (the first
+  parent of the pull request's merge commit, which is `main` as the pull request
+  merges into it now): a vulnerability at high or above that has a fixed
+  version, or a secret in an image, fails when the change adds it; the ones
+  already there do not fail the check and are counted among the job summary's
+  advisory findings. A finding accepted in `.scanctl/baseline.sarif` does not
+  fail it either.
 - ClamAV over each image's exported regular files (`docker create`,
   `docker export`), one name per inode, dealt to one clamscan per processor (at most one per 2 GB
   of available memory), with the databases the pinned `clamav/clamav` feature
@@ -520,138 +545,64 @@ Then one job per app the change touches (`blueprints/<id>/**`), each running:
   listed in `.clamav-allow.sfp` (its SHA-256 and size, with the image, path and
   reason above it) passes; any other content of that path is scanned.
 
-The first step of the job reads the change's classes (see "Change classes"). The
-stack config and the released app checker always run. The image pulls,
-provenance, scanctl and ClamAV, the heavy steps, run when the change touches the
-runtime. A change of verification or presentation alone skips them when the
-app's last runtime change at or before the change's base has an `app-ci` status of
-success posted by github-actions[bot] for a run of this repository; with no
-such status, no runtime change to rely on, or a status that
-cannot be read, they run. The job summary names the path taken.
+An app check reads the app's folder and the tools, and its reuse key holds the
+date: a change that leaves an app's folder and the tools alone reuses that app's
+pass of the same day.
 
-An app whose `app.json` sets `bench.plain` is also exported for bare Docker and
-started (`build/pack.py plain-check`, see "Run an app on bare Docker"), on the
-runs of the heavy steps and on a change of verification; the job fails when the
-export does not answer.
-
-The first job of `app-ci.yml`, `same tree (app-ci)`, runs for a pull request and
-for another repository's call. It looks for an earlier run of the workflow on the
-same tree against the same base (contracts' `same-tree` action, in the README of
-contracts, "Runs once per tree"). A found success skips `repo`, `scope`, `plan`
-and so the app jobs; a found failure fails the job, which blocks the merge where
-the job is required; no result runs everything. `build-and-verify.yml` starts the
-same way with `same tree (build-and-verify)`. A call with `sha`, as `app-main.yml`
-makes, skips the job.
-
-A push to `main` (a repository admin's direct push or a merge) runs
-`.github/workflows/app-main.yml`, which calls `app-ci.yml` once per commit of
-the push with `sha` (the commit) and `base` (its parent), so each commit is
-judged on what it introduces, as a pull request is. A commit whose tree and
-parent tree an `app-ci` run of a pull request already judged (a single-commit
-pull request merged while up to date, as the bot pull requests are) runs
-nothing: it gets that run's result, and its `app-ci` status points at that run. It posts the commit status
-`app-ci` on each commit (success, or failure naming the jobs that failed) and
-calls `app-dispatch.yml` with the commits that passed: a push sends only
-those to the app tests (the nightly run takes the head of `main`). A merge commit
-passes `scope` there, because the commits of its second side are checked on
-their own; a pull request's merge commit is judged as usual. A squash merge is
-a push like any other: app-ci runs on the squash
-commit, then the app-tests verdict carries from the pull request's head. A commit
-whose message holds `[skip ci]` starts no run, gets no `app-ci` status and so
-tags nothing.
-
-An admin can run `app-main.yml` by hand with the apps
-(`gh workflow run app-main.yml -f apps=<a>,<b>`, on `main`). It judges each
-app's last change again with the checks of the head of `main`, from the
-change's parent: the app's files at the head are those of its last change, and
-the image scan still judges the change against its base. A pass posts the
-`app-ci` success on that last change and sends it to the app tests, as a push does.
-A named app that `main` lacks, or whose last change touches more than one app,
-is refused.
-
-`app-ci.yml`, `build-and-verify.yml`, `app-dispatch.yml` and `app-tag.yml` are
-also reusable workflows (`workflow_call`) for another repository with this
-layout; `app-main.yml` serves this repository alone. Their inputs are `catalog`
-(default true), `tools-ref` (default `main`) and `own-images` (default empty);
-`app-ci.yml` also takes `sha` and `base` and `app-dispatch.yml` takes `commits`
-(the commits of a push to send, default every commit of the push), all
-defaulting to empty. A caller of `app-ci.yml` grants `contents: read`,
-`statuses: read` and `actions: read`: the `app` job reads the `app-ci` status of
-the app's last runtime change, the `same tree` job reads earlier runs, and GitHub
-refuses a called workflow that asks for more than its caller grants. A caller of
-`build-and-verify.yml` grants `actions: read` for the same reason. A repository that posts no `app-ci` status runs the heavy steps
-every time. `app-dispatch.yml` and `app-tag.yml` take the
-secrets `RENOVATE_APP_CLIENT_ID` and `RENOVATE_APP_PRIVATE_KEY`. With `catalog`
-false a called workflow checks out catena-templates at `tools-ref` into
-`.tools` and sets `TEMPLATES_ROOT` to the caller's tree. It runs the swarm lint
-and `catena-applint --nodes 2 blueprints` (no `--catalog`) instead of `make`,
-the caller's `tests/`, render drift over `blueprints` alone, and no jscpd;
-`own-images` reaches the provenance step as `PROVENANCE_OWN_IMAGES`. With
-`catalog` true every step runs as written above, under the names `app-checks`
-and `scope`.
-
-App ids come from changed file names, so the workflow hands them to scripts
-through `env:` only and refuses an id that is not a lowercase slug.
-`uv run build/app_check.py` runs the per-app checks locally (`images ID`,
-`provenance ID` after pulling the images; `ci-passed SHA` exits 0 when the commit
-has an `app-ci` success from github-actions[bot], with `GITHUB_REPOSITORY` and a
-token set).
+App ids come from changed file names; the scripts refuse an id that is not a
+lowercase slug. `uv run build/app_check.py` runs the per-app commands locally
+(`changed` over paths on stdin, `checker ID`, `images ID`, `plain ID`,
+`provenance ID` after pulling the images).
 
 ## The app-tests lifecycle
 
-After the cheap checks, the lifecycle of each app runs on the app test runners (private
-runners this repository cannot reach):
+After a pull request's checks, the lifecycle of its app runs on the app test
+runners (private runners this repository cannot reach).
+`.github/workflows/ci-control.yml` calls the control workflow of
+catenahq/contracts (its README, "Control workflow") with `apps: true`:
 
-- `app-dispatch.yml` runs on a push to any branch but `main`, `adopt/*`
-  included; `app-main.yml` calls it for `main`. It sends
-  the private ops repository the event `app-test` with the commit, the commit
-  the change is judged from, the apps the change touches, the branch and the
-  name of the repository the event comes from (`catena-templates` here; another
-  repository calls this workflow too) and the caller's `own-images`, so the
-  app tests know which images the repository builds itself. On `main`, each commit of the push is sent on its own, judged from its parent,
-  except a commit that changes no app or whose app `main` has changed again since. A
-  branch other than `main` is judged as a whole, from where it left `main`, and
-  is sent only when it changes one app or none; a newer push cancels the send of
-  an older one still running, so ops gets the branch's commits in order. The repository variable
-  `APP_CI_PAUSED=true` stops it.
-- ops keeps one run per branch, and on `main` one per app: a newer commit's run
-  cancels the older one, queued or running.
-- A commit of one app whose change already has an `app-tests` verdict carries
-  it: the event holds `carry` (the address of the ops run) and `carry_state`,
-  and ops posts that verdict on the commit without a run. The dispatch looks
-  at the commit itself, then, on `main`, at the head of the merged pull
-  request (for a fork's pull request, whose head carries no status here, the
-  head of its `adopt/<pr>` branch), on another branch at the head the branch had
-  before the push, and then at the run that made the app's newest tag. A candidate counts when the
-  CI GitHub App posted its verdict, and the app's files differ from the
-  commit's, and the files each change is judged from differ, in presentation
-  alone (`build/versions.py same`). A change of presentation alone keeps the
-  verdict; a change of the runtime or of the tests (`test.yml`) runs the
-  lifecycle. A failure is carried only on a branch other than `main`. A carried
-  pass on `main` is tagged with the address of the run that tested the change.
+- `dispatch` (contracts README, "App dispatch") runs once the `ci` run of a pull
+  request of this repository completes. It takes the tools of the base and
+  reads the pull request head as data, judges the change from where the head
+  left its base, and fails on a change of more than one app. A change of no app
+  gets the `app-tests` status `success`, `no app changed`. For one app it sends
+  the private ops repository the event `app-test` with the head, the commit it
+  is judged from, the app, the branch, the repository's name, a verdict to
+  carry, `apps.own-images` and the ops and contracts commits of
+  `.github/catenahq.lock`. A newer head of the pull request cancels the send of
+  an older one.
+- A change whose app already has an `app-tests` verdict carries it: the
+  dispatch looks at the head, then at the pull request's earlier commits,
+  newest first, and, for a pass, at the run that made the app's newest tag. A
+  candidate counts when the CI GitHub App posted its verdict naming exactly the
+  app with the address of an ops run, and the app's files differ in
+  presentation alone (`build/versions.py same`). A change of presentation alone
+  keeps the verdict; a change of the runtime or of the tests (`test.yml`) runs
+  the lifecycle.
 - ops runs install, checks, backup, restore, rollback, updates and the outbound
-  check, then posts the commit status `app-tests` on the commit (success,
-  failure, or error when the app tests gave no verdict). A commit of a branch other
-  than `main` that its branch has moved past by the time a runner takes it is
-  skipped. For a commit of `main`,
-  ops sends back the event `app-passed` with the apps that passed, and
-  `app-tag.yml` tags them (see "Versions").
-- `adopt-fork.yml` serves pull requests from forks, which the app tests never see
-  directly. When `app-ci` has passed a fork's pull request, it copies the fork's
-  files for exactly one app (`blueprints/<id>/**`) onto
-  the branch `adopt/<pr>` of this repository through the API, as data: nothing
-  of the fork is checked out or run with a secret. A change that touches more
-  than one app, a file outside an app, a link or a file over 1 MB is refused.
-  The generated catalog files are not copied; a maintainer renders them on the
-  branch. `adopt/<pr>` is dispatched like any branch, and its `app-tests` status
-  is what a maintainer reads before merging the pull request.
+  check, then posts the commit status `app-tests` on the head (success,
+  failure, or error when the app tests gave no verdict).
+- `ci / gate` waits for `app-tests` (contracts README, "Gate status"), so a pull
+  request merges only once the app tests passed its change. `tag` (contracts
+  README, "App tag") runs on the push of the merge to `main` and tags the apps
+  of the merged pull request (see "Versions").
+- `adopt-fork.yml` serves pull requests from forks, which the app tests never
+  see directly: the dispatch runs for this repository's pull requests alone. A
+  maintainer who has read a fork's pull request runs it by hand with the pull
+  request's number (`gh workflow run adopt-fork.yml -f pr=<n>`). It refuses a
+  pull request that is not open or does not come from a fork, copies the fork's
+  files for exactly one app (`blueprints/<id>/**`) onto the branch `adopt/<pr>`
+  of this repository through the API, as data, and opens the pull request from
+  that branch into the fork's base branch, or keeps the one already open:
+  nothing of the fork is checked out or run with a secret. A change that touches
+  more than one app, a file outside an app, a link or a file over 1 MB is
+  refused. The generated catalog files are not copied: a maintainer renders them
+  on the branch, and the checks and the app tests run that pull request like any
+  other.
 
-`app-dispatch.yml`, `adopt-fork.yml` and `app-tag.yml` use the CI GitHub App's
-secrets (`RENOVATE_APP_CLIENT_ID`, `RENOVATE_APP_PRIVATE_KEY`). `app-dispatch.yml`
-takes its tools from `.tools` for this repository too, checked out at the default
-branch, and reads the pushed tree through `TEMPLATES_ROOT` as data; the workflow
-file that runs is the pushed commit's own. The path end to end, the secrets and how to pause it
-are in ops `internal_docs/tools/app-ci.md`.
+The control workflow's jobs mint the CI GitHub App's tokens from
+`RENOVATE_APP_CLIENT_ID` and `RENOVATE_APP_PRIVATE_KEY` of the environment `ci`;
+`adopt-fork.yml` reads the same secrets.
 
 ## Versions
 
@@ -665,60 +616,47 @@ No file holds a version string: versions are git tags. A tested app is tagged
 - **Revision.** 1 plus the highest revision the app already has at that
   version, so a change that leaves the image alone still gets a new tag. Tags order by
   version, then revision, as numbers.
-- **When.** `app-tag.yml` runs on the event `app-passed`, which the app tests send
-  with the apps that passed on a commit of `main`. An app whose files
-  (`blueprints/<id>/`) differ from its newest tag in the
-  runtime (or in verification together with presentation), or that has none,
-  gets a new tag on the commit; one that differs in presentation alone gets a
-  new tag recorded against the newest tag (`create TAG FROM`, below); one that
-  differs in verification alone keeps its tag. A tag is made only while `main`
-  still holds the commit's files of the app: a pass of a commit whose app
-  `main` has since changed tags nothing. It also tags only when the commit that last changed the
-  app on `main` (`build/versions.py last-change`) has an `app-ci` status of
-  success posted by `github-actions[bot]` for a run of this repository;
-  otherwise the app is held with a warning until a later commit of it passes or
-  an admin runs `app-main.yml` by hand with the app, which judges that commit
-  again (see above).
+- **When.** The `tag` job of the control workflow runs on each push to `main`
+  (contracts README, "App tag"). It finds the pull request merged as the pushed
+  commit and reads the newest `app-tests` status of its head: `no app changed`
+  tags nothing, and anything but a success of the CI GitHub App naming its apps
+  fails the job. For each app it checks with `build/versions.py same` that the
+  app's files at the pushed commit are the change that passed at the head, in
+  presentation alone, and writes what `build/versions.py plan --ref <commit>`
+  plans. An app whose files (`blueprints/<id>/`) differ from its newest tag in
+  the runtime (or in verification together with presentation), or that has
+  none, gets a new tag on the commit; one that differs in presentation alone
+  gets a new tag recorded against the newest tag (`create TAG FROM`, below); one
+  that differs in verification alone keeps its tag. A tag is made only while
+  `main` still holds the commit's files of the app.
   An app whose newest tag was made by
   hand and holds the same files has that tag annotated where it stands. The
   tags are annotated `app-tests passed at <commit>: <run>`, and a tag of a
   change of presentation alone adds a line saying the runtime and tests are
   those of the tag it was recorded against (`create TAG FROM`, FROM the newest
   tag; `<run>` is the run that tested them). They are written through
-  the API with the CI GitHub App's token (secrets `RENOVATE_APP_CLIENT_ID` and
-  `RENOVATE_APP_PRIVATE_KEY`). A tag ruleset (catenahq/renovate
+  the API with the CI GitHub App's token, minted from the secrets of the
+  environment `ci`. A tag ruleset (catenahq/renovate
   `scripts/apply-rulesets.sh`) lets only that App create, move or delete a
   `*/*` tag.
-- **Guarantee.** A tag stands when app-ci passed at the app's last change on
-  `main` and app-tests passed on a commit whose runtime and tests are the tagged
-  commit's: the commit itself or, for a change of presentation alone, the run
-  that tested the same runtime and tests.
+- **Guarantee.** A tag stands when the checks and app-tests passed the merged
+  pull request's change: at its head or, for a change of presentation alone,
+  in the run that tested the same runtime and tests.
 - **Tested.** An app is `tested` when a passing run made its newest tag and the
   files `main` holds differ from that tag in verification alone or not at all,
   `presentation` when they differ in presentation alone, `changed` otherwise,
   and `untested` when it has no tag, or its newest was made by hand and the
   files differ from it in verification alone or not at all. The nightly
   app-tests run takes the apps that are neither `tested` nor `presentation` first.
-  With `--ci`, an app that is not `tested` and whose last change on `main` failed
-  app-ci is `held`: `app-tag` tags nothing from its pass.
-- **Scope.** The `scope` check fails a pull request or a commit of `main` that
-  changes more than one app (distinct ids across `blueprints/<id>/**`), so one change is one tag; the `one-app` pre-commit hook
-  does the same for a commit. `app-checks`, `scope` and `app-tests` are required
-  for a pull request to `main`; an admin's direct push gets the same checks per
-  commit from `app-main.yml`.
+- **Scope.** The plan of the checks fails a pull request that changes more than
+  one app (distinct ids across `blueprints/<id>/**`), so one change is one tag;
+  the `one-app` pre-commit hook does the same for a commit. A pull request to
+  `main` merges once `ci / gate`, which waits for `app-tests`, passes.
 
 `uv run build/versions.py tested` lists each app's state and newest tag
-(`--needs-run`: the ids of the apps neither `tested` nor `presentation`, held apps
-first; `--ci`: read the app-ci statuses through `GITHUB_REPOSITORY` and a token);
+(`--needs-run`: the ids of the apps neither `tested` nor `presentation`);
 `uv run build/versions.py plan <app>` prints what a pass does to the app's tags;
-`uv run build/versions.py classes <app> --ref <sha> --base <sha>` prints the
-classes of the change from `--base` to `--ref`;
-`uv run build/versions.py runtime-change <app> --ref <rev>` prints the newest
-commit on the first-parent line whose change of the app holds the runtime, or
-that added the app;
 `uv run build/versions.py scope` checks changed paths on stdin;
-`uv run build/versions.py last-change <app> [--ref <rev>]` prints the newest
-commit on the first-parent line that changed the app's files;
 `uv run build/versions.py same <app> --ref <sha> --base <sha> --from <sha>`
 exits 0 when the `--from` commit holds the change `--ref` holds, judged from
 `--base`: the app's files differ in presentation alone between the two

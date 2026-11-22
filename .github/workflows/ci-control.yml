@@ -1,0 +1,27 @@
+name: ci-control
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, edited, ready_for_review, auto_merge_enabled]
+  workflow_run:
+    workflows: [ci]
+    types: [completed]
+  push:
+    branches: [main]
+  schedule:
+    - cron: '13 * * * *'
+permissions: {}
+jobs:
+  control:
+    uses: catenahq/contracts/.github/workflows/control.yml@b1d4ca79e0999fd9f12c86b6c77737b503e1d2ce # main
+    permissions:
+      contents: read
+      actions: read
+      checks: read
+      statuses: write
+      pull-requests: read
+    with:
+      runner: ubuntu-26.04
+      apps: true
+      release: false
+      step: ${{ inputs.step }}
+      version: ${{ inputs.version }}

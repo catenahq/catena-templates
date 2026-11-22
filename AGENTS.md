@@ -70,13 +70,16 @@ the repository, and the checks.
   in `app.json`, which the catalog and the panel show. Comments inside
   `services.yml` and `x-catena.yml` explain a construct that does not
   read as written, beside that construct.
-- The workflows `app-ci.yml`, `build-and-verify.yml`, `app-dispatch.yml` and
-  `app-tag.yml` also serve other repositories through `workflow_call`; their
-  steps run unchanged for this repository (`catalog` true), and a change to
-  them keeps both paths working; `app-main.yml` serves this repository alone.
-  A caller of `app-ci.yml` or `build-and-verify.yml` grants `actions: read`.
-  The build tools read another tree through
-  `TEMPLATES_ROOT`, and the schemas always come from this checkout.
+- The reusable workflows live in catenahq/contracts: `ci.yml` and
+  `ci-control.yml` call its shared PR and control workflows, pinned at a
+  contracts commit, with no step of their own. `.github/checks.yml` names the
+  checks; `ci/run <name>` runs each, the same in CI and locally. Its `apps:
+  {catalog: true}` runs the app checks, the app tests' dispatch and the tags
+  with this tree's tools, the commands of `build/` that contracts
+  `scripts/ci/app-*.sh` call; another repository of apps runs them at its lock,
+  so a change to those commands keeps both paths working. The build tools read
+  another tree through `TEMPLATES_ROOT`, and the schemas always come from this
+  checkout.
 - A change on `main` reaches every new deploy at once, so `main` stays
   deployable. A deployed app keeps the compose, and so the block, it was
   deployed with: a new commit changes no running app.
@@ -101,8 +104,8 @@ the repository, and the checks.
   gets a row there; anything unlisted is runtime.
 - A block field a published catena-admin release does not read reaches `main`
   only once the release that reads it is published, with
-  `requires_catena` raised to it; app-ci's released app checker
-  refuses it before. The block's own `requires_catena` is such a field: a
+  `requires_catena` raised to it; the released app checker of the app
+  checks refuses it before. The block's own `requires_catena` is such a field: a
   compose sets it only once the release that reads it is published.
 - Every image pin is a version the update engine can order (catena-admin
   `payload/engines/stackupdate`): no floating tags. A tag scheme the generic
@@ -173,10 +176,11 @@ the repository, and the checks.
   the domain owner's.
 - Keep ERPNext's own CRM module; ask before adding Frappe CRM or widening the
   ERPNext app set.
-- Every major move of an app is one main commit, gated by app-ci and the
-  app-tests upgrade and rollback.
-- Only `app-tag` writes a tag `<app>/<upstream version>-<revision>`; no signed
-  archive, no registry publishing.
+- Every major move of an app is one pull request, gated by the app checks and
+  the app-tests upgrade and rollback.
+- Only the `tag` job of the control workflow writes a tag
+  `<app>/<upstream version>-<revision>`; no signed archive, no registry
+  publishing.
 
 ## The render contract
 
@@ -201,7 +205,7 @@ managed key's expression. `uv run build/catalog.py` prints it to stdout and writ
 nothing. `uv run build/preview.py` prints a static preview page of the catalog.
 
 The render must be idempotent: running it twice produces byte-identical
-outputs. CI verifies with `git diff --exit-code blueprints`.
+outputs. `ci/run render` verifies with `git diff --exit-code blueprints`.
 
 ## Every compose here is a SWARM stack file
 
@@ -343,9 +347,9 @@ README.md, "How to add a template", says how; these are the rules.
 - Never weaken or remove a check, an assert or a leg to make an app pass:
   fix the app or its declaration.
 - One app or none per branch, pull request and commit.
-- A `blueprints/<id>/test.yml` change goes up as its own pull request and merges
-  once app-tests passes; any other change of an app is one commit on main. Each
-  main commit is judged by app-ci, and a failed commit gets no tag.
+- Every change of an app goes up as one pull request, a
+  `blueprints/<id>/test.yml` change too, and merges once `ci / gate`, which
+  waits for app-tests, passes; the merge tags the app.
 
 ## Changing the catalog document
 
@@ -375,8 +379,8 @@ search of the workspace finds.
   fetched raw by every deployment).
 - Generated artifacts are BUILD OUTPUTS; hand-edits fail the
   idempotent-render CI gate.
-- Every catalog image ref is CVE-scanned (security.yml, through
-  scanctl.yml's image pins);
+- Every catalog image ref is CVE-scanned (the scan of `.github/checks.yml`,
+  through scanctl.yml's image pins, and the app checks of each changed app);
   quiesce and lifecycle argv each pass their own allowlist in
   `lib/quiesce_lint.py`, with no shell operator.
 - SPEC.md gate pointers must resolve (ops audit --check-public-specs).

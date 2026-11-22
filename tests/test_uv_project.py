@@ -1,6 +1,7 @@
 """The tools run in the one uv project at the repository root: no script carries its own
-dependency block, the Makefile adds no package on the command line, and a package a workflow
-adds with `uv run --with` is one the project already declares."""
+dependency block, the Makefile adds no package on the command line, every `uv run` of ci/run
+uses the locked environment and adds no package, and a package a workflow adds with
+`uv run --with` is one the project already declares."""
 from __future__ import annotations
 
 import re
@@ -44,6 +45,14 @@ def test_no_script_carries_its_own_dependency_block():
 
 def test_the_makefile_adds_no_package_on_the_command_line():
     assert "uv run --with" not in (ROOT / "Makefile").read_text()
+
+
+def test_every_uv_run_of_ci_run_is_locked_and_adds_no_package():
+    runs = UV_RUN.findall((ROOT / "ci" / "run").read_text())
+    assert runs
+    for line in runs:
+        assert line.startswith("uv run --locked "), line
+        assert not WITH_PACKAGE.search(line), line
 
 
 def test_every_package_a_workflow_adds_is_a_project_dependency():

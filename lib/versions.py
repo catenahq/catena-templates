@@ -38,12 +38,8 @@ All of it is read from the checkout's git.
                         `mark TAG` (annotate the hand-made TAG), `create TAG` or, in
                         state presentation, `create TAG FROM` (FROM: the newest tag)
   scope                 changed paths on stdin -> fail when they touch more than one app
-  tested [--needs-run] [--ci]
-                        each app's state at the checked-out commit; with --needs-run, the
-                        ids of the apps neither `tested` nor `presentation`, held apps
-                        first; with --ci (GITHUB_REPOSITORY and a token read the statuses),
-                        an app that is not `tested` whose last change on main failed app-ci
-                        is `held`
+  tested [--needs-run]  each app's state at the checked-out commit; with --needs-run, the
+                        ids of the apps neither `tested` nor `presentation`
   same APP --ref SHA --base BASE --from CAND
                         exit 0 when commit CAND holds the change SHA holds: APP's files
                         differ between them in presentation alone, and likewise where each
@@ -52,14 +48,6 @@ All of it is read from the checkout's git.
                         the address of the passing run that made APP's newest tag, when
                         APP differs from that tag at REF (default HEAD) in presentation
                         alone or not at all
-  last-change APP [--ref REF]
-                        the newest commit on REF's first-parent line (default HEAD) that
-                        changed APP's files; nothing when none did
-  classes APP --ref SHA --base SHA
-                        the classes of the change from BASE to SHA, one per line
-  runtime-change APP --ref REV
-                        the newest commit on REV's first-parent line whose change of APP
-                        holds RUNTIME, or that added APP; nothing when none did
 
 `scope` is the check that keeps a commit or a pull request to one app, so
 one change is one tag.
@@ -68,7 +56,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import re
 import subprocess
 import sys
@@ -76,7 +63,7 @@ from typing import Any, Iterable
 
 import yaml
 
-from . import app_checks, changes, pack, provenance
+from . import changes, pack, provenance
 from .adopt import FILE_MODES
 from .model import ROOT, main_service
 
@@ -91,9 +78,6 @@ DERIVED = "derived"
 # The state of an app whose files differ from its tested tag in presentation alone is
 # named like that class.
 TESTED, CHANGED, UNTESTED = "tested", "changed", "untested"
-# The state of an app, not tested, whose last change on main failed app-ci: app-tag tags
-# nothing from a pass until app-ci passes at that change.
-HELD = "held"
 
 # Class of each file of blueprints/<id>/ (a key ending in `/` is a folder). app.json is
 # judged per field (FIELD_CLASSES).
@@ -248,26 +232,6 @@ def app_paths(app: str) -> tuple[str]:
     return (f"blueprints/{app}",)
 
 
-def last_change(app: str, ref: str = "HEAD") -> str:
-    """The newest commit on `ref`'s first-parent line that changed the app's files, or ''."""
-    return subprocess.run(
-        ["git", "-C", str(ROOT), "log", "-1", "--first-parent", "--format=%H", ref, "--", *app_paths(app)],
-        capture_output=True, text=True, check=True).stdout.strip()
-
-
-def runtime_change(app: str, ref: str = "HEAD") -> str:
-    """The newest commit on `ref`'s first-parent line whose change of the app holds
-    RUNTIME, or that added the app, or ''."""
-    out = subprocess.run(
-        ["git", "-C", str(ROOT), "log", "--first-parent", "--format=%H %P", ref, "--", *app_paths(app)],
-        capture_output=True, text=True, check=True).stdout
-    for line in out.splitlines():
-        commit, *parents = line.split()
-        if not parents or not _files(app, parents[0]) or RUNTIME in changed_classes(app, parents[0], commit):
-            return commit
-    return ""
-
-
 def same_files(app: str, a: str, b: str) -> bool:
     """Whether commits `a` and `b` hold the same files of the app."""
     return all(_object(f"{a}:{path}") == _object(f"{b}:{path}") for path in app_paths(app))
@@ -389,18 +353,6 @@ def tested_state(app: str, ref: str = "HEAD") -> tuple[str, str | None]:
     return CHANGED, newest
 
 
-def held(app: str, ref: str = "HEAD", repo: str = "", fetch=provenance.http_fetch) -> bool:
-    """Whether the newest app-ci status at the app's last change on `ref` is a failure or
-    an error; a missing, pending or unreadable status holds nothing."""
-    last = last_change(app, ref)
-    if not last or not repo:
-        return False
-    try:
-        return app_checks.ci_state(last, repo, fetch) in ("failure", "error")
-    except provenance.ProvenanceError:
-        return False
-
-
 def _is_ancestor(commit: str, of: str) -> bool:
     return subprocess.run(["git", "-C", str(ROOT), "merge-base", "--is-ancestor", commit, of],
                           capture_output=True, check=False).returncode == 0
@@ -464,7 +416,6 @@ def main(argv: list[str]) -> int:
     sub.add_parser("scope")
     tested_cmd = sub.add_parser("tested")
     tested_cmd.add_argument("--needs-run", action="store_true")
-    tested_cmd.add_argument("--ci", action="store_true")
     same_cmd = sub.add_parser("same")
     same_cmd.add_argument("app")
     same_cmd.add_argument("--ref", required=True)
@@ -473,19 +424,6 @@ def main(argv: list[str]) -> int:
     run_cmd = sub.add_parser("tested-run")
     run_cmd.add_argument("app")
     run_cmd.add_argument("--ref", default="HEAD")
-    last_cmd = sub.add_parser("last-change")
-    last_cmd.add_argument("app")
-    last_cmd.add_argument("--ref", default="HEAD")
-    classes_cmd = sub.add_parser("classes")
-    classes_cmd.add_argument("app")
-    classes_cmd.add_argument("--ref", required=True)
-    classes_cmd.add_argument("--base", required=True)
-    withdrawn_cmd = sub.add_parser("withdrawn")
-    withdrawn_cmd.add_argument("app")
-    withdrawn_cmd.add_argument("--ref", default="HEAD")
-    runtime_cmd = sub.add_parser("runtime-change")
-    runtime_cmd.add_argument("app")
-    runtime_cmd.add_argument("--ref", required=True)
     args = parser.parse_args(argv)
 
     if args.command == "scope":
@@ -495,18 +433,11 @@ def main(argv: list[str]) -> int:
             print(error, file=sys.stderr)
         return 1 if errors else 0
     if args.command == "tested":
-        repo = os.environ.get("GITHUB_REPOSITORY", "") if args.ci else ""
-        rows = []
-        for app in apps():
-            state, newest = tested_state(app)
-            if state != TESTED and held(app, repo=repo):
-                state = HELD
-            rows.append((app, state, newest))
+        rows = [(app, *tested_state(app)) for app in apps()]
         if args.needs_run:
-            rows = [row for row in rows if row[1] not in (TESTED, PRESENTATION)]
-            rows.sort(key=lambda row: row[1] != HELD)
-            for app, _, _ in rows:
-                print(app)
+            for app, state, _ in rows:
+                if state not in (TESTED, PRESENTATION):
+                    print(app)
         else:
             for app, state, newest in rows:
                 print(f"{app}\t{state}\t{newest or '-'}")
@@ -518,33 +449,6 @@ def main(argv: list[str]) -> int:
         shas = (args.ref, args.base, args.cand)
         return 0 if all(_SHA.fullmatch(sha) for sha in shas) and same_change(
             args.app, args.ref, args.base, args.cand) else 1
-    if args.command == "classes":
-        if not all(_SHA.fullmatch(sha) for sha in (args.ref, args.base)):
-            print("--ref and --base take full lowercase commit ids", file=sys.stderr)
-            return 1
-        for name in sorted(changed_classes(args.app, args.base, args.ref)):
-            print(name)
-        return 0
-    if args.command == "withdrawn":
-        if args.ref.startswith("-"):
-            print(f"{args.ref!r} is not a revision", file=sys.stderr)
-            return 1
-        for tag in withdrawn(args.app, args.ref):
-            print(tag)
-        return 0
-    if args.command == "runtime-change":
-        if args.ref.startswith("-"):
-            print(f"{args.ref!r} is not a revision", file=sys.stderr)
-            return 1
-        commit = runtime_change(args.app, args.ref)
-        if commit:
-            print(commit)
-        return 0
-    if args.command == "last-change":
-        commit = last_change(args.app, args.ref)
-        if commit:
-            print(commit)
-        return 0
     if args.command == "tested-run":
         run = tested_run(args.app, args.ref)
         if run:

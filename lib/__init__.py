@@ -13,7 +13,7 @@ Modules:
   swarm_lint    -- swarm stack file compatibility gate
   changes       -- changed paths -> the app ids they touch
   provenance    -- an image's project: age and releases
-  app_checks    -- the per-app app-ci checks' commands
+  app_checks    -- the commands of the per-app checks
   versions      -- app version tags and the one-app scope check
   importers     -- write untested entries from a third-party registry
 """

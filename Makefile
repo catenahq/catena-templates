@@ -30,9 +30,9 @@ lint:
 test:
 	uv run --locked pytest tests/ images/erpnext-helpdesk -q
 
-## verify: what CI runs -- render must be idempotent against the commit
-verify: render
-	git diff --exit-code blueprints
+## verify: the render check CI runs -- render must be idempotent against the commit
+verify:
+	bash ci/run render
 
 ## preview: write catalog.json and index.html into the git-ignored preview/
 preview:

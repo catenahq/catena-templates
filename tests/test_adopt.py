@@ -1,4 +1,5 @@
-"""Unit tests for lib/adopt.py: the one-app plan and the API copy, with a fake API."""
+"""Unit tests for lib/adopt.py: the one-app plan, the API copy, the fork pull request it
+reads and the pull request it opens, with a fake API."""
 from __future__ import annotations
 
 import base64
@@ -35,7 +36,7 @@ def test_a_rename_copies_the_new_path_and_deletes_the_old():
 @pytest.mark.parametrize("files,why", [
     ([_f("blueprints/x/a"), _f("blueprints/y/a")], "more than one app"),
     ([_f("blueprints/x/a"), _f("lib/versions.py")], "belongs to no app"),
-    ([_f(".github/workflows/app-ci.yml")], "belongs to no app"),
+    ([_f(".github/workflows/ci.yml")], "belongs to no app"),
     ([_f("blueprints/x/../../lib/a.py")], "unsafe path"),
     ([_f("/blueprints/x/a")], "unsafe path"),
     ([_f("blueprints/X/a")], "not a plain app id"),
@@ -123,13 +124,69 @@ def test_a_malformed_sha_or_repository_is_refused(sha, fork):
         adopt.adopt(FakeApi([]), "o/r", fork, sha, 7, FILES)
 
 
-def test_the_pull_request_is_the_open_one_at_that_head_on_that_fork():
-    prs = [{"number": 1, "head": {"sha": HEAD, "repo": {"full_name": "other/x"}}},
-           {"number": 2, "head": {"sha": HEAD, "repo": None}},
-           {"number": 3, "head": {"sha": HEAD, "repo": {"full_name": "fork/x"}}}]
-    assert adopt.find_pr(lambda *a, **k: prs, "o/r", "fork/x", HEAD) == 3
-    with pytest.raises(adopt.AdoptError):
-        adopt.find_pr(lambda *a, **k: prs, "o/r", "fork/y", HEAD)
+def _pr(state="open", repo="fork/x", sha=HEAD, base="main"):
+    return {"state": state, "head": {"sha": sha, "repo": {"full_name": repo} if repo else None},
+            "base": {"ref": base}}
+
+
+def test_an_open_pull_request_from_a_fork_names_its_fork_head_and_base():
+    seen = []
+
+    def api(method, path, body=None, paginate=False):
+        seen.append((method, path))
+        return _pr(base="dev")
+
+    assert adopt.fork_pr(api, "o/r", 7) == {"fork": "fork/x", "sha": HEAD, "base": "dev"}
+    assert seen == [("GET", "repos/o/r/pulls/7")]
+
+
+@pytest.mark.parametrize("data,why", [
+    (_pr(state="closed"), "not open"),
+    (_pr(repo="o/r"), "not come from a fork"),
+    (_pr(repo="O/R"), "not come from a fork"),
+    (_pr(repo=None), "no longer exists"),
+    (_pr(sha="main"), "40 lowercase hex"),
+    (_pr(repo="a/b;c"), "owner/name"),
+])
+def test_a_pull_request_that_is_not_an_open_one_from_a_fork_is_refused(data, why):
+    with pytest.raises(adopt.AdoptError, match=why):
+        adopt.fork_pr(lambda *a, **k: data, "o/r", 7)
+
+
+def test_the_adopt_pull_request_is_opened_into_the_fork_s_base():
+    calls = []
+
+    def api(method, path, body=None, paginate=False):
+        calls.append((method, path, body))
+        return [] if method == "GET" else {"html_url": "https://github.com/o/r/pull/8"}
+
+    src = {"fork": "fork/x", "sha": HEAD, "base": "main"}
+    url = adopt.open_pr(api, "o/r", 7, src, {"app": "x", "branch": "adopt/7"})
+    assert url == "https://github.com/o/r/pull/8"
+    assert calls[0][:2] == ("GET", "repos/o/r/pulls?state=open&head=o:adopt/7&per_page=100")
+    method, path, body = calls[1]
+    assert (method, path) == ("POST", "repos/o/r/pulls")
+    assert body["head"] == "adopt/7" and body["base"] == "main"
+    assert body["title"] == "feat(x): adopt pull request 7"
+    assert "#7" in body["body"] and HEAD in body["body"]
+
+
+def test_an_open_adopt_pull_request_is_reused():
+    calls = []
+
+    def api(method, path, body=None, paginate=False):
+        calls.append(method)
+        return [{"html_url": "https://github.com/o/r/pull/8"}]
+
+    src = {"fork": "fork/x", "sha": HEAD, "base": "main"}
+    assert adopt.open_pr(api, "o/r", 7, src, {"app": "x", "branch": "adopt/7"}) == "https://github.com/o/r/pull/8"
+    assert calls == ["GET"]
+
+
+@pytest.mark.parametrize("argv", [["o/r", "0"], ["o/r", "7x"], ["o/r;x", "7"], ["o/r", "-7"]])
+def test_the_command_refuses_a_bad_repository_or_number(argv, capsys):
+    assert adopt.main(argv) == 1
+    assert "adopt refused" in capsys.readouterr().err
 
 
 def test_an_apps_card_file_is_planned_like_any_file_of_the_app():

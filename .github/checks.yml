@@ -1,0 +1,13 @@
+gates:
+  duplication: true
+checks:
+  render:
+    tools: {uv: 0.13.9}
+  schema:
+    tools: {uv: 0.13.9}
+  python:
+    tools: {uv: 0.13.9}
+    siblings: {contracts: {}}
+scan: {}
+apps:
+  catalog: true

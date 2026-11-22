@@ -1,14 +1,11 @@
-"""The app-ci checks that read one app: entry points of
-.github/workflows/app-ci.yml.
+"""The checks that read one app: entry points of the app checks of the shared
+PR workflow (contracts scripts/ci/app-plan.sh and app-check.sh).
 
   changed               repo-relative paths on stdin -> the app ids they touch
   images ID             the image references the app's compose pins
   provenance ID        each pulled image's project is old enough, with releases;
                         an image listed in PROVENANCE_OWN_IMAGES is the repository's own build;
                         PROVENANCE_CHECK_AGE=false leaves the age out
-  ci-passed SHA         exit 0 when commit SHA of GITHUB_REPOSITORY has an app-ci status of success
-                        posted by github-actions[bot] for a run of that repository (GITHUB_TOKEN or
-                        GH_TOKEN reads it); any other answer, an unreadable one included, exits 1
   checker ID            the catena-admin image whose app checker reads the app: the release
                         its compose block names in requires_catena, else the newest
   plain ID              true when the app's card sets bench.plain, else false: the app opts in
@@ -21,18 +18,13 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
-import re
 import subprocess
 import sys
 
 from . import changes, model, provenance
-from .adopt import REPO, SHA
 from .model import ROOT
 
 CHECKER_IMAGE = "ghcr.io/catenahq/catena-admin"
-CI_CONTEXT = "app-ci"
-CI_CREATOR = "github-actions[bot]"
 
 
 def requires_catena(app: str) -> str | None:
@@ -72,26 +64,6 @@ def provenance_errors(app: str, labels_of=None, fetch=provenance.http_fetch) -> 
     return errors
 
 
-def ci_state(sha: str, repo: str, fetch=provenance.http_fetch) -> str | None:
-    """The state of the newest app-ci status of the commit when github-actions[bot]
-    posted it for a run of the repository, else None."""
-    statuses = fetch(f"{provenance.api_url()}/repos/{repo}/commits/{sha}/statuses?per_page=100")
-    status = next((s for s in statuses or [] if s.get("context") == CI_CONTEXT), None)
-    if not status:
-        return None
-    run = re.compile(rf"https://github\.com/{re.escape(repo)}/actions/runs/[0-9]+")
-    if ((status.get("creator") or {}).get("login") != CI_CREATOR
-            or run.fullmatch(status.get("target_url") or "") is None):
-        return None
-    return status.get("state")
-
-
-def ci_passed(sha: str, repo: str, fetch=provenance.http_fetch) -> bool:
-    """Whether the newest app-ci status of the commit is a success posted by
-    github-actions[bot] for a run of the repository."""
-    return ci_state(sha, repo, fetch) == "success"
-
-
 def _docker_labels(ref: str) -> dict[str, str]:
     proc = subprocess.run(
         ["docker", "image", "inspect", "--format", "{{json .Config.Labels}}", ref],
@@ -105,7 +77,6 @@ def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(prog="app_check")
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("changed")
-    sub.add_parser("ci-passed").add_argument("sha")
     for name in ("images", "provenance", "checker", "plain"):
         sub.add_parser(name).add_argument("app")
     args = parser.parse_args(argv)
@@ -119,16 +90,6 @@ def main(argv: list[str]) -> int:
             return 1
         print(" ".join(ids))
         return 0
-    if args.command == "ci-passed":
-        repo = os.environ.get("GITHUB_REPOSITORY", "")
-        if not SHA.fullmatch(args.sha) or not REPO.fullmatch(repo):
-            print("ci-passed takes a full lowercase commit id and GITHUB_REPOSITORY", file=sys.stderr)
-            return 1
-        try:
-            return 0 if ci_passed(args.sha, repo) else 1
-        except provenance.ProvenanceError as exc:
-            print(exc, file=sys.stderr)
-            return 1
     if args.command == "images":
         refs, unresolved = provenance.compose_images(_compose(args.app))
         print("\n".join(refs))

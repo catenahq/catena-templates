@@ -210,7 +210,7 @@ def _outside_file(git, name):
 
 
 def test_a_plan_reads_the_passed_commit_not_the_checkout(repo):
-    # app-tag.yml runs the default branch's tools over a commit that may predate them.
+    # A plan reads the commit it is given, whatever commit the tools are checked out at.
     git, _ = repo
     older = _head()
     _outside_file(git, "notes.txt")
@@ -227,7 +227,7 @@ def test_a_pass_of_a_commit_whose_app_main_has_since_changed_is_skipped(repo):
     assert versions.plan("web", older) == "skip web/1.3.0-1"
 
 
-def test_a_reverted_bump_withdraws_its_tag_and_the_older_tag_is_newest_again(repo, capsys):
+def test_a_reverted_bump_withdraws_its_tag_and_the_older_tag_is_newest_again(repo):
     git, commit = repo
     git("tag", "-a", "web/1.2.0-1", "-m", f"{versions.PASSED} at abc: https://x")
     commit("web:1.3.0")
@@ -237,8 +237,6 @@ def test_a_reverted_bump_withdraws_its_tag_and_the_older_tag_is_newest_again(rep
     assert versions.withdrawn("web") == ["web/1.3.0-1"]
     assert versions.tested_state("web") == (versions.TESTED, "web/1.2.0-1")
     assert versions.plan("web") == "skip web/1.2.0-1"
-    assert versions.main(["withdrawn", "web"]) == 0
-    assert capsys.readouterr().out == "web/1.3.0-1\n"
 
 
 def test_a_downgrade_to_a_version_with_no_tag_withdraws_the_tags_above_it(repo):
@@ -358,83 +356,6 @@ def test_templates_root_points_the_tags_at_another_tree(repo, tmp_path):
                           cwd=ROOT.parent, env=env, capture_output=True, text=True, check=False)
     assert done.returncode == 0, done.stderr
     assert done.stdout.strip() == "mark web/1.2.0-1"
-
-
-def test_last_change_is_the_newest_commit_that_touched_the_app(repo, capsys):
-    git, commit = repo
-    first = _head()
-    _outside_file(git, "notes.txt")
-    assert versions.last_change("web", "HEAD") == first
-    commit("web:1.3.0")
-    second = _head()
-    _outside_file(git, "more.txt")
-    assert versions.last_change("web") == second
-    assert versions.last_change("web", first) == first
-    assert versions.main(["last-change", "web", "--ref", "HEAD"]) == 0
-    assert capsys.readouterr().out == second + "\n"
-
-
-def test_last_change_follows_first_parents_so_a_merge_is_the_change(repo):
-    git, commit = repo
-    git("branch", "-M", "main")
-    git("checkout", "-q", "-b", "br")
-    commit("web:1.3.0")
-    git("checkout", "-q", "main")
-    _outside_file(git, "notes.txt")
-    git("merge", "--no-ff", "-qm", "merge br", "br")
-    assert versions.last_change("web") == _head()
-
-
-def test_last_change_prints_nothing_for_an_app_no_commit_touched(repo, capsys):
-    assert versions.last_change("other") == ""
-    assert versions.main(["last-change", "other"]) == 0
-    assert capsys.readouterr().out == ""
-
-
-def test_last_change_refuses_an_id_that_is_not_a_plain_slug(repo, capsys):
-    assert versions.main(["last-change", "../web"]) == 1
-    assert "not a plain app id" in capsys.readouterr().err
-
-
-def _ci(state, seen=None):
-    run = "https://github.com/o/r/actions/runs/5"
-
-    def fetch(url):
-        if seen is not None:
-            seen.append(url)
-        return [{"context": "app-ci", "state": state, "target_url": run,
-                 "creator": {"login": "github-actions[bot]"}}]
-
-    return fetch
-
-
-def test_an_app_whose_last_main_change_failed_app_ci_is_held(repo):
-    git, commit = repo
-    git("tag", "-a", "web/1.2.0-1", "-m", f"{versions.PASSED} at abc: https://x")
-    commit("web:1.3.0")
-    assert versions.tested_state("web") == (versions.CHANGED, "web/1.2.0-1")
-    seen = []
-    assert versions.held("web", repo="o/r", fetch=_ci("failure", seen))
-    assert versions.held("web", repo="o/r", fetch=_ci("error"))
-    assert seen[0].startswith("https://api.github.com/repos/o/r/commits/")
-
-
-def test_an_app_is_not_held_by_a_passed_pending_or_unread_app_ci(repo):
-    for state in ("success", "pending"):
-        assert not versions.held("web", repo="o/r", fetch=_ci(state))
-    assert not versions.held("web", repo="o/r", fetch=lambda url: None)
-    assert not versions.held("web", repo="", fetch=_ci("failure"))
-
-
-def test_tested_ci_names_a_held_app_and_lists_it_first(repo, monkeypatch, capsys):
-    monkeypatch.setenv("GITHUB_REPOSITORY", "o/r")
-    monkeypatch.setattr(versions.app_checks, "ci_state", lambda sha, slug, fetch=None: "failure")
-    assert versions.main(["tested", "--ci"]) == 0
-    assert capsys.readouterr().out == "web\theld\t-\n"
-    assert versions.main(["tested", "--needs-run", "--ci"]) == 0
-    assert capsys.readouterr().out == "web\n"
-    assert versions.main(["tested"]) == 0
-    assert capsys.readouterr().out == "web\tuntested\t-\n"
 
 
 def test_tested_lists_the_apps_that_need_a_run(repo, capsys):
@@ -629,18 +550,6 @@ def test_a_card_that_appears_or_goes_is_compared_with_no_fields(repo):
     assert _classes(added, _put(git, remove=[CARD])) == everything
 
 
-def test_the_classes_command_prints_one_per_line(repo, capsys):
-    git, _ = repo
-    before = _head()
-    after = _put(git, {"blueprints/web/logo.png": "r", "blueprints/web/test.yml": "t"})
-    assert versions.main(["classes", "web", "--ref", after, "--base", before]) == 0
-    assert capsys.readouterr().out == "presentation\nverification\n"
-    assert versions.main(["classes", "web", "--ref", after, "--base", after]) == 0
-    assert capsys.readouterr().out == ""
-    assert versions.main(["classes", "web", "--ref", "HEAD", "--base", before]) == 1
-    assert versions.main(["classes", "../web", "--ref", after, "--base", before]) == 1
-
-
 # The four states.
 
 def _passed(git, name="web/1.2.0-1"):
@@ -773,40 +682,6 @@ def test_main_changing_the_tests_between_the_forks_is_a_different_change(repo):
     base = _head()
     sha = _put(git, {"blueprints/web/logo.png": "a"})
     assert not versions.same_change("web", sha, base, cand)
-
-
-# The last runtime change.
-
-def test_runtime_change_is_the_newest_commit_that_added_the_app_or_changed_its_runtime(repo, capsys):
-    git, commit = repo
-    added = _head()
-    _put(git, {"blueprints/web/logo.png": "r"})
-    _put(git, {"blueprints/web/test.yml": "t"})
-    assert versions.runtime_change("web") == added
-    commit("web:1.3.0")
-    runtime = _head()
-    _put(git, {"blueprints/web/logo.png": "again"})
-    _outside_file(git, "notes.txt")
-    assert versions.runtime_change("web") == runtime
-    assert versions.runtime_change("web", added) == added
-    assert versions.main(["runtime-change", "web", "--ref", "HEAD"]) == 0
-    assert capsys.readouterr().out == runtime + "\n"
-
-
-def test_runtime_change_counts_a_change_of_a_runtime_card_field(repo):
-    git, _ = repo
-    _put(git, {CARD: _card()})
-    _put(git, {CARD: _card({"en": {"display_name": "B"}})})
-    runtime = _put(git, {CARD: _card({"schema": 2})})
-    _put(git, {CARD: _card({"schema": 2, "bench": {"pack": "z"}})})
-    assert versions.runtime_change("web") == runtime
-
-
-def test_runtime_change_is_empty_for_an_unknown_app_and_refuses_an_option(repo, capsys):
-    assert versions.runtime_change("other") == ""
-    assert versions.main(["runtime-change", "other", "--ref", "HEAD"]) == 0
-    assert capsys.readouterr().out == ""
-    assert versions.main(["runtime-change", "web", "--ref=--output=x"]) == 1
 
 
 # The version service.

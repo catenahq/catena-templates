@@ -1,5 +1,6 @@
-# Files app-ci's ClamAV pass allows (.github/workflows/app-ci.yml mounts this
-# file into the scanner's database folder). One file per line, as
+# Files the ClamAV pass of the app checks allows (contracts
+# scripts/ci/app-check.sh mounts this file into the scanner's database
+# folder). One file per line, as
 # `sigtool --sha256 <file>` prints it: SHA-256, size in bytes, file name. Only
 # that exact content passes; a changed file is scanned again. Each entry names
 # the image and path that ship it and why it is not malware. ClamAV reads a line

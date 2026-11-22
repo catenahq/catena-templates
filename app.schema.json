@@ -193,7 +193,7 @@
         },
         "plain": {
           "type": "boolean",
-          "description": "true: app-ci starts the app's plain export (build/pack.py plain-check) and fails when it does not answer."
+          "description": "true: the app's checks start its plain export (build/pack.py plain-check) and fails when it does not answer."
         }
       }
     },

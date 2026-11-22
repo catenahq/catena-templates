@@ -1,5 +1,5 @@
 #!/usr/bin/env -S uv run --quiet
-"""Entrypoint: adopt.py <base repo> <fork repo> <fork head sha>. Needs GH_TOKEN. Logic in lib/adopt.py."""
+"""Entrypoint: adopt.py <base repo> <pull request number>. Needs GH_TOKEN. Logic in lib/adopt.py."""
 from __future__ import annotations
 
 import sys

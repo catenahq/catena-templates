@@ -1,0 +1,22 @@
+name: ci
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  schedule:
+    - cron: '19 6 * * *'
+permissions: {}
+concurrency:
+  group: ci-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  ci:
+    uses: catenahq/contracts/.github/workflows/pr.yml@b1d4ca79e0999fd9f12c86b6c77737b503e1d2ce # main
+    permissions:
+      contents: read
+      actions: read
+      statuses: write
+      pull-requests: write
+      security-events: write
+      issues: write
+    with:
+      runner: ubuntu-26.04
