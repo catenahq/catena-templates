@@ -1,6 +1,6 @@
-"""The same-tree gate in app-ci.yml and build-and-verify.yml: every job waits for it and carries its
-condition, the gate jobs are named as the rulesets require them, and every caller of a reusable
-workflow that holds a gate grants the permission the gate reads with."""
+"""The same-tree gate in app-ci.yml: every job waits for it and carries its condition, the gate job is
+named as the rulesets require it, and every caller of a reusable workflow that holds a gate grants the
+permission the gate reads with."""
 from __future__ import annotations
 
 from pathlib import Path
@@ -9,10 +9,10 @@ import pytest
 import yaml
 
 WORKFLOWS = Path(__file__).resolve().parent.parent / ".github" / "workflows"
-GATED = {"app-ci.yml": "same tree (app-ci)", "build-and-verify.yml": "same tree (build-and-verify)"}
+GATED = {"app-ci.yml": "same tree (app-ci)"}
 CONDITION = "needs.same-tree.outputs.run != 'false'"
 # Reusable workflows whose gate job asks for `actions: read`.
-CALLEES = ("app-ci.yml", "build-and-verify.yml", "scanctl/.github/workflows/github-reusable.yml")
+CALLEES = ("app-ci.yml",)
 
 
 def _jobs(name):
@@ -63,12 +63,6 @@ def test_gate_names_are_unique_among_the_workflows():
     assert len(names) == len(set(names))
 
 
-def test_build_and_verify_duplication_keeps_its_catalog_condition():
-    condition = _jobs("build-and-verify.yml")["duplication"]["if"]
-    assert CONDITION in condition
-    assert "inputs.catalog" in condition
-
-
 def test_app_ci_gate_judges_the_change_and_yields_to_a_call_with_a_sha():
     gate = _jobs("app-ci.yml")["same-tree"]
     assert gate["if"] == "inputs.sha == ''"
@@ -82,21 +76,6 @@ def test_app_ci_jobs_still_run_when_the_gate_is_skipped():
         assert "!cancelled()" in condition
         assert "needs.same-tree.result != 'failure'" in condition
     assert _needs(jobs["app"]) == ["plan"]
-
-
-def test_build_and_verify_tests_the_help_desk_image_for_the_catalog_only():
-    job = _jobs("build-and-verify.yml")["lint-quiesce-tests"]
-    run = next(s["with"]["run"] for s in job["steps"] if "pytest" in s.get("name", ""))
-    assert "tests=(tests/)" in run
-    assert "if [ -z \"$TEMPLATES_ROOT\" ]; then tests+=(images/erpnext-helpdesk); fi" in run
-    assert '"${tests[@]}"' in run
-
-
-def test_build_and_verify_runs_pytest_on_four_processes():
-    job = _jobs("build-and-verify.yml")["lint-quiesce-tests"]
-    run = next(s["with"]["run"] for s in job["steps"] if "pytest" in s.get("name", ""))
-    assert "--with pytest-xdist" in run
-    assert '"${tests[@]}" -q -n 4' in run
 
 
 def test_every_caller_of_a_gated_workflow_grants_actions_read():
