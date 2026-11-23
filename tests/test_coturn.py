@@ -150,10 +150,10 @@ def test_the_database_folder_the_image_declares_as_a_volume_is_a_tmpfs():
 
 
 def test_the_image_pin_runs_as_its_own_user():
-    """coturn/coturn:4.18.0-alpine sets USER nobody:nogroup; the certificate and
+    """coturn/coturn:4.19.2-alpine sets USER nobody:nogroup; the certificate and
     its key are readable by that user, so the service sets no user."""
     service = _service()
-    assert service["image"] == "coturn/coturn:4.18.0-alpine"
+    assert service["image"] == "coturn/coturn:4.19.2-alpine"
     assert "user" not in service and "privileged" not in service
     assert service["cap_drop"] == ["NET_RAW"]
 
