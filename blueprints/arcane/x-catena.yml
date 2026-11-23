@@ -7,7 +7,7 @@ env:
   ENCRYPTION_KEY:
     generated: {length: 64, alphabet: hex}
   ADMIN_PASSWORD:
-    generated: {length: 32, alphabet: alnum}
+    generated: {length: 32, alphabet: alnum, first_start_only: true, note: "Password of the Arcane account arcane after Catena-1-, set at the first start; a later change here does nothing"}
   AUTH_MODE:
     setting: {default: "admin-only", label: {en: "Access: public, private or admin-only", fr: "Accès : public, private ou admin-only"}}
   UPDATE_LEVEL:
