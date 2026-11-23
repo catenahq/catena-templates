@@ -30,7 +30,7 @@ x-catena:
 
 services:
   windshift:
-    image: ghcr.io/windshiftapp/windshift:v0.9.4
+    image: ghcr.io/windshiftapp/windshift:v0.9.5
     deploy:
       # Swarm starts every service at once, and this image has no shell to
       # wait for postgres with, so the ordering is the restart policy: the
