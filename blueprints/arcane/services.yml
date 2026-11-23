@@ -1,6 +1,6 @@
 services:
   arcane:
-    image: ghcr.io/getarcaneapp/manager:v2.17.3
+    image: ghcr.io/getarcaneapp/manager:v3.1.1
     deploy:
       restart_policy:
         condition: any
@@ -9,8 +9,13 @@ services:
           - node.role==manager
           - node.labels.catena.role==data
     environment:
-      APP_URL: https://${DOMAIN_HOST}
-      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      ARCANE_APP_URL: https://${DOMAIN_HOST}
+      ARCANE_ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      # Arcane 3 creates the administrator arcane with this password when it has no
+      # users yet, and refuses one its policy rejects: 12 characters with an upper
+      # case letter, a lower case letter, a number and a symbol. The fixed prefix
+      # carries the symbol and the number a generated alnum value may lack.
+      ARCANE_DEFAULT_ADMIN_PASSWORD: Catena-1-${ADMIN_PASSWORD}
       PUID: "1000"
       PGID: "1000"
     volumes:

@@ -3,11 +3,12 @@
 # helper, which shares the network of the arcane container and asks the server at
 # 127.0.0.1:3552, signed in with the bearer token POST /api/auth/login answers.
 #
-# The setup does a person's first visit: Arcane starts with the administrator arcane holding the
-# password arcane-admin and asks for a new one, so, only while the test password does not sign
-# in, it signs in with arcane-admin and sets the password the harness gives as
-# CATENA_TEST_PASSWORD (POST /api/auth/password). Arcane allows five sign-ins a minute from one
-# address, so a sign-in that answers 429 waits and asks again. The seed gets or creates the user
+# The setup does a person's first visit: Arcane 3 starts with the administrator arcane holding
+# the password Catena-1- followed by the app's ADMIN_PASSWORD (the step's env), and its default
+# password policy asks 12 characters with a symbol and a number, which the harness password
+# meets. Only while the test password does not sign in, the setup signs in with the generated
+# one and sets the password the harness gives as CATENA_TEST_PASSWORD (POST /api/auth/password).
+# Arcane allows five sign-ins a minute from one address, so a sign-in that answers 429 waits and asks again. The seed gets or creates the user
 # catena-<run> with the display name fixture-<run> (POST /api/users); the assert signs in with
 # the test password and counts exactly one user of that name holding that display name.
 #
@@ -23,6 +24,7 @@ setup:
   - name: administrator_password
     type: docker_exec
     container: "{{ helper_arcane }}"
+    env: [ADMIN_PASSWORD]
     command:
       - python3
       - -c
@@ -69,11 +71,12 @@ setup:
             time.sleep(5)
         password = os.environ["CATENA_TEST_PASSWORD"]
         if not sign_in(password):
-            token = sign_in("arcane-admin")
+            generated = "Catena-1-" + os.environ["ADMIN_PASSWORD"]
+            token = sign_in(generated)
             if not token:
-                fail("the administrator arcane signs in with neither the test password nor arcane-admin")
+                fail("the administrator arcane signs in with neither the test password nor the generated one")
             status, answer = call("POST", "/api/auth/password",
-                                  {"currentPassword": "arcane-admin", "newPassword": password}, token)
+                                  {"currentPassword": generated, "newPassword": password}, token)
             if status != 200:
                 fail("POST /api/auth/password answered %s: %.300s" % (status, answer))
         print("arcane administrator ready")
