@@ -9,8 +9,8 @@ services:
           - node.role==manager
           - node.labels.catena.role==data
     environment:
-      APP_URL: https://${DOMAIN_HOST}
-      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      ARCANE_APP_URL: https://${DOMAIN_HOST}
+      ARCANE_ENCRYPTION_KEY: ${ENCRYPTION_KEY}
       PUID: "1000"
       PGID: "1000"
     volumes:
