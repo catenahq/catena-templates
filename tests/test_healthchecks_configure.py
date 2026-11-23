@@ -21,7 +21,7 @@ def test_an_admin_email_change_renames_the_one_superuser(monkeypatch):
     [operator] = managers["user"].rows
     [project] = managers["project"].rows
     [channel] = managers["channel"].rows
-    check = managers["check"].create(project=project, slug="gatus-auth")
+    check = managers["check"].create(project=project, slug="nightly-job")
     check.channel_set.add(channel)
 
     run_hook(EMAIL_HOST="smtp.example.com", ADMIN_EMAIL="new@example.com")
@@ -36,9 +36,8 @@ def test_an_admin_email_change_renames_the_one_superuser(monkeypatch):
 
 
 def test_a_mixed_case_admin_email_gives_a_lowercase_login_and_an_as_given_channel(monkeypatch):
-    """Keycloak sends the address lowercase and Healthchecks matches the header exactly,
-    so the superuser's username and email are lowercase; the email channel keeps the
-    address as given."""
+    """The superuser's username and email are lowercase, as the sign-in form matches
+    them; the email channel keeps the address as given."""
     managers = install_fake_django(monkeypatch)
     run_hook(EMAIL_HOST="smtp.example.com", ADMIN_EMAIL="Ops@Example.com")
     [operator] = managers["user"].rows
@@ -48,26 +47,6 @@ def test_a_mixed_case_admin_email_gives_a_lowercase_login_and_an_as_given_channe
 
     run_hook(EMAIL_HOST="smtp.example.com", ADMIN_EMAIL="Ops@Example.com")
     assert managers["user"].rows == [operator]
-
-
-def test_a_lowercase_duplicate_of_the_mixed_case_operator_is_merged_into_it(monkeypatch):
-    """A gated visit made Healthchecks create a second user on the lowercase address.
-    The deploy ends with the operator alone, owning every project; a user on another
-    address is left as it is."""
-    managers = install_fake_django(monkeypatch)
-    operator = managers["user"].create(username="Ops@Example.com", email="Ops@Example.com")
-    mine = managers["project"].create(owner=operator, name="vps-1", ping_key="ping-key")
-    dup = managers["user"].create(username="u-abc", email="ops@example.com")
-    theirs = managers["project"].create(owner=dup, name="second")
-    other = managers["user"].create(username="bob", email="bob@example.com")
-    bobs = managers["project"].create(owner=other, name="bobs")
-
-    run_hook(ADMIN_EMAIL="Ops@Example.com")
-    assert managers["user"].rows == [operator, other]
-    assert operator.username == operator.email == "ops@example.com"
-    assert mine.owner is operator and theirs.owner is operator
-    assert bobs.owner is other
-    assert mine.ping_key == "ping-key"
 
 
 def test_an_unpinned_host_adopts_the_lowercase_user_instead_of_adding_a_second(monkeypatch):
