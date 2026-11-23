@@ -45,7 +45,7 @@ name: app-ci
 # `bench.plain`, on the same runs as the heavy steps and on a change of verification.
 #
 # An app held as neat files (`services.yml` in its folder) is judged by the
-# `docker-compose.yml` the render packs from them. build-and-verify re-renders
+# `docker-compose.yml` the render packs from them. The render check re-renders
 # and fails when that file, or any other generated one, is out of step with its
 # inputs; it also runs the unit tests and the lints besides the swarm lint.
 #
@@ -405,11 +405,11 @@ jobs:
         if: steps.scope.outputs.heavy == 'true'
         # Only trivy runs, over the one compose file's images. The change is
         # judged from its base (-baseline-ref): a vulnerability at or above high
-        # with a fix, or a secret in an image, fails only when the change adds it,
-        # as in security.yml's pull request scan; the ones already there do not
+        # with a fix, or a secret in an image, fails only when the change adds it;
+        # the ones already there do not
         # fail the step and are counted among the summary's advisory findings.
         # A finding accepted in .scanctl/baseline.sarif (-baseline) does not fail
-        # it either, as in security.yml.
+        # it either.
         env:
           BASE_SHA: ${{ inputs.base }}
         run: |

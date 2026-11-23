@@ -379,9 +379,9 @@ block.
     `blueprints/<id>/docker-compose.yml` with the source change.
 11. Open a PR from a branch that changes this one app and nothing else, or, as
     a repository admin, push the one commit to `main`. CI runs
-    `build-and-verify.yml`, `app-ci.yml` (see "Checks on every pull
-    request"), `check:unicode` and `check:prose`; the app tests then run the legs
-    below.
+    the checks of `.github/checks.yml` through `ci.yml` (the render drift, the
+    schemas, the tests, the scan and the gates), and `app-ci.yml` (see "Checks
+    on every pull request"); the app tests then run the legs below.
 
 A change of an app is one pull request or one commit of `main`, touching that
 app alone: the `scope` check fails a pull request or a commit that touches two,
@@ -480,7 +480,8 @@ runs later and elsewhere. One job covers the catalog:
   `blueprints/`, run from the public catena-admin image. The unit tests, the other
   lints and the render drift check (the render packs each app held as neat files,
   and the committed `docker-compose.yml` must equal that render) run in
-  `build-and-verify.yml` only.
+  the checks of `.github/checks.yml` only (`bash ci/run render`, `schema` and
+  `python`).
 
 Then one job per app the change touches (`blueprints/<id>/**`), each running:
 
@@ -539,8 +540,7 @@ for another repository's call. It looks for an earlier run of the workflow on th
 same tree against the same base (contracts' `same-tree` action, in the README of
 contracts, "Runs once per tree"). A found success skips `repo`, `scope`, `plan`
 and so the app jobs; a found failure fails the job, which blocks the merge where
-the job is required; no result runs everything. `build-and-verify.yml` starts the
-same way with `same tree (build-and-verify)`. A call with `sha`, as `app-main.yml`
+the job is required; no result runs everything. A call with `sha`, as `app-main.yml`
 makes, skips the job.
 
 A push to `main` (a repository admin's direct push or a merge) runs
@@ -569,7 +569,7 @@ the image scan still judges the change against its base. A pass posts the
 A named app that `main` lacks, or whose last change touches more than one app,
 is refused.
 
-`app-ci.yml`, `build-and-verify.yml`, `app-dispatch.yml` and `app-tag.yml` are
+`app-ci.yml`, `app-dispatch.yml` and `app-tag.yml` are
 also reusable workflows (`workflow_call`) for another repository with this
 layout; `app-main.yml` serves this repository alone. Their inputs are `catalog`
 (default true), `tools-ref` (default `main`) and `own-images` (default empty);
@@ -578,14 +578,12 @@ layout; `app-main.yml` serves this repository alone. Their inputs are `catalog`
 defaulting to empty. A caller of `app-ci.yml` grants `contents: read`,
 `statuses: read` and `actions: read`: the `app` job reads the `app-ci` status of
 the app's last runtime change, the `same tree` job reads earlier runs, and GitHub
-refuses a called workflow that asks for more than its caller grants. A caller of
-`build-and-verify.yml` grants `actions: read` for the same reason. A repository that posts no `app-ci` status runs the heavy steps
+refuses a called workflow that asks for more than its caller grants. A repository that posts no `app-ci` status runs the heavy steps
 every time. `app-dispatch.yml` and `app-tag.yml` take the
 secrets `RENOVATE_APP_CLIENT_ID` and `RENOVATE_APP_PRIVATE_KEY`. With `catalog`
 false a called workflow checks out catena-templates at `tools-ref` into
 `.tools` and sets `TEMPLATES_ROOT` to the caller's tree. It runs the swarm lint
-and `catena-applint --nodes 2 blueprints` (no `--catalog`) instead of `make`,
-the caller's `tests/`, render drift over `blueprints` alone, and no jscpd;
+and `catena-applint --nodes 2 blueprints` (no `--catalog`);
 `own-images` reaches the provenance step as `PROVENANCE_OWN_IMAGES`. With
 `catalog` true every step runs as written above, under the names `app-checks`
 and `scope`.

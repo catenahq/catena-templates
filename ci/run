@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# Runs one check of this repository by its name in .github/checks.yml, the same
+# in CI and on a workstation: bash ci/run <name>. The python check reads the
+# contracts checkout beside this one.
+set -euo pipefail
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
+
+case "${1:-}" in
+  render)
+    # The render is idempotent: rendering the committed inputs changes no
+    # generated file.
+    uv run --locked build/render.py
+    if ! git diff --exit-code blueprints; then
+      echo "ci/run render: the render output differs from the committed blueprint files: run make render and commit the diff" >&2
+      exit 1
+    fi
+    ;;
+  schema)
+    # Every app.json and compose block against its schema.
+    uv run --locked build/validate.py
+    ;;
+  python)
+    # The unit tests, the help desk image builder's included, on the four vCPUs
+    # of the runner, then the quiesce and Postgres pin lints. Each runs, so a
+    # failure of one hides no failure of another.
+    rc=0
+    uv run --locked pytest -q -n 4 tests/ images/erpnext-helpdesk || rc=1
+    uv run --locked build/lint_quiesce.py || rc=1
+    uv run --locked build/lint_postgres_pins.py || rc=1
+    exit "$rc"
+    ;;
+  *)
+    echo "ci/run: unknown check '${1:-}' (checks: render, schema, python)" >&2
+    exit 2
+    ;;
+esac

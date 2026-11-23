@@ -501,7 +501,7 @@ def test_app_ci_groups_runs_by_the_checked_commit_and_checks_it_out():
     assert base["env"]["BASE_SHA"] == "${{ inputs.base }}" and '${BASE_SHA:-$(git rev-parse HEAD^1)}' in base["run"]
     assert doc["jobs"]["repo"]["steps"][0]["with"]["fetch-depth"] == 2
     nfo = [s for s in doc["jobs"]["repo"]["steps"] if "new-failures-only" in s.get("uses", "")]
-    # The catalog's unit tests, the other lints and the render drift run in build-and-verify only.
+    # The catalog's unit tests, the other lints and the render drift run in the checks of .github/checks.yml only.
     assert [s["if"] for s in nfo] == ["env.TEMPLATES_ROOT == ''", "env.TEMPLATES_ROOT != ''"]
     assert all(s["with"]["base"] == "${{ steps.base.outputs.sha }}" for s in nfo)
     for s in nfo:
@@ -607,16 +607,10 @@ def test_a_catalog_without_images_adds_nothing(scratch):
     assert _provenance(scratch, [], "") == ""
 
 
-def test_the_catalog_s_tests_find_contracts_beside_the_checkout():
+def test_app_ci_holds_no_contracts_clone():
     # tests/test_monitoring_apps.py and tests/test_quiesce_lint.py read ../contracts/default-apps/wiring.json;
-    # only build-and-verify runs them, so app-ci's repo job holds no clone.
+    # only the python check of .github/checks.yml runs them, so app-ci's repo job holds no clone.
     assert not [s for s in _doc("app-ci.yml")["jobs"]["repo"]["steps"] if "git clone" in s.get("run", "")]
-    steps = _doc("build-and-verify.yml")["jobs"]["lint-quiesce-tests"]["steps"]
-    clone = next(i for i, s in enumerate(steps) if s.get("name") == "Check out contracts beside this repository")
-    assert steps[clone]["if"] == "env.TEMPLATES_ROOT == ''"
-    assert steps[clone]["run"] == ('git clone --quiet --depth 1 https://github.com/catenahq/contracts.git '
-                                   '"$GITHUB_WORKSPACE/../contracts"')
-    assert clone < next(i for i, s in enumerate(steps) if "new-failures-only" in str(s.get("uses", "")))
 
 
 def test_the_age_is_asked_of_a_pull_request_from_a_fork_only():

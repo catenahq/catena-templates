@@ -70,11 +70,13 @@ the repository, and the checks.
   in `app.json`, which the catalog and the panel show. Comments inside
   `services.yml` and `x-catena.yml` explain a construct that does not
   read as written, beside that construct.
-- The workflows `app-ci.yml`, `build-and-verify.yml`, `app-dispatch.yml` and
+- The workflows `app-ci.yml`, `app-dispatch.yml` and
   `app-tag.yml` also serve other repositories through `workflow_call`; their
   steps run unchanged for this repository (`catalog` true), and a change to
   them keeps both paths working; `app-main.yml` serves this repository alone.
-  A caller of `app-ci.yml` or `build-and-verify.yml` grants `actions: read`.
+  A caller of `app-ci.yml` grants `actions: read`. The other checks of this
+  repository run through `ci.yml`, the shared PR workflow of contracts, and
+  are listed in `.github/checks.yml` and run by `bash ci/run <name>`.
   The build tools read another tree through
   `TEMPLATES_ROOT`, and the schemas always come from this checkout.
 - A change on `main` reaches every new deploy at once, so `main` stays
@@ -375,7 +377,7 @@ search of the workspace finds.
   fetched raw by every deployment).
 - Generated artifacts are BUILD OUTPUTS; hand-edits fail the
   idempotent-render CI gate.
-- Every catalog image ref is CVE-scanned (security.yml, through
+- Every catalog image ref is CVE-scanned (the scan of `ci.yml`, through
   scanctl.yml's image pins);
   quiesce and lifecycle argv each pass their own allowlist in
   `lib/quiesce_lint.py`, with no shell operator.
