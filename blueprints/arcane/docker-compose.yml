@@ -20,6 +20,11 @@ x-catena:
     timeout_seconds: 60
     verify:
       - ["/app/arcane", "health", "--timeout", "10s"]
+  # Arcane keeps its SQLite database in arcane-data and migrates it at start; an
+  # older Arcane refuses a database a newer one migrated, so an update copies the
+  # volume first and a rollback puts the copy back.
+  data:
+    arcane: {volume: arcane-data, upgrade: in_place}
 
 services:
   arcane:
