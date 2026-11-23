@@ -81,7 +81,7 @@ x-catena:
 
 services:
   app:
-    image: invoiceninja/invoiceninja-debian:5.13.53
+    image: invoiceninja/invoiceninja-debian:5.13.56
     deploy:
       restart_policy:
         condition: any
@@ -147,7 +147,7 @@ services:
           - invoiceninja-fpm
 
   nginx:
-    image: nginx:1.31.8-alpine
+    image: nginx:1.31.9-alpine
     deploy:
       restart_policy:
         condition: any

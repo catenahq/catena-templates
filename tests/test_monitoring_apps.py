@@ -1,12 +1,13 @@
-"""Gatus, Healthchecks and the Beszel hub: the networks that keep the monitoring
-plane apart from the client apps, the loopback ports, the data each declares and
-the swarm shape of their composes. Gatus and the Beszel hub post their alerts to the
-server's alert intake on catena-alerts.
+"""Gatus and the Beszel hub: the networks that keep the monitoring plane apart from
+the client apps, the loopback ports, the data each declares and the swarm shape of
+their composes. Gatus and the Beszel hub post their alerts to the server's alert
+intake on catena-alerts.
 
-Healthchecks takes the signed-in user from a header whoever sends it, so only the
-network decides who may call it. The hub trusts the sign-in header from its gate's
-network, so only the gate and the hub join that one. Gatus is the only one of the
-three on catena-network.
+The hub trusts the sign-in header from its gate's network, so only the gate and the
+hub join that one. Gatus is the only one of the two on catena-network.
+
+Healthchecks is an ordinary catalog application: the tests that hold it to that are
+the ones about its own address, network and sign-in.
 """
 from __future__ import annotations
 
@@ -23,13 +24,12 @@ sys.path.insert(0, str(ROOT))
 
 from lib import model, quiesce_lint  # noqa: E402
 
-APPS = ("healthchecks", "gatus", "beszel")
-HC_NETWORK = "catena-healthchecks"
+APPS = ("gatus", "beszel")
 ALERTS_NETWORK = "catena-alerts"
 BESZEL_NETWORK = "catena-beszel"
 GATE_NETWORK = "catena-beszelgate"
-PORTS = {"healthchecks": (8000, 18000), "gatus": (8080, 18080), "beszel": (8090, 18190)}
-VOLUMES = {"healthchecks": "healthchecks-data", "gatus": "gatus-data", "beszel": "beszel-hub-data"}
+PORTS = {"gatus": (8080, 18080), "beszel": (8090, 18190)}
+VOLUMES = {"gatus": "gatus-data", "beszel": "beszel-hub-data"}
 READ = re.compile(r"^\$\{(\w+):-(.*)\}$")
 
 
@@ -56,13 +56,45 @@ def _default(value: str) -> str:
     return match.group(2)
 
 
-def test_healthchecks_is_on_its_own_network_only():
+def test_healthchecks_is_an_ordinary_gated_application():
+    """It trusts no forwarded identity header, publishes no host port, joins no network of
+    its own beside catena-network and provides no capability; the server's sign-in gates
+    its address."""
     doc = _compose("healthchecks")
     app = doc["services"]["app"]
-    assert app["environment"]["REMOTE_USER_HEADER"] == "HTTP_X_FORWARDED_EMAIL"
-    assert list(app["networks"]) == [HC_NETWORK]
-    assert app["networks"][HC_NETWORK]["aliases"] == ["healthchecks"]
-    assert _external(doc) == {HC_NETWORK}
+    assert "REMOTE_USER_HEADER" not in app["environment"]
+    assert "ports" not in app
+    assert set(app["networks"]) == {"catena-network", "default"}
+    assert "aliases" not in (app["networks"]["catena-network"] or {})
+    assert _external(doc) == {"catena-network"}
+    assert set(app["labels"]) == {
+        "vps.route.host=${DOMAIN_HOST}", "vps.route.port=8000",
+        "vps.auth.mode=${AUTH_MODE:-admin-only}", "vps.auth.protected=true",
+        "vps.auto-update=${UPDATE_LEVEL:-major}"}
+    block = _entry("healthchecks").block
+    assert "provides" not in block
+    assert block["env"]["AUTH_MODE"]["setting"]["default"] == "admin-only"
+
+
+def test_healthchecks_keys_are_generated_and_the_store_holds_none():
+    block = _entry("healthchecks").block
+    for key in ("PING_KEY", "READ_KEY", "API_KEY"):
+        assert block["env"][key] == {"generated": {"length": 32, "alphabet": "alnum"}}
+    assert block["secrets"] == ["smtp_password"]
+
+
+def test_healthchecks_takes_the_outgoing_mail_from_the_relay_facts():
+    env = _entry("healthchecks").managed_env
+    assert env["EMAIL_HOST"] == "{{ smtp_relay_host | default('') }}"
+    assert env["EMAIL_PORT"] == "{{ smtp_relay_port | default('') }}"
+    assert env["EMAIL_HOST_USER"] == "{{ smtp_relay_user | default('') }}"
+    assert env["EMAIL_HOST_PASSWORD"] == "{{ smtp_password | default('') }}"
+    assert env["DEFAULT_FROM_EMAIL"] == "{{ smtp_relay_sender | default('') }}"
+    assert env["SMTP_RELAY_TLS"] == "{{ smtp_relay_tls | default('') }}"
+    service = _compose("healthchecks")["services"]["app"]
+    assert "EMAIL_USE_TLS" not in service["environment"]
+    assert "EMAIL_USE_SSL=True" in service["command"][2]
+    assert service["command"][2].rstrip().endswith("exec /opt/healthchecks/run.sh")
 
 
 def test_the_hub_is_on_its_own_networks_beside_its_private_one():
@@ -118,19 +150,16 @@ def test_gatus_reaches_the_alert_intake_and_the_hub_and_drops_raw_packets():
     doc = _compose("gatus")
     app = doc["services"]["app"]
     assert {ALERTS_NETWORK, BESZEL_NETWORK} <= _networks(app)
-    assert HC_NETWORK not in _networks(app)
     assert app["networks"]["catena-network"]["aliases"] == ["gatus"]
     assert "NET_RAW" in app["cap_drop"]
 
 
-def test_no_client_network_reaches_the_gate_network_the_healthchecks_network_or_the_intake_network():
+def test_no_client_network_reaches_the_gate_network_or_the_intake_network():
     for slug in APPS:
         for name, svc in _compose(slug)["services"].items():
             nets = _networks(svc)
             if GATE_NETWORK in nets:
                 assert (slug, name) == ("beszel", "app")
-            if HC_NETWORK in nets:
-                assert (slug, name) == ("healthchecks", "app")
             if ALERTS_NETWORK in nets:
                 assert (slug, name) in {("gatus", "app"), ("beszel", "app")}
             if BESZEL_NETWORK in nets:
@@ -144,15 +173,12 @@ def test_the_sign_in_header_is_read_with_its_allowlist_and_empty_reads_as_unset(
     assert not {"USER_EMAIL", "USER_PASSWORD"} & set(env)
 
 
-def test_the_loopback_ip_and_the_alias_are_allowed_hosts():
-    """Every consumer on the server dials the loopback publish by IP; Django answers 400 for a Host it does not list."""
-    hosts = _default(_compose("healthchecks")["services"]["app"]["environment"]["ALLOWED_HOSTS"]).split(",")
-    assert "127.0.0.1" in hosts and "localhost" in hosts and "healthchecks" in hosts
-
-
-def test_a_server_with_none_of_the_values_the_server_writes_still_starts_healthchecks():
+def test_the_address_and_the_loopback_are_allowed_hosts():
+    """The gate passes the address on as the Host and the hooks ask the loopback; Django
+    answers 400 for a Host it does not list."""
     env = _compose("healthchecks")["services"]["app"]["environment"]
-    assert _default(env["SITE_ROOT"]) == "http://localhost:8000"
+    assert env["ALLOWED_HOSTS"].split(",") == ["${DOMAIN_HOST}", "localhost", "127.0.0.1"]
+    assert env["SITE_ROOT"] == "https://${DOMAIN_HOST}"
 
 
 def test_the_secret_key_is_minted_by_the_server_and_never_falls_back():
@@ -231,7 +257,6 @@ def test_the_block_names_its_version_service(slug):
 # provide each and who may read it (the provider may always read its own). Every blueprint of
 # the catalog is held to this table.
 PRIVATE_CAPABILITIES = {
-    "healthchecks": {"provider": "healthchecks", "readers": set()},
     "beszel": {"provider": "beszel", "readers": {"gatus"}},
     "beszelgate": {"provider": "beszel", "readers": set()},
 }
@@ -262,7 +287,6 @@ def test_the_private_network_capability_table_matches_the_apps_that_exist():
 
 
 def test_the_capabilities_the_apps_provide_name_a_key_of_their_env():
-    assert _entry("healthchecks").block["provides"] == {"healthchecks": {"url": "HC_URL", "ping_key": "PING_KEY"}}
     assert _entry("beszel").block["provides"] == {"beszel": {"url": "HUB_URL"}, "beszelgate": {"url": "HUB_URL"}}
     gatus = _entry("gatus").managed_env
     assert gatus["HUB_URL"] == "{{ provided.beszel.url }}"

@@ -1,6 +1,7 @@
 # Test for the healthchecks template: the project the configure hook made gets a check
 # and two pings through the app, and the project's API key reads them back, also after
-# a restore. A seed replaces the check an earlier seed made, so the project holds one
+# a restore. The admin email channel is set to notify on down only before the backup,
+and the same assert reads it still so after the restore and the updates: a deploy sets only its address. A seed replaces the check an earlier seed made, so the project holds one
 # whatever the number of seeds before the backup. The assert sets the project's read-only key to the first 32 hex characters
 # of a hash of the run id before it asks the API, because every deploy's configure hook
 # puts the server's own key back. The ping and the API are asked at 127.0.0.1 with the
@@ -9,7 +10,8 @@
 id: healthchecks
 description: >-
   A check pinged twice is listed up with two pings by the API of the project the
-  configure hook made, before and after the backup, the restore and the updates.
+  configure hook made, and the admin email channel notifying on down only, before and
+  after the backup, the restore and the updates.
 
 seed:
   - name: check_and_pings_in_the_hook_project
@@ -33,6 +35,33 @@ seed:
             assert urllib.request.urlopen(request, timeout=20).read() == b"OK"
         print("seeded " + str(check.code))
     expect_stdout_contains: "seeded "
+    timeout_s: 120
+
+  - name: admin_email_channel_with_up_off
+    type: docker_exec
+    container: "{{ container_app }}"
+    command:
+      - python
+      - manage.py
+      - shell
+      - -c
+      - |
+        import json
+        import uuid
+        from hc.accounts.models import Project
+        from hc.api.models import Channel
+        project = Project.objects.order_by("id").first()
+        code = uuid.uuid5(uuid.NAMESPACE_URL, "catena:healthchecks:admin-email")
+        channel, _ = Channel.objects.get_or_create(
+            project=project, code=code,
+            defaults={"kind": "email", "name": "Admin email", "email_verified": True,
+                      "value": json.dumps({"value": "admin@example.com", "up": True, "down": True})})
+        choice = json.loads(channel.value)
+        choice["up"] = False
+        channel.value = json.dumps(choice)
+        channel.save()
+        print("channel up off")
+    expect_stdout_contains: "channel up off"
     timeout_s: 120
 
 assert:
@@ -64,4 +93,26 @@ assert:
             sys.exit(1)
         print("healthchecks api ok")
     expect_stdout_contains: "healthchecks api ok"
+    timeout_s: 120
+
+  - name: admin_email_channel_keeps_up_off
+    type: docker_exec
+    container: "{{ container_app }}"
+    command:
+      - python
+      - manage.py
+      - shell
+      - -c
+      - |
+        import json
+        import sys
+        import uuid
+        from hc.api.models import Channel
+        code = uuid.uuid5(uuid.NAMESPACE_URL, "catena:healthchecks:admin-email")
+        found = list(Channel.objects.filter(code=code))
+        if len(found) != 1 or json.loads(found[0].value).get("up") is not False:
+            print("unexpected channels: " + str([c.value for c in found])[:300])
+            sys.exit(1)
+        print("channel up still off")
+    expect_stdout_contains: "channel up still off"
     timeout_s: 120

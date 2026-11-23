@@ -1,7 +1,7 @@
 """The Healthchecks configure hook keeps an email channel to the admin while outgoing mail
-is on (EMAIL_HOST set): verified, notifying on down and on up, attached to every check
-when it is created and never again, updated in place, and removed when mail is turned
-off. A channel a person added is never touched."""
+is on (EMAIL_HOST set): verified, created notifying on down and on up, attached to every
+check when it is created and never again, updated in place (its address and verified mark
+alone: a person's up or down choice stays), and removed when mail is turned off. A channel a person added is never touched."""
 from __future__ import annotations
 
 import json
@@ -31,13 +31,13 @@ def test_the_channel_reaches_checks_that_already_exist(monkeypatch):
     managers = install_fake_django(monkeypatch)
     run_hook()
     project = managers["project"].rows[0]
-    gatus = managers["check"].create(project=project, slug="gatus-auth")
+    job = managers["check"].create(project=project, slug="nightly-job")
     assert _email_channels(managers) == []
 
     run_hook(EMAIL_HOST=HOST)
     [channel] = _email_channels(managers)
     assert all(channel in c.channel_set.added for c in managers["check"].rows)
-    assert channel in gatus.channel_set.added
+    assert channel in job.channel_set.added
 
 
 def test_an_update_keeps_the_bindings_and_never_reattaches(monkeypatch):
@@ -59,6 +59,18 @@ def test_an_update_keeps_the_bindings_and_never_reattaches(monkeypatch):
     assert json.loads(channel.value)["value"] == ADMIN
     assert channel not in detached.channel_set.added
     assert channel in kept.channel_set.added
+
+
+def test_an_update_keeps_a_persons_up_and_down_choice(monkeypatch):
+    managers = install_fake_django(monkeypatch)
+    run_hook(EMAIL_HOST=HOST)
+    [channel] = _email_channels(managers)
+    channel.value = json.dumps({"value": "old@example.com", "up": False, "down": True})
+    channel.email_verified = False
+
+    run_hook(EMAIL_HOST=HOST)
+    assert json.loads(channel.value) == {"value": ADMIN, "up": False, "down": True}
+    assert channel.email_verified is True
 
 
 def test_mail_turned_off_removes_the_channel(monkeypatch, capsys):

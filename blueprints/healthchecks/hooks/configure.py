@@ -30,9 +30,9 @@ login = email.lower()
 
 # The superuser owns the project that holds the ping key, so an admin email change
 # renames that one user. With no such project yet it is the user named after the
-# admin email, created when missing. Keycloak sends the address in lower case and the
-# sign-in gate's header is matched exactly, so the username and email are lower case;
-# the email channel keeps the address as given. The password is set on creation only.
+# admin email, created when missing. The username and email are lower case, which is how
+# the sign-in form matches them; the email channel keeps the address as given. The
+# password is set on creation only.
 project = Project.objects.filter(ping_key=ping_key).first() if ping_key else None
 operator = project.owner if project else (
     User.objects.filter(username=login).first()
@@ -40,12 +40,6 @@ operator = project.owner if project else (
 if operator is None:
     operator = User.objects.create_superuser(username=login, email=login, password=password)
 else:
-    # A gated visit that found no exact match made a second user on the lower case
-    # address: its projects go to the operator and it is deleted. A user on any other
-    # address is left alone.
-    for dup in list(User.objects.filter(email__iexact=login).exclude(pk=operator.pk)):
-        Project.objects.filter(owner=dup).update(owner=operator)
-        dup.delete()
     wanted = {"username": login, "email": login, "is_superuser": True, "is_staff": True}
     changed = [f for f, v in wanted.items() if getattr(operator, f) != v]
     for field in changed:
@@ -79,25 +73,34 @@ for field, value in (("api_key_readonly", read_key), ("api_key", write_key), ("p
         fields.append(field)
 project.save(update_fields=fields)
 
-# The admin's email is an alert channel while outgoing mail is on, notified on down
-# and on up; it carries a fixed code, so a deploy updates or removes that one row
-# and never a channel a person added. It is attached to every check when it is
-# created and never again, so a check a person detaches it from stays detached. An email
-# channel is marked verified: Healthchecks sends nothing to an unverified one.
+# The admin's email is an alert channel while outgoing mail is on; it carries a fixed
+# code, so a deploy updates or removes that one row and never a channel a person added.
+# It is created notifying on down and on up and attached to every check, once. After
+# that a deploy sets only its address and its verified mark, so a person's up or down
+# choice stays and a check a person detaches it from stays detached. An email channel
+# is marked verified: Healthchecks sends nothing to an unverified one.
 code = uuid.uuid5(uuid.NAMESPACE_URL, "catena:healthchecks:admin-email")
 if mail_on:
-    channel, created = Channel.objects.update_or_create(
-        project=project,
-        code=code,
-        defaults={
-            "kind": "email",
-            "value": json.dumps({"value": email, "up": True, "down": True}),
-            "name": "Admin email",
-            "email_verified": True,
-        },
-    )
-    if created:
+    channel = Channel.objects.filter(project=project, code=code).first()
+    if channel is None:
+        channel = Channel.objects.create(
+            project=project,
+            code=code,
+            kind="email",
+            value=json.dumps({"value": email, "up": True, "down": True}),
+            name="Admin email",
+            email_verified=True,
+        )
         channel.assign_all_checks()
+    else:
+        try:
+            choice = json.loads(channel.value)
+        except ValueError:
+            choice = {"up": True, "down": True}
+        choice["value"] = email
+        channel.value = json.dumps(choice)
+        channel.email_verified = True
+        channel.save(update_fields=["value", "email_verified"])
     print("OK email=" + str(channel.code))
 else:
     Channel.objects.filter(project=project, code=code).delete()

@@ -52,7 +52,7 @@ x-catena:
 
 services:
   server:
-    image: twentycrm/twenty:v2.58.2
+    image: twentycrm/twenty:v2.61.0
     deploy:
       restart_policy:
         condition: any
@@ -81,7 +81,7 @@ services:
       default: {}
 
   worker:
-    image: twentycrm/twenty:v2.58.2
+    image: twentycrm/twenty:v2.61.0
     deploy:
       restart_policy:
         condition: any

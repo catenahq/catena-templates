@@ -47,7 +47,7 @@ x-catena:
 
 services:
   clamav:
-    image: clamav/clamav:1.5.4
+    image: clamav/clamav:1.5.5
     deploy:
       # A clamd that fails at start waits 30 s between tries.
       restart_policy:
