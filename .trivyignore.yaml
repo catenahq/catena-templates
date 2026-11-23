@@ -20,6 +20,14 @@ secrets:
       - /usr/local/bundle/ruby/3.4.0/gems/openid_connect-2.5.0/spec/mock_response/public_keys/private_key.pem
     statement: the openid_connect gem's own test fixture key, shipped in zammad/zammad 7.2.x
     expired_at: 2026-12-07
+  # makeplane/plane-space v1.5.0 bundles happy-dom 21.0.4 into its server build,
+  # with happy-dom's FetchHTTPSCertificate: the self-signed certificate and key its
+  # fetch emulation serves. It signs nothing outside happy-dom.
+  - id: private-key
+    paths:
+      - /app/apps/space/build/server/index.js
+    statement: happy-dom's bundled self-signed fetch certificate key, shipped in makeplane/plane-space v1.5.0
+    expired_at: 2027-05-23
 
 vulnerabilities:
   # healthchecks/healthchecks v5.0.3 is the registry's newest tag and ships these
