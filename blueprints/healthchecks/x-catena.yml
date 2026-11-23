@@ -1,40 +1,42 @@
 schema: 2
 version_from: app
 env:
-  SUBDOMAIN:
-    setting:
-      default: healthchecks
-      label:
-        en: "Address prefix (the address moves the next time the server applies its configuration)"
-        fr: "Préfixe de l'adresse (l'adresse change à la prochaine application de la configuration du serveur)"
+  DOMAIN_HOST:
+    setting: {default: "healthchecks.{{ cloudflare_zone }}"}
   SECRET_KEY:
     generated: {length: 50, alphabet: alnum}
-  HC_URL:
-    managed: {expr: "http://healthchecks:8000"}
   ADMIN_EMAIL:
     managed: {expr: "{{ admin_email }}"}
   PING_KEY:
-    managed: {expr: "{{ healthchecks_ping_key | default('') }}"}
+    generated: {length: 32, alphabet: alnum}
   READ_KEY:
-    managed: {expr: "{{ healthchecks_api_key_readonly | default('') }}"}
+    generated: {length: 32, alphabet: alnum}
   API_KEY:
-    managed: {expr: "{{ healthchecks_api_key_readwrite | default('') }}"}
+    generated: {length: 32, alphabet: alnum}
   SUPERUSER_PASSWORD:
     generated: {length: 32, alphabet: alnum}
+  EMAIL_HOST:
+    managed: {expr: "{{ smtp_relay_host | default('') }}"}
+  EMAIL_PORT:
+    managed: {expr: "{{ smtp_relay_port | default('') }}"}
+  EMAIL_HOST_USER:
+    managed: {expr: "{{ smtp_relay_user | default('') }}"}
   EMAIL_HOST_PASSWORD:
     managed: {expr: "{{ smtp_password | default('') }}"}
+  SMTP_RELAY_TLS:
+    managed: {expr: "{{ smtp_relay_tls | default('') }}"}
+  DEFAULT_FROM_EMAIL:
+    managed: {expr: "{{ smtp_relay_sender | default('') }}"}
+  AUTH_MODE:
+    setting: {default: "admin-only", label: {en: "Access: public, private or admin-only", fr: "Accès : public, private ou admin-only"}}
   UPDATE_LEVEL:
     setting: {default: "major", label: {en: "Automatic updates: major, minor, patch or off", fr: "Mises à jour automatiques : major, minor, patch ou off"}}
-# The three keys are the ones the server's own jobs and Gatus use; the configure hook
-# sets them on the project, and the ping key is what the other monitoring apps read
-# through provided.healthchecks.ping_key. smtp_password is the outgoing mail's password.
-secrets: [healthchecks_ping_key, healthchecks_api_key_readonly, healthchecks_api_key_readwrite, smtp_password]
-provides:
-  healthchecks: {url: HC_URL, ping_key: PING_KEY}
+# smtp_password is the outgoing mail's password.
+secrets: [smtp_password]
 # configure runs after every deploy in the app's own container: it sets up the one
-# superuser and the project, pins the project's keys, and keeps the admin's email
-# channel while outgoing mail is on. verify asks the status endpoint, which reads
-# the database, with the Host the app always allows.
+# superuser and the project, pins the project's three keys to the generated ones, and
+# keeps the admin's email channel while outgoing mail is on. verify asks the status
+# endpoint, which reads the database, with the Host the app always allows.
 hooks:
   service: app
   timeout_seconds: 300
