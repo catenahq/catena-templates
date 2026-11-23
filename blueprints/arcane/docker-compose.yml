@@ -7,6 +7,8 @@ x-catena:
       setting: {default: "arcane.{{ cloudflare_zone }}"}
     ENCRYPTION_KEY:
       generated: {length: 64, alphabet: hex}
+    ADMIN_PASSWORD:
+      generated: {length: 32, alphabet: alnum}
     AUTH_MODE:
       setting: {default: "admin-only", label: {en: "Access: public, private or admin-only", fr: "Accès : public, private ou admin-only"}}
     UPDATE_LEVEL:
@@ -32,6 +34,11 @@ services:
     environment:
       ARCANE_APP_URL: https://${DOMAIN_HOST}
       ARCANE_ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      # Arcane 3 creates the administrator arcane with this password when it has no
+      # users yet, and refuses one its policy rejects: 12 characters with an upper
+      # case letter, a lower case letter, a number and a symbol. The fixed prefix
+      # carries the symbol and the number a generated alnum value may lack.
+      ARCANE_DEFAULT_ADMIN_PASSWORD: Catena-1-${ADMIN_PASSWORD}
       PUID: "1000"
       PGID: "1000"
     volumes:

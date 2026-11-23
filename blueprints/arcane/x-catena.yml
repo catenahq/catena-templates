@@ -6,6 +6,8 @@ env:
     setting: {default: "arcane.{{ cloudflare_zone }}"}
   ENCRYPTION_KEY:
     generated: {length: 64, alphabet: hex}
+  ADMIN_PASSWORD:
+    generated: {length: 32, alphabet: alnum}
   AUTH_MODE:
     setting: {default: "admin-only", label: {en: "Access: public, private or admin-only", fr: "Accès : public, private ou admin-only"}}
   UPDATE_LEVEL:
