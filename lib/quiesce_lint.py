@@ -133,9 +133,7 @@ DENIED_SECRETS = frozenset({
     "catena_keycloak_forward_token", "catena_license", "catena_postgres_password", "cloudflare_api_token",
     "cloudflare_api_tokens", "console_recovery_password", "dashboard_sync_client_secret",
     "gatus_gate_cookie_secret", "headscale_api_key", "headscale_preauth_key",
-    "healthchecks_api_key_readonly", "healthchecks_api_key_readwrite",
-    "healthchecks_gate_cookie_secret", "healthchecks_ping_key", "healthchecks_secret_key",
-    "healthchecks_superuser_password", "keycloak_automation_client_secret", "keycloak_db_password",
+    "keycloak_automation_client_secret", "keycloak_db_password",
     "oauth2_proxy_client_secret", "oauth2_proxy_cookie_secret", "storage_bulk_password",
     "storage_bulk_username", "tailscale_oauth_client_id", "tailscale_oauth_client_secret", "zap_api_key",
 })
@@ -147,8 +145,6 @@ DENIED_SECRETS = frozenset({
 # providerSecrets, and a test holds each entry equal to the secrets of the blueprint's
 # entry in contracts default-apps/wiring.json.
 PROVIDER_SECRETS = {
-    "healthchecks": frozenset({
-        "healthchecks_ping_key", "healthchecks_api_key_readonly", "healthchecks_api_key_readwrite"}),
     "beszel": frozenset({"beszel_oidc_client_secret", "alert_intake_token_resources"}),
     "gatus": frozenset({"alert_intake_token_status"}),
 }
