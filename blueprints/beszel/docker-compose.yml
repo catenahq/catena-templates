@@ -536,7 +536,7 @@ x-catena:
               sys.exit(1)
           print("the Beszel hub answers its health endpoint")
   data:
-    app: {volume: beszel-hub-data, upgrade: in_place}
+    app: {volume: beszel-hub-data, upgrade: in_place, sqlite: [/beszel_data/data.db, /beszel_data/auxiliary.db]}
 
 services:
   app:

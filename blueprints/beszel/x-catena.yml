@@ -59,4 +59,4 @@ hooks:
   verify:
     - hooks/verify.py
 data:
-  app: {volume: beszel-hub-data, upgrade: in_place}
+  app: {volume: beszel-hub-data, upgrade: in_place, sqlite: [/beszel_data/data.db, /beszel_data/auxiliary.db]}
