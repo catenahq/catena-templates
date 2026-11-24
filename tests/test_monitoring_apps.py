@@ -1,10 +1,9 @@
-"""Gatus and the Beszel hub: the networks that keep the monitoring plane apart from
-the client apps, the loopback ports, the data each declares and the swarm shape of
-their composes. Gatus and the Beszel hub post their alerts to the server's alert
-intake on catena-alerts.
+"""The Beszel hub: the networks that keep the monitoring plane apart from the client
+apps, the loopback port, the data it declares and the swarm shape of its compose. The
+hub posts its alerts to the server's alert intake on catena-alerts.
 
 The hub trusts the sign-in header from its gate's network, so only the gate and the
-hub join that one. Gatus is the only one of the two on catena-network.
+hub join that one.
 
 Healthchecks is an ordinary catalog application: the tests that hold it to that are
 the ones about its own address, network and sign-in.
@@ -24,13 +23,13 @@ sys.path.insert(0, str(ROOT))
 
 from lib import model, quiesce_lint  # noqa: E402
 
-APPS = ("gatus", "beszel")
+APPS = ("beszel",)
 ALERTS_NETWORK = "catena-alerts"
 BESZEL_NETWORK = "catena-beszel"
 GATE_NETWORK = "catena-beszelgate"
-PORTS = {"gatus": (8080, 18080), "beszel": (8090, 18190)}
-VOLUMES = {"gatus": "gatus-data", "beszel": "beszel-hub-data"}
-SQLITE = {"gatus": ["/data/gatus.db"], "beszel": ["/beszel_data/data.db", "/beszel_data/auxiliary.db"]}
+PORTS = {"beszel": (8090, 18190)}
+VOLUMES = {"beszel": "beszel-hub-data"}
+SQLITE = {"beszel": ["/beszel_data/data.db", "/beszel_data/auxiliary.db"]}
 READ = re.compile(r"^\$\{(\w+):-(.*)\}$")
 
 
@@ -140,31 +139,18 @@ def test_the_hooks_of_the_hub_run_in_the_relay_and_the_hub_image_is_not_asked_fo
     assert "probe" not in _compose("beszel")["services"]
 
 
-def test_only_gatus_joins_catena_network():
+def test_no_service_of_the_hub_joins_catena_network():
     for slug in APPS:
-        doc = _compose(slug)
-        joined = {name for name, svc in doc["services"].items() if "catena-network" in _networks(svc)}
-        assert joined == ({"app"} if slug == "gatus" else set()), slug
-
-
-def test_gatus_reaches_the_alert_intake_and_the_hub_and_drops_raw_packets():
-    doc = _compose("gatus")
-    app = doc["services"]["app"]
-    assert {ALERTS_NETWORK, BESZEL_NETWORK} <= _networks(app)
-    assert app["networks"]["catena-network"]["aliases"] == ["gatus"]
-    assert "NET_RAW" in app["cap_drop"]
+        for name, svc in _compose(slug)["services"].items():
+            assert "catena-network" not in _networks(svc), (slug, name)
 
 
 def test_no_client_network_reaches_the_gate_network_or_the_intake_network():
     for slug in APPS:
         for name, svc in _compose(slug)["services"].items():
             nets = _networks(svc)
-            if GATE_NETWORK in nets:
+            if GATE_NETWORK in nets or ALERTS_NETWORK in nets or BESZEL_NETWORK in nets:
                 assert (slug, name) == ("beszel", "app")
-            if ALERTS_NETWORK in nets:
-                assert (slug, name) in {("gatus", "app"), ("beszel", "app")}
-            if BESZEL_NETWORK in nets:
-                assert (slug, name) in {("beszel", "app"), ("gatus", "app")}
 
 
 def test_the_sign_in_header_is_read_with_its_allowlist_and_empty_reads_as_unset():
@@ -296,7 +282,7 @@ def test_the_capabilities_the_apps_provide_name_a_key_of_their_env():
 
 
 def test_the_apps_post_to_the_intake_with_the_token_of_their_own_source():
-    assert WIRING["alert_intake_sources"] == {"status": "gatus", "resources": "beszel"}
+    assert WIRING["alert_intake_sources"] == {"resources": "beszel"}
     for source, slug in WIRING["alert_intake_sources"].items():
         env = _entry(slug).managed_env
         assert env["ALERT_URL"] == "http://catena-alert-intake:8080/v1/items"
@@ -349,7 +335,6 @@ def test_the_contract_lists_the_volumes_and_names_them_after_the_stack(slug):
     wired = _wired(slug)
     assert set(wired["volumes"]) == set(_compose(slug)["volumes"])
     assert {key: f"{wired['stack']}_{key}" for key in wired["volumes"]} == wired["volumes"]
-    assert {s["volume"] for s in wired["sqlite"]} <= set(wired["volumes"])
     assert wired.get("config_volume", next(iter(wired["volumes"]))) in wired["volumes"]
 
 
@@ -364,10 +349,12 @@ def test_the_contract_lists_the_secrets_and_what_the_block_provides_and_reads(sl
 
 
 def test_the_reserved_capabilities_of_the_contract_are_the_table_this_file_holds():
-    held = {cap: {"provider": rule["provider"], "readers": sorted(rule["readers"])}
-            for cap, rule in PRIVATE_CAPABILITIES.items()}
-    assert held == {cap: {"provider": rule["provider"], "readers": sorted(rule["readers"])}
-                    for cap, rule in WIRING["reserved_capabilities"].items()}
+    """The contract names the default apps that read a capability; the table also lets a catalog
+    app read it."""
+    assert set(PRIVATE_CAPABILITIES) == set(WIRING["reserved_capabilities"])
+    for cap, rule in WIRING["reserved_capabilities"].items():
+        assert PRIVATE_CAPABILITIES[cap]["provider"] == rule["provider"]
+        assert set(rule["readers"]) <= PRIVATE_CAPABILITIES[cap]["readers"]
 
 
 @pytest.mark.parametrize("slug", APPS)
