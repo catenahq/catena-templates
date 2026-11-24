@@ -225,6 +225,18 @@ def test_the_other_schema_2_fields_are_checked(catalog):
             model.load_sources()
 
 
+def test_a_data_entry_lists_its_sqlite_files(catalog):
+    _write()
+    data = {"app": {"volume": "app-data", "upgrade": "in_place", "sqlite": ["/data/app.db", "/data/aux.db"]}}
+    _block({"schema": 2, "data": data})
+    assert model.load_sources()[0].block["data"] == data
+    for bad in ([], "/data/app.db", ["data/app.db"], ["/data/app.db", "/data/app.db"], ["/data//app.db"],
+                ["/data/"], ["/data/../app.db"], ["/data/./app.db"], ["/data/$NAME.db"], [1]):
+        _block({"schema": 2, "data": {"app": {**data["app"], "sqlite": bad}}})
+        with pytest.raises(model.SourceError, match="sqlite"):
+            model.load_sources()
+
+
 def test_a_block_names_its_format(catalog):
     _write()
     path = model.BLUEPRINTS / "example" / model.COMPOSE_NAME
