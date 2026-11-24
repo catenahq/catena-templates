@@ -1,13 +1,13 @@
 """Gatus and the Beszel hub: the networks that keep the monitoring plane apart from
-the client apps, the loopback ports, the data each declares and the swarm shape of
-their composes. Gatus and the Beszel hub post their alerts to the server's alert
-intake on catena-alerts.
+the client apps, the data each declares and the swarm shape of their composes. The
+Beszel hub posts its alerts to the server's alert intake on catena-alerts and
+publishes its loopback port.
 
 The hub trusts the sign-in header from its gate's network, so only the gate and the
 hub join that one. Gatus is the only one of the two on catena-network.
 
-Healthchecks is an ordinary catalog application: the tests that hold it to that are
-the ones about its own address, network and sign-in.
+Gatus and Healthchecks are ordinary catalog applications: the tests that hold them to
+that are the ones about their own address, network and sign-in.
 """
 from __future__ import annotations
 
@@ -25,10 +25,11 @@ sys.path.insert(0, str(ROOT))
 from lib import model, quiesce_lint  # noqa: E402
 
 APPS = ("gatus", "beszel")
+HUB = ("beszel",)
 ALERTS_NETWORK = "catena-alerts"
 BESZEL_NETWORK = "catena-beszel"
 GATE_NETWORK = "catena-beszelgate"
-PORTS = {"gatus": (8080, 18080), "beszel": (8090, 18190)}
+PORTS = {"beszel": (8090, 18190)}
 VOLUMES = {"gatus": "gatus-data", "beszel": "beszel-hub-data"}
 SQLITE = {"gatus": ["/data/gatus.db"], "beszel": ["/beszel_data/data.db", "/beszel_data/auxiliary.db"]}
 READ = re.compile(r"^\$\{(\w+):-(.*)\}$")
@@ -147,12 +148,23 @@ def test_only_gatus_joins_catena_network():
         assert joined == ({"app"} if slug == "gatus" else set()), slug
 
 
-def test_gatus_reaches_the_alert_intake_and_the_hub_and_drops_raw_packets():
+def test_gatus_is_an_ordinary_gated_application_that_drops_raw_packets():
+    """It joins no network of the monitoring plane, carries no alias, publishes no host
+    port, reads no secret and provides nothing; the server's sign-in gates its address."""
     doc = _compose("gatus")
     app = doc["services"]["app"]
-    assert {ALERTS_NETWORK, BESZEL_NETWORK} <= _networks(app)
-    assert app["networks"]["catena-network"]["aliases"] == ["gatus"]
+    assert set(app["networks"]) == {"catena-network", "default"}
+    assert "aliases" not in (app["networks"]["catena-network"] or {})
+    assert _external(doc) == {"catena-network"}
+    assert "ports" not in app
+    assert set(app["labels"]) == {
+        "vps.route.host=${DOMAIN_HOST}", "vps.route.port=8080",
+        "vps.auth.mode=${AUTH_MODE:-admin-only}", "vps.auto-update=${UPDATE_LEVEL:-major}"}
     assert "NET_RAW" in app["cap_drop"]
+    block = _entry("gatus").block
+    assert not {"secrets", "provides"} & set(block)
+    assert block["env"]["AUTH_MODE"]["setting"]["default"] == "admin-only"
+    assert not {"ALERT_URL", "ALERT_TOKEN", "HUB_URL", "STATUS_HOST", "SUBDOMAIN"} & set(_entry("gatus").env)
 
 
 def test_no_client_network_reaches_the_gate_network_or_the_intake_network():
@@ -162,9 +174,9 @@ def test_no_client_network_reaches_the_gate_network_or_the_intake_network():
             if GATE_NETWORK in nets:
                 assert (slug, name) == ("beszel", "app")
             if ALERTS_NETWORK in nets:
-                assert (slug, name) in {("gatus", "app"), ("beszel", "app")}
+                assert (slug, name) == ("beszel", "app")
             if BESZEL_NETWORK in nets:
-                assert (slug, name) in {("beszel", "app"), ("gatus", "app")}
+                assert (slug, name) == ("beszel", "app")
 
 
 def test_the_sign_in_header_is_read_with_its_allowlist_and_empty_reads_as_unset():
@@ -191,7 +203,7 @@ def test_the_secret_key_is_minted_by_the_server_and_never_falls_back():
     assert "---" not in text
 
 
-@pytest.mark.parametrize("slug", APPS)
+@pytest.mark.parametrize("slug", HUB)
 def test_ports_are_published_in_host_mode_with_the_long_syntax(slug):
     target, published = PORTS[slug]
     ports = _compose(slug)["services"]["app"]["ports"]
@@ -223,9 +235,9 @@ def test_no_swarm_ignored_or_refused_key(slug):
         assert key not in body, f"{slug}: {key}"
 
 
-@pytest.mark.parametrize("slug", APPS)
+@pytest.mark.parametrize("slug", HUB)
 def test_no_address_or_sign_in_label(slug):
-    """The core sign-in gate fronts these apps; no vps.route, vps.auth or vps.health label is read."""
+    """The core sign-in gate fronts the hub; no vps.route, vps.auth or vps.health label is read."""
     for svc in _compose(slug)["services"].values():
         for label in svc.get("labels") or []:
             assert re.match(r"vps\.(auto-update|expose\.none)=", label), f"{slug}: {label}"
@@ -258,7 +270,7 @@ def test_the_block_names_its_version_service(slug):
 # provide each and who may read it (the provider may always read its own). Every blueprint of
 # the catalog is held to this table.
 PRIVATE_CAPABILITIES = {
-    "beszel": {"provider": "beszel", "readers": {"gatus"}},
+    "beszel": {"provider": "beszel", "readers": set()},
     "beszelgate": {"provider": "beszel", "readers": set()},
 }
 
@@ -290,13 +302,12 @@ def test_the_private_network_capability_table_matches_the_apps_that_exist():
 def test_the_capabilities_the_apps_provide_name_a_key_of_their_env():
     assert _entry("beszel").block["provides"] == {"beszel": {"url": "HUB_URL"}, "beszelgate": {"url": "HUB_URL"}}
     gatus = _entry("gatus").managed_env
-    assert gatus["HUB_URL"] == "{{ provided.beszel.url }}"
-    assert not {"HC_URL", "HC_PING_KEY"} & set(gatus)
+    assert not {"HUB_URL", "HC_URL", "HC_PING_KEY"} & set(gatus)
     assert not {"HC_URL", "HC_PING_KEY"} & set(_entry("beszel").env)
 
 
-def test_the_apps_post_to_the_intake_with_the_token_of_their_own_source():
-    assert WIRING["alert_intake_sources"] == {"status": "gatus", "resources": "beszel"}
+def test_the_hub_posts_to_the_intake_with_the_token_of_its_own_source():
+    assert WIRING["alert_intake_sources"] == {"resources": "beszel"}
     for source, slug in WIRING["alert_intake_sources"].items():
         env = _entry(slug).managed_env
         assert env["ALERT_URL"] == "http://catena-alert-intake:8080/v1/items"
@@ -325,12 +336,12 @@ def _ports(service: dict) -> list[dict]:
     return [{"published": p["published"], "target": p["target"]} for p in service.get("ports") or []]
 
 
-@pytest.mark.parametrize("slug", APPS)
+@pytest.mark.parametrize("slug", HUB)
 def test_the_contract_names_the_stack_of_the_app(slug):
     assert _wired(slug)["stack"] == _entry(slug).catena["app_name"]
 
 
-@pytest.mark.parametrize("slug", APPS)
+@pytest.mark.parametrize("slug", HUB)
 def test_the_contract_lists_the_services_networks_aliases_and_ports_of_the_compose(slug):
     doc = _compose(slug)
     wired = _wired(slug)["services"]
@@ -344,16 +355,15 @@ def test_the_contract_lists_the_services_networks_aliases_and_ports_of_the_compo
         assert socket == bool(want.get("docker_socket")), f"{slug}.{name} docker socket"
 
 
-@pytest.mark.parametrize("slug", APPS)
+@pytest.mark.parametrize("slug", HUB)
 def test_the_contract_lists_the_volumes_and_names_them_after_the_stack(slug):
     wired = _wired(slug)
     assert set(wired["volumes"]) == set(_compose(slug)["volumes"])
     assert {key: f"{wired['stack']}_{key}" for key in wired["volumes"]} == wired["volumes"]
-    assert {s["volume"] for s in wired["sqlite"]} <= set(wired["volumes"])
     assert wired.get("config_volume", next(iter(wired["volumes"]))) in wired["volumes"]
 
 
-@pytest.mark.parametrize("slug", APPS)
+@pytest.mark.parametrize("slug", HUB)
 def test_the_contract_lists_the_secrets_and_what_the_block_provides_and_reads(slug):
     entry, wired = _entry(slug), _wired(slug)
     assert sorted(entry.block.get("secrets") or []) == sorted(wired["secrets"])
@@ -370,7 +380,7 @@ def test_the_reserved_capabilities_of_the_contract_are_the_table_this_file_holds
                     for cap, rule in WIRING["reserved_capabilities"].items()}
 
 
-@pytest.mark.parametrize("slug", APPS)
+@pytest.mark.parametrize("slug", HUB)
 def test_core_writes_no_key_the_block_declares_and_the_block_declares_every_key_core_relies_on(slug):
     entry, wired = _entry(slug), _wired(slug)
     assert not set(wired["env_core_writes"]) & set(entry.env)

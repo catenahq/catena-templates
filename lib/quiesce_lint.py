@@ -133,7 +133,7 @@ DENIED_SECRETS = frozenset({
     "catena_admin_session_key", "catena_identity_probe_client_secret",
     "catena_keycloak_forward_token", "catena_license", "catena_postgres_password", "cloudflare_api_token",
     "cloudflare_api_tokens", "console_recovery_password", "dashboard_sync_client_secret",
-    "gatus_gate_cookie_secret", "headscale_api_key", "headscale_preauth_key",
+    "headscale_api_key", "headscale_preauth_key",
     "keycloak_automation_client_secret", "keycloak_db_password",
     "oauth2_proxy_client_secret", "oauth2_proxy_cookie_secret", "storage_bulk_password",
     "storage_bulk_username", "tailscale_oauth_client_id", "tailscale_oauth_client_secret", "zap_api_key",
@@ -147,7 +147,6 @@ DENIED_SECRETS = frozenset({
 # entry in contracts default-apps/wiring.json.
 PROVIDER_SECRETS = {
     "beszel": frozenset({"beszel_oidc_client_secret", "alert_intake_token_resources"}),
-    "gatus": frozenset({"alert_intake_token_status"}),
 }
 
 # Names that start like one of these are denied too: one cookie secret per
