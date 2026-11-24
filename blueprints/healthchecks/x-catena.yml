@@ -1,4 +1,5 @@
 schema: 2
+requires_catena: 0.13.4
 version_from: app
 env:
   DOMAIN_HOST:
@@ -45,4 +46,4 @@ hooks:
   verify:
     - hooks/verify.py
 data:
-  app: {volume: healthchecks-data, upgrade: in_place}
+  app: {volume: healthchecks-data, upgrade: in_place, sqlite: [/data/hc.sqlite]}
