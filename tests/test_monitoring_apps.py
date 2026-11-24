@@ -30,7 +30,7 @@ BESZEL_NETWORK = "catena-beszel"
 GATE_NETWORK = "catena-beszelgate"
 PORTS = {"gatus": (8080, 18080), "beszel": (8090, 18190)}
 VOLUMES = {"gatus": "gatus-data", "beszel": "beszel-hub-data"}
-SQLITE = {"gatus": ["/data/gatus.db"]}
+SQLITE = {"gatus": ["/data/gatus.db"], "beszel": ["/beszel_data/data.db", "/beszel_data/auxiliary.db"]}
 READ = re.compile(r"^\$\{(\w+):-(.*)\}$")
 
 
@@ -201,8 +201,7 @@ def test_ports_are_published_in_host_mode_with_the_long_syntax(slug):
 @pytest.mark.parametrize("slug", APPS)
 def test_the_data_is_declared_for_a_service_and_volume_the_file_has(slug):
     doc = _compose(slug)
-    sqlite = {"sqlite": SQLITE[slug]} if slug in SQLITE else {}
-    assert doc["x-catena"]["data"] == {"app": {"volume": VOLUMES[slug], "upgrade": "in_place", **sqlite}}
+    assert doc["x-catena"]["data"] == {"app": {"volume": VOLUMES[slug], "upgrade": "in_place", "sqlite": SQLITE[slug]}}
     assert VOLUMES[slug] in doc["volumes"]
     assert VOLUMES[slug] in " ".join(doc["services"]["app"]["volumes"])
     assert [k for k in doc if k.startswith("x-")] == ["x-catena"]
