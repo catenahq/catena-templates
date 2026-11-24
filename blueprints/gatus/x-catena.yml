@@ -28,4 +28,4 @@ hooks:
   verify:
     - hooks/verify.sh
 data:
-  app: {volume: gatus-data, upgrade: in_place}
+  app: {volume: gatus-data, upgrade: in_place, sqlite: [/data/gatus.db]}
