@@ -1,5 +1,5 @@
 schema: 2
-requires_catena: 0.12.2
+requires_catena: 0.13.4
 privileges: [docker_socket]
 env:
   DOMAIN_HOST:
@@ -23,4 +23,4 @@ hooks:
 # older Arcane refuses a database a newer one migrated, so an update copies the
 # volume first and a rollback puts the copy back.
 data:
-  arcane: {volume: arcane-data, upgrade: in_place}
+  arcane: {volume: arcane-data, upgrade: in_place, sqlite: [/app/data/arcane.db]}
