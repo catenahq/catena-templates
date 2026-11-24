@@ -278,6 +278,10 @@ block.
    `-CONT` on the server process). `make lint` holds each command to an
    allowlist of the application's own admin clients, plus `pkill` for an
    application with no admin client that can hold its writes.
+   An application that keeps a SQLite database in a named volume lists each
+   file under `data.<service>.sqlite`, an absolute path directly on that volume
+   (`sqlite: [/data/app.db]`); the backup copies each whole while the service
+   runs.
 6. If the application keeps a schema its new code expects migrated, add
    `lifecycle` to the block. `migrate` runs after every update the host
    applies to the image of the service `lifecycle` names, and after a forward
