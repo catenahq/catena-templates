@@ -660,8 +660,10 @@ def lint_auth_mode(entry) -> list[str]:
 
 # The machine's own paths, which no host_paths entry may be at, under or above
 # (and /var itself): the list of catena-admin payload/engines/systempath
-# (Trees, DataTrees), which a test there holds equal to this one. The data
-# trees are the parents of the folders that are data after all.
+# (Trees, DataTrees), which a test there holds equal to this one; a test here
+# holds both to machine_trees and data_trees of contracts
+# host-layout/layout.json. The data trees are the parents of the folders that
+# are data after all.
 SYSTEM_TREES = (
     "/bin", "/boot", "/dev", "/etc", "/lib", "/lib32", "/lib64", "/libx32",
     "/proc", "/root", "/run", "/sbin", "/sys", "/usr",

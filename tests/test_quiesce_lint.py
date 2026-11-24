@@ -805,6 +805,12 @@ def test_an_alert_intake_token_is_read_by_the_blueprint_of_its_source_and_the_re
     assert not [slug for slug, names in L.PROVIDER_SECRETS.items() if "alert_intake_token_read" in names]
 
 
+def test_the_protected_folders_are_the_machine_and_data_trees_of_the_host_layout_contract():
+    layout = json.loads((ROOT.parent / "contracts" / "host-layout" / "layout.json").read_text(encoding="utf-8"))
+    assert set(L.SYSTEM_TREES) == set(layout["machine_trees"])
+    assert set(L.SYSTEM_DATA_TREES) == set(layout["data_trees"])
+
+
 def test_the_blueprints_read_only_the_denied_secrets_the_table_gives_them():
     for entry in model.load_sources():
         assert L.lint_managed_secrets(entry) == [], entry.slug
