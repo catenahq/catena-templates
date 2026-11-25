@@ -36,7 +36,7 @@ services:
       - default
 
   api:
-    image: makeplane/plane-backend:v1.4.3
+    image: makeplane/plane-backend:v1.5.1
     deploy:
       restart_policy:
         condition: any
@@ -81,7 +81,7 @@ services:
       - default
 
   worker:
-    image: makeplane/plane-backend:v1.4.3
+    image: makeplane/plane-backend:v1.5.1
     deploy:
       restart_policy:
         condition: any
@@ -93,7 +93,7 @@ services:
       - default
 
   beat-worker:
-    image: makeplane/plane-backend:v1.4.3
+    image: makeplane/plane-backend:v1.5.1
     deploy:
       restart_policy:
         condition: any
@@ -105,7 +105,7 @@ services:
       - default
 
   live:
-    image: makeplane/plane-live:v1.5.0
+    image: makeplane/plane-live:v1.5.1
     deploy:
       restart_policy:
         condition: any
@@ -181,7 +181,7 @@ services:
 
   # The Celery broker: the api queues background jobs here and the worker and beat-worker take them.
   mq:
-    image: rabbitmq:4.3.7-alpine
+    image: rabbitmq:4.3.8-alpine
     deploy:
       restart_policy:
         condition: any
