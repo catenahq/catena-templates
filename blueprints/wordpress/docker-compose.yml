@@ -233,7 +233,7 @@ services:
       - default
 
   nginx:
-    image: nginx:1.31.9-alpine
+    image: nginx:1.31.10-alpine
     deploy:
       restart_policy:
         condition: any
