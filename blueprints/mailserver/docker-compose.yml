@@ -37,13 +37,11 @@ x-catena:
     ready: ["php", "-r", "exit(@fsockopen('127.0.0.1', 80) ? 0 : 1);"]
     versioned_volumes: ["roundcube-db"]
     timeout_seconds: 300
+  # The mail daemons write mail-data, mail-state and mail-logs the whole time, so
+  # a still copy needs every service stopped for the backup. Mail is refused while
+  # it runs and the sending server retries.
   quiesce:
-    service: "roundcube"
-    pre:
-      - ["pkill", "-STOP", "-x", "apache2"]
-    post:
-      - ["pkill", "-CONT", "-x", "apache2"]
-    timeout_seconds: 10
+    stop: true
   # The certificate of the mail host is issued into mail-certs before each
   # deploy and renewed there. The mail host's address and the MTA-STS and
   # TLS-RPT records are published in the zones of the mail host and the mail
@@ -548,12 +546,6 @@ services:
 
   roundcube:
     image: roundcube/roundcubemail:1.7.6-apache
-    # docker-init runs as PID 1, so the backup mode (x-catena.quiesce at the
-    # top of this file) can stop apache's master: a PID namespace's
-    # first process ignores a SIGSTOP sent from inside it, and a running
-    # master can fork fresh children that serve, and write, while the held
-    # ones wait.
-    init: true
     # The mail server is reached as dms but its certificate names the mail
     # host, so peer verification stays on and checks that name. The image
     # includes every php file of the config volume; these are rewritten at
@@ -615,9 +607,7 @@ services:
       - roundcube-db:/var/roundcube/db
       - roundcube-config:/var/roundcube/config
     healthcheck:
-      # A master the backup mode stopped (state T) passes: swarm replaces a
-      # task that turns unhealthy, and the hold has to last the whole backup.
-      test: ["CMD-SHELL", "grep -qs '^State:[[:space:]]*T' /proc/$$(pgrep -o -x apache2)/status || curl -fsS http://localhost/ >/dev/null || exit 1"]
+      test: ["CMD-SHELL", "curl -fsS http://localhost/ >/dev/null || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5

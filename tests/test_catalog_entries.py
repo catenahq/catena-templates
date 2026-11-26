@@ -88,28 +88,15 @@ def test_actual_budget_holds_its_server_still_for_the_backup():
     assert "entrypoint" not in actual and "command" not in actual
 
 
-def test_the_webmail_holds_its_server_still_for_the_backup():
-    """Roundcube keeps its users' settings and sessions in SQLite with a
-    write-ahead log, and the nightly backup and the pre-update copy read the
-    files. Its apache processes stop before the copy and continue after it,
-    so the copy holds the database and its log at one instant. The hold is
-    in the webmail's service alone: dms goes on receiving mail. docker-init
-    runs as PID 1, because a namespace's first process ignores a SIGSTOP sent
-    from inside it, and the healthcheck passes a stopped master, because
-    swarm replaces a task that turns unhealthy. The name matches only while
-    the service ends in the image's own entrypoint running apache2-foreground."""
-    assert _entry("mailserver").quiesce == {
-        "service": "roundcube",
-        "pre": [["pkill", "-STOP", "-x", "apache2"]],
-        "post": [["pkill", "-CONT", "-x", "apache2"]],
-        "timeout_seconds": 10,
-    }
+def test_the_mail_server_is_stopped_whole_for_the_backup():
+    """The mail daemons write mail-data, mail-state and mail-logs the whole
+    time, so a held webmail alone leaves the backup's change detector a
+    changed volume. The block declares the stop form: every service but a
+    database server is scaled to zero for the backup, and no command runs."""
+    assert _entry("mailserver").quiesce == {"stop": True}
     roundcube = _service("mailserver", "roundcube")
-    assert roundcube["init"] is True
-    assert "command" not in roundcube
-    assert roundcube["entrypoint"][-1].strip().endswith("exec /docker-entrypoint.sh apache2-foreground")
-    assert roundcube["healthcheck"]["test"][1].startswith(
-        "grep -qs '^State:[[:space:]]*T' /proc/$$(pgrep -o -x apache2)/status || ")
+    assert "init" not in roundcube
+    assert "State:" not in roundcube["healthcheck"]["test"][1]
 
 
 def test_the_webmail_verifies_the_mail_server_by_the_mail_hosts_name():
