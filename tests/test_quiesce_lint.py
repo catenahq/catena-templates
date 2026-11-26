@@ -163,9 +163,11 @@ def test_lint_all_rejects_a_foreign_ready_command(monkeypatch, tmp_path, capsys)
 
 def test_allowed_ready_commands_lock():
     """The ready question adds bash to the lifecycle allowlist, for a probe
-    of the server's port where the image has no other client."""
-    assert L.ALLOWED_READY_COMMANDS == L.ALLOWED_MIGRATE_COMMANDS | {"bash"}
+    of the server's port where the image has no other client, and Beszel's
+    hub binary, whose health command asks only its own server."""
+    assert L.ALLOWED_READY_COMMANDS == L.ALLOWED_MIGRATE_COMMANDS | {"bash", "/beszel"}
     assert "bash" not in L.ALLOWED_MIGRATE_COMMANDS
+    assert "/beszel" not in L.ALLOWED_MIGRATE_COMMANDS
 
 
 @pytest.mark.parametrize("lifecycle", [

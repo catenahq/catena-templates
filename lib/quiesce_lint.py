@@ -103,8 +103,9 @@ ALLOWED_MIGRATE_COMMANDS = frozenset({
 })
 
 # The ready question is a probe of the service's own server, which may be a
-# bash /dev/tcp check where the image has no other client.
-ALLOWED_READY_COMMANDS = ALLOWED_MIGRATE_COMMANDS | {"bash"}
+# bash /dev/tcp check where the image has no other client, or the health
+# command of a shell-less image (Beszel's hub), which asks only its own server.
+ALLOWED_READY_COMMANDS = ALLOWED_MIGRATE_COMMANDS | {"bash", "/beszel"}
 
 # The commands a hooks body may start with: the lifecycle commands, the
 # interpreters of an inline script, and the health command of a shell-less
