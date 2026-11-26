@@ -52,6 +52,11 @@ x-catena:
   # connects. The token and the key reach the agent as files, so neither service holds
   # them in its environment.
   # verify asks the hub's health endpoint from the relay.
+  # The boot probe starts the hub alone on its restored data and asks its own health
+  # command, so the relay's verify reaches it.
+  probe:
+    service: app
+    check: [/beszel, health, --url, "http://localhost:8090"]
   hooks:
     service: relay
     timeout_seconds: 300
