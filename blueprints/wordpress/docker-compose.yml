@@ -180,7 +180,7 @@ x-catena:
 
 services:
   wp:
-    image: wordpress:7.1.4-fpm-alpine
+    image: wordpress:7.1.5-fpm-alpine
     deploy:
       restart_policy:
         condition: any
