@@ -33,10 +33,10 @@ services:
         mode: host
     networks:
       default: {}
-      # The alias is on both networks: Gatus reaches the hub on catena-beszel,
-      # and the sign-in gate on catena-beszelgate, which only the gate and the
-      # hub join. The hub sends its alerts to the server's alert intake on
-      # catena-alerts.
+      # The sign-in gate reaches the hub by its alias on catena-beszelgate,
+      # which only the gate and the hub join. catena-beszel is the network of
+      # the hub's beszel capability, which no other app reads. The hub sends
+      # its alerts to the server's alert intake on catena-alerts.
       catena-beszel:
         aliases:
           - beszel-hub
