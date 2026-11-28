@@ -1,5 +1,5 @@
 schema: 2
-requires_catena: 0.13.4
+requires_catena: 0.14.0
 version_from: app
 env:
   DOMAIN_HOST:
