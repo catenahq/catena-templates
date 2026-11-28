@@ -1,6 +1,6 @@
 x-catena:
   schema: 2
-  requires_catena: 0.12.2
+  requires_catena: 0.14.0
   version_from: wp
   env:
     DOMAIN_HOST:
@@ -29,6 +29,7 @@ x-catena:
     UPDATE_LEVEL:
       setting: {default: "major", label: {en: "Automatic updates: major, minor, patch or off", fr: "Mises à jour automatiques : major, minor, patch ou off"}}
   secrets: [smtp_password]
+  quiesce: {stop: true}
   # configure runs after every deploy (add, settings, start, update, rollback,
   # restore) once the install wizard has been run: it installs and activates
   # the curated plugins that are missing, enables the Redis object cache, seeds
@@ -177,6 +178,8 @@ x-catena:
   # The configure hook fetches wp-cli from GitHub and the plugins from the WordPress.org
   # plugin directory (its API and its download host).
   egress: [raw.githubusercontent.com, downloads.wordpress.org, api.wordpress.org]
+  # wp-files holds the site's files, uploads included; wp-cache holds nginx's FastCGI page cache.
+  unversioned_volumes: {wp-files: files, wp-cache: cache}
 
 services:
   wp:
