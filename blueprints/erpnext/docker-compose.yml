@@ -1,6 +1,6 @@
 x-catena:
   schema: 2
-  requires_catena: 0.12.2
+  requires_catena: 0.14.0
   env:
     DOMAIN_HOST:
       setting: {default: "erp.{{ cloudflare_zone }}"}
@@ -58,6 +58,7 @@ x-catena:
             process.exit(1);
           })();
     timeout_seconds: 3600
+  quiesce: {stop: true}
   # Once its start has finished, the scheduler's process is the container's first
   # process, so an exec into it proves it runs; while the start waits for the
   # backend the first process is bash. From there the check asks the app server
@@ -190,6 +191,9 @@ x-catena:
           PY
   data:
     db: {volume: db-data, upgrade: dump_restore}
+  # sites holds the site's configuration and its attached files, which no new image rewrites;
+  # the queue's Redis keeps its pending jobs.
+  unversioned_volumes: {sites: files, logs: cache, redis-queue-data: state}
 
 x-common: &frappe-env
   SITE_NAME: ${ERPNEXT_HOSTNAME}
