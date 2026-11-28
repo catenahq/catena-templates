@@ -1,5 +1,5 @@
 schema: 2
-requires_catena: 0.12.2
+requires_catena: 0.14.0
 env:
   DOMAIN_HOST:
     setting: {default: "element.{{ cloudflare_zone }}"}
@@ -51,6 +51,7 @@ env:
     setting: {default: "public", label: {en: "Access: public, private or admin-only", fr: "Accès : public, private ou admin-only"}}
   UPDATE_LEVEL:
     setting: {default: "major", label: {en: "Automatic updates: major, minor, patch or off", fr: "Mises à jour automatiques : major, minor, patch ou off"}}
+quiesce: {stop: true}
 images:
   postgres:
     rule: {kind: partial_line}
@@ -71,3 +72,5 @@ hooks:
   timeout_seconds: 60
   verify:
     - hooks/verify.py
+# element-synapse-data holds the homeserver's media files and signing key, which no new image rewrites.
+unversioned_volumes: {element-synapse-data: files}
