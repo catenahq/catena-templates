@@ -1,6 +1,6 @@
 x-catena:
   schema: 2
-  requires_catena: 0.12.2
+  requires_catena: 0.14.0
   env:
     DOMAIN_HOST:
       managed: {expr: "office.{{ cloudflare_zone }}"}
@@ -36,6 +36,9 @@ x-catena:
             echo "ONLYOFFICE /healthcheck answers $$body, not true" >&2
             exit 1
           fi
+  # ds-data holds the WOPI keys and the release-date record the entrypoint reads to detect an upgrade;
+  # ds-fonts holds the fonts an administrator adds. Watched by the backup, copied by no update.
+  unversioned_volumes: {ds-data: state, ds-fonts: state, ds-cache: cache, ds-log: cache}
 
 services:
   documentserver:
@@ -56,9 +59,6 @@ services:
       - ds-data:/var/www/onlyoffice/Data
       - ds-log:/var/log/onlyoffice
       - ds-cache:/var/lib/onlyoffice
-      - ds-postgresql:/var/lib/postgresql
-      - ds-rabbitmq:/var/lib/rabbitmq
-      - ds-redis:/var/lib/redis
       # The image's VOLUME for fonts an administrator adds.
       - ds-fonts:/usr/share/fonts/truetype/custom
     labels:
@@ -80,9 +80,6 @@ volumes:
   ds-data:
   ds-log:
   ds-cache:
-  ds-postgresql:
-  ds-rabbitmq:
-  ds-redis:
   ds-fonts:
 
 networks:

@@ -1,5 +1,5 @@
 schema: 2
-requires_catena: 0.12.2
+requires_catena: 0.14.0
 env:
   DOMAIN_HOST:
     managed: {expr: "office.{{ cloudflare_zone }}"}
@@ -23,3 +23,6 @@ hooks:
   timeout_seconds: 60
   verify:
     - hooks/verify.sh
+# ds-data holds the WOPI keys and the release-date record the entrypoint reads to detect an upgrade;
+# ds-fonts holds the fonts an administrator adds. Watched by the backup, copied by no update.
+unversioned_volumes: {ds-data: state, ds-fonts: state, ds-cache: cache, ds-log: cache}
