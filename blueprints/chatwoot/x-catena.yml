@@ -1,5 +1,5 @@
 schema: 2
-requires_catena: 0.12.2
+requires_catena: 0.14.0
 env:
   DOMAIN_HOST:
     setting: {default: "support.{{ cloudflare_zone }}"}
@@ -13,6 +13,7 @@ env:
     setting: {default: "public", label: {en: "Access: public, private or admin-only", fr: "Accès : public, private ou admin-only"}}
   UPDATE_LEVEL:
     setting: {default: "major", label: {en: "Automatic updates: major, minor, patch or off", fr: "Mises à jour automatiques : major, minor, patch ou off"}}
+quiesce: {stop: true}
 images:
   db:
     rule: {kind: pattern, tag_pattern: '(\d+)\.(\d+)\.(\d+)-pg18-trixie'}
@@ -25,3 +26,5 @@ hooks:
   timeout_seconds: 180
   verify:
     - hooks/verify.sh
+# storage-data holds the uploaded attachments, which no new image rewrites.
+unversioned_volumes: {storage-data: files}
