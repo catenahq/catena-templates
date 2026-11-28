@@ -5,7 +5,8 @@
 # ADMIN_PASS of the container's environment) can sign in. The setup makes the
 # administrator account catena-writer with the password the harness gives as
 # CATENA_TEST_PASSWORD, only when users.info does not know it; the writer signs in as
-# that account. The seed gets or creates the public channel catena-<run> and posts
+# that account. Its address is unverified, so Rocket.Chat asks it no code by email at
+# sign-in (email two-factor applies only to a verified address). The seed gets or creates the public channel catena-<run> and posts
 # the message fixture-<run> in it only when the channel does not hold it, so a second
 # seed changes nothing. Channels and messages live in MongoDB, so the asserts read what
 # the database replay brings back: they sign in again, list the channels named
@@ -81,7 +82,7 @@ setup:
           if (info.status !== 200) {
             const made = await call("POST", "/users.create", auth, {
               username: USER, name: USER, email: USER + "@writer.invalid", password: env.CATENA_TEST_PASSWORD,
-              verified: true, roles: ["admin"], joinDefaultChannels: false,
+              verified: false, roles: ["admin"], joinDefaultChannels: false,
               requirePasswordChange: false, sendWelcomeEmail: false,
             });
             if (made.status !== 200) throw new Error("users.create answered " + said(made));
