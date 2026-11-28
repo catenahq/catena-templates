@@ -1,6 +1,6 @@
 x-catena:
   schema: 2
-  requires_catena: 0.12.2
+  requires_catena: 0.14.0
   version_from: coturn
   # The relay listens on the host's own network, so its ports are the ones the
   # service's vps.expose labels declare.
@@ -88,6 +88,8 @@ x-catena:
             exit 1
           fi
           echo "the relay allocates on $${TURN_PORT}, listens on $${TURN_TLS_PORT} and its certificate is valid for 24 hours"
+  # certs holds the certificate and key the server issues for the relay's name.
+  unversioned_volumes: {certs: state}
 
 services:
   coturn:
