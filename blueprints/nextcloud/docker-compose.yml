@@ -1,6 +1,6 @@
 x-catena:
   schema: 2
-  requires_catena: 0.12.2
+  requires_catena: 0.14.0
   env:
     DOMAIN_HOST:
       managed: {expr: "nextcloud.{{ cloudflare_zone }}"}
@@ -498,6 +498,9 @@ x-catena:
   # apps.nextcloud.com answers most requests itself and redirects the rest to
   # its mirrors garm1 to garm7.nextcloud.com.
   egress: [apps.nextcloud.com, garm1.nextcloud.com, garm2.nextcloud.com, garm3.nextcloud.com, garm4.nextcloud.com, garm5.nextcloud.com, garm6.nextcloud.com, garm7.nextcloud.com, github.com, release-assets.githubusercontent.com]
+  # nc-data holds the users' files, named by the database: watched by the backup,
+  # copied by no update.
+  unversioned_volumes: {nc-data: files}
 
 services:
   app:
