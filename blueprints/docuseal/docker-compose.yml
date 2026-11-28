@@ -1,6 +1,6 @@
 x-catena:
   schema: 2
-  requires_catena: 0.12.2
+  requires_catena: 0.14.0
   env:
     DOMAIN_HOST:
       setting: {default: "sign.{{ cloudflare_zone }}"}
@@ -26,6 +26,7 @@ x-catena:
       setting: {default: "public", label: {en: "Access: public, private or admin-only", fr: "Accès : public, private ou admin-only"}}
     UPDATE_LEVEL:
       setting: {default: "major", label: {en: "Automatic updates: major, minor, patch or off", fr: "Mises à jour automatiques : major, minor, patch ou off"}}
+  quiesce: {stop: true}
   images:
     db:
       rule: {kind: partial_line}
@@ -59,6 +60,8 @@ x-catena:
             abort "DocuSeal /manifest answered #{manifest.code} without the product name" unless manifest.code == "200" && name == "DocuSeal"
             puts "DocuSeal answers on 3000"
           '
+  # docuseal-data holds the uploaded and signed documents, which the database names and no new image rewrites.
+  unversioned_volumes: {docuseal-data: files}
 
 services:
   docuseal:
