@@ -40,13 +40,6 @@ run on every render. This module adds:
     not define fails the quiesce on every host, and the backup runs
     without it. The stop form (`stop: true`) names no service and runs no
     command, so it has neither to check.
-  - Each volume a lifecycle block declares versioned is a top-level
-    volume of the compose that a service mounts, and no database mounts
-    it. A rollback puts the volume's pre-update copy back with the
-    services that mount it scaled to zero; it never stops a database,
-    whose dump it replays instead, and the host refuses every update of a
-    stack where one mounts the volume. A one-shot service, which a
-    rollback does not stop either, is refused outright by the swarm lint.
   - Every lifecycle block declares ready.
   - A block that provides antivirus declares hooks.scan. A probe names a
     service of the compose, and its check starts with an allowlisted command
@@ -212,40 +205,6 @@ def database_image(image: str) -> bool:
         name = name[:name.rfind(":")]
     return (any(word in name for word in DATABASE_IMAGE_WORDS)
             or name.rsplit("/", 1)[-1].startswith(DATABASE_NAME_PREFIXES))
-
-
-def mounted_volumes(service: dict) -> set[str]:
-    """The source of each volume entry of a compose service: the part before
-    the first colon of the short form, the `source` of the long form."""
-    sources = set()
-    for item in service.get("volumes") or []:
-        if isinstance(item, str):
-            sources.add(item.split(":", 1)[0])
-        elif isinstance(item, dict) and item.get("source"):
-            sources.add(str(item["source"]))
-    return sources
-
-
-def lint_versioned_volumes(entry, volumes: list[str]) -> list[str]:
-    doc = yaml.safe_load(entry.compose_path.read_text(encoding="utf-8")) or {}
-    declared = doc.get("volumes") or {}
-    services = doc.get("services") or {}
-    errors: list[str] = []
-    for volume in volumes:
-        label = f"{entry.slug}.lifecycle.versioned_volumes: {volume!r}"
-        if volume not in declared:
-            errors.append(f"{label} is not a top-level volume of this template's compose")
-        mounting = [name for name, svc in services.items()
-                    if volume in mounted_volumes(svc or {})]
-        if not mounting:
-            errors.append(f"{label} is mounted by no service")
-        for name in mounting:
-            svc = services[name] or {}
-            if database_image(svc.get("image", "")):
-                errors.append(
-                    f"{label} is mounted by {name}, a database: a rollback "
-                    f"replays its dump and never stops it")
-    return errors
 
 
 # The sign-in labels catena-admin's app intent reads, and the stack env keys
@@ -780,9 +739,6 @@ def lint_all() -> int:
                 all_errors.append(
                     f"{entry.slug}.lifecycle.ready: missing; every lifecycle declares the "
                     f"command that exits 0 once its service can run the lifecycle commands")
-            if lifecycle.get("versioned_volumes"):
-                all_errors.extend(lint_versioned_volumes(
-                    entry, lifecycle["versioned_volumes"]))
 
         quiesce = entry.quiesce
         if not quiesce:

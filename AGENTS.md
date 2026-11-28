@@ -299,8 +299,7 @@ it. The stop form (`quiesce: {stop: true}`) names no service.
    quiesce service check, the `host_paths` check (a normalised absolute path
    holding neither the Docker socket's folders nor the compose folders; an app
    binds a host path outside its own data folder only when its unchanged
-   catalog file declares it there), the versioned volume check (a top-level volume
-   that only long-running services other than a database mount), the
+   catalog file declares it there), the
    sign-in labels (on the main address's service, `redirect_uris` beside
    `vps.auth.oidc=true`, `vps.auth.oidc.scopes` holding client scope names,
    `vps.auth.oidc.introspect` never beside `vps.auth.oidc.public`, and no
@@ -341,7 +340,14 @@ README.md, "How to add a template", says how; these are the rules.
   up no credential.
 - An app that keeps live state a file snapshot can tear declares `quiesce`,
   one that migrates a schema declares `lifecycle` with `ready`.
-  `post` must succeed when `pre` never ran.
+  `post` must succeed when `pre` never ran. `quiesce.always: true` holds the
+  backup mode at every backup, for an app whose writes the backup cannot see
+  change (README.md, "How to add a template", step 5).
+- Every named volume of an app is in one class: `data.<service>.volume`,
+  `lifecycle.versioned_volumes` or `unversioned_volumes` (`files`, `state` or
+  `cache`; README.md, step 6). catena-admin `payload/engines/appdecl` and the app
+  checker refuse a volume in two classes, one the app does not own and one only a
+  database server mounts.
 - Never weaken or remove a check, an assert or a leg to make an app pass:
   fix the app or its declaration.
 - One app or none per branch, pull request and commit.

@@ -51,7 +51,8 @@ SNIPPETS_DIR = "snippets"
 # The order of the block keys in the packed file, `schema` first.
 ORDER = ("schema", "requires_catena", "version_from", "privileges", "env", "secrets", "access",
          "capabilities", "host_paths", "provides", "lifecycle", "quiesce", "probe",
-         "needs", "write_hold", "stops", "images", "hooks", "egress", "data")
+         "needs", "write_hold", "stops", "images", "hooks", "egress", "data",
+         "unversioned_volumes")
 BLOCK_FILE = "x-catena.yml"
 # The files pack reads besides the files under HOOKS_DIR.
 NEAT_FILES = (SERVICES, BLOCK_FILE)

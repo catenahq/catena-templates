@@ -94,6 +94,10 @@
           "type": "boolean",
           "description": "The stop form of the backup mode: no command runs."
         },
+        "always": {
+          "type": "boolean",
+          "description": "True holds the application's backup mode at every backup from the first round, instead of from the fourth round when the application keeps changing. Valid with the pause form (service, pre, post) and with the stop form."
+        },
         "service": {
           "type": "string",
           "minLength": 1,
@@ -285,6 +289,13 @@
         }
       },
       "description": "Per service, the volume it keeps its data in and how that data upgrades: a dump replayed after the update, or in place; and the SQLite files the backup copies."
+    },
+    "unversioned_volumes": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": { "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$" },
+      "additionalProperties": { "enum": ["files", "state", "cache"] },
+      "description": "The class of each named volume of the application that is in neither data nor lifecycle.versioned_volumes: files (what the application's database names: uploads, attachments, media), state (kept files nothing names and no new version rewrites: keys, a mail spool, a queue's pending jobs, configuration a person edits) or cache (what the application rebuilds or can lose: caches, logs, temporary files; the backup does not watch a cache volume for changes). An update copies none of them. A key is a volume of the application, in one of the three places only, and no volume a database server alone mounts."
     },
     "write_hold": {
       "enum": ["lifecycle", "backup_mode", "edge"],
