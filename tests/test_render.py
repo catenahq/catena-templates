@@ -119,7 +119,7 @@ def test_lifecycle_reaches_the_catalog_unchanged():
         spec = entry.lifecycle
         assert catalog[entry.slug].get("lifecycle") == spec, entry.slug
         if spec:
-            assert spec.get("migrate") or spec.get("versioned_volumes"), entry.slug
+            assert spec.get("migrate") or spec.get("versioned_volumes") or spec.get("ready"), entry.slug
             migrating += bool(spec.get("migrate"))
             versioning += bool(spec.get("versioned_volumes"))
     assert migrating > 0 and versioning > 0

@@ -35,9 +35,14 @@
           "required": [
             "versioned_volumes"
           ]
+        },
+        {
+          "required": [
+            "ready"
+          ]
         }
       ],
-      "description": "Commands the host runs inside one service around a schema change, and volumes it copies around an update of that service: the commands around every image update the update lane applies, the migration only when the update moves that service's image, and after a FORWARD restore once the database replay has put the snapshot's contents back. Declare it when the application keeps a schema its new code expects migrated (migrate), or when its new version upgrades state in a volume that the previous version then refuses or misreads (versioned_volumes); an entry declares one or both. A migration the application runs at container start is not enough on a restore: it runs against the pre-replay database and the replay then overwrites it. Every command is an argv array executed through docker exec, never a shell.",
+      "description": "Commands the host runs inside one service around a schema change, and volumes it copies around an update of that service: the commands around every image update the update lane applies, the migration only when the update moves that service's image, and after a FORWARD restore once the database replay has put the snapshot's contents back. Declare it when the application keeps a schema its new code expects migrated (migrate), or when its new version upgrades state in a volume that the previous version then refuses or misreads (versioned_volumes); an entry declares any of them. An entry with ready alone makes the update lane wait for the application before each phase. A migration the application runs at container start is not enough on a restore: it runs against the pre-replay database and the replay then overwrites it. Every command is an argv array executed through docker exec, never a shell.",
       "properties": {
         "service": {
           "type": "string",
