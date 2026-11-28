@@ -56,7 +56,7 @@ x-catena:
 
 services:
   rails:
-    image: chatwoot/chatwoot:v4.20.1-ce
+    image: chatwoot/chatwoot:v4.20.2-ce
     deploy:
       restart_policy:
         condition: any
@@ -101,7 +101,7 @@ services:
       default: {}
 
   sidekiq:
-    image: chatwoot/chatwoot:v4.20.1-ce
+    image: chatwoot/chatwoot:v4.20.2-ce
     deploy:
       restart_policy:
         condition: any
