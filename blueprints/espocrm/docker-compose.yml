@@ -1,6 +1,6 @@
 x-catena:
   schema: 2
-  requires_catena: 0.12.2
+  requires_catena: 0.14.0
   env:
     DOMAIN_HOST:
       setting: {default: "crm.{{ cloudflare_zone }}"}
@@ -24,8 +24,9 @@ x-catena:
     ready: ["php", "-r", "exit(@fsockopen('127.0.0.1', 80) ? 0 : 1);"]
     migrate:
       - ["php", "rebuild.php"]
-    versioned_volumes: ["custom"]
+    versioned_volumes: ["custom", "client-custom"]
     timeout_seconds: 900
+  quiesce: {stop: true}
   # verify asks Apache for the start page and for the REST API, which answers 401 to a request with no sign-in.
   hooks:
     service: espocrm
@@ -55,6 +56,9 @@ x-catena:
             exit(1);
           }
           echo "EspoCRM answers on port 80 and its API asks for sign-in\n";
+  # server-data holds the config and the attachments: the image's migration only raises the version in the config, an
+  # older image reads it as it is, and the attachments grow without bound.
+  unversioned_volumes: {server-data: files}
 
 services:
   espocrm:

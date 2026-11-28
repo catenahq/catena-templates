@@ -123,13 +123,13 @@ def test_espocrm_keeps_what_its_admin_screens_make_in_volumes():
     of those fields in MariaDB. A path left in the container is lost each
     time swarm recreates the task, which every update does. The job runner
     reads the same tree. A minor version's migration rewrites the metadata
-    under custom/ in place, so an update copies it and a rollback puts it
-    back."""
+    under custom/ in place and client/custom/ goes with it, so an update
+    copies both and a rollback puts them back together."""
     mounts = {"server-data:/var/www/html/data", "custom:/var/www/html/custom",
               "client-custom:/var/www/html/client/custom"}
     for service in ("espocrm", "cron"):
         assert mounts <= set(_service("espocrm", service)["volumes"])
-    assert _entry("espocrm").lifecycle["versioned_volumes"] == ["custom"]
+    assert _entry("espocrm").lifecycle["versioned_volumes"] == ["custom", "client-custom"]
 
 
 def test_espocrm_runs_its_jobs_with_the_images_job_runner():
