@@ -1,5 +1,5 @@
 schema: 2
-requires_catena: 0.12.2
+requires_catena: 0.14.0
 env:
   DOMAIN_HOST:
     setting: {default: "book.{{ cloudflare_zone }}"}
@@ -13,6 +13,7 @@ env:
     setting: {default: "public", label: {en: "Access: public, private or admin-only", fr: "Accès : public, private ou admin-only"}}
   UPDATE_LEVEL:
     setting: {default: "major", label: {en: "Automatic updates: major, minor, patch or off", fr: "Mises à jour automatiques : major, minor, patch ou off"}}
+quiesce: {stop: true}
 # verify asks Apache for the root page. Before its installation wizard has run, the application answers
 # with a redirect to /installation; after it, with the booking page, whose title names the product.
 hooks:
@@ -20,3 +21,5 @@ hooks:
   timeout_seconds: 60
   verify:
     - hooks/verify.sh
+# server-data holds the application's storage folder: its uploaded files, which no new image rewrites.
+unversioned_volumes: {server-data: files}
