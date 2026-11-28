@@ -16,13 +16,13 @@
     "hostname_baked": false
   },
   "sizing": {
-    "idle_ram_mb": 40,
-    "peak_ram_mb": 120,
-    "idle_cpu_pct": 1,
-    "peak_cpu_pct": 10,
+    "idle_ram_mb": 10,
+    "peak_ram_mb": 22,
+    "idle_cpu_pct": 0.0,
+    "peak_cpu_pct": 0.0,
     "disk_baseline_mb": 40,
-    "notes": "One Go binary on SQLite plus a 16 MB helper that writes the base configuration. The history grows with the endpoints it probes. Conservative estimate, not yet measured.",
-    "notes_fr": "Un seul binaire Go sur SQLite plus un assistant de 16 Mo qui \u00e9crit la configuration de base. L'historique grossit avec les points de terminaison sond\u00e9s. Estimation prudente, pas encore mesur\u00e9e."
+    "notes": "One Go binary on SQLite plus a 16 MB helper that writes the base configuration. The memory and CPU figures are measured by the app tests with the self-check as the only endpoint; both, and the history, grow with the endpoints it probes.",
+    "notes_fr": "Un seul binaire Go sur SQLite plus un assistant de 16 Mo qui \u00e9crit la configuration de base. Les chiffres de m\u00e9moire et de processeur sont mesur\u00e9s par les tests de l'application avec la seule auto-v\u00e9rification comme point de terminaison ; eux et l'historique grossissent avec les points de terminaison sond\u00e9s."
   },
   "en": {
     "display_name": "Gatus",
