@@ -1,6 +1,6 @@
 x-catena:
   schema: 2
-  requires_catena: 0.12.2
+  requires_catena: 0.14.0
   version_from: clamav
   env:
     CLAMD_HOST:
@@ -44,6 +44,9 @@ x-catena:
           exit "$$rc"
   # freshclam's signature mirror.
   egress: [database.clamav.net]
+  # clamav-db holds the signature database, which a new volume is filled with from the image
+  # and freshclam brings current.
+  unversioned_volumes: {clamav-db: cache}
 
 services:
   clamav:
