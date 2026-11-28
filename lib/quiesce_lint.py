@@ -81,13 +81,9 @@ from . import swarm_lint
 from .model import SourceError, load_sources
 
 # Each family runs inside one application container and gets that
-# application's own admin client. A quiesce may also signal a process of
-# that container, for an application with no admin client that can hold its
-# writes. Widening either set is a review decision.
+# application's own admin client. Widening either set is a review decision.
 ALLOWED_QUIESCE_COMMANDS = frozenset({
     "php",                  # Nextcloud
-    "mongosh",              # MongoDB
-    "pkill",                # Actual Budget: stop and continue its server
 })
 
 ALLOWED_MIGRATE_COMMANDS = frozenset({
