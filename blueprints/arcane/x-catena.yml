@@ -1,5 +1,5 @@
 schema: 2
-requires_catena: 0.13.4
+requires_catena: 0.14.0
 privileges: [docker_socket]
 env:
   DOMAIN_HOST:
@@ -12,6 +12,9 @@ env:
     setting: {default: "admin-only", label: {en: "Access: public, private or admin-only", fr: "Accès : public, private ou admin-only"}}
   UPDATE_LEVEL:
     setting: {default: "major", label: {en: "Automatic updates: major, minor, patch or off", fr: "Mises à jour automatiques : major, minor, patch ou off"}}
+# The backup stops the server: arcane-data holds the SQLite database and the
+# projects folder (/app/data/projects) in one volume, and a live copy would tear them.
+quiesce: {stop: true}
 # The image has no shell, curl or wget. verify runs Arcane's own health
 # command, which asks the running server for /api/health over the loopback.
 hooks:
