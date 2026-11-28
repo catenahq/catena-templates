@@ -1,5 +1,5 @@
 schema: 2
-requires_catena: 0.12.2
+requires_catena: 0.14.0
 env:
   DOMAIN_HOST:
     setting: {default: "photos.{{ cloudflare_zone }}"}
@@ -18,6 +18,7 @@ env:
   UPDATE_LEVEL:
     setting: {default: "major", label: {en: "Automatic updates: major, minor, patch or off", fr: "Mises à jour automatiques : major, minor, patch ou off"}}
 host_paths: [/mnt, /media]
+quiesce: {stop: true}
 images:
   db:
     rule: {kind: pattern, tag_pattern: '(\d+)-vectorchord(\d+)\.(\d+)\.(\d+)-pgvectors(\d+)\.(\d+)\.(\d+)', registry: ghcr.io, repo: immich-app/postgres, feed: compose, leader: ghcr.io/immich-app/immich-server, compose_url: 'https://raw.githubusercontent.com/immich-app/immich/{version}/docker/docker-compose.yml', compose_service: database}
@@ -27,3 +28,6 @@ hooks:
   timeout_seconds: 60
   verify:
     - hooks/verify.js
+# immich-library is the volume UPLOAD_LOCATION names by default: the photos and videos, which no new image rewrites.
+# model-cache holds the machine-learning models the service downloads again when it is empty.
+unversioned_volumes: {immich-library: files, model-cache: cache}
