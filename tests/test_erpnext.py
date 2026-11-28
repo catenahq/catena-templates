@@ -249,14 +249,11 @@ def _without_the_differences(slug: str) -> dict:
     address defaults, the AUTH_MODE setting and the main address's access label, what the sign-in differs in (the access level, the users
     hook, the groups the main address admits, the name and description labels
     and the sign-ups the entry is made
-    with), what the helpdesk closes (the web forms setting and its start
-    step, the site setting block_endpoints), and the backup mode and the volume
-    classes, which a pull request sets on one app at a time."""
+    with) and what the helpdesk closes (the web forms setting and its start
+    step, the site setting block_endpoints)."""
     compose = copy.deepcopy(_compose(slug))
     block = compose["x-catena"]
     block.pop("requires_catena", None)
-    block.pop("quiesce", None)
-    block.pop("unversioned_volumes", None)
     block.pop("images", None)
     block.pop("access", None)
     block["hooks"].pop("users", None)
