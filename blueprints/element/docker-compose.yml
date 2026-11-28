@@ -1,6 +1,6 @@
 x-catena:
   schema: 2
-  requires_catena: 0.12.2
+  requires_catena: 0.14.0
   env:
     DOMAIN_HOST:
       setting: {default: "element.{{ cloudflare_zone }}"}
@@ -52,6 +52,7 @@ x-catena:
       setting: {default: "public", label: {en: "Access: public, private or admin-only", fr: "Accès : public, private ou admin-only"}}
     UPDATE_LEVEL:
       setting: {default: "major", label: {en: "Automatic updates: major, minor, patch or off", fr: "Mises à jour automatiques : major, minor, patch ou off"}}
+  quiesce: {stop: true}
   images:
     postgres:
       rule: {kind: partial_line}
@@ -101,6 +102,8 @@ x-catena:
               if "turn:" + turn + ":" not in conf or "turn_shared_secret" not in conf:
                   sys.exit("the call relay " + turn + " is provided, but homeserver.yaml does not name it")
           print("Synapse answers, newest Matrix version " + versions[-1] + (", call relay " + turn + " wired" if turn else ""))
+  # element-synapse-data holds the homeserver's media files and signing key, which no new image rewrites.
+  unversioned_volumes: {element-synapse-data: files}
 
 x-synapse-image: &synapse_image
   image: matrixdotorg/synapse:v1.166.0
