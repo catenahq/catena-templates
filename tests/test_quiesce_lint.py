@@ -102,7 +102,22 @@ def test_quiesce_timeout_cap_lives_in_the_schema():
     schema = json.loads((ROOT / "block.schema.json").read_text())
     quiesce = schema["properties"]["quiesce"]
     assert quiesce["properties"]["timeout_seconds"]["maximum"] == 60
-    assert quiesce["required"] == ["service", "pre", "timeout_seconds"]
+    assert quiesce["else"]["required"] == ["service", "pre", "timeout_seconds"]
+    assert quiesce["if"]["required"] == ["stop"]
+
+
+def test_the_stop_form_passes_the_schema_and_the_lint(monkeypatch, tmp_path, capsys):
+    """quiesce: {stop: true} names no service and runs no command."""
+    _synthetic_sources(monkeypatch, tmp_path, {}, block={"quiesce": {"stop": True}})
+    assert L.lint_all() == 0, capsys.readouterr().out
+
+
+@pytest.mark.parametrize("extra", [{"service": "app"}, {"pre": [["pkill", "-STOP", "-x", "x"]]},
+                                   {"post": [["pkill", "-CONT", "-x", "x"]]}, {"user": "root"}])
+def test_the_stop_form_takes_no_service_command_or_user(monkeypatch, tmp_path, extra):
+    _synthetic_sources(monkeypatch, tmp_path, {}, block={"quiesce": {"stop": True, **extra}})
+    with pytest.raises(model.SourceError):
+        model.load_sources()
 
 
 def test_lint_all_against_real_sources_passes():

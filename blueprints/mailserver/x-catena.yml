@@ -1,5 +1,5 @@
 schema: 2
-requires_catena: 0.12.2
+requires_catena: 0.14.0
 version_from: dms
 env:
   DOMAIN_HOST:
@@ -36,13 +36,11 @@ lifecycle:
   ready: ["php", "-r", "exit(@fsockopen('127.0.0.1', 80) ? 0 : 1);"]
   versioned_volumes: ["roundcube-db"]
   timeout_seconds: 300
+# The mail daemons write mail-data, mail-state and mail-logs the whole time, so
+# a still copy needs every service stopped for the backup. Mail is refused while
+# it runs and the sending server retries.
 quiesce:
-  service: "roundcube"
-  pre:
-    - ["pkill", "-STOP", "-x", "apache2"]
-  post:
-    - ["pkill", "-CONT", "-x", "apache2"]
-  timeout_seconds: 10
+  stop: true
 # The certificate of the mail host is issued into mail-certs before each
 # deploy and renewed there. The mail host's address and the MTA-STS and
 # TLS-RPT records are published in the zones of the mail host and the mail

@@ -274,10 +274,14 @@ block.
    shell. `post` also runs after a failed or resumed backup and after a
    restore, so it must succeed when `pre` never ran. Real examples:
    Nextcloud (`occ maintenance:mode` on/off), Rocket.Chat (MongoDB
-   fsyncLock/unlock), and Actual Budget and the webmail (`pkill -STOP` /
-   `-CONT` on the server process). `make lint` holds each command to an
+   fsyncLock/unlock), and Actual Budget (`pkill -STOP` / `-CONT` on the
+   server process). `make lint` holds each command to an
    allowlist of the application's own admin clients, plus `pkill` for an
    application with no admin client that can hold its writes.
+   An application whose every service writes its volumes declares the stop
+   form instead, `quiesce: {stop: true}`, with no `service`, `pre` or `post`:
+   the host scales every service of the app but its database servers to zero
+   for the backup and back after it (the mail server).
    An application that keeps a SQLite database in a named volume lists each
    file under `data.<service>.sqlite`, an absolute path directly on that volume
    (`sqlite: [/data/app.db]`); the backup copies each whole while the service

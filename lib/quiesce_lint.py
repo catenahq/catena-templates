@@ -38,7 +38,8 @@ run on every render. This module adds:
   - The service a quiesce block names is a service the compose defines.
     The host finds the container by that name; a name the compose does
     not define fails the quiesce on every host, and the backup runs
-    without it.
+    without it. The stop form (`stop: true`) names no service and runs no
+    command, so it has neither to check.
   - Each volume a lifecycle block declares versioned is a top-level
     volume of the compose that a service mounts, and no database mounts
     it. A rollback puts the volume's pre-update copy back with the
@@ -93,7 +94,7 @@ from .model import SourceError, load_sources
 ALLOWED_QUIESCE_COMMANDS = frozenset({
     "php",                  # Nextcloud
     "mongosh",              # MongoDB
-    "pkill",                # Actual Budget, Roundcube: stop and continue their servers
+    "pkill",                # Actual Budget: stop and continue its server
 })
 
 ALLOWED_MIGRATE_COMMANDS = frozenset({
@@ -787,6 +788,8 @@ def lint_all() -> int:
         if not quiesce:
             continue
         with_hooks += 1
+        if quiesce.get("stop"):
+            continue
         services = compose_services(entry)
         if quiesce["service"] not in services:
             all_errors.append(

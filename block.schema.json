@@ -85,13 +85,15 @@
     "quiesce": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "service",
-        "pre",
-        "timeout_seconds"
-      ],
-      "description": "Commands the nightly maintenance runs inside one service around its backup, for an application whose live state a file-level snapshot can tear and the backup's own database dumps do not cover. Every command is an argv array executed through docker exec, never a shell. post must succeed when pre never ran: it runs after every backup attempt, after a resumed run and after a restore.",
+      "if": { "required": ["stop"], "properties": { "stop": { "const": true } } },
+      "then": { "not": { "anyOf": [{ "required": ["service"] }, { "required": ["user"] }, { "required": ["pre"] }, { "required": ["post"] }] } },
+      "else": { "required": ["service", "pre", "timeout_seconds"] },
+      "description": "Commands the nightly maintenance runs inside one service around its backup, for an application whose live state a file-level snapshot can tear and the backup's own database dumps do not cover. Every command is an argv array executed through docker exec, never a shell. post must succeed when pre never ran: it runs after every backup attempt, after a resumed run and after a restore. The stop form, stop: true with no service, user, pre or post, scales every service of the application but its database servers to zero for the backup and back after it.",
       "properties": {
+        "stop": {
+          "type": "boolean",
+          "description": "The stop form of the backup mode: no command runs."
+        },
         "service": {
           "type": "string",
           "minLength": 1,

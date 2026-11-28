@@ -277,7 +277,7 @@ The host runs a quiesce or lifecycle command in the container of the service
 the block names, and `make lint` checks that a quiesce block's `service` is a
 service the compose actually defines -- because a service no container runs
 under fails the quiesce on every host, and the backup is then taken without
-it.
+it. The stop form (`quiesce: {stop: true}`) names no service.
 
 ## Validation layers
 
