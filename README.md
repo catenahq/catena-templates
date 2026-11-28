@@ -282,6 +282,9 @@ block.
    form instead, `quiesce: {stop: true}`, with no `service`, `pre` or `post`:
    the host scales every service of the app but its database servers to zero
    for the backup and back after it (the mail server).
+   `always: true` in either form holds the backup mode at every backup from the
+   first round, instead of from the fourth round when the app keeps changing:
+   declare it for an app whose writes the backup's change detector cannot see.
    An application that keeps a SQLite database in a named volume lists each
    file under `data.<service>.sqlite`, an absolute path directly on that volume
    (`sqlite: [/data/app.db]`); the backup copies each whole while the service
@@ -307,6 +310,18 @@ block.
    `versioned_volumes` and `timeout_seconds` alone. Real examples: the
    `x-catena.yml` of `blueprints/outline`, `blueprints/nextcloud`,
    `blueprints/erpnext` and `blueprints/actualbudget`.
+   Every other named volume of the app is a key of `unversioned_volumes`, whose
+   value is its class; an update copies none of them:
+   - `files`: what the app's database names (uploads, attachments, media).
+   - `state`: kept files nothing names and no new version rewrites (keys, a mail
+     spool, a queue's pending jobs, configuration a person edits).
+   - `cache`: what the app rebuilds or can lose (caches, logs, temporary files);
+     the backup does not watch a cache volume for changes.
+
+   So every named volume is in one class: `data.<service>.volume`,
+   `lifecycle.versioned_volumes` or `unversioned_volumes`. catena-admin refuses a
+   volume that is not the app's own, a class other than these, a volume in two
+   classes and one a database server mounts; the app checker reports it (`K17`).
 7. If the entry works only on a Catena release newer than some servers
    run, `requires_catena` (a key of `x-catena.yml`) names the oldest one it
    works on (`0.11.0`). The catalog document carries it, and so does the row of

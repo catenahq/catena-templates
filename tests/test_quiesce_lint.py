@@ -262,43 +262,36 @@ volumes:
 """
 
 
-def _versioned(volumes: list[str]) -> dict:
-    return {"schema": 2, "lifecycle": {
-        "service": "app",
-        "ready": ["php", "occ", "status", "--exit-code"],
-        "migrate": [["php", "occ", "db:add-missing-indices"]],
-        "versioned_volumes": volumes,
-        "timeout_seconds": 60,
-    }}
+def test_a_quiesce_that_is_held_at_every_backup_passes_the_schema():
+    import jsonschema
+    schema = json.loads((ROOT / "block.schema.json").read_text(encoding="utf-8"))
+    pause = {"service": "app", "pre": [["pkill", "-STOP", "-x", "node"]], "timeout_seconds": 10}
+    for good in ({"stop": True, "always": True}, {**pause, "always": True}, {**pause, "always": False}):
+        jsonschema.validate({"schema": 2, "quiesce": good}, schema)
+    for bad in ({"always": True}, {"stop": True, "always": "yes"}):
+        with pytest.raises(jsonschema.ValidationError):
+            jsonschema.validate({"schema": 2, "quiesce": bad}, schema)
 
 
-def test_a_versioned_volume_long_running_services_mount_passes(
-        monkeypatch, tmp_path, capsys):
-    """Both compose forms count as a mount: the short `name:/path` and the
-    long `source:`."""
-    _synthetic_sources(monkeypatch, tmp_path, {}, _VERSIONED_COMPOSE,
-                       block=_versioned(["code"]))
+@pytest.mark.parametrize("volumes", [
+    {"uploads": "files"}, {"keys": "state"}, {"logs": "cache"},
+    {"uploads": "files", "keys": "state", "logs": "cache", "app-data.v2": "state"}])
+def test_an_unversioned_volume_map_of_the_three_classes_passes_the_schema(monkeypatch, tmp_path, capsys, volumes):
+    import jsonschema
+    schema = json.loads((ROOT / "block.schema.json").read_text(encoding="utf-8"))
+    jsonschema.validate({"schema": 2, "unversioned_volumes": volumes}, schema)
+    _synthetic_sources(monkeypatch, tmp_path, {}, block={"unversioned_volumes": volumes})
     assert L.lint_all() == 0, capsys.readouterr().out
 
 
-@pytest.mark.parametrize("volume,needle", [
-    ("db-data", "is mounted by db, a database"),
-    ("cache", "is not a top-level volume"),
-    ("spare", "is mounted by no service"),
-])
-def test_a_versioned_volume_a_rollback_cannot_put_back_is_refused(
-        monkeypatch, tmp_path, capsys, volume, needle):
-    """A rollback scales the services that mount the volume to zero before
-    it puts the copy back; a database is never stopped (its dump is
-    replayed), and a volume the compose does not declare or no service
-    mounts has nothing a copy could restore."""
-    compose = _VERSIONED_COMPOSE + "  spare:\n"
-    compose = compose.replace("    volumes: [\"code:/var/www/html\", ",
-                              "    volumes: [\"cache:/tmp/cache\", \"code:/var/www/html\", ")
-    _synthetic_sources(monkeypatch, tmp_path, {}, compose, block=_versioned([volume]))
-    assert L.lint_all() == 1
-    out = capsys.readouterr().out
-    assert f"synthetic-bad.lifecycle.versioned_volumes: {volume!r} {needle}" in out
+@pytest.mark.parametrize("volumes", [
+    {}, {"uploads": "data"}, {"uploads": ""}, {"uploads": True}, {"-uploads": "files"}, {"up/loads": "files"},
+    ["uploads"], "uploads"])
+def test_an_unversioned_volume_map_that_is_not_a_class_per_volume_is_refused(volumes):
+    import jsonschema
+    schema = json.loads((ROOT / "block.schema.json").read_text(encoding="utf-8"))
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate({"schema": 2, "unversioned_volumes": volumes}, schema)
 
 
 _SIGNIN_COMPOSE = """\
