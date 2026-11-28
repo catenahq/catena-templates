@@ -1,5 +1,5 @@
 schema: 2
-requires_catena: 0.12.2
+requires_catena: 0.14.0
 env:
   DOMAIN_HOST:
     setting: {default: "automate.{{ cloudflare_zone }}"}
@@ -17,6 +17,9 @@ env:
     setting: {default: "public", label: {en: "Access: public, private or admin-only", fr: "Accès : public, private ou admin-only"}}
   UPDATE_LEVEL:
     setting: {default: "major", label: {en: "Automatic updates: major, minor, patch or off", fr: "Mises à jour automatiques : major, minor, patch ou off"}}
+# The n8n service writes its data folder while it runs, so a still copy needs it stopped for the backup.
+quiesce:
+  stop: true
 images:
   db:
     rule: {kind: partial_line}
@@ -27,3 +30,6 @@ hooks:
   timeout_seconds: 120
   verify:
     - hooks/verify.js
+# n8n-data holds the settings file with the encryption key and the installed community nodes; the
+# workflows and executions are in the database. Watched by the backup, copied by no update.
+unversioned_volumes: {n8n-data: files}
