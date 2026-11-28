@@ -1,5 +1,5 @@
 schema: 2
-requires_catena: 0.12.2
+requires_catena: 0.14.0
 env:
   DOMAIN_HOST:
     setting: {default: "marketing.{{ cloudflare_zone }}"}
@@ -23,6 +23,10 @@ env:
     setting: {default: "public", label: {en: "Access: public, private or admin-only", fr: "Accès : public, private ou admin-only"}}
   UPDATE_LEVEL:
     setting: {default: "major", label: {en: "Automatic updates: major, minor, patch or off", fr: "Mises à jour automatiques : major, minor, patch ou off"}}
+# The web, worker and cron services write the volumes the whole time, so a still copy needs
+# them stopped for the backup.
+quiesce:
+  stop: true
 # verify asks Apache for the sign-in page and looks for the product name. A site that has not run the
 # installer redirects to it, which also shows Mautic answering. The redirect is not followed: the
 # installed site sends it to its public address.
@@ -31,3 +35,6 @@ hooks:
   timeout_seconds: 60
   verify:
     - hooks/verify.sh
+# config-data holds local.php, which the settings page writes; media-files and media-images hold the
+# uploads; logs-data is a cache. Watched by the backup, copied by no update.
+unversioned_volumes: {config-data: state, logs-data: cache, media-files: files, media-images: files}
