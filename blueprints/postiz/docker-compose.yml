@@ -1,6 +1,6 @@
 x-catena:
   schema: 2
-  requires_catena: 0.12.2
+  requires_catena: 0.14.0
   env:
     DOMAIN_HOST:
       setting: {default: "social.{{ cloudflare_zone }}"}
@@ -14,6 +14,7 @@ x-catena:
       setting: {default: "public", label: {en: "Access: public, private or admin-only", fr: "Accès : public, private ou admin-only"}}
     UPDATE_LEVEL:
       setting: {default: "major", label: {en: "Automatic updates: major, minor, patch or off", fr: "Mises à jour automatiques : major, minor, patch ou off"}}
+  quiesce: {stop: true}
   # Temporal Server upgrades one minor at a time, so each revision whose pin moves its minor is a stop and
   # an update deploys that revision before the next. 2.25.3 is the revision that pinned 1.32.2.
   stops: ["2.25.3"]
@@ -89,6 +90,8 @@ x-catena:
             console.error('Postiz does not answer: ' + e.message);
             process.exit(1);
           });
+  # postiz-uploads holds the uploaded media files.
+  unversioned_volumes: {postiz-uploads: files}
 
 services:
   postiz:
@@ -135,7 +138,6 @@ services:
       SENTRY_PROFILER_LOGGING_MODE: lazy
     volumes:
       - postiz-uploads:/uploads
-      - postiz-config:/config
     labels:
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=5000"
@@ -248,7 +250,6 @@ services:
 
 volumes:
   postiz-uploads:
-  postiz-config:
   db-data:
 
 networks:
