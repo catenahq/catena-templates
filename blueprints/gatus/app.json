@@ -26,26 +26,26 @@
   },
   "en": {
     "display_name": "Gatus",
-    "summary": "A status page that probes your server's services and alerts when one fails.",
-    "what_it_is": "Gatus probes the server's own services and the applications you run, shows their status on one page and reports a failing service to the server's own alerts. The server adds an endpoint for each service and each application by itself.",
+    "summary": "A status page that probes the addresses you add and alerts when one fails.",
+    "what_it_is": "Gatus probes the addresses you list in its configuration, shows their status on one page and sends an alert through the providers you set up when one fails. The server's own Uptime page already watches the server's services and your applications.",
     "replaces": [
       "Uptime Robot",
       "Statuspage",
       "Pingdom"
     ],
     "compose_description": "Self-hosted status page and uptime probes.\n",
-    "setup_steps": "The server installs this application and signs you in to it through the server's own sign-in. Its address is the prefix below, followed by your domain.\n\n1. Open **Gatus** from the Apps page.\n2. The server's services and your applications are listed by themselves.\n3. To probe something else, add a file whose name starts with 99- and ends in .yaml to the config volume; the server never rewrites it."
+    "setup_steps": "The server installs this application and signs you in to it through the server's own sign-in. Its address is gatus followed by your domain.\n\n1. Open **Gatus** from the Apps page.\n2. Only its own self-check is listed at first.\n3. To probe an address, add a file whose name starts with 99- and ends in .yaml to the config volume; the server never rewrites it. In the same file, add an alerting provider of Gatus to be told when it fails."
   },
   "fr": {
     "display_name": "Gatus",
-    "summary": "Une page d'\u00e9tat qui sonde les services du serveur et alerte quand l'un \u00e9choue.",
-    "what_it_is": "Gatus sonde les services du serveur et les applications que vous ex\u00e9cutez, affiche leur \u00e9tat sur une seule page et signale un service en panne aux alertes du serveur. Le serveur ajoute lui-m\u00eame un point de terminaison pour chaque service et chaque application.",
+    "summary": "Une page d'\u00e9tat qui sonde les adresses que vous ajoutez et alerte quand l'une \u00e9choue.",
+    "what_it_is": "Gatus sonde les adresses que vous listez dans sa configuration, affiche leur \u00e9tat sur une seule page et envoie une alerte par les fournisseurs que vous configurez quand l'une \u00e9choue. La page Disponibilit\u00e9 du serveur surveille d\u00e9j\u00e0 les services du serveur et vos applications.",
     "replaces": [
       "Uptime Robot",
       "Statuspage",
       "Pingdom"
     ],
     "compose_description": "Page d'\u00e9tat et sondes de disponibilit\u00e9 auto-h\u00e9berg\u00e9es.\n",
-    "setup_steps": "Le serveur installe cette application et vous y connecte par sa propre connexion. Son adresse est le pr\u00e9fixe ci-dessous suivi de votre domaine.\n\n1. Ouvrez **Gatus** depuis la page Applications.\n2. Les services du serveur et vos applications sont list\u00e9s d'eux-m\u00eames.\n3. Pour sonder autre chose, ajoutez au volume config un fichier dont le nom commence par 99- et se termine par .yaml ; le serveur ne le r\u00e9\u00e9crit jamais."
+    "setup_steps": "Le serveur installe cette application et vous y connecte par sa propre connexion. Son adresse est gatus suivi de votre domaine.\n\n1. Ouvrez **Gatus** depuis la page Applications.\n2. Seul son propre autocontr\u00f4le est list\u00e9 au d\u00e9part.\n3. Pour sonder une adresse, ajoutez au volume config un fichier dont le nom commence par 99- et se termine par .yaml ; le serveur ne le r\u00e9\u00e9crit jamais. Dans le m\u00eame fichier, ajoutez un fournisseur d'alertes de Gatus pour \u00eatre pr\u00e9venu d'un \u00e9chec."
   }
 }

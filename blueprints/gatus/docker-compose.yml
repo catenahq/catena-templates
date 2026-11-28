@@ -1,25 +1,16 @@
 x-catena:
   schema: 2
-  requires_catena: 0.13.4
+  requires_catena: 0.14.0
   version_from: app
   env:
-    SUBDOMAIN:
-      setting:
-        default: gatus
-        label:
-          en: "Address prefix (the address moves the next time the server applies its configuration)"
-          fr: "Préfixe de l'adresse (l'adresse change à la prochaine application de la configuration du serveur)"
-    ALERT_URL:
-      managed: {expr: "http://catena-alert-intake:8080/v1/items"}
-    ALERT_TOKEN:
-      managed: {expr: "{{ alert_intake_token_status }}"}
-    HUB_URL:
-      managed: {expr: "{{ provided.beszel.url }}"}
+    DOMAIN_HOST:
+      managed: {expr: "gatus.{{ cloudflare_zone }}"}
+    AUTH_MODE:
+      setting: {default: "admin-only", label: {en: "Access: public, private or admin-only", fr: "Accès : public, private ou admin-only"}}
     UI_TITLE:
       managed: {expr: "{{ cloudflare_zone | default('') }}"}
     UPDATE_LEVEL:
       setting: {default: "major", label: {en: "Automatic updates: major, minor, patch or off", fr: "Mises à jour automatiques : major, minor, patch ou off"}}
-  secrets: [alert_intake_token_status]
   # The Gatus image has no shell, wget or curl. verify runs in the busybox helper
   # that writes the base configuration, on the stack network, and asks Gatus's own
   # health endpoint.
@@ -63,51 +54,29 @@ services:
       # mounted at a path the image does not hold.
       GATUS_CONFIG_PATH: /catena
       GATUS_WEB_PORT: "8080"
-      # Gatus replaces ${NAME} in its configuration files with its own environment,
-      # so the alert token reaches the alerting block without being written to
-      # the config volume.
-      ALERT_URL: ${ALERT_URL:-}
-      ALERT_TOKEN: ${ALERT_TOKEN:-}
     labels:
+      - "vps.route.host=${DOMAIN_HOST}"
+      - "vps.route.port=8080"
+      - "vps.auth.mode=${AUTH_MODE:-admin-only}"
       - "vps.auto-update=${UPDATE_LEVEL:-major}"
     volumes:
       - gatus-data:/data
       - config:/catena:ro
-    # Host mode with the long syntax: the short form publishes through the
-    # ingress mesh. The server's sync of the endpoints reads
-    # /api/v1/endpoints/statuses here.
-    ports:
-      - target: 8080
-        published: 18080
-        protocol: tcp
-        mode: host
     cap_drop:
       - NET_RAW
     # The image has no wget or curl, so there is no Docker health check: the
     # self-check endpoint of 00-base.yaml is the signal.
     networks:
       default: {}
-      catena-network:
-        aliases:
-          - gatus
-      # Its alerts reach the server's alert intake on the first network and its
-      # probe reaches the Beszel hub on the second, each on no other network.
-      catena-alerts: {}
-      catena-beszel: {}
+      catena-network: {}
 
-  # Writes 00-base.yaml whole into the config volume: the storage, the title, the
-  # self-check endpoint that Gatus needs to start, and the alert to the alert intake
-  # when it has the address and the token. The sync of the endpoints writes the
-  # 40- and 50- files beside it, and 99- files belong to the person who adds them.
+  # Writes 00-base.yaml whole into the config volume: the storage, the title and the
+  # self-check endpoint that Gatus needs to start. 99- files belong to the person
+  # who adds them.
   base:
     image: busybox:1.38.0@sha256:fd7dc98638c8e305f4dc34e979f1c0fdfdcaeb0fbf8fcff77ae834b6da3d7e6e
     environment:
       UI_TITLE: ${UI_TITLE:-}
-      ALERT_URL: ${ALERT_URL:-}
-      ALERT_TOKEN: ${ALERT_TOKEN:-}
-      STATUS_HOST: ${STATUS_HOST:-}
-      # The address of the Beszel hub; reading it joins the app to its network.
-      HUB_URL: ${HUB_URL:-}
     command:
       - sh
       - -c
@@ -124,19 +93,6 @@ services:
           fi
           printf '  description: "Live status of the Catena server"\n  default-sort-by: group\n'
           printf '  dashboard-subheading: "Click on any service for more details."\n\n'
-          if [ -n "$$ALERT_URL" ] && [ -n "$$ALERT_TOKEN" ]; then
-            link=""
-            if [ -n "$$STATUS_HOST" ]; then
-              link="https://$$STATUS_HOST"
-            fi
-            printf 'alerting:\n  custom:\n'
-            printf '    url: "$${ALERT_URL}"\n    method: "POST"\n'
-            printf '    headers:\n      Authorization: "Bearer $${ALERT_TOKEN}"\n      Content-Type: "application/json"\n'
-            printf '    body: |\n'
-            printf '      {"key": "[ALERT_DESCRIPTION]", "state": "[ALERT_TRIGGERED_OR_RESOLVED]", "message": "[ENDPOINT_GROUP] / [ENDPOINT_NAME]: [RESULT_ERRORS]", "link": "%s"}\n' "$$link"
-            printf '    placeholders:\n      ALERT_TRIGGERED_OR_RESOLVED:\n        TRIGGERED: "down"\n        RESOLVED: "up"\n'
-            printf '    default-alert:\n      failure-threshold: 3\n      success-threshold: 2\n      send-on-resolved: true\n\n'
-          fi
           printf 'endpoints:\n  - name: "Gatus self-check"\n    group: "Infrastructure"\n'
           printf '    url: "http://localhost:8080/health"\n    interval: 60s\n    conditions:\n      - "[STATUS] == 200"\n'
         } > "$$tmp"
@@ -171,8 +127,4 @@ volumes:
 
 networks:
   catena-network:
-    external: true
-  catena-alerts:
-    external: true
-  catena-beszel:
     external: true
