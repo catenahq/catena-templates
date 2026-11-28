@@ -1,5 +1,5 @@
 schema: 2
-requires_catena: 0.12.2
+requires_catena: 0.14.0
 version_from: app
 env:
   DOMAIN_HOST:
@@ -41,6 +41,7 @@ lifecycle:
   migrate:
     - ["php", "/var/www/html/artisan", "migrate", "--force"]
   timeout_seconds: 900
+quiesce: {stop: true}
 # verify asks nginx for /health, which nginx hands to the PHP application: nginx alone
 # answers /nginx-health. 127.0.0.1: busybox wget tries ::1 first for localhost.
 # The application behind nginx starts after nginx does, so verify asks again every 4 seconds while the
@@ -51,3 +52,6 @@ hooks:
   timeout_seconds: 180
   verify:
     - hooks/verify.sh
+# app_public is refilled from the image at every container start; app_storage holds the uploads (logos, documents);
+# redis-data holds the queue and the cache's keys.
+unversioned_volumes: {app_public: cache, app_storage: files, redis-data: state}
