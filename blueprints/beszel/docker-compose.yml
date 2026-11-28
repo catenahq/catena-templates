@@ -1,6 +1,6 @@
 x-catena:
   schema: 2
-  requires_catena: 0.13.4
+  requires_catena: 0.14.0
   version_from: app
   privileges: [host_network, docker_socket]
   env:
@@ -542,6 +542,10 @@ x-catena:
           print("the Beszel hub answers its health endpoint")
   data:
     app: {volume: beszel-hub-data, upgrade: in_place, sqlite: [/beszel_data/data.db, /beszel_data/auxiliary.db]}
+  # agent-key holds the hub's public key and the token the configure hook writes, agent-data the
+  # fingerprint the hub knows the agent's system by, relay-state the hook's record of the admin
+  # email and the mail password's fingerprint.
+  unversioned_volumes: {agent-data: state, agent-key: state, relay-state: state}
 
 services:
   app:
