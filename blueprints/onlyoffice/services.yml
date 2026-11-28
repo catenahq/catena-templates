@@ -17,9 +17,6 @@ services:
       - ds-data:/var/www/onlyoffice/Data
       - ds-log:/var/log/onlyoffice
       - ds-cache:/var/lib/onlyoffice
-      - ds-postgresql:/var/lib/postgresql
-      - ds-rabbitmq:/var/lib/rabbitmq
-      - ds-redis:/var/lib/redis
       # The image's VOLUME for fonts an administrator adds.
       - ds-fonts:/usr/share/fonts/truetype/custom
     labels:
@@ -41,9 +38,6 @@ volumes:
   ds-data:
   ds-log:
   ds-cache:
-  ds-postgresql:
-  ds-rabbitmq:
-  ds-redis:
   ds-fonts:
 
 networks:
