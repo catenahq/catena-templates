@@ -1,5 +1,5 @@
 schema: 2
-requires_catena: 0.12.2
+requires_catena: 0.14.0
 privileges: [docker_socket]
 env:
   DOMAIN_HOST:
@@ -8,6 +8,8 @@ env:
     setting: {default: "admin-only", label: {en: "Access: public, private or admin-only", fr: "Accès : public, private ou admin-only"}}
   UPDATE_LEVEL:
     setting: {default: "major", label: {en: "Automatic updates: major, minor, patch or off", fr: "Mises à jour automatiques : major, minor, patch ou off"}}
+# The backup stops Portainer: its BoltDB file in portainer-data tears when copied while it writes.
+quiesce: {stop: true}
 # The Portainer image holds only the binary: no shell, curl or wget. verify
 # runs in a small busybox helper on the stack network and asks Portainer's
 # main page for its name.
@@ -16,3 +18,6 @@ hooks:
   timeout_seconds: 60
   verify:
     - hooks/verify.sh
+# portainer-data holds the BoltDB file, which a new version migrates in place.
+data:
+  portainer: {volume: portainer-data, upgrade: in_place}
