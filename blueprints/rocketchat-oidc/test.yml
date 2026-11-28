@@ -1,23 +1,30 @@
 # Test for the rocketchat-oidc template: a channel and a message in it, made through
-# Rocket.Chat's REST API, survive a backup, a restore and the updates. The seed runs
-# node inside the rocketchat container against its own listener on 127.0.0.1:3000: it
-# waits until the first administrator (ADMIN_USERNAME and ADMIN_PASS of the
-# container's environment) can sign in, then gets or creates the public channel
-# catena-<run> and posts the message fixture-<run> in it only when the channel does
-# not hold it, so a second seed changes nothing. Channels and messages live in
-# MongoDB, so the asserts read what the database replay brings back: they sign in
-# again, list the channels named catena-<run> and count exactly one, and list that
-# channel's messages and count exactly one holding fixture-<run>. The login comes
-# from the container's environment, so it rides no argument list and is printed
-# nowhere. A refused call names its HTTP status and the answer's body.
+# Rocket.Chat's REST API, survive a backup, a restore and the updates. The setup, the
+# seed and the asserts run node inside the rocketchat container against its own
+# listener on 127.0.0.1:3000 and wait until the first administrator (ADMIN_USERNAME and
+# ADMIN_PASS of the container's environment) can sign in. The setup makes the
+# administrator account catena-writer with the password the harness gives as
+# CATENA_TEST_PASSWORD, only when users.info does not know it; the writer signs in as
+# that account. The seed gets or creates the public channel catena-<run> and posts
+# the message fixture-<run> in it only when the channel does not hold it, so a second
+# seed changes nothing. Channels and messages live in MongoDB, so the asserts read what
+# the database replay brings back: they sign in again, list the channels named
+# catena-<run> and count exactly one, and list that channel's messages and count exactly
+# one holding fixture-<run>; a second assert signs in as catena-writer with the test
+# password, so the account is proven to come back from the restore. The logins come from the environment, so they ride no
+# argument list and are printed nowhere. A refused call names its HTTP status and the
+# answer's body.
 #
-# The writer posts one message after another to that channel (writer-<run>-<n>, every
-# 7 s, under the API's rate limit) while the backup locks and unlocks MongoDB, and
-# prints `ack <n>` for each post the server answered with success; a post made while
-# the database is locked waits for the unlock. Its after step posts the record
-# {{ writer_id }} once the backup is over. The check runs after the restore: it lists
-# every message of the channel, pages included, and every message acknowledged before
-# the backup is there and the record is not.
+# The writer runs python3 in the step helper on catena-network, which outlives the
+# server's containers while the backup stops them, and asks Rocket.Chat at
+# http://{{ service_rocketchat }}:3000. It posts one message after another to the channel
+# (writer-<run>-<n>, every 7 s, under the API's rate limit) and prints `ack <n>` for each
+# post the server answered with success; a refused connection or a 503 while the server is
+# stopped is no ack and is tried again, and a refused token makes it sign in again. Its
+# after step posts the record {{ writer_id }} once the backup is over. The check runs in
+# the helper after the restore and reads through the API alone: it lists every message of
+# the channel, pages included, and every message acknowledged before the backup is there
+# and the record is not.
 #
 # {{ run_id }} is supplied by the bench at execution time and each
 # {{ container_* }} is resolved from `docker ps` before invoking.
@@ -27,7 +34,67 @@ description: >-
   The channel catena-<run> made through Rocket.Chat's REST API is listed exactly once
   and holds exactly one message fixture-<run>, before and after the backup, the
   restore and the updates. Messages posted while the backup runs come back from the
-  restore as acknowledged.
+  restore as acknowledged, and the account that writes them signs in with the test
+  password.
+
+setup:
+  - name: writer_account
+    type: docker_exec
+    container: "{{ container_rocketchat }}"
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        exec node - <<'JS'
+        const env = process.env;
+        const api = "http://127.0.0.1:3000/api/v1";
+        const USER = "catena-writer";
+        const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+        const said = (res) => "HTTP " + res.status + " " + JSON.stringify(res.body);
+
+        async function call(method, path, auth, body) {
+          const headers = { ...auth };
+          if (body) headers["content-type"] = "application/json";
+          const res = await fetch(api + path, {
+            method, headers, signal: AbortSignal.timeout(30000),
+            body: body ? JSON.stringify(body) : undefined,
+          });
+          return { status: res.status, body: await res.json().catch(() => null) };
+        }
+
+        (async () => {
+          let auth = null;
+          for (let i = 0; !auth; i++) {
+            try {
+              const res = await call("POST", "/login", {}, { user: env.ADMIN_USERNAME, password: env.ADMIN_PASS });
+              if (res.status === 200 && res.body.data) {
+                auth = { "X-Auth-Token": res.body.data.authToken, "X-User-Id": res.body.data.userId };
+              }
+            } catch {}
+            if (!auth) {
+              if (i === 60) throw new Error("the administrator could not sign in within 300 s");
+              await sleep(5000);
+            }
+          }
+          const info = await call("GET", "/users.info?username=" + USER, auth);
+          if (info.status !== 200) {
+            const made = await call("POST", "/users.create", auth, {
+              username: USER, name: USER, email: USER + "@writer.invalid", password: env.CATENA_TEST_PASSWORD,
+              verified: true, roles: ["admin"], joinDefaultChannels: false,
+              requirePasswordChange: false, sendWelcomeEmail: false,
+            });
+            if (made.status !== 200) throw new Error("users.create answered " + said(made));
+          }
+          await call("POST", "/logout", auth);
+          console.log("writer account ready");
+        })().catch((e) => {
+          console.error(String(e.message || e));
+          process.exit(1);
+        });
+        JS
+    expect_stdout_contains: "writer account ready"
+    timeout_s: 420
 
 seed:
   - name: channel_with_a_message
@@ -157,67 +224,111 @@ assert:
     expect_stdout_contains: "channel ok: catena-{{ run_id }} holds fixture-{{ run_id }}"
     timeout_s: 420
 
+  - name: writer_account_signs_in
+    type: docker_exec
+    container: "{{ container_rocketchat }}"
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        exec node - <<'JS'
+        const env = process.env;
+        const api = "http://127.0.0.1:3000/api/v1";
+        const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+        (async () => {
+          for (let i = 0; ; i++) {
+            let status = 0;
+            try {
+              const res = await fetch(api + "/login", {
+                method: "POST", headers: { "content-type": "application/json" },
+                signal: AbortSignal.timeout(30000),
+                body: JSON.stringify({ user: "catena-writer", password: env.CATENA_TEST_PASSWORD }),
+              });
+              status = res.status;
+              const body = await res.json().catch(() => null);
+              if (status === 200 && body && body.data && body.data.authToken) {
+                await fetch(api + "/logout", {
+                  method: "POST", signal: AbortSignal.timeout(30000),
+                  headers: { "X-Auth-Token": body.data.authToken, "X-User-Id": body.data.userId },
+                });
+                console.log("writer account signs in");
+                return;
+              }
+            } catch {}
+            if (i === 60) throw new Error("the writer account could not sign in within 300 s, last HTTP " + status);
+            await sleep(5000);
+          }
+        })().catch((e) => {
+          console.error(String(e.message || e));
+          process.exit(1);
+        });
+        JS
+    expect_stdout_contains: "writer account signs in"
+    timeout_s: 420
+
 writer:
-  container: "{{ container_rocketchat }}"
+  container: "{{ helper_rocketchat }}"
   command:
-    - sh
+    - python3
     - -c
     - |
-      set -eu
-      exec node - <<'JS'
-      const env = process.env;
-      const api = "http://127.0.0.1:3000/api/v1";
-      const RUN = "{{ run_id }}";
-      const NAME = "catena-" + RUN;
-      const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-      const said = (res) => "HTTP " + res.status + " " + JSON.stringify(res.body);
-
-      async function call(method, path, auth, body) {
-        const headers = { ...auth };
-        if (body) headers["content-type"] = "application/json";
-        const res = await fetch(api + path, {
-          method, headers, signal: AbortSignal.timeout(120000),
-          body: body ? JSON.stringify(body) : undefined,
-        });
-        return { status: res.status, body: await res.json().catch(() => null) };
-      }
-
-      async function login() {
-        for (let i = 0; i < 60; i++) {
-          try {
-            const res = await call("POST", "/login", {}, { user: env.ADMIN_USERNAME, password: env.ADMIN_PASS });
-            if (res.status === 200 && res.body.data) {
-              return { "X-Auth-Token": res.body.data.authToken, "X-User-Id": res.body.data.userId };
-            }
-          } catch {}
-          await sleep(5000);
-        }
-        throw new Error("the administrator could not sign in within 300 s");
-      }
-
-      (async () => {
-        let auth = await login();
-        let info = await call("GET", "/channels.info?roomName=" + encodeURIComponent(NAME), auth);
-        if (info.status !== 200) {
-          info = await call("POST", "/channels.create", auth, { name: NAME });
-          if (info.status !== 200) throw new Error("channels.create answered " + said(info));
-        }
-        const roomId = info.body.channel._id;
-        for (let n = 0; ;) {
-          let ok = false;
-          try {
-            const res = await call("POST", "/chat.postMessage", auth, { roomId, text: "writer-" + RUN + "-" + n });
-            if (res.status === 401) auth = await login();
-            else ok = res.status === 200 && res.body && res.body.success === true;
-          } catch {}
-          if (ok) console.log("ack " + n++);
-          await sleep(7000);
-        }
-      })().catch((e) => {
-        console.error(String(e.message || e));
-        process.exit(1);
-      });
-      JS
+      import json, os, sys, time, urllib.error, urllib.request
+      API = "http://{{ service_rocketchat }}:3000/api/v1"
+      RUN = "{{ run_id }}"
+      NAME = "catena-" + RUN
+      def call(method, path, auth, body=None):
+          headers = dict(auth)
+          data = None
+          if body is not None:
+              headers["content-type"] = "application/json"
+              data = json.dumps(body).encode()
+          req = urllib.request.Request(API + path, data=data, headers=headers, method=method)
+          try:
+              r = urllib.request.urlopen(req, timeout=120)
+          except urllib.error.HTTPError as e:
+              r = e
+          raw = r.read()
+          try:
+              return r.status, json.loads(raw)
+          except ValueError:
+              return r.status, None
+      def login():
+          for _ in range(60):
+              try:
+                  status, answer = call("POST", "/login", {},
+                                        {"user": "catena-writer", "password": os.environ["CATENA_TEST_PASSWORD"]})
+                  data = (answer or {}).get("data") or {}
+                  if status == 200 and data.get("authToken"):
+                      return {"X-Auth-Token": data["authToken"], "X-User-Id": data["userId"]}
+              except Exception:
+                  pass
+              time.sleep(5)
+          sys.stderr.write("the writer account could not sign in within 300 s\n")
+          sys.exit(1)
+      auth = login()
+      room = None
+      n = 0
+      while True:
+          try:
+              if room is None:
+                  status, answer = call("GET", "/channels.info?roomName=" + NAME, auth)
+                  if status != 200 and status != 401:
+                      status, answer = call("POST", "/channels.create", auth, {"name": NAME})
+                  if status == 200:
+                      room = answer["channel"]["_id"]
+              else:
+                  status, answer = call("POST", "/chat.postMessage", auth,
+                                        {"roomId": room, "text": "writer-" + RUN + "-" + str(n)})
+                  if status == 200 and (answer or {}).get("success") is True:
+                      print("ack " + str(n), flush=True)
+                      n += 1
+              if status == 401:
+                  auth = login()
+          except Exception:
+              pass
+          time.sleep(7)
   after:
     - name: record_after_the_backup
       type: docker_exec
@@ -272,69 +383,72 @@ writer:
       expect_stdout_contains: "recorded {{ writer_id }}"
       timeout_s: 420
   check:
-    - sh
+    - python3
     - -c
     - |
-      set -eu
-      script=$(cat <<'JS'
-      const env = process.env;
-      const api = "http://127.0.0.1:3000/api/v1";
-      const RUN = "{{ run_id }}";
-      const NAME = "catena-" + RUN;
-      const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-      const said = (res) => "HTTP " + res.status + " " + JSON.stringify(res.body);
-
-      async function call(method, path, auth, body) {
-        const headers = { ...auth };
-        if (body) headers["content-type"] = "application/json";
-        const res = await fetch(api + path, {
-          method, headers, signal: AbortSignal.timeout(30000),
-          body: body ? JSON.stringify(body) : undefined,
-        });
-        return { status: res.status, body: await res.json().catch(() => null) };
-      }
-
-      (async () => {
-        let input = "";
-        for await (const c of process.stdin) input += c;
-        const { before, after } = JSON.parse(input);
-        let auth = null;
-        for (let i = 0; !auth; i++) {
-          try {
-            const res = await call("POST", "/login", {}, { user: env.ADMIN_USERNAME, password: env.ADMIN_PASS });
-            if (res.status === 200 && res.body.data) {
-              auth = { "X-Auth-Token": res.body.data.authToken, "X-User-Id": res.body.data.userId };
-            }
-          } catch {}
-          if (!auth) {
-            if (i === 60) throw new Error("the administrator could not sign in within 300 s");
-            await sleep(5000);
-          }
-        }
-        const channels = await call("GET", "/channels.list?count=100", auth);
-        if (channels.status !== 200) throw new Error("channels.list answered " + said(channels));
-        const named = channels.body.channels.filter((c) => c.name === NAME);
-        if (named.length !== 1) throw new Error("channels.list holds " + named.length + " channels named " + NAME + ", expected one");
-        const texts = new Set();
-        for (let offset = 0; ;) {
-          const page = await call("GET", "/channels.messages?count=100&offset=" + offset + "&roomId=" + named[0]._id, auth);
-          if (page.status !== 200) throw new Error("channels.messages answered " + said(page));
-          for (const m of page.body.messages) texts.add(m.msg);
-          offset += page.body.messages.length;
-          if (!page.body.messages.length || offset >= page.body.total) break;
-        }
-        const problems = [];
-        for (const n of before) {
-          if (!texts.has("writer-" + RUN + "-" + n)) problems.push("message " + n + " was acknowledged before the backup and is not in " + NAME);
-        }
-        if (texts.has("record-" + after)) problems.push("the record " + after + ", posted after the backup, is in " + NAME + " after the restore");
-        if (problems.length) throw new Error(problems.join("; "));
-        await call("POST", "/logout", auth);
-        console.log("writer check ok: " + before.length + " messages in " + NAME + ", record absent");
-      })().catch((e) => {
-        console.error(String(e.message || e));
-        process.exit(1);
-      });
-      JS
-      )
-      exec node -e "$script"
+      import json, os, sys, time, urllib.error, urllib.request
+      API = "http://{{ service_rocketchat }}:3000/api/v1"
+      RUN = "{{ run_id }}"
+      NAME = "catena-" + RUN
+      def call(method, path, auth, body=None):
+          headers = dict(auth)
+          data = None
+          if body is not None:
+              headers["content-type"] = "application/json"
+              data = json.dumps(body).encode()
+          req = urllib.request.Request(API + path, data=data, headers=headers, method=method)
+          try:
+              r = urllib.request.urlopen(req, timeout=60)
+          except urllib.error.HTTPError as e:
+              r = e
+          raw = r.read()
+          try:
+              return r.status, json.loads(raw)
+          except ValueError:
+              return r.status, None
+      def fail(message):
+          sys.stderr.write(message + "\n")
+          sys.exit(1)
+      data = json.load(sys.stdin)
+      before, after = data["before"], data["after"]
+      auth = None
+      for _ in range(60):
+          try:
+              status, answer = call("POST", "/login", {},
+                                    {"user": "catena-writer", "password": os.environ["CATENA_TEST_PASSWORD"]})
+              token = ((answer or {}).get("data") or {})
+              if status == 200 and token.get("authToken"):
+                  auth = {"X-Auth-Token": token["authToken"], "X-User-Id": token["userId"]}
+                  break
+          except Exception:
+              pass
+          time.sleep(5)
+      if auth is None:
+          fail("the writer account could not sign in within 300 s")
+      status, answer = call("GET", "/channels.list?count=100", auth)
+      if status != 200 or not isinstance(answer, dict):
+          fail("channels.list answered %s %s" % (status, answer))
+      named = [c for c in answer.get("channels") or [] if c.get("name") == NAME]
+      if len(named) != 1:
+          fail("channels.list holds %d channels named %s, expected one" % (len(named), NAME))
+      texts = set()
+      offset = 0
+      while True:
+          status, page = call("GET", "/channels.messages?count=100&offset=%d&roomId=%s" % (offset, named[0]["_id"]), auth)
+          if status != 200 or not isinstance(page, dict):
+              fail("channels.messages answered %s %s" % (status, page))
+          messages = page.get("messages") or []
+          texts.update(m.get("msg") for m in messages)
+          offset += len(messages)
+          if not messages or offset >= page.get("total", 0):
+              break
+      problems = []
+      for n in before:
+          if "writer-" + RUN + "-" + str(n) not in texts:
+              problems.append("message %s was acknowledged before the backup and is not in %s" % (n, NAME))
+      if "record-" + after in texts:
+          problems.append("the record %s, posted after the backup, is in %s after the restore" % (after, NAME))
+      if problems:
+          fail("; ".join(problems))
+      call("POST", "/logout", auth)
+      print("writer check ok: %d messages in %s, record absent" % (len(before), NAME))
