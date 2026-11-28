@@ -1,6 +1,6 @@
 x-catena:
   schema: 2
-  requires_catena: 0.12.2
+  requires_catena: 0.14.0
   env:
     DOMAIN_HOST:
       managed: {expr: "budget.{{ cloudflare_zone }}"}
@@ -13,15 +13,8 @@ x-catena:
     ready: ["node", "-e", "require('net').connect(5006, '127.0.0.1').on('connect', () => process.exit(0)).on('error', () => process.exit(1))"]
     versioned_volumes: ["actual-data"]
     timeout_seconds: 300
-  quiesce:
-    service: "actual"
-    pre:
-      - ["pkill", "-STOP", "-x", "node"]
-    post:
-      - ["pkill", "-CONT", "-x", "node"]
-    timeout_seconds: 10
-  # verify asks the running server for /info and reads the build name. A backup or an update
-  # that holds the server stopped (quiesce) answers ok.
+  quiesce: {stop: true}
+  # verify asks the running server for /info and reads the build name.
   hooks:
     service: actual
     timeout_seconds: 60
@@ -29,20 +22,6 @@ x-catena:
       - - node
         - -e
         - |
-          const fs = require('fs');
-          const stopped = fs.readdirSync('/proc').some((p) => {
-            if (!/^[0-9]+/.test(p) || p === String(process.pid)) return false;
-            try {
-              const m = fs.readFileSync('/proc/' + p + '/stat', 'utf8').match(/^[0-9]+ \((.*)\) (.)/);
-              return m !== null && m[1] === 'node' && m[2] === 'T';
-            } catch (e) {
-              return false;
-            }
-          });
-          if (stopped) {
-            console.log('Actual Budget is paused for a backup or an update');
-            process.exit(0);
-          }
           const fail = (m) => {
             console.error(m);
             process.exit(1);

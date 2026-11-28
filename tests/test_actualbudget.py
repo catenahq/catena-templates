@@ -81,43 +81,22 @@ SWAP = [("port: 5006", "port: {port}")]
 INFO = b'{"status":"ok","build":{"name":"@actual-app/sync-server","description":"x","version":"26.9.0"}}'
 
 
-def _proc(tmp_path: Path, states: dict[str, str]) -> list[tuple[str, str]]:
-    """A /proc of processes named node in the given states."""
-    for pid, state in states.items():
-        (tmp_path / pid).mkdir(exist_ok=True)
-        (tmp_path / pid / "stat").write_text(f"{pid} (node) {state} 1 1 1 0 -1\n")
-    return [("'/proc'", f"'{tmp_path}'"), ("'/proc/'", f"'{tmp_path}/'")]
-
-
-def test_the_quiesce_stops_the_server_the_hook_asks():
-    block = _entry().block
-    assert block["quiesce"]["service"] == block["hooks"]["service"]
-    assert block["quiesce"]["pre"] == [["pkill", "-STOP", "-x", "node"]]
-
-
 @needs_interpreter
-def test_verify_passes_when_the_server_names_its_build(tmp_path):
-    run, _ = _run({"/info": (200, INFO)}, swap=SWAP + _proc(tmp_path, {"7": "S"}))
+def test_verify_passes_when_the_server_names_its_build():
+    run, _ = _run({"/info": (200, INFO)}, swap=SWAP)
     assert run.returncode == 0, run.stderr
     assert "sync-server 26.9.0" in run.stdout
 
 
 @needs_interpreter
-def test_verify_fails_for_another_server_on_the_port(tmp_path):
-    run, _ = _run({"/info": (200, b"{}")}, swap=SWAP + _proc(tmp_path, {"7": "S"}))
+def test_verify_fails_for_another_server_on_the_port():
+    run, _ = _run({"/info": (200, b"{}")}, swap=SWAP)
     assert run.returncode == 1 and "without its build name" in run.stderr
-    run, _ = _run({}, swap=SWAP + _proc(tmp_path, {"7": "S"}))
+    run, _ = _run({}, swap=SWAP)
     assert run.returncode == 1 and "answered 404" in run.stderr
 
 
 @needs_interpreter
-def test_verify_fails_when_nothing_listens(tmp_path):
-    run, _ = _run({}, answer=False, swap=SWAP + _proc(tmp_path, {"7": "S"}))
+def test_verify_fails_when_nothing_listens():
+    run, _ = _run({}, answer=False, swap=SWAP)
     assert run.returncode == 1 and "does not answer on 5006" in run.stderr
-
-
-@needs_interpreter
-def test_verify_answers_ok_while_a_backup_holds_the_server_stopped(tmp_path):
-    run, seen = _run({}, answer=False, swap=SWAP + _proc(tmp_path, {"7": "T"}))
-    assert run.returncode == 0, run.stderr
-    assert "paused for a backup or an update" in run.stdout
