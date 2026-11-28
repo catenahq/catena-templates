@@ -1,6 +1,6 @@
 x-catena:
   schema: 2
-  requires_catena: 0.12.2
+  requires_catena: 0.14.0
   env:
     DOMAIN_HOST:
       setting: {default: "help.{{ cloudflare_zone }}"}
@@ -12,6 +12,7 @@ x-catena:
       setting: {default: "public", label: {en: "Access: public, private or admin-only", fr: "Accès : public, private ou admin-only"}}
     UPDATE_LEVEL:
       setting: {default: "major", label: {en: "Automatic updates: major, minor, patch or off", fr: "Mises à jour automatiques : major, minor, patch ou off"}}
+  quiesce: {stop: true}
   images:
     zammad-init:
       rule: {kind: build_suffix, tag_pattern: '\d+\.\d+\.\d+-\d+'}
@@ -47,6 +48,11 @@ x-catena:
               exit 1
               ;;
           esac
+  # Elasticsearch rewrites its index in es-data when its version changes.
+  data:
+    elasticsearch: {volume: es-data, upgrade: in_place}
+  # zammad-storage holds the files Zammad stores on disk, such as ticket attachments.
+  unversioned_volumes: {zammad-storage: files}
 
 x-zammad-env: &zammad-env
   POSTGRESQL_HOST: db
