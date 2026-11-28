@@ -31,14 +31,11 @@ def test_allowed_quiesce_commands_lock():
     """Widening the allowlist must be deliberate: these commands run
     inside an application on every client host around every nightly
     backup."""
-    assert L.ALLOWED_QUIESCE_COMMANDS == frozenset({"php", "mongosh", "pkill"})
+    assert L.ALLOWED_QUIESCE_COMMANDS == frozenset({"php"})
 
 
 def test_quiesce_argv_allows_the_declared_shapes():
     assert _quiesce(["php", "occ", "maintenance:mode", "--on"]) == []
-    assert _quiesce(["mongosh", "--quiet", "--eval", "db.fsyncLock()"]) == []
-    assert _quiesce(["pkill", "-STOP", "-x", "node"]) == []
-    assert _quiesce(["pkill", "-CONT", "-x", "apache2"]) == []
 
 
 def test_quiesce_argv_rejects_a_hostile_command():
@@ -161,7 +158,7 @@ def test_lint_all_rejects_a_service_the_compose_does_not_define(
         "schema": 2,
         "quiesce": {
             "service": "db",
-            "pre": [["mongosh", "--quiet", "--eval", "db.fsyncLock()"]],
+            "pre": [["php", "occ", "maintenance:mode", "--on"]],
             "timeout_seconds": 30,
         },
     })

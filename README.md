@@ -272,16 +272,14 @@ block.
    optionally `user` and `post`. Each command is an argv array the
    nightly maintenance runs inside that service with `docker exec`, no
    shell. `post` also runs after a failed or resumed backup and after a
-   restore, so it must succeed when `pre` never ran. Real examples:
-   Nextcloud (`occ maintenance:mode` on/off), Rocket.Chat (MongoDB
-   fsyncLock/unlock), and Actual Budget (`pkill -STOP` / `-CONT` on the
-   server process). `make lint` holds each command to an
-   allowlist of the application's own admin clients, plus `pkill` for an
-   application with no admin client that can hold its writes.
-   An application whose every service writes its volumes declares the stop
-   form instead, `quiesce: {stop: true}`, with no `service`, `pre` or `post`:
-   the host scales every service of the app but its database servers to zero
-   for the backup and back after it (the mail server).
+   restore, so it must succeed when `pre` never ran. Nextcloud
+   (`occ maintenance:mode` on/off) is the example. `make lint` holds each
+   command to an allowlist of the application's own admin clients.
+   An application with no admin client that can hold its writes declares the
+   stop form instead, `quiesce: {stop: true}`, with no `service`, `pre` or
+   `post`: the host scales every service of the app but its database servers
+   to zero for the backup and back after it (the mail server, Rocket.Chat,
+   Actual Budget).
    `always: true` in either form holds the backup mode at every backup from the
    first round, instead of from the fourth round when the app keeps changing:
    declare it for an app whose writes the backup's change detector cannot see.
