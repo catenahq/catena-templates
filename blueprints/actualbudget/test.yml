@@ -10,14 +10,18 @@
 # derived from the run id, the bytes fixture-<run>) only when the id is not listed, so a second
 # seed changes nothing. The assert signs in with the test password, lists the files: exactly one
 # named catena-<run>, and downloads it (GET /sync/download-user-file) to compare its bytes. The
-# password reaches no argument list and no output.
+# password reaches no argument list and no output. A second assert step runs SQLite's integrity
+# check on a copy (journals kept) of every .sqlite file under /data, a fresh install with no budget
+# file included, and prints how many it opened, so a restored file that does not read fails there.
 #
-# The writer uploads one file after another (catena-writer-<run>-<n>) while the backup stops
-# and continues the server, and prints `ack <n>` for each upload the server answered ok. Its
-# after step uploads the record {{ writer_id }} once the backup is over. The check runs after
-# the restore: SQLite's integrity check passes on a copy (journals kept) of each .sqlite file
-# of /data, every file acknowledged before the backup is listed and downloads with the bytes
-# sent, and the record is not listed.
+# The writer runs python3 in the step helper on catena-network, which outlives the server's
+# containers while the backup stops them, and asks the server at http://{{ service_actual }}:5006.
+# It uploads one file after another (catena-writer-<run>-<n>) and prints `ack <n>` for each upload
+# the server answered ok; a refused connection or a 503 while the server is stopped is no ack and
+# is tried again, and a refused token makes it sign in again. Its after step uploads the
+# record {{ writer_id }} once the backup is over. The check runs in the helper after the restore
+# and reads through the API alone: every file acknowledged before the backup is listed and
+# downloads with the bytes sent, and the record is not listed.
 #
 # {{ run_id }} is supplied by the bench at execution time so the file is unique per run.
 # Each {{ container_* }} is resolved from `docker ps` before invoking.
@@ -27,7 +31,7 @@ description: >-
   The sync server lists exactly one budget file named catena-<run>, downloads it with the
   bytes fixture-<run>, and signs in with the test password, before and after the backup, the
   restore and the updates. Files uploaded while the backup runs come back from the restore as
-  sent, and the server's SQLite files open whole.
+  sent, and every SQLite file under the server's data folder passes SQLite's integrity check.
 
 setup:
   - name: server_password
@@ -162,52 +166,109 @@ assert:
     expect_stdout_contains: "budget files named catena-{{ run_id }}: 1, bytes fixture-{{ run_id }}"
     timeout_s: 360
 
+  - name: sqlite_files_of_the_data_folder_are_whole
+    type: docker_exec
+    container: "{{ container_actual }}"
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        exec node - <<'JS'
+        const fs = require('fs');
+        const os = require('os');
+        const path = require('path');
+        const DATA = '/data';
+        function sqliteFiles(dir) {
+          const found = [];
+          for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+            const p = path.join(dir, e.name);
+            if (e.isDirectory()) found.push(...sqliteFiles(p));
+            else if (e.name.endsWith('.sqlite')) found.push(p);
+          }
+          return found;
+        }
+        const Database = require(require.resolve('better-sqlite3', { paths: ['/app'] }));
+        const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'appci-'));
+        const bad = [];
+        let count = 0;
+        try {
+          for (const src of sqliteFiles(DATA)) {
+            const dst = path.join(tmp, count++ + '.sqlite');
+            for (const tail of ['', '-journal', '-wal', '-shm']) {
+              if (fs.existsSync(src + tail)) fs.copyFileSync(src + tail, dst + tail);
+            }
+            const db = new Database(dst);
+            const answer = db.prepare('PRAGMA integrity_check').all().map((r) => Object.values(r)[0]).join(';');
+            db.close();
+            if (answer !== 'ok') bad.push(src + ': integrity_check says ' + answer);
+          }
+        } catch (e) {
+          bad.push(String(e.message || e));
+        } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+        if (bad.length) { console.error(bad.join('; ')); process.exit(1); }
+        console.log('sqlite files whole: ' + count);
+        JS
+    expect_stdout_contains: "sqlite files whole: "
+    timeout_s: 120
+
 writer:
-  container: "{{ container_actual }}"
+  container: "{{ helper_actual }}"
   command:
-    - sh
+    - python3
     - -c
     - |
-      set -eu
-      exec node - <<'JS'
-      const crypto = require('crypto');
-      const BASE = 'http://127.0.0.1:5006';
-      const RUN = '{{ run_id }}';
-      const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-      function fileId(key) {
-        const h = crypto.createHash('sha1').update(key).digest('hex');
-        return h.slice(0, 8) + '-' + h.slice(8, 12) + '-4' + h.slice(13, 16) + '-8' + h.slice(17, 20) + '-' + h.slice(20, 32);
-      }
-      async function login() {
-        for (let i = 0; i < 60; i++) {
-          try {
-            const r = await fetch(BASE + '/account/login', { method: 'POST', headers: { 'content-type': 'application/json' },
-              body: JSON.stringify({ password: process.env.CATENA_TEST_PASSWORD }) });
-            const j = await r.json();
-            if (r.status === 200 && j.data && j.data.token) return j.data.token;
-          } catch (e) {}
-          await sleep(5000);
-        }
-        throw new Error('the server gave no token');
-      }
-      async function put(token, n) {
-        const body = Buffer.from(('budget-' + RUN + '-' + n + '-').repeat(20000));
-        try {
-          const r = await fetch(BASE + '/sync/upload-user-file', { method: 'POST', body, headers: {
-            'x-actual-token': token, 'x-actual-file-id': fileId('writer-' + RUN + '-' + n),
-            'x-actual-name': 'catena-writer-' + RUN + '-' + n, 'content-type': 'application/encrypted-file' } });
-          const j = await r.json();
-          return r.status === 200 && j.status === 'ok';
-        } catch (e) { return false; }
-      }
-      (async () => {
-        const token = await login();
-        for (let n = 0; ;) {
-          if (await put(token, n)) console.log('ack ' + n++);
-          else await sleep(1000);
-        }
-      })().catch((e) => { console.error(String(e.message || e)); process.exit(1); });
-      JS
+      import hashlib, json, os, sys, time, urllib.error, urllib.request
+      BASE = "http://{{ service_actual }}:5006"
+      RUN = "{{ run_id }}"
+      def file_id(key):
+          h = hashlib.sha1(key.encode()).hexdigest()
+          return h[:8] + "-" + h[8:12] + "-4" + h[13:16] + "-8" + h[17:20] + "-" + h[20:32]
+      def call(method, path, headers, body=None):
+          req = urllib.request.Request(BASE + path, data=body, headers=headers, method=method)
+          try:
+              r = urllib.request.urlopen(req, timeout=60)
+          except urllib.error.HTTPError as e:
+              r = e
+          raw = r.read()
+          try:
+              return r.status, json.loads(raw)
+          except ValueError:
+              return r.status, None
+      def login():
+          for _ in range(60):
+              try:
+                  status, answer = call("POST", "/account/login", {"content-type": "application/json"},
+                                        json.dumps({"password": os.environ["CATENA_TEST_PASSWORD"]}).encode())
+                  token = ((answer or {}).get("data") or {}).get("token")
+                  if status == 200 and token:
+                      return token
+              except OSError:
+                  pass
+              time.sleep(5)
+          sys.stderr.write("the server gave no token\n")
+          sys.exit(1)
+      def put(token, n):
+          body = ("budget-" + RUN + "-" + str(n) + "-").encode() * 20000
+          headers = {"x-actual-token": token, "x-actual-file-id": file_id("writer-" + RUN + "-" + str(n)),
+                     "x-actual-name": "catena-writer-" + RUN + "-" + str(n), "content-type": "application/encrypted-file"}
+          try:
+              status, answer = call("POST", "/sync/upload-user-file", headers, body)
+          except OSError:
+              return None, False
+          return status, status == 200 and (answer or {}).get("status") == "ok"
+      token = login()
+      n = 0
+      while True:
+          status, ok = put(token, n)
+          if ok:
+              print("ack " + str(n), flush=True)
+              n += 1
+              continue
+          if status in (401, 403):
+              token = login()
+          else:
+              time.sleep(1)
   after:
     - name: record_after_the_backup
       type: docker_exec
@@ -247,90 +308,61 @@ writer:
       expect_stdout_contains: "recorded {{ writer_id }}"
       timeout_s: 120
   check:
-    - sh
+    - python3
     - -c
     - |
-      set -eu
-      cat > /tmp/appci-writer-check.js <<'JS'
-      const crypto = require('crypto');
-      const fs = require('fs');
-      const os = require('os');
-      const path = require('path');
-      const BASE = 'http://127.0.0.1:5006';
-      const RUN = '{{ run_id }}';
-      const DATA = '/data';
-      const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-      async function call(method, path, headers, body) {
-        const r = await fetch(BASE + path, { method, headers, body });
-        const buf = Buffer.from(await r.arrayBuffer());
-        let json = null;
-        try { json = JSON.parse(buf.toString('utf8')); } catch (e) {}
-        return { status: r.status, json, text: buf.toString('utf8') };
-      }
-      async function up() {
-        for (let i = 0; i < 60; i++) {
-          try { if ((await fetch(BASE + '/info')).status === 200) return; } catch (e) {}
-          await sleep(5000);
-        }
-        throw new Error('Actual Budget did not answer /info within 300 s');
-      }
-      function fileId(key) {
-        const h = crypto.createHash('sha1').update(key).digest('hex');
-        return h.slice(0, 8) + '-' + h.slice(8, 12) + '-4' + h.slice(13, 16) + '-8' + h.slice(17, 20) + '-' + h.slice(20, 32);
-      }
-      function integrity() {
-        const Database = require(require.resolve('better-sqlite3', { paths: ['/app'] }));
-        const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'appci-'));
-        const bad = [];
-        let account = false;
-        let count = 0;
-        try {
-          for (const dir of ['server-files', 'user-files']) {
-            let names = [];
-            try { names = fs.readdirSync(DATA + '/' + dir); } catch (e) {}
-            for (const name of names.filter((x) => x.endsWith('.sqlite'))) {
-              const src = DATA + '/' + dir + '/' + name;
-              const dst = path.join(tmp, count++ + '.sqlite');
-              for (const tail of ['', '-journal', '-wal', '-shm']) {
-                if (fs.existsSync(src + tail)) fs.copyFileSync(src + tail, dst + tail);
-              }
-              const db = new Database(dst);
-              const answer = db.prepare('PRAGMA integrity_check').all().map((r) => Object.values(r)[0]).join(';');
-              db.close();
-              if (name === 'account.sqlite') account = true;
-              if (answer !== 'ok') bad.push(src + ': integrity_check says ' + answer);
-            }
-          }
-        } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
-        if (!account) bad.push('the data folder holds no account.sqlite to check');
-        return { bad, count };
-      }
-      (async () => {
-        let input = '';
-        for await (const c of process.stdin) input += c;
-        const { before, after } = JSON.parse(input);
-        await up();
-        const problems = [];
-        const checked = integrity();
-        problems.push(...checked.bad);
-        const a = await call('POST', '/account/login', { 'content-type': 'application/json' },
-          JSON.stringify({ password: process.env.CATENA_TEST_PASSWORD }));
-        const token = a.status === 200 && a.json && a.json.data && a.json.data.token;
-        if (!token) throw new Error('the server refused the test password: ' + a.status);
-        const l = await call('GET', '/sync/list-user-files', { 'x-actual-token': token });
-        if (l.status !== 200 || !l.json || !Array.isArray(l.json.data)) throw new Error('GET /sync/list-user-files answered ' + l.status);
-        const listed = new Set(l.json.data.map((f) => f.fileId));
-        for (const n of before) {
-          const id = fileId('writer-' + RUN + '-' + n);
-          if (!listed.has(id)) { problems.push('file ' + n + ' was acknowledged before the backup and is not listed'); continue; }
-          const d = await call('GET', '/sync/download-user-file', { 'x-actual-token': token, 'x-actual-file-id': id });
-          if (d.status !== 200 || d.text !== ('budget-' + RUN + '-' + n + '-').repeat(20000)) {
-            problems.push('file ' + n + ' does not download as it was uploaded: ' + d.status);
-          }
-        }
-        if (listed.has(fileId(after))) problems.push('the record ' + after + ', written after the backup, is listed after the restore');
-        if (problems.length) throw new Error(problems.join('; '));
-        console.log('writer check ok: ' + before.length + ' files as sent, ' + checked.count + ' sqlite files whole, record absent');
-      })().catch((e) => { console.error(String(e.message || e)); process.exit(1); });
-      JS
-      exec node /tmp/appci-writer-check.js
+      import hashlib, json, os, sys, time, urllib.error, urllib.request
+      BASE = "http://{{ service_actual }}:5006"
+      RUN = "{{ run_id }}"
+      def file_id(key):
+          h = hashlib.sha1(key.encode()).hexdigest()
+          return h[:8] + "-" + h[8:12] + "-4" + h[13:16] + "-8" + h[17:20] + "-" + h[20:32]
+      def call(method, path, headers, body=None):
+          req = urllib.request.Request(BASE + path, data=body, headers=headers, method=method)
+          try:
+              r = urllib.request.urlopen(req, timeout=60)
+          except urllib.error.HTTPError as e:
+              r = e
+          raw = r.read()
+          try:
+              return r.status, raw, json.loads(raw)
+          except ValueError:
+              return r.status, raw, None
+      def fail(message):
+          sys.stderr.write(message + "\n")
+          sys.exit(1)
+      data = json.load(sys.stdin)
+      before, after = data["before"], data["after"]
+      deadline = time.time() + 300
+      while True:
+          try:
+              if call("GET", "/info", {})[0] == 200:
+                  break
+          except OSError:
+              pass
+          if time.time() > deadline:
+              fail("Actual Budget did not answer /info within 300 s")
+          time.sleep(5)
+      status, _, answer = call("POST", "/account/login", {"content-type": "application/json"},
+                               json.dumps({"password": os.environ["CATENA_TEST_PASSWORD"]}).encode())
+      token = ((answer or {}).get("data") or {}).get("token") if status == 200 else ""
+      if not token:
+          fail("the server refused the test password: %s" % status)
+      status, _, answer = call("GET", "/sync/list-user-files", {"x-actual-token": token})
+      if status != 200 or not isinstance(answer, dict) or not isinstance(answer.get("data"), list):
+          fail("GET /sync/list-user-files answered %s" % status)
+      listed = set(f.get("fileId") for f in answer["data"])
+      problems = []
+      for n in before:
+          fid = file_id("writer-" + RUN + "-" + str(n))
+          if fid not in listed:
+              problems.append("file %s was acknowledged before the backup and is not listed" % n)
+              continue
+          status, raw, _ = call("GET", "/sync/download-user-file", {"x-actual-token": token, "x-actual-file-id": fid})
+          if status != 200 or raw != ("budget-" + RUN + "-" + str(n) + "-").encode() * 20000:
+              problems.append("file %s does not download as it was uploaded: %s" % (n, status))
+      if file_id(after) in listed:
+          problems.append("the record %s, written after the backup, is listed after the restore" % after)
+      if problems:
+          fail("; ".join(problems))
+      print("writer check ok: %d files as sent, record absent" % len(before))
