@@ -307,7 +307,9 @@ block.
    declares one, and puts the copies back when it rolls back, losing what was
    written since, as a database dump's replay does. An application that
    upgrades such a volume as it starts declares `service`,
-   `versioned_volumes` and `timeout_seconds` alone. Real examples: the
+   `versioned_volumes` and `timeout_seconds` alone. An application with
+   neither `migrate` nor `versioned_volumes` may declare `service`, `ready` and
+   `timeout_seconds` alone: the update waits for it before each phase. Real examples: the
    `x-catena.yml` of `blueprints/outline`, `blueprints/nextcloud`,
    `blueprints/erpnext` and `blueprints/actualbudget`.
    Every other named volume of the app is a key of `unversioned_volumes`, whose

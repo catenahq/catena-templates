@@ -93,7 +93,18 @@ def test_lifecycle_timeout_cap_lives_in_the_schema():
     assert lifecycle["properties"]["timeout_seconds"]["maximum"] == 3600
     assert lifecycle["required"] == ["service", "timeout_seconds"]
     assert lifecycle["anyOf"] == [{"required": ["migrate"]},
-                                  {"required": ["versioned_volumes"]}]
+                                  {"required": ["versioned_volumes"]},
+                                  {"required": ["ready"]}]
+
+
+def test_a_lifecycle_with_ready_alone_passes_the_schema_and_one_without_any_is_refused():
+    import jsonschema
+    schema = json.loads((ROOT / "block.schema.json").read_text(encoding="utf-8"))
+    jsonschema.validate({"schema": 2, "lifecycle": {
+        "service": "web", "ready": ["true"], "timeout_seconds": 300}}, schema)
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate({"schema": 2, "lifecycle": {
+            "service": "web", "timeout_seconds": 300}}, schema)
 
 
 def test_quiesce_timeout_cap_lives_in_the_schema():

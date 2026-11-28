@@ -35,7 +35,6 @@ x-catena:
   lifecycle:
     service: "roundcube"
     ready: ["php", "-r", "exit(@fsockopen('127.0.0.1', 80) ? 0 : 1);"]
-    versioned_volumes: ["roundcube-db"]
     timeout_seconds: 300
   # The mail daemons write mail-data, mail-state and mail-logs the whole time, so
   # a still copy needs every service stopped for the backup. Mail is refused while
@@ -232,6 +231,15 @@ x-catena:
           print("mailboxes: %d added, %d removed" % (added, removed))
           sys.exit(1 if failed else 0)
     users_group: "staff,client"
+  # mail-state holds the mail queue and the daemons' state folders, which a new
+  # docker-mailserver version rewrites. roundcube-db holds the webmail's SQLite
+  # file. Each is copied before an update.
+  data:
+    dms: {volume: mail-state, upgrade: in_place}
+    roundcube: {volume: roundcube-db, upgrade: in_place, sqlite: [/var/roundcube/db/sqlite.db]}
+  # mail-data (the delivered mail), mail-certs, mail-config and roundcube-config
+  # are watched by the backup and copied by no update; mail-logs is a cache.
+  unversioned_volumes: {mail-certs: state, mail-config: state, mail-data: state, roundcube-config: state, mail-logs: cache}
 
 services:
   dms:
