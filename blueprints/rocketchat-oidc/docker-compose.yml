@@ -1,6 +1,6 @@
 x-catena:
   schema: 2
-  requires_catena: 0.12.2
+  requires_catena: 0.14.0
   env:
     DOMAIN_HOST:
       setting: {default: "chat.{{ cloudflare_zone }}"}
@@ -26,13 +26,7 @@ x-catena:
       setting: {default: "public", label: {en: "Access: public, private or admin-only", fr: "Accès : public, private ou admin-only"}}
     UPDATE_LEVEL:
       setting: {default: "major", label: {en: "Automatic updates: major, minor, patch or off", fr: "Mises à jour automatiques : major, minor, patch ou off"}}
-  quiesce:
-    service: "mongodb"
-    pre:
-      - ["mongosh", "--quiet", "--eval", "db.fsyncLock()"]
-    post:
-      - ["mongosh", "--quiet", "--eval", "while (db.adminCommand({currentOp:1}).fsyncLock) { db.fsyncUnlock() }"]
-    timeout_seconds: 60
+  quiesce: {stop: true}
   images:
     prosody:
       rule: {kind: pattern, tag_pattern: 'stable-(\d+)(?:-(\d+))?', migrate_from: 'unstable-(\d{4})-(\d{2})-(\d{2})'}
@@ -45,11 +39,10 @@ x-catena:
   # verify asks the running server in the rocketchat service, with the node of
   # its image, for /api/info (the answer names the version) and the bundled
   # Jitsi web server for its front page, the host the Jitsi_Domain setting
-  # points calls at. The MongoDB lock of the backup mode stops writes only, and
-  # both requests are reads. Both servers start some time after a deploy, so
-  # each request is repeated every 4 seconds while the port refuses or the
-  # answer is 502/503, until 150 seconds after the hook started; the last
-  # answer is then judged.
+  # points calls at. Both servers start some time after a deploy, so each
+  # request is repeated every 4 seconds while the port refuses or the answer is
+  # 502/503, until 150 seconds after the hook started; the last answer is then
+  # judged.
   hooks:
     service: rocketchat
     timeout_seconds: 180
@@ -96,6 +89,9 @@ x-catena:
   # restriction of an unlicensed workspace, and its supported-versions check
   # (releases.rocket.chat).
   egress: [collector.rocket.chat, releases.rocket.chat]
+  # rocketchat-uploads holds the files an administrator stores on the file system,
+  # which no new image rewrites.
+  unversioned_volumes: {rocketchat-uploads: files}
 
 services:
   mongodb:
