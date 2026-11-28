@@ -1,5 +1,5 @@
 schema: 2
-requires_catena: 0.12.2
+requires_catena: 0.14.0
 env:
   DOMAIN_HOST:
     setting: {default: "projects.{{ cloudflare_zone }}"}
@@ -21,6 +21,7 @@ env:
     setting: {default: "public", label: {en: "Access: public, private or admin-only", fr: "Accès : public, private ou admin-only"}}
   UPDATE_LEVEL:
     setting: {default: "major", label: {en: "Automatic updates: major, minor, patch or off", fr: "Mises à jour automatiques : major, minor, patch ou off"}}
+quiesce: {stop: true}
 images:
   db:
     rule: {kind: partial_line}
@@ -35,3 +36,8 @@ hooks:
   timeout_seconds: 360
   verify:
     - hooks/verify.py
+# RabbitMQ keeps the queued jobs in mq-data, and a new version rewrites them in place.
+data:
+  mq: {volume: mq-data, upgrade: in_place}
+# minio-data holds the uploaded objects; redis-data holds the Redis snapshot.
+unversioned_volumes: {minio-data: files, redis-data: state}
