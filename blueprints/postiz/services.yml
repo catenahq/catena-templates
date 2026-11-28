@@ -43,7 +43,6 @@ services:
       SENTRY_PROFILER_LOGGING_MODE: lazy
     volumes:
       - postiz-uploads:/uploads
-      - postiz-config:/config
     labels:
       - "vps.route.host=${DOMAIN_HOST}"
       - "vps.route.port=5000"
@@ -156,7 +155,6 @@ services:
 
 volumes:
   postiz-uploads:
-  postiz-config:
   db-data:
 
 networks:
