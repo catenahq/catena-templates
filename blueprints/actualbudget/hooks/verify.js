@@ -1,17 +1,3 @@
-const fs = require('fs');
-const stopped = fs.readdirSync('/proc').some((p) => {
-  if (!/^[0-9]+/.test(p) || p === String(process.pid)) return false;
-  try {
-    const m = fs.readFileSync('/proc/' + p + '/stat', 'utf8').match(/^[0-9]+ \((.*)\) (.)/);
-    return m !== null && m[1] === 'node' && m[2] === 'T';
-  } catch (e) {
-    return false;
-  }
-});
-if (stopped) {
-  console.log('Actual Budget is paused for a backup or an update');
-  process.exit(0);
-}
 const fail = (m) => {
   console.error(m);
   process.exit(1);

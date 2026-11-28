@@ -127,7 +127,7 @@ def test_actualbudget_verify_script(tmp_path):
     assert 'node -e "$(cat hooks/verify.js)"' in script
     assert ". ./.env" in script
     assert "docker compose ps -q actual" in script
-    assert (out / "hooks" / "verify.js").read_text().startswith("const fs = require('fs');")
+    assert (out / "hooks" / "verify.js").read_text().startswith("const fail = (m) => {")
     assert os.access(out / "verify.sh", os.X_OK)
 
 

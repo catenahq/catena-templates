@@ -81,10 +81,9 @@ def test_a_comment_above_a_key_travels_with_it(tmp_path):
     lines = (folder / pack.BLOCK_FILE).read_text().split("\n")
     assert lines[0] == "schema: 2"
     at = lines.index("hooks:")
-    assert lines[at - 2].startswith("# verify asks the running server")
-    assert lines[at - 1].startswith("# that holds the server stopped")
+    assert lines[at - 1].startswith("# verify asks the running server")
     assert "    - hooks/verify.js" in lines
-    assert (folder / "hooks" / "verify.js").read_text().startswith("const fs = require('fs');\n")
+    assert (folder / "hooks" / "verify.js").read_text().startswith("const fail = (m) => {\n")
 
 
 def test_the_anchors_of_element_stay_in_services(tmp_path):

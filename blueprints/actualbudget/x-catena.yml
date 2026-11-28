@@ -1,5 +1,5 @@
 schema: 2
-requires_catena: 0.12.2
+requires_catena: 0.14.0
 env:
   DOMAIN_HOST:
     managed: {expr: "budget.{{ cloudflare_zone }}"}
@@ -12,15 +12,8 @@ lifecycle:
   ready: ["node", "-e", "require('net').connect(5006, '127.0.0.1').on('connect', () => process.exit(0)).on('error', () => process.exit(1))"]
   versioned_volumes: ["actual-data"]
   timeout_seconds: 300
-quiesce:
-  service: "actual"
-  pre:
-    - ["pkill", "-STOP", "-x", "node"]
-  post:
-    - ["pkill", "-CONT", "-x", "node"]
-  timeout_seconds: 10
-# verify asks the running server for /info and reads the build name. A backup or an update
-# that holds the server stopped (quiesce) answers ok.
+quiesce: {stop: true}
+# verify asks the running server for /info and reads the build name.
 hooks:
   service: actual
   timeout_seconds: 60

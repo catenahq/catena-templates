@@ -70,22 +70,16 @@ def test_an_alias_named_after_its_app_is_that_apps_alone():
         assert holders == [], (alias, holders)
 
 
-def test_actual_budget_holds_its_server_still_for_the_backup():
-    """Actual Budget's server writes its SQLite files with no export the
-    backup could take, so the backup copies the files. Its node process stops
-    before the backup and continues after it, so the copy holds every file at
-    one instant, which SQLite opens the way it opens files after a crash.
-    `pkill -CONT` on a running process succeeds, so post succeeds when pre
-    never ran. The name matches only while the service runs the image's own
-    `node app.js`."""
-    assert _entry("actualbudget").quiesce == {
-        "service": "actual",
-        "pre": [["pkill", "-STOP", "-x", "node"]],
-        "post": [["pkill", "-CONT", "-x", "node"]],
-        "timeout_seconds": 10,
-    }
-    actual = _service("actualbudget", "actual")
-    assert "entrypoint" not in actual and "command" not in actual
+def test_actual_budget_is_stopped_for_the_backup():
+    """Actual Budget's server writes its SQLite files and the budget files in
+    actual-data with no export the backup could take, so the backup copies the
+    volume. The block declares the stop form: the server is scaled to zero for
+    the backup, so the copy holds every file at one instant. actual-data stays
+    versioned, copied before an update."""
+    block = _entry("actualbudget").block
+    assert block["quiesce"] == {"stop": True}
+    assert block["lifecycle"]["versioned_volumes"] == ["actual-data"]
+    assert "unversioned_volumes" not in block
 
 
 def test_the_mail_server_is_stopped_whole_for_the_backup():
