@@ -1,5 +1,5 @@
 schema: 2
-requires_catena: 0.12.2
+requires_catena: 0.14.0
 env:
   DOMAIN_HOST:
     setting: {default: "wiki.{{ cloudflare_zone }}"}
@@ -21,6 +21,10 @@ lifecycle:
   migrate:
     - ["node", "node_modules/.bin/sequelize", "db:migrate", "--env", "production-ssl-disabled"]
   timeout_seconds: 900
+# The uploads in outline-data are named by rows of the database, so the backup stops the app to copy
+# both from one moment.
+quiesce:
+  stop: true
 images:
   db:
     rule: {kind: partial_line}
@@ -31,3 +35,5 @@ hooks:
   timeout_seconds: 60
   verify:
     - hooks/verify.js
+# outline-data holds the uploaded files: watched by the backup, copied by no update.
+unversioned_volumes: {outline-data: files}
