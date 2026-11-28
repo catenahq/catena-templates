@@ -1,5 +1,5 @@
 schema: 2
-requires_catena: 0.12.2
+requires_catena: 0.14.0
 version_from: coturn
 # The relay listens on the host's own network, so its ports are the ones the
 # service's vps.expose labels declare.
@@ -47,3 +47,5 @@ hooks:
     - hooks/configure.sh
   verify:
     - hooks/verify.sh
+# certs holds the certificate and key the server issues for the relay's name.
+unversioned_volumes: {certs: state}
